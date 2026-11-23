@@ -1,0 +1,17 @@
+{
+  "name": "uxui",
+  "owner": {
+    "name": "Beyond10x"
+  },
+  "metadata": {
+    "description": "The uxui plugin: measured UI improvement rounds with hard gates on every merge."
+  },
+  "plugins": [
+    {
+      "name": "uxui",
+      "source": "./plugin",
+      "description": "Measured UI improvement loop: rounds of trial, measure, triage, design decision, build and gate, with hard gates on every merge and lower-is-better ratchets against a baseline.",
+      "version": "0.1.0"
+    }
+  ]
+}

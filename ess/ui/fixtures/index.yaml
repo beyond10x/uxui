@@ -1,0 +1,23 @@
+views:
+  uxsearch.design.BaseDocuments: studio.yaml
+  uxsearch.design.TargetCatalog: studio.yaml
+  uxsearch.design.Targets: studio.yaml
+  uxsearch.design.DesignSpaces: studio.yaml
+  uxsearch.design.AxisValues: studio.yaml
+  uxsearch.design.AxisSwitches: studio.yaml
+  uxsearch.design.Variants: studio.yaml
+  uxsearch.search.Campaigns: studio.yaml
+  uxsearch.search.Climb: studio.yaml
+  uxsearch.search.Frontier: studio.yaml
+  uxsearch.rules.VerdictsOfVariant: studio.yaml
+  uxsearch.evaluation.EvaluationsOfVariant: studio.yaml
+  uxsearch.promotion.Promotions: studio.yaml
+  uxsearch.promotion.Judgements: studio.yaml
+  uxsearch.ratchet.GateDecisions: studio.yaml
+derived:
+  uxsearch.search.CampaignById: {by_id_from: uxsearch.search.Campaigns, key: campaign_id}
+  uxsearch.design.VariantById: {by_id_from: uxsearch.design.Variants, key: variant_digest}
+  uxsearch.promotion.PromotionById: {by_id_from: uxsearch.promotion.Promotions, key: promotion_id}
+scripts:
+  climb: scripts/climb.yaml
+  switches: scripts/switches.yaml

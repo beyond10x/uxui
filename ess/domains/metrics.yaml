@@ -1,0 +1,528 @@
+domain: uxsearch.metrics
+
+summary: >-
+  The metric catalogue and the KPIs a project declares over it. A metric is a typed, pure
+  function over evaluation data; each one becomes a ratchet measurement. A KPI is a declared
+  objective: one metric or a declared aggregation of metrics, with a weight. The KPIs of a
+  campaign are its objectives; the frontier is non-dominated over them.
+
+naming:
+  wire: metrics
+  display: Metrics
+
+types:
+  # The catalogue id of a metric, dotted group and name (`completion.miss`, `effort.actions`,
+  # `attention.glance_cost`, `layout.overflow`); docs/metrics.md is the catalogue. The version
+  # is held beside it (`effort.klm_time` version 1 is `effort.klm_time@1` in ratchet).
+  - name: uxsearch.metrics.MetricKey
+    kind: newtype
+    of: String
+
+  - name: uxsearch.metrics.KpiId
+    kind: newtype
+    of: Uuid
+
+  # docs/metrics.md § 2: nodes, findings, journeys, steps, states and the other counted things
+  # are `count`; `s` is modelled or virtual seconds; `bits` is a Fitts index of difficulty;
+  # `level` is a glance level (1 in the next card, 2 elsewhere in view, 3 out of view).
+  - name: uxsearch.metrics.MetricUnit
+    kind: enum
+    variants: [count, ms, s, px, ratio, words, actions, keys, bits, level, score]
+
+  # `none` for a diagnostic that has no better side.
+  - name: uxsearch.metrics.Direction
+    kind: enum
+    variants: [lower_is_better, higher_is_better, none]
+
+  # docs/metrics.md § 2 "role": a hard rule (an absolute limit; prunes), a KPI candidate (may be
+  # declared a KPI and gets a protected reference), or a diagnostic (shown, never gated).
+  - name: uxsearch.metrics.MetricRole
+    kind: enum
+    variants: [hard_rule, kpi_candidate, diagnostic]
+
+  # The unit one value of the metric is computed for. A value of a narrower scope is never summed
+  # into a wider one except by a declared aggregation (a page-level a11y result is not summed per
+  # journey).
+  - name: uxsearch.metrics.MetricScope
+    kind: enum
+    variants: [state, journey, page, variant]
+
+  # `exact`: a count or a fact of the model (actions, overflowing nodes). `modelled`: an estimate
+  # from a model of a person (time to act, glance cost), never read as a measurement of people.
+  - name: uxsearch.metrics.MetricKind
+    kind: enum
+    variants: [exact, modelled]
+
+  # `static`: computed from the variant's document alone (shortest action path, keyboard
+  # reachability, accessible names). `dynamic`: computed over the state space and the layout
+  # model's geometry.
+  - name: uxsearch.metrics.MetricTiming
+    kind: enum
+    variants: [static, dynamic]
+
+  - name: uxsearch.metrics.Aggregation
+    kind: enum
+    variants: [weighted_sum, sum, mean, median, pooled, max, min, p95, worst, distinct_by_identity]
+
+  - name: uxsearch.metrics.KpiTerm
+    kind: struct
+    fields:
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+      - name: weight
+        type: Decimal
+    invariants:
+      - weight > 0
+
+  # One value of a metric in one evaluation, at the scope the metric declares.
+  # UNMAPPED: `at` names what the value is for (a UI state digest, a journey id, a page path, or
+  # the variant); one String holds all four here. A tagged union per scope is the likely shape.
+  - name: uxsearch.metrics.MetricValue
+    kind: struct
+    fields:
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+      - name: at
+        type: String
+      - name: value
+        type: Decimal
+
+entities:
+  - name: uxsearch.metrics.MetricDefinition
+    naming:
+      summary: One metric of the catalogue, with its unit, direction, scope and kind.
+    identity:
+      name: metric_key
+      type: uxsearch.metrics.MetricKey
+    fields:
+      - name: summary
+        type: String
+      - name: unit
+        type: uxsearch.metrics.MetricUnit
+      - name: direction
+        type: uxsearch.metrics.Direction
+      - name: scope
+        type: uxsearch.metrics.MetricScope
+      - name: kind
+        type: uxsearch.metrics.MetricKind
+      - name: timing
+        type: uxsearch.metrics.MetricTiming
+      - name: role
+        type: uxsearch.metrics.MetricRole
+      # The target scopes the metric is valid for (docs/metrics.md § 2 "targets").
+      - name: target_scopes
+        type: List<uxsearch.design.TargetScope>
+      # The ratchet preset family the metric ships in (`web-ux@1`), or `project` for a metric a
+      # project declares itself.
+      - name: preset_family
+        type: String
+      # The version of the metric's function. A new version is a new evidence series in ratchet.
+      - name: version
+        type: Integer
+    invariants:
+      - version >= 1
+    lifecycle:
+      initial: Active
+      states: [Active, Deprecated]
+      terminal: [Deprecated]
+      transitions:
+        - name: deprecate
+          from: [Active]
+          to: Deprecated
+
+  - name: uxsearch.metrics.Kpi
+    naming:
+      summary: A declared objective of a target over one or more metrics, with a weight.
+    identity:
+      name: kpi_id
+      type: uxsearch.metrics.KpiId
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      - name: aggregation
+        type: uxsearch.metrics.Aggregation
+      # UNMAPPED: each term's metric must be in the catalogue; a guard over the metric keys inside
+      # a list of structs is not expressible (GAPS.md), so DeclareKpi checks it as an external cause.
+      - name: terms
+        type: List<uxsearch.metrics.KpiTerm>
+      - name: direction
+        type: uxsearch.metrics.Direction
+      - name: weight
+        type: Decimal
+    invariants:
+      - weight > 0
+    relations:
+      - name: target
+        kind: references
+        target: uxsearch.design.Target
+        cardinality: one
+        via: target_id
+    lifecycle:
+      initial: Active
+      states: [Active, Retired]
+      terminal: [Retired]
+      transitions:
+        - name: retire
+          from: [Active]
+          to: Retired
+
+actors:
+  - name: uxsearch.metrics.CatalogueAuthor
+    naming:
+      display: Catalogue author
+      summary: Maintains the metric catalogue (a ratchet preset family or a project's own metrics).
+    may:
+      - uxsearch.metrics.DefineMetric
+      - uxsearch.metrics.DeprecateMetric
+
+  - name: uxsearch.metrics.KpiOwner
+    naming:
+      display: KPI owner
+      summary: Declares a target's objectives and their weights.
+    may:
+      - uxsearch.metrics.DeclareKpi
+      - uxsearch.metrics.ReweighKpi
+      - uxsearch.metrics.RetireKpi
+
+errors:
+  - name: uxsearch.metrics.MetricExists
+    summary: The catalogue already has a metric of this key; a changed function is a new version under a new key.
+    fields:
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+
+  - name: uxsearch.metrics.MetricStateConflict
+    summary: The metric is not in a state this command acts from, so nothing moved.
+    fields:
+      - name: state
+        type: uxsearch.metrics.MetricDefinition.State
+
+  - name: uxsearch.metrics.UnknownMetric
+    summary: A term names a metric the catalogue does not hold, or one that is deprecated.
+    fields:
+      - name: name
+        type: String
+
+  - name: uxsearch.metrics.TargetNotFound
+    summary: No target has this id, so nothing was declared.
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.metrics.KpiStateConflict
+    summary: The KPI is not in a state this command acts from, so nothing changed.
+    fields:
+      - name: state
+        type: uxsearch.metrics.Kpi.State
+
+  - name: uxsearch.metrics.KpiIsRetired
+    summary: The KPI is retired, so its weight does not change.
+    fields:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+
+  - name: uxsearch.metrics.InvalidWeight
+    summary: A weight is not positive.
+    fields:
+      - name: weight
+        type: Decimal
+
+commands:
+  - name: uxsearch.metrics.DefineMetric
+    naming:
+      wire: define-metric
+      display: Define a metric
+    input:
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+      - name: summary
+        type: String
+      - name: unit
+        type: uxsearch.metrics.MetricUnit
+      - name: direction
+        type: uxsearch.metrics.Direction
+      - name: scope
+        type: uxsearch.metrics.MetricScope
+      - name: kind
+        type: uxsearch.metrics.MetricKind
+      - name: timing
+        type: uxsearch.metrics.MetricTiming
+      - name: role
+        type: uxsearch.metrics.MetricRole
+      - name: target_scopes
+        type: List<uxsearch.design.TargetScope>
+      - name: preset_family
+        type: String
+      - name: version
+        type: Integer
+    outcomes:
+      - name: defined
+        unknown_instance: true
+        creates: uxsearch.metrics.MetricDefinition
+        instance: metric_key
+        sets:
+          summary: input.summary
+          unit: input.unit
+          direction: input.direction
+          scope: input.scope
+          kind: input.kind
+          timing: input.timing
+          role: input.role
+          target_scopes: input.target_scopes
+          preset_family: input.preset_family
+          version: input.version
+        emits:
+          - uxsearch.metrics.MetricDefined
+        payload:
+          uxsearch.metrics.MetricDefined:
+            metric_key: input.metric_key
+            version: input.version
+        summary: The metric is in the catalogue and every later evaluation computes it.
+
+      - name: differs
+        external: the catalogue holds this key with another definition
+        error: uxsearch.metrics.MetricExists
+        payload:
+          uxsearch.metrics.MetricExists:
+            metric_key: input.metric_key
+        summary: Nothing changed; a metric's meaning never changes under its key.
+
+      - name: same
+        preserves: uxsearch.metrics.MetricDefinition
+        instance: metric_key
+        summary: The catalogue already holds this definition; nothing changed.
+
+  - name: uxsearch.metrics.DeprecateMetric
+    naming:
+      wire: deprecate-metric
+      display: Deprecate a metric
+    input:
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+    outcomes:
+      - name: deprecated
+        moves: uxsearch.metrics.MetricDefinition.deprecate
+        instance: metric_key
+        emits:
+          - uxsearch.metrics.MetricDeprecated
+        payload:
+          uxsearch.metrics.MetricDeprecated:
+            metric_key: input.metric_key
+        summary: No new KPI names the metric; recorded values stay.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.metrics.MetricStateConflict
+        summary: The metric was already deprecated.
+
+  - name: uxsearch.metrics.DeclareKpi
+    naming:
+      wire: declare-kpi
+      display: Declare a KPI
+    input:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      - name: aggregation
+        type: uxsearch.metrics.Aggregation
+      - name: terms
+        type: List<uxsearch.metrics.KpiTerm>
+      - name: direction
+        type: uxsearch.metrics.Direction
+      - name: weight
+        type: Decimal
+    outcomes:
+      - name: invalid-weight
+        when: weight <= 0
+        error: uxsearch.metrics.InvalidWeight
+        payload:
+          uxsearch.metrics.InvalidWeight:
+            weight: input.weight
+        summary: Nothing was declared.
+
+      - name: no-target
+        when_related:
+          via: input.target_id
+          exists: false
+        error: uxsearch.metrics.TargetNotFound
+        payload:
+          uxsearch.metrics.TargetNotFound:
+            target_id: input.target_id
+        summary: Nothing was declared.
+
+      - name: unknown-metric
+        external: a term names a metric the catalogue does not hold, or a deprecated one
+        error: uxsearch.metrics.UnknownMetric
+        summary: Nothing was declared.
+
+      - name: declared
+        creates: uxsearch.metrics.Kpi
+        instance: kpi_id
+        sets:
+          target_id: input.target_id
+          name: input.name
+          aggregation: input.aggregation
+          terms: input.terms
+          direction: input.direction
+          weight: input.weight
+        emits:
+          - uxsearch.metrics.KpiDeclared
+        payload:
+          uxsearch.metrics.KpiDeclared:
+            kpi_id: {generated: true}
+            target_id: input.target_id
+        summary: The KPI can be named as an objective of a campaign on the target.
+
+  # A judgement record may become a KPI weight (uxsearch.promotion.DispositionJudgement); the
+  # weight changes here, by a person, never by the judgement itself.
+  - name: uxsearch.metrics.ReweighKpi
+    naming:
+      wire: reweigh-kpi
+      display: Reweigh a KPI
+    input:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+      - name: weight
+        type: Decimal
+    outcomes:
+      - name: invalid-weight
+        when: weight <= 0
+        error: uxsearch.metrics.InvalidWeight
+        payload:
+          uxsearch.metrics.InvalidWeight:
+            weight: input.weight
+        summary: The weight did not change.
+
+      - name: reweighed
+        when_subject_state: Active
+        updates: uxsearch.metrics.Kpi
+        instance: kpi_id
+        sets:
+          weight: input.weight
+        emits:
+          - uxsearch.metrics.KpiReweighed
+        payload:
+          uxsearch.metrics.KpiReweighed:
+            kpi_id: input.kpi_id
+            weight: input.weight
+        summary: Campaigns started from now on use the new weight; running ones keep theirs.
+
+      - name: retired
+        error: uxsearch.metrics.KpiIsRetired
+        payload:
+          uxsearch.metrics.KpiIsRetired:
+            kpi_id: input.kpi_id
+        summary: A retired KPI is not reweighed.
+
+  - name: uxsearch.metrics.RetireKpi
+    naming:
+      wire: retire-kpi
+      display: Retire a KPI
+    input:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+    outcomes:
+      - name: retired
+        moves: uxsearch.metrics.Kpi.retire
+        instance: kpi_id
+        emits:
+          - uxsearch.metrics.KpiRetired
+        payload:
+          uxsearch.metrics.KpiRetired:
+            kpi_id: input.kpi_id
+        summary: No new campaign names the KPI.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.metrics.KpiStateConflict
+        summary: The KPI was already retired.
+
+events:
+  - name: uxsearch.metrics.MetricDefined
+    fields:
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+      - name: version
+        type: Integer
+
+  - name: uxsearch.metrics.MetricDeprecated
+    fields:
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+
+  - name: uxsearch.metrics.KpiDeclared
+    fields:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.metrics.KpiReweighed
+    fields:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+      - name: weight
+        type: Decimal
+
+  - name: uxsearch.metrics.KpiRetired
+    fields:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+
+views:
+  - name: uxsearch.metrics.Metrics
+    source: uxsearch.metrics.MetricDefinition
+    consistency: read_your_writes
+    fields:
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+      - name: summary
+        type: String
+      - name: unit
+        type: uxsearch.metrics.MetricUnit
+      - name: direction
+        type: uxsearch.metrics.Direction
+      - name: scope
+        type: uxsearch.metrics.MetricScope
+      - name: kind
+        type: uxsearch.metrics.MetricKind
+      - name: timing
+        type: uxsearch.metrics.MetricTiming
+      - name: role
+        type: uxsearch.metrics.MetricRole
+      - name: preset_family
+        type: String
+      - name: version
+        type: Integer
+      - name: state
+        type: uxsearch.metrics.MetricDefinition.State
+    naming:
+      wire: metrics
+      display: Metric catalogue
+
+  - name: uxsearch.metrics.Kpis
+    source: uxsearch.metrics.Kpi
+    consistency: read_your_writes
+    fields:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      - name: aggregation
+        type: uxsearch.metrics.Aggregation
+      - name: terms
+        type: List<uxsearch.metrics.KpiTerm>
+      - name: direction
+        type: uxsearch.metrics.Direction
+      - name: weight
+        type: Decimal
+      - name: state
+        type: uxsearch.metrics.Kpi.State
+    naming:
+      wire: kpis
+      display: KPIs

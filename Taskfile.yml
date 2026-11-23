@@ -1,0 +1,25 @@
+version: '3'
+
+tasks:
+  check:
+    desc: The complete offline gate.
+    cmds:
+      - task: validate
+      - task: check:plugin
+      - task: test
+
+  validate:
+    desc: Validate the Claude Code plugin and marketplace manifests.
+    cmds:
+      - claude plugin validate --strict plugin
+      - claude plugin validate --strict .
+
+  check:plugin:
+    desc: Check that manifests and marketplaces agree and every skill is complete.
+    cmds:
+      - sh tools/check-plugin.sh
+
+  test:
+    desc: Prove that the plugin check fails on broken trees.
+    cmds:
+      - timeout 60 sh tools/check-plugin.test.sh

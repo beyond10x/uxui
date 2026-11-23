@@ -1,0 +1,20 @@
+{
+  "name": "uxui",
+  "interface": {
+    "displayName": "UX/UI"
+  },
+  "plugins": [
+    {
+      "name": "uxui",
+      "source": {
+        "source": "local",
+        "path": "./plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

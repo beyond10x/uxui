@@ -1,0 +1,243 @@
+---
+name: ui-iteration-loop
+description: Drive a deterministic, measured improvement loop on a web UI (an app panel, a Vue app, a docs website) in rounds of Trial, Measure, Triage, Design decision, Build and Gate, with hard gates on every merge and lower-is-better ratchets against a baseline.json. Use when asked to iterate on a UI, run a UI improvement loop or a UX round, set up or move a visual regression ratchet, gate merges on layout, accessibility and a screen-only user bot, or turn UI findings into regression tests.
+---
+
+# ui-iteration-loop
+
+Source: a colleague's loop (shared 2026-10-19), built for a live-call assistant panel. This skill keeps
+its numbers and rules and moves the panel specifics into adapter slots (§ 1). The colleague's own
+scripts are not available (§ 9); build the equivalents on Playwright, axe-core, rrweb and ffmpeg.
+
+## When to use which
+
+| skill | does | output |
+|---|---|---|
+| `docs-site-review` (a separate skill, where installed) | one screening pass of a docs site by five screeners | one defect report and a fix list |
+| `ui-iteration-loop` | repeated rounds with a baseline, gates on every merge, findings turned into tests | merges that never make a measured value worse |
+
+A docs site round may call `docs-site-review`, where installed, for its Measure step (§ 3.2). Its confirmed findings then
+become finding records (§ 5) with a regression asset each.
+
+## Two loops
+
+- **Round loop**: steps 1–6 of § 3, with people, at most 2 a week.
+- **Fast loop**: Build and Gate only, every merge, no people, hermetic, no API keys.
+
+Rules on the loop's edges: a gate pass lands; a gate fail is fixed and retried; every finding becomes a
+test; the baseline is never worse and gets one more test per finding.
+
+## 1. Adapter: what the project supplies
+
+Keep the generic core free of project code (a lint rule: the core imports nothing from the UI). The
+project writes one adapter file and the files below.
+
+| slot | the colleague's value | supply for your UI |
+|---|---|---|
+| scenarios | 10 call scenarios, each a dir with `facts.json`, `cue-truth.json`, `ux-expectations.json`, `source.json` | `ux/scenarios/<name>/`: the hermetic input that drives the UI state by state, the truth of the right end state, and the expectations. Docs site: the page list (sitemap) plus tasks such as "find the install command for X" |
+| scenario cards | a persona, the facts, two planned twists; 2 fixed anchor cards + 1 rotating card per round | the same: anchors make rounds comparable, the rotating card finds new problems |
+| gating viewports | 1366x768 (no scroll and in view), 1280x720 (in view) | the sizes every merge checks |
+| measured-only viewports | 1366x657, 1536x754, 960x1080 | sizes reported but not gated. Docs site: 1440x900, 1280x800, 1024x768, 768x1024, 390x844 |
+| themes | dark and light | every theme the UI ships |
+| always-visible elements | the Next cue, Still to do, the order bar, Place order | the controls that must be 100 % in the viewport, not clipped or covered, at every state change. Docs site: navbar, search, theme toggle, the sidebar at desktop sizes |
+| regions and moments | `data-ux-region` marks; moments: pairing, first slot, first fix, each conflict, read-back, Ready, Placed | the regions the recorder tracks and the moments the contact sheet shows |
+| completion states | Ready, Placed | what "done" looks like on screen, for `completion_miss` and `false_complete` |
+| guidance cue | the Next cue and its cue truth | the element that tells the user what to do next, if any. None: drop L0 and gate 6 |
+| protected focus | the softphone never loses focus to the panel | a host surface that keeps focus, if any |
+| screen-only policy | deterministic code, no model | § 7 |
+| baseline file | `docs/ux/baseline.json` | `ux/baseline.json` in the repo, shape in § 6 |
+| round dir | `docs/ux/rounds/R-nn/` | `ux/rounds/R-nn/` |
+| findings dir | `docs/ux/findings/UXF-nnn.md` | `ux/findings/UXF-nnn.md` |
+
+Recording real users with private data: use a structure-only mode (every text and input masked in the
+page) as the only mode allowed.
+
+## 2. Levels
+
+| level | proves | runs |
+|---|---|---|
+| L0 engine scenarios | the logic behind the UI is right; the guidance cue follows the cue truth on every scenario, from recorded inputs, so the result is deterministic | every merge, seconds |
+| L1 unit | rendering, moments, the metric functions | every merge, seconds |
+| L2 layout contract (Playwright + axe-core) | at every gating viewport, both themes, every state change of every hermetic replay on a compressed clock: hard gates 1, 2, 3 and 5; text not truncated without its full value available; reduced motion | every merge, 1–2 min |
+| L3 screen-only user (Playwright) | § 7 | every merge, 1–3 min |
+| L4 replayed real sessions, keyed | recorded sessions replayed N = 3 times: verdict and metrics per run, 2-of-3 stability of each expectation, median metrics against the baseline | per round, paid APIs, about 30 min |
+| L5 discoverability probe, keyed | a vision model gets only the screenshot (plus the last two lines of context) and is asked "what should the user do now, and where do they click?"; scored against the truth | per round, a few cents per session |
+| L6 recorded live rounds | people run the scenario cards, the questionnaire, the round report | per round, about 30 min of a person |
+| L7 heuristic review | two fresh review agents (§ 8) | per round, minutes |
+| L8 real-user sessions | 5 real users per study, retrospective think-aloud | per milestone |
+
+Every merge: L0–L3, hermetic, no keys. Per round: L4–L7. L4 and L5 are operator-only, never in
+`task check`.
+
+## 3. The round
+
+### 3.1 Trial
+
+- Run three scripted sessions from scenario cards: the two anchors and one rotating card. A free
+  session is optional. Each card is its own truth, so nothing needs writing afterwards.
+- Record every session (rrweb, with the regions marked) and keep the raw recording.
+- After each session the person answers a 90-second questionnaire.
+- Paid levels (L4, L5) run under one operator approval for the round.
+- A driver bot may replace the person (§ 7, closed loop).
+
+### 3.2 Measure
+
+A deterministic round command writes, into `ux/rounds/R-nn/`:
+
+- `report.md`: the metric table against the bars, the baseline and the last round; the worst moments,
+  each with a screenshot; the questionnaire scores; the L5 probe misses; the missing inputs.
+- `round.json`: the same numbers, machine-readable.
+- `shots/`: worst moments and a contact sheet of the key moments in every theme, each frame 0.75 s
+  after its moment.
+- `../trend.md`: one row per round.
+
+Then the two review agents run (§ 8) and save `review-heuristics.md` and `review-report.md` in the
+round dir before any person sees the round. Docs site: run `docs-site-review` (where installed) here and file its
+confirmed findings.
+
+### 3.3 Triage
+
+Applied by the session running this skill, by rule, without the person. Formula, verbatim:
+
+```
+priority = severity weight × frequency × confidence ÷ cost
+
+severity weight  S1 = 9, S2 = 3, S3 = 1
+frequency        calls affected ÷ calls in the round   (0 to 1)
+confidence       2 when two sources agree (e.g. a metric and the heuristic review,
+                 or a recording and the survey), else 1
+cost             S = 1, M = 2, L = 4
+```
+
+("calls" reads as sessions or scenarios for a UI without calls.)
+
+1. Every S1 finding is in the next change set, whatever its priority.
+2. The rest fill the set in priority order. A tie goes to the finding on an anchor card.
+3. A change set holds **at most 5 changes**, so each metric movement can be attributed to a change.
+4. A change that has not moved its target metric after two rounds is reviewed: kept with a written
+   reason, or reverted.
+5. Findings caused by input the UI cannot control (the colleague's transcript class) are known losses.
+   Only the UI's handling of them becomes a change.
+6. A finding that needs a design decision still enters the set. It waits for the yes/no and blocks no
+   other change.
+
+Write `triage.md`: caveats, a table "did the last change sets move their metrics?", the change set.
+The change set becomes one task per round under one standing story (in the planning store; AEP where
+the repo uses it), so a round needs no new approval. Its acceptance: the regression assets plus the
+target metric movements.
+
+### 3.4 Design decision
+
+Only for layout and interaction changes, at most one per round, in `decision.md`. Template (ours,
+pending the colleague's original):
+
+```
+# R-nn decision: <question answerable yes or no>
+Finding: UXF-nnn. Target metric: <key>, now <value>, expected <value>.
+Yes: <change>, shot: shots/decision-yes.png
+No:  <what stays>, shot: shots/decision-no.png
+Default if unanswered by the next round: <yes|no>, because <reason>.
+Answer: <yes|no>, <date>
+```
+
+### 3.5 Build
+
+The build agent builds the task failing-first: each finding's regression asset is written, run red,
+then the change makes it green. The gates (§ 4) stay green.
+
+### 3.6 Gate, then measure again
+
+The merge passes § 4. The next round reports each change's target metric (triage rule 4).
+
+## 4. Hard gates, every merge
+
+1. **No scroll.** No scrollable element and no document scroll, at the gating viewports, in every
+   theme, over every hermetic replay frame. Docs site: no horizontal page scroll and no element
+   running past its box; vertical page scroll is allowed.
+2. **Always visible.** The adapter's always-visible elements are 100 % inside the viewport, not
+   clipped or covered, at every state change.
+3. **Unmissable completion.** `completion_miss` = 0 and `false_complete` = 0 on every scenario.
+4. **Screen-only user** completes every scenario to its truth. Every fix takes at most 2 actions.
+5. **Accessibility.** axe-core reports 0 serious or critical violations in every theme (tags
+   `wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa`). The task can be completed by keyboard alone. The
+   protected surface never loses focus to the UI.
+6. **Cue truth** (L0, only with a guidance cue). The cue is never ahead of the truth, never
+   flip-flops, names every required item before the end, and `cue_accuracy` ≥ 95 %.
+
+The colleague's suite replays 10 scenarios × 2 sizes × 2 themes = 40 checked replays per merge.
+
+## 5. Findings
+
+Every finding is a record `ux/findings/UXF-nnn.md`. Header fields:
+
+```
+id, title, class (layout|cue|affordance|copy|noise|engine|input), severity (S1|S2|S3),
+metric, status, found_by, evidence_recording (file @ seconds), evidence_screenshot,
+evidence_lines, regression_asset
+```
+
+- The regression asset is one of: an engine scenario, a library scenario, a Playwright assertion, a
+  heuristic checklist line.
+- No S1 or S2 finding closes without a regression asset that fails before the fix and passes after.
+- A test reads the findings dir and fails on a closed S1/S2 record without an asset.
+- Every recorded paid round becomes a free regression test with a ratchet.
+
+**Three-strike rule.** The same failure 3 times: stop patching, diagnose (`aep:diagnosing` where
+available) before the next change.
+
+## 6. Ratchets
+
+`ux/baseline.json`:
+
+```
+{about, scenarios: {<scenario>: {<metric key>: {value, tolerance, decision?}}}, tolerances}
+```
+
+Keys per scenario (all lower is better): `actions_per_fix.{max,median}`,
+`cue_churn.{changes,flip_flops}`, `glance_cost.{median,p95}`, `layout_shift.per_minute`,
+`reading_load.{max,median}`, `screen_only.{actions,looks,steers,time_to_act_steps.max}`.
+Tolerances: counts 0, steps 5 %, `layout_shift` 0.01.
+
+The ratchet command fails (exit 1) on:
+
+- a value worse than the baseline beyond its tolerance;
+- an improvement not taken into the baseline: an improved value becomes the new baseline **in the same
+  merge**;
+- a missing value;
+- a baseline made worse without a decision id (compare with the baseline on `main` via git).
+
+## 7. The screen-only user
+
+Deterministic code, no model. It may use only what is visible: controls fully inside the viewport, not
+covered at their centre, found by accessible role and name. A click or a key press is one action. It
+plays each hermetic scenario one state at a time and:
+
+1. does what the guidance cue says (docs site: follows visible navigation, links or search toward the
+   task's target page);
+2. fixes anything flagged through the visible control, in at most 2 actions;
+3. when the cue points at the wrong step, steers it back in one action;
+4. presses the completion control; if it cannot, the screen must say why.
+
+At each state it notes where the cued control is: glance 1 in the primary card, 2 elsewhere in view, 3
+not in view. Its counts give `actions_per_fix`, `glance_cost` and `time_to_act` in steps.
+
+Closed loop (phase B): a simulated counterpart answers what the bot asks, from the scenario's facts,
+with its twists (a correction, two exclusive answers, silence on a field, an off-topic mention, a
+misheard value). This tests whether following the cue alone gets every required item asked, not only
+shown. The colleague's live caller bot and its brief are unknown; a driver bot here is ours, pending
+the colleague's original.
+
+## 8. Review agents
+
+Two fresh agents per round, started after the round command, each with no context from the session.
+Their briefs are in `references/review-agents.md`: ours, pending the colleague's originals. The 16
+heuristics are in `references/heuristics.md`.
+
+## 9. Not available here
+
+The colleague's tools are private. Build these on the open tools; keep them in the project's own
+language (Rust for a CLI where the workspace rules require it, Playwright specs in TypeScript). The list, with what
+each tool does and what to build it on: `references/not-available.md`. In short: the recorder, the
+round report, replay, views, the L5 probe, the ratchet gate, the highlight video, the metric
+catalogue, the layout contract, the screen-only bot, keyed replay, synthetic audio, the closed-loop
+simulator.

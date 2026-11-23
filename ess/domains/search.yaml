@@ -1,0 +1,994 @@
+domain: uxsearch.search
+
+summary: >-
+  Search campaigns: one target, its frozen design space, its journeys, environments and KPIs,
+  searched by a strategy within a budget. A campaign emits progress (the climb a person watches
+  live) and keeps a frontier: the non-dominated variants found so far.
+
+naming:
+  wire: search
+  display: Search
+
+types:
+  - name: uxsearch.search.CampaignId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.search.ClimbPointId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.search.FrontierEntryId
+    kind: newtype
+    of: Uuid
+
+  # `exhaustive` enumerates every variant of the space; `beam` keeps the best `beam_width`
+  # variants per step; `hill_climb` moves to the best neighbour (one axis value changed);
+  # `pareto` evolves a population towards the frontier.
+  - name: uxsearch.search.Strategy
+    kind: enum
+    variants: [exhaustive, beam, hill_climb, pareto]
+
+  - name: uxsearch.search.EndReason
+    kind: enum
+    variants: [space_exhausted, variant_budget_spent, time_budget_spent, converged]
+
+  - name: uxsearch.search.Budget
+    kind: struct
+    fields:
+      - name: max_variants
+        type: Integer
+      # Wall time the campaign may run, in seconds. A budget, never a measurement.
+      - name: max_wall_time_s
+        type: Integer
+    invariants:
+      - max_variants > 0
+      - max_wall_time_s > 0
+
+  - name: uxsearch.search.KpiReading
+    kind: struct
+    fields:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+      - name: value
+        type: Decimal
+
+entities:
+  # A product campaign treats the component and widget targets inside its target as its design
+  # space says (`component_treatment`): fixed as declared, or one `component` axis each.
+  - name: uxsearch.search.Campaign
+    naming:
+      summary: A run of the engine over one target's design space, journeys, environments and KPIs.
+    identity:
+      name: campaign_id
+      type: uxsearch.search.CampaignId
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      # The frozen design space's digest, copied when the campaign starts.
+      - name: space_digest
+        type: Optional<uxsearch.design.DocumentDigest>
+      - name: journeys
+        type: List<uxsearch.journeys.JourneyId>
+      - name: environments
+        type: List<uxsearch.evaluation.EnvironmentId>
+      # The KPIs are the campaign's objectives; the frontier is non-dominated over them.
+      - name: kpis
+        type: List<uxsearch.metrics.KpiId>
+      - name: strategy
+        type: uxsearch.search.Strategy
+      - name: beam_width
+        type: Optional<Integer>
+      # The seed of every random choice the strategy makes, so a campaign replays exactly.
+      - name: seed
+        type: Integer
+      - name: budget
+        type: uxsearch.search.Budget
+      - name: ended_because
+        type: Optional<uxsearch.search.EndReason>
+    relations:
+      - name: target
+        kind: references
+        target: uxsearch.design.Target
+        cardinality: one
+        via: target_id
+      - name: design_space
+        kind: references
+        target: uxsearch.design.DesignSpace
+        cardinality: one
+        via: design_space_id
+      - {name: journeys, kind: references, target: uxsearch.journeys.Journey, cardinality: many, via: journeys}
+      - {name: environments, kind: references, target: uxsearch.evaluation.Environment, cardinality: many, via: environments}
+      - {name: kpis, kind: references, target: uxsearch.metrics.Kpi, cardinality: many, via: kpis}
+      - name: climb
+        kind: owns
+        target: uxsearch.search.ClimbPoint
+        cardinality: many
+        via: campaign_id
+      - name: frontier
+        kind: owns
+        target: uxsearch.search.FrontierEntry
+        cardinality: many
+        via: campaign_id
+    lifecycle:
+      initial: Running
+      states:
+        - Running
+        - {name: Stopped, summary: A person stopped the campaign.}
+        - {name: Ended, summary: The strategy ended it; `ended_because` says why.}
+      terminal: [Stopped, Ended]
+      transitions:
+        - name: stop
+          from: [Running]
+          to: Stopped
+        - name: end
+          from: [Running]
+          to: Ended
+
+  # One point of the climb: what the campaign had done and the best KPI values it had found at
+  # one step. The studio draws the climb from these rows and the CampaignProgressed events.
+  - name: uxsearch.search.ClimbPoint
+    naming:
+      summary: One step of a campaign's progress, as the studio draws it.
+    identity:
+      name: climb_point_id
+      type: uxsearch.search.ClimbPointId
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: seq
+        type: Integer
+      - name: evaluated
+        type: Integer
+      - name: pruned
+        type: Integer
+      - name: insufficient
+        type: Integer
+      - name: frontier_size
+        type: Integer
+      - name: best
+        type: List<uxsearch.search.KpiReading>
+      - name: last_variant
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: at
+        type: Timestamp
+    invariants:
+      - seq >= 0
+      - evaluated >= 0
+      - pruned >= 0
+      - insufficient >= 0
+      - frontier_size >= 0
+    relations:
+      - {name: last_variant, kind: references, target: uxsearch.design.Variant, cardinality: one, via: last_variant}
+    lifecycle:
+      initial: Recorded
+      states: [Recorded]
+      terminal: [Recorded]
+
+  - name: uxsearch.search.FrontierEntry
+    naming:
+      summary: A variant on a campaign's frontier, with its KPI values and the evaluations behind them.
+    identity:
+      name: frontier_entry_id
+      type: uxsearch.search.FrontierEntryId
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: evaluation_keys
+        type: List<uxsearch.evaluation.EvaluationKey>
+      - name: kpi_values
+        type: List<uxsearch.search.KpiReading>
+      - name: dominated_by
+        type: Optional<uxsearch.design.VariantDigest>
+    relations:
+      - name: variant
+        kind: references
+        target: uxsearch.design.Variant
+        cardinality: one
+        via: variant_digest
+      - {name: evaluations, kind: references, target: uxsearch.evaluation.Evaluation, cardinality: many, via: evaluation_keys}
+      - {name: dominated_by, kind: references, target: uxsearch.design.Variant, cardinality: one, via: dominated_by}
+    lifecycle:
+      initial: OnFrontier
+      states:
+        - OnFrontier
+        - {name: Dominated, summary: A later variant is at least as good on every KPI and better on one.}
+      terminal: [Dominated]
+      transitions:
+        - name: dominate
+          from: [OnFrontier]
+          to: Dominated
+
+actors:
+  - name: uxsearch.search.Operator
+    naming:
+      display: Operator
+      summary: A person who starts and stops campaigns and watches them climb.
+    may:
+      - uxsearch.search.StartCampaign
+      - uxsearch.search.StopCampaign
+
+  - name: uxsearch.search.Searcher
+    naming:
+      display: Searcher
+      summary: The engine's search loop; it records progress, the frontier and the end.
+    system: true
+    may:
+      - uxsearch.search.RecordProgress
+      - uxsearch.search.AdmitToFrontier
+      - uxsearch.search.MarkDominated
+      - uxsearch.search.EndCampaign
+
+errors:
+  - name: uxsearch.search.TargetNotFound
+    summary: No target has this id.
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.search.HostSlotNotSearchable
+    summary: The target is a host slot; ESS does not draw it, so no campaign searches it.
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.search.DesignSpaceNotFound
+    summary: No design space has this id.
+    fields:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+
+  - name: uxsearch.search.DesignSpaceNotFrozen
+    summary: The design space is still Open; freeze it first, so the campaign searches a fixed space.
+    fields:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+
+  - name: uxsearch.search.DesignSpaceOfAnotherTarget
+    summary: The design space is declared on another target.
+    fields:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+
+  - name: uxsearch.search.UnknownMember
+    summary: A journey, environment or KPI the campaign names does not exist.
+    fields:
+      - name: missing
+        type: String
+
+  - name: uxsearch.search.OutsideTarget
+    summary: A journey, environment or KPI the campaign names is bound to another target.
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.search.BeamWidthMissing
+    summary: A beam search needs a beam width of at least 1.
+    fields:
+      - name: strategy
+        type: uxsearch.search.Strategy
+
+  - name: uxsearch.search.CampaignNotFound
+    summary: No campaign has this id.
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+
+  - name: uxsearch.search.CampaignNotRunning
+    summary: The campaign is stopped or ended, so nothing more is recorded for it.
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+
+  - name: uxsearch.search.CampaignStateConflict
+    summary: The campaign is not in a state this command acts from, so nothing moved.
+    fields:
+      - name: state
+        type: uxsearch.search.Campaign.State
+
+  - name: uxsearch.search.VariantPruned
+    summary: The variant has a hard Violated verdict; it never enters a frontier.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.search.EvaluationMissing
+    summary: An evaluation the entry names does not exist.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.search.InsufficientEvidence
+    summary: An evaluation of the variant is not Computed (requested, or insufficient); it never enters a frontier on it.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.search.EvaluationOfAnotherVariant
+    summary: An evaluation the entry names is of another variant.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.search.AlreadyOnFrontier
+    summary: The variant is already on this campaign's frontier.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.search.Dominated
+    summary: An entry on the frontier dominates the variant over the campaign's KPIs.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.search.FrontierEntryStateConflict
+    summary: The entry is already dominated, so nothing moved.
+    fields:
+      - name: state
+        type: uxsearch.search.FrontierEntry.State
+
+commands:
+  - name: uxsearch.search.StartCampaign
+    naming:
+      wire: start-campaign
+      display: Start a campaign
+    input:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: journeys
+        type: List<uxsearch.journeys.JourneyId>
+      - name: environments
+        type: List<uxsearch.evaluation.EnvironmentId>
+      - name: kpis
+        type: List<uxsearch.metrics.KpiId>
+      - name: strategy
+        type: uxsearch.search.Strategy
+      - name: beam_width
+        type: Optional<Integer>
+      - name: seed
+        type: Integer
+      - name: budget
+        type: uxsearch.search.Budget
+    outcomes:
+      - name: beam-width-missing
+        when:
+          all:
+            - strategy == beam
+            - {not: defined(beam_width)}
+        error: uxsearch.search.BeamWidthMissing
+        payload:
+          uxsearch.search.BeamWidthMissing:
+            strategy: input.strategy
+        summary: Nothing was started.
+
+      - name: no-target
+        when_related:
+          via: input.target_id
+          exists: false
+        error: uxsearch.search.TargetNotFound
+        payload:
+          uxsearch.search.TargetNotFound:
+            target_id: input.target_id
+        summary: Nothing was started.
+
+      - name: no-design-space
+        when_related:
+          via: input.design_space_id
+          exists: false
+        error: uxsearch.search.DesignSpaceNotFound
+        payload:
+          uxsearch.search.DesignSpaceNotFound:
+            design_space_id: input.design_space_id
+        summary: Nothing was started.
+
+      - name: host-slot
+        when_related:
+          via: input.target_id
+          predicate: host_slot == true
+        error: uxsearch.search.HostSlotNotSearchable
+        payload:
+          uxsearch.search.HostSlotNotSearchable:
+            target_id: input.target_id
+        summary: Nothing was started.
+
+      - name: design-space-open
+        when_related:
+          via: input.design_space_id
+          predicate: state == Open
+        error: uxsearch.search.DesignSpaceNotFrozen
+        payload:
+          uxsearch.search.DesignSpaceNotFrozen:
+            design_space_id: input.design_space_id
+        summary: Nothing was started.
+
+      - name: design-space-of-another-target
+        when_related:
+          via: input.design_space_id
+          predicate: target_id != input.target_id
+        error: uxsearch.search.DesignSpaceOfAnotherTarget
+        payload:
+          uxsearch.search.DesignSpaceOfAnotherTarget:
+            design_space_id: input.design_space_id
+        summary: Nothing was started.
+
+      # Journeys, environments and KPIs are bound to the campaign's target.
+      - name: journey-outside-target
+        when_related:
+          entity: uxsearch.journeys.Journey
+          where:
+            all:
+              - exists: {in: input.journeys, as: j, that: journey_id == j}
+              - target_id != input.target_id
+          exists: true
+        error: uxsearch.search.OutsideTarget
+        payload:
+          uxsearch.search.OutsideTarget:
+            target_id: input.target_id
+        summary: Nothing was started.
+
+      - name: environment-outside-target
+        when_related:
+          entity: uxsearch.evaluation.Environment
+          where:
+            all:
+              - exists: {in: input.environments, as: e, that: environment_id == e}
+              - target_id != input.target_id
+          exists: true
+        error: uxsearch.search.OutsideTarget
+        payload:
+          uxsearch.search.OutsideTarget:
+            target_id: input.target_id
+        summary: Nothing was started.
+
+      - name: kpi-outside-target
+        when_related:
+          entity: uxsearch.metrics.Kpi
+          where:
+            all:
+              - exists: {in: input.kpis, as: k, that: kpi_id == k}
+              - target_id != input.target_id
+          exists: true
+        error: uxsearch.search.OutsideTarget
+        payload:
+          uxsearch.search.OutsideTarget:
+            target_id: input.target_id
+        summary: Nothing was started.
+
+      # UNMAPPED: a missing journey, environment or KPI would be `when_related: {via:
+      # input.journeys, exists: false}`; ESS 0.98.0 refuses a list-of-references guard beside
+      # any other related guard on one command (GAPS.md), so it is an external cause here.
+      - name: unknown-member
+        external: a journey, environment or KPI the input names does not exist
+        error: uxsearch.search.UnknownMember
+        summary: Nothing was started.
+
+      - name: started
+        creates: uxsearch.search.Campaign
+        instance: campaign_id
+        sets:
+          target_id: input.target_id
+          design_space_id: input.design_space_id
+          space_digest: {related: {via: input.design_space_id, field: space_digest}}
+          journeys: input.journeys
+          environments: input.environments
+          kpis: input.kpis
+          strategy: input.strategy
+          beam_width: input.beam_width
+          seed: input.seed
+          budget: input.budget
+        emits:
+          - uxsearch.search.CampaignStarted
+        payload:
+          uxsearch.search.CampaignStarted:
+            campaign_id: {generated: true}
+            target_id: input.target_id
+            strategy: input.strategy
+        summary: The campaign is Running; the studio shows its climb.
+
+  - name: uxsearch.search.StopCampaign
+    naming:
+      wire: stop-campaign
+      display: Stop a campaign
+    input:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+    outcomes:
+      - name: stopped
+        moves: uxsearch.search.Campaign.stop
+        instance: campaign_id
+        emits:
+          - uxsearch.search.CampaignStopped
+        payload:
+          uxsearch.search.CampaignStopped:
+            campaign_id: input.campaign_id
+        summary: The campaign stops; its frontier and climb stay readable.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.search.CampaignStateConflict
+        summary: The campaign was not running.
+
+  - name: uxsearch.search.EndCampaign
+    naming:
+      wire: end-campaign
+      display: End a campaign
+    input:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: reason
+        type: uxsearch.search.EndReason
+    outcomes:
+      - name: ended
+        moves: uxsearch.search.Campaign.end
+        instance: campaign_id
+        sets:
+          ended_because: input.reason
+        emits:
+          - uxsearch.search.CampaignEnded
+        payload:
+          uxsearch.search.CampaignEnded:
+            campaign_id: input.campaign_id
+            reason: input.reason
+        summary: The strategy is done; the frontier is final for this campaign.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.search.CampaignStateConflict
+        summary: The campaign was not running.
+
+  - name: uxsearch.search.RecordProgress
+    naming:
+      wire: record-progress
+      display: Record progress
+    input:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: seq
+        type: Integer
+      - name: evaluated
+        type: Integer
+      - name: pruned
+        type: Integer
+      - name: insufficient
+        type: Integer
+      - name: frontier_size
+        type: Integer
+      - name: best
+        type: List<uxsearch.search.KpiReading>
+      - name: last_variant
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: at
+        type: Timestamp
+    outcomes:
+      - name: no-campaign
+        when_related:
+          via: input.campaign_id
+          exists: false
+        error: uxsearch.search.CampaignNotFound
+        payload:
+          uxsearch.search.CampaignNotFound:
+            campaign_id: input.campaign_id
+        summary: Nothing was recorded.
+
+      - name: not-running
+        when_related:
+          via: input.campaign_id
+          predicate: state != Running
+        error: uxsearch.search.CampaignNotRunning
+        payload:
+          uxsearch.search.CampaignNotRunning:
+            campaign_id: input.campaign_id
+        summary: Nothing was recorded.
+
+      - name: recorded
+        creates: uxsearch.search.ClimbPoint
+        instance: climb_point_id
+        sets:
+          campaign_id: input.campaign_id
+          seq: input.seq
+          evaluated: input.evaluated
+          pruned: input.pruned
+          insufficient: input.insufficient
+          frontier_size: input.frontier_size
+          best: input.best
+          last_variant: input.last_variant
+          at: input.at
+        emits:
+          - uxsearch.search.CampaignProgressed
+        payload:
+          uxsearch.search.CampaignProgressed:
+            climb_point_id: {generated: true}
+            campaign_id: input.campaign_id
+            seq: input.seq
+            evaluated: input.evaluated
+            pruned: input.pruned
+            frontier_size: input.frontier_size
+        summary: One more point of the climb; the studio draws it live.
+
+  - name: uxsearch.search.AdmitToFrontier
+    naming:
+      wire: admit-to-frontier
+      display: Admit a variant to the frontier
+    input:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: evaluation_keys
+        type: List<uxsearch.evaluation.EvaluationKey>
+      - name: kpi_values
+        type: List<uxsearch.search.KpiReading>
+    outcomes:
+      - name: no-campaign
+        when_related:
+          via: input.campaign_id
+          exists: false
+        error: uxsearch.search.CampaignNotFound
+        payload:
+          uxsearch.search.CampaignNotFound:
+            campaign_id: input.campaign_id
+        summary: Nothing was admitted.
+
+      - name: not-running
+        when_related:
+          via: input.campaign_id
+          predicate: state != Running
+        error: uxsearch.search.CampaignNotRunning
+        payload:
+          uxsearch.search.CampaignNotRunning:
+            campaign_id: input.campaign_id
+        summary: Nothing was admitted.
+
+      - name: variant-pruned
+        when_related:
+          entity: uxsearch.rules.RuleVerdict
+          where:
+            all:
+              - variant_digest == input.variant_digest
+              - strength == hard
+              - verdict == violated
+          exists: true
+        error: uxsearch.search.VariantPruned
+        payload:
+          uxsearch.search.VariantPruned:
+            variant_digest: input.variant_digest
+        summary: Nothing was admitted.
+
+      - name: evaluation-of-another-variant
+        when_related:
+          entity: uxsearch.evaluation.Evaluation
+          where:
+            all:
+              - exists: {in: input.evaluation_keys, as: k, that: evaluation_key == k}
+              - variant_digest != input.variant_digest
+          exists: true
+        error: uxsearch.search.EvaluationOfAnotherVariant
+        payload:
+          uxsearch.search.EvaluationOfAnotherVariant:
+            variant_digest: input.variant_digest
+        summary: Nothing was admitted.
+
+      # Insufficient evidence is never a pass: a variant enters the frontier only on evaluations
+      # that are all Computed.
+      - name: insufficient-evidence
+        when_related:
+          entity: uxsearch.evaluation.Evaluation
+          where:
+            all:
+              - exists: {in: input.evaluation_keys, as: k, that: evaluation_key == k}
+              - state != Computed
+          exists: true
+        error: uxsearch.search.InsufficientEvidence
+        payload:
+          uxsearch.search.InsufficientEvidence:
+            variant_digest: input.variant_digest
+        summary: Nothing was admitted.
+
+      - name: already-on-frontier
+        when_related:
+          entity: uxsearch.search.FrontierEntry
+          where:
+            all:
+              - campaign_id == input.campaign_id
+              - variant_digest == input.variant_digest
+              - state == OnFrontier
+          exists: true
+        error: uxsearch.search.AlreadyOnFrontier
+        payload:
+          uxsearch.search.AlreadyOnFrontier:
+            variant_digest: input.variant_digest
+        summary: Nothing changed.
+
+      # UNMAPPED: as in StartCampaign, a missing evaluation key is an external cause, since a
+      # list-of-references guard does not stand beside other related guards (GAPS.md).
+      - name: evaluation-missing
+        external: an evaluation key the input names has no evaluation
+        error: uxsearch.search.EvaluationMissing
+        payload:
+          uxsearch.search.EvaluationMissing:
+            variant_digest: input.variant_digest
+        summary: Nothing was admitted.
+
+      # UNMAPPED: dominance over the campaign's KPIs (at least as good on every KPI, better on
+      # one, by each KPI's direction) is a relation between this input and every OnFrontier entry
+      # of the campaign; ESS cannot state it (GAPS.md), so it is an external cause here.
+      - name: dominated
+        external: an OnFrontier entry of the campaign dominates the variant over the campaign's KPIs
+        error: uxsearch.search.Dominated
+        payload:
+          uxsearch.search.Dominated:
+            variant_digest: input.variant_digest
+        summary: Nothing was admitted.
+
+      - name: admitted
+        creates: uxsearch.search.FrontierEntry
+        instance: frontier_entry_id
+        sets:
+          campaign_id: input.campaign_id
+          variant_digest: input.variant_digest
+          evaluation_keys: input.evaluation_keys
+          kpi_values: input.kpi_values
+        emits:
+          - uxsearch.search.FrontierChanged
+        payload:
+          uxsearch.search.FrontierChanged:
+            frontier_entry_id: {generated: true}
+            campaign_id: input.campaign_id
+            variant_digest: input.variant_digest
+            admitted: true
+        summary: The variant is on the frontier.
+
+  - name: uxsearch.search.MarkDominated
+    naming:
+      wire: mark-dominated
+      display: Mark a frontier entry dominated
+    input:
+      - name: frontier_entry_id
+        type: uxsearch.search.FrontierEntryId
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: dominated_by
+        type: uxsearch.design.VariantDigest
+    outcomes:
+      - name: dominator-not-on-frontier
+        when_related:
+          entity: uxsearch.search.FrontierEntry
+          where:
+            all:
+              - campaign_id == input.campaign_id
+              - variant_digest == input.dominated_by
+              - state == OnFrontier
+          exists: false
+        error: uxsearch.search.Dominated
+        payload:
+          uxsearch.search.Dominated:
+            variant_digest: input.dominated_by
+        summary: Only an entry on the same frontier dominates another; nothing moved.
+
+      - name: dominated
+        moves: uxsearch.search.FrontierEntry.dominate
+        instance: frontier_entry_id
+        sets:
+          dominated_by: input.dominated_by
+        emits:
+          - uxsearch.search.FrontierChanged
+        payload:
+          uxsearch.search.FrontierChanged:
+            frontier_entry_id: input.frontier_entry_id
+            campaign_id: input.campaign_id
+            variant_digest: input.variant_digest
+            admitted: false
+        summary: The entry left the frontier; it stays readable as dominated.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.search.FrontierEntryStateConflict
+        summary: The entry was already dominated.
+
+events:
+  - name: uxsearch.search.CampaignStarted
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: strategy
+        type: uxsearch.search.Strategy
+
+  - name: uxsearch.search.CampaignStopped
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+
+  - name: uxsearch.search.CampaignEnded
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: reason
+        type: uxsearch.search.EndReason
+
+  # The progress event: the climb a person watches live.
+  - name: uxsearch.search.CampaignProgressed
+    fields:
+      - name: climb_point_id
+        type: uxsearch.search.ClimbPointId
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: seq
+        type: Integer
+      - name: evaluated
+        type: Integer
+      - name: pruned
+        type: Integer
+      - name: frontier_size
+        type: Integer
+
+  - name: uxsearch.search.FrontierChanged
+    fields:
+      - name: frontier_entry_id
+        type: uxsearch.search.FrontierEntryId
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: admitted
+        type: Boolean
+
+views:
+  - name: uxsearch.search.Campaigns
+    source: uxsearch.search.Campaign
+    consistency: read_your_writes
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: strategy
+        type: uxsearch.search.Strategy
+      - name: seed
+        type: Integer
+      - name: budget
+        type: uxsearch.search.Budget
+      - name: ended_because
+        type: Optional<uxsearch.search.EndReason>
+      - name: state
+        type: uxsearch.search.Campaign.State
+    naming:
+      wire: campaigns
+      display: Campaigns
+
+  - name: uxsearch.search.CampaignById
+    source: uxsearch.search.Campaign
+    consistency: read_your_writes
+    params:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+    filter: campaign_id == param.campaign_id
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: journeys
+        type: List<uxsearch.journeys.JourneyId>
+      - name: environments
+        type: List<uxsearch.evaluation.EnvironmentId>
+      - name: kpis
+        type: List<uxsearch.metrics.KpiId>
+      - name: strategy
+        type: uxsearch.search.Strategy
+      - name: budget
+        type: uxsearch.search.Budget
+      - name: ended_because
+        type: Optional<uxsearch.search.EndReason>
+      - name: state
+        type: uxsearch.search.Campaign.State
+    naming:
+      wire: campaign
+      display: Campaign
+
+  - name: uxsearch.search.ClimbPoints
+    source: uxsearch.search.ClimbPoint
+    consistency: read_your_writes
+    fields:
+      - name: climb_point_id
+        type: uxsearch.search.ClimbPointId
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: seq
+        type: Integer
+      - name: evaluated
+        type: Integer
+      - name: pruned
+        type: Integer
+      - name: insufficient
+        type: Integer
+      - name: frontier_size
+        type: Integer
+      - name: state
+        type: uxsearch.search.ClimbPoint.State
+    naming:
+      wire: climb-points
+      display: Climb points
+
+  - name: uxsearch.search.Climb
+    source: uxsearch.search.ClimbPoint
+    consistency: read_your_writes
+    params:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+    filter: campaign_id == param.campaign_id
+    fields:
+      - name: climb_point_id
+        type: uxsearch.search.ClimbPointId
+      - name: seq
+        type: Integer
+      - name: evaluated
+        type: Integer
+      - name: pruned
+        type: Integer
+      - name: insufficient
+        type: Integer
+      - name: frontier_size
+        type: Integer
+      - name: best
+        type: List<uxsearch.search.KpiReading>
+      - name: at
+        type: Timestamp
+    naming:
+      wire: climb
+      display: Climb
+
+  - name: uxsearch.search.FrontierEntries
+    source: uxsearch.search.FrontierEntry
+    consistency: read_your_writes
+    fields:
+      - name: frontier_entry_id
+        type: uxsearch.search.FrontierEntryId
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: dominated_by
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: state
+        type: uxsearch.search.FrontierEntry.State
+    naming:
+      wire: frontier-entries
+      display: Frontier entries
+
+  - name: uxsearch.search.Frontier
+    source: uxsearch.search.FrontierEntry
+    consistency: read_your_writes
+    params:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+    filter:
+      all:
+        - campaign_id == param.campaign_id
+        - state == OnFrontier
+    fields:
+      - name: frontier_entry_id
+        type: uxsearch.search.FrontierEntryId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: kpi_values
+        type: List<uxsearch.search.KpiReading>
+      - name: evaluation_keys
+        type: List<uxsearch.evaluation.EvaluationKey>
+    naming:
+      wire: frontier
+      display: Frontier

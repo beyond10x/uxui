@@ -1,0 +1,9 @@
+channel: climb
+loop: true
+events:
+  - {at: 0s,  event: uxsearch.search.CampaignProgressed, payload: {climb_point_id: pt-04, campaign_id: cp-01, seq: 4, evaluated: 70, pruned: 19, frontier_size: 3}}
+  - {at: 3s,  event: uxsearch.search.FrontierChanged, payload: {frontier_entry_id: fe-03, campaign_id: cp-01, variant_digest: "sha256:v-d4", admitted: true}}
+  - {at: 5s,  event: uxsearch.search.CampaignProgressed, payload: {climb_point_id: pt-05, campaign_id: cp-01, seq: 5, evaluated: 92, pruned: 24, frontier_size: 4}}
+  - {at: 8s,  lifecycle: reconnecting}
+  - {at: 12s, lifecycle: live}
+  - {at: 12s, event: uxsearch.search.CampaignProgressed, payload: {climb_point_id: pt-06, campaign_id: cp-01, seq: 6, evaluated: 118, pruned: 31, frontier_size: 4}}

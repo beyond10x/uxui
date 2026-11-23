@@ -1,0 +1,65 @@
+# Invented sample data for ess/ui/studio.ui.yaml. Metric ids are the catalogue's (docs/metrics.md).
+views:
+  uxsearch.design.BaseDocuments:
+    rows:
+      - {base_document_id: doc-01, path: specs/console/ui.yaml, app: console, document_digest: "sha256:4f1c", state: Registered}
+  uxsearch.design.TargetCatalog:
+    rows:
+      - {target_id: tg-01, name: Whole console, scope: product, node_path: "/", host_slot: false}
+      - {target_id: tg-02, name: Settings page, scope: page, node_path: pages/settings, host_slot: false}
+      - {target_id: tg-03, name: Settings form, scope: section, node_path: pages/settings/sections/form, host_slot: false}
+      - {target_id: tg-04, name: Status badge, scope: widget, node_path: widgets/status_badge, host_slot: false}
+      - {target_id: tg-05, name: Flow editor, scope: component, node_path: pages/flows.editor/sections/editor, host_slot: true}
+  uxsearch.design.Targets:
+    rows:
+      - {target_id: tg-01, base_document_id: doc-01, name: Whole console, scope: product, node_path: "/", host_slot: false, state: Declared}
+      - {target_id: tg-02, base_document_id: doc-01, name: Settings page, scope: page, node_path: pages/settings, host_slot: false, state: Declared}
+  uxsearch.design.DesignSpaces:
+    rows:
+      - {design_space_id: ds-01, target_id: tg-02, name: Settings layout and copy, component_treatment: fixed, space_digest: "sha256:9a07", state: Frozen}
+  uxsearch.design.AxisValues:
+    rows:
+      - {axis_value_id: av-01, axis_id: ax-theme, name: brand-dense, state: Declared}
+      - {axis_value_id: av-02, axis_id: ax-theme, name: brand-roomy, state: Declared}
+      - {axis_value_id: av-03, axis_id: ax-layout, name: two-columns, state: Declared}
+      - {axis_value_id: av-04, axis_id: ax-layout, name: one-column, state: Declared}
+  uxsearch.design.AxisSwitches:
+    rows:
+      - {axis_switch_id: sw-01, from_variant: "sha256:v-a1", axis_id: ax-layout, axis_value_id: av-04, reached: "sha256:v-b2", state: Resolved}
+  uxsearch.design.Variants:
+    rows:
+      - {variant_digest: "sha256:v-a1", base_document_id: doc-01, target_id: tg-02, state: Candidate, routes: [{design_space_id: ds-01, origin: search, choices: [], applications: []}]}
+      - {variant_digest: "sha256:v-b2", base_document_id: doc-01, target_id: tg-02, state: Candidate, routes: [{design_space_id: ds-01, origin: manual, choices: [], applications: []}]}
+      - {variant_digest: "sha256:v-c3", base_document_id: doc-01, target_id: tg-02, state: Pruned, routes: []}
+  uxsearch.search.Campaigns:
+    rows:
+      - {campaign_id: cp-01, target_id: tg-02, design_space_id: ds-01, journeys: [jr-01], environments: [env-desk], kpis: [kpi-effort], strategy: beam, seed: 7, budget: {max_variants: 400}, ended_because: null, state: Running}
+      - {campaign_id: cp-00, target_id: tg-02, design_space_id: ds-01, journeys: [jr-01], environments: [env-desk], kpis: [kpi-effort], strategy: exhaustive, seed: 1, budget: {max_variants: 50}, ended_because: space_exhausted, state: Ended}
+  uxsearch.search.Climb:
+    rows:
+      - {climb_point_id: pt-01, seq: 1, evaluated: 12, pruned: 3, insufficient: 1, frontier_size: 2, best: "sha256:v-a1", at: "2026-11-23T10:00:00Z"}
+      - {climb_point_id: pt-02, seq: 2, evaluated: 30, pruned: 9, insufficient: 2, frontier_size: 3, best: "sha256:v-a1", at: "2026-11-23T10:00:20Z"}
+      - {climb_point_id: pt-03, seq: 3, evaluated: 51, pruned: 14, insufficient: 2, frontier_size: 3, best: "sha256:v-b2", at: "2026-11-23T10:00:40Z"}
+  uxsearch.search.Frontier:
+    rows:
+      - {frontier_entry_id: fe-01, variant_digest: "sha256:v-a1", kpi_values: [{metric_key: effort.actions, value: 6}, {metric_key: completion.miss, value: 0}], evaluation_keys: [ev-a1-desk]}
+      - {frontier_entry_id: fe-02, variant_digest: "sha256:v-b2", kpi_values: [{metric_key: effort.actions, value: 5}, {metric_key: completion.miss, value: 1}], evaluation_keys: [ev-b2-desk]}
+  uxsearch.rules.VerdictsOfVariant:
+    rows:
+      - {rule_verdict_id: rv-01, rule_id: rl-required-visible, strength: hard, verdict: pass, findings: [], score: null}
+      - {rule_verdict_id: rv-02, rule_id: rl-density, strength: soft, verdict: violated, findings: [{node_path: pages/settings/sections/form, note: "layout.density above 0.8"}], score: 0.4}
+  uxsearch.evaluation.EvaluationsOfVariant:
+    rows:
+      - {evaluation_key: ev-a1-desk, state_space_key: ss-01, environment_id: env-desk, values: [{metric_key: effort.actions, at: journey, value: 6}, {metric_key: attention.visible_required, at: journey, value: 1}], insufficient_because: null, state: Computed}
+      - {evaluation_key: ev-a1-narrow, state_space_key: ss-02, environment_id: env-narrow, values: [], insufficient_because: bound_hit, state: Insufficient}
+  uxsearch.promotion.Promotions:
+    rows:
+      - {promotion_id: pr-01, campaign_id: cp-00, variant_digest: "sha256:v-a1", rationale: "Two fewer actions, no new miss", trade_off_group: null, accepted_by: null, rejection_reason: null, state: Proposed, diff: {changed: [pages/settings/layout]}, propagates_to: []}
+      - {promotion_id: pr-02, campaign_id: cp-00, variant_digest: "sha256:v-b2", rationale: "One action less, one completion miss more", trade_off_group: tg-effort-vs-miss, accepted_by: null, rejection_reason: null, state: Proposed, diff: {changed: [pages/settings/layout]}, propagates_to: []}
+  uxsearch.promotion.Judgements:
+    rows:
+      - {judgement_id: jd-01, kind: pairwise_preference, author_kind: person, author: designer-1, left_variant: "sha256:v-a1", right_variant: "sha256:v-b2", preferred: "sha256:v-a1", note: "The one-column form hides the save button below the fold", disposition: null, state: Recorded}
+  uxsearch.ratchet.GateDecisions:
+    rows:
+      - {gate_decision_id: gd-01, promotion_id: pr-01, gate_stage: promote, verdict: pass, policy_revision: "web-ux@3", requirement_verdicts: [], trade_off_only: false, state: Decided}
+      - {gate_decision_id: gd-02, promotion_id: pr-02, gate_stage: promote, verdict: fail, policy_revision: "web-ux@3", requirement_verdicts: [{requirement_id: completion.miss, verdict: fail}], trade_off_only: true, state: Decided}

@@ -1,0 +1,640 @@
+domain: uxsearch.journeys
+
+summary: >-
+  Journeys a target is evaluated on, taken from ess-ui-test/1 tests, and the state space each
+  journey reaches on one variant within declared bounds: every UI state the engine enumerates
+  from fixtures, scripted live events and a virtual clock.
+
+naming:
+  wire: journeys
+  display: Journeys
+
+types:
+  - name: uxsearch.journeys.JourneyId
+    kind: newtype
+    of: Uuid
+
+  # The digest of (journey digest, variant digest, fixture digest, bounds): a state space is a pure function of
+  # these, so the key names it and a second enumeration of the same key is a cache hit.
+  - name: uxsearch.journeys.StateSpaceKey
+    kind: newtype
+    of: String
+    prefix: "sha256:"
+
+  - name: uxsearch.journeys.UiStateId
+    kind: newtype
+    of: Uuid
+
+  # The digest of one UI state: page, open overlay, selection, focus, fixture data and virtual
+  # time, in canonical form.
+  - name: uxsearch.journeys.UiStateDigest
+    kind: newtype
+    of: String
+    prefix: "sha256:"
+
+  # The bounds of a state space. Enumeration stops at the first bound it reaches, and the state
+  # space is then Truncated: every evaluation over it is insufficient evidence.
+  - name: uxsearch.journeys.StateSpaceBounds
+    kind: struct
+    fields:
+      - name: max_states
+        type: Integer
+      - name: max_depth
+        type: Integer
+      # The latest virtual time a state may carry, in milliseconds since the journey opened.
+      - name: max_virtual_time_ms
+        type: Integer
+    invariants:
+      - max_states > 0
+      - max_depth > 0
+      - max_virtual_time_ms >= 0
+
+  - name: uxsearch.journeys.BoundKind
+    kind: enum
+    variants: [max_states, max_depth, max_virtual_time]
+
+entities:
+  # A journey is a named test of an ess-ui-test/1 file over the target's document. Its steps
+  # must stay inside the target: a component journey drives only nodes under the component's path
+  # (a table's sort, filter and page states), rendered in the target's harness.
+  - name: uxsearch.journeys.Journey
+    naming:
+      summary: A task through the UI, from one ess-ui-test/1 test, bound to one target.
+    identity:
+      name: journey_id
+      type: uxsearch.journeys.JourneyId
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      # The ess-ui-test/1 file and the test in it (`tests[].name`).
+      - name: test_file
+        type: String
+      - name: test_name
+        type: String
+      - name: bounds
+        type: uxsearch.journeys.StateSpaceBounds
+    relations:
+      - name: target
+        kind: references
+        target: uxsearch.design.Target
+        cardinality: one
+        via: target_id
+    lifecycle:
+      initial: Active
+      states: [Active, Retired]
+      terminal: [Retired]
+      transitions:
+        - name: retire
+          from: [Active]
+          to: Retired
+
+  - name: uxsearch.journeys.StateSpace
+    naming:
+      summary: Every UI state one journey reaches on one variant within its bounds.
+    identity:
+      name: state_space_key
+      type: uxsearch.journeys.StateSpaceKey
+    fields:
+      - name: journey_id
+        type: uxsearch.journeys.JourneyId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: bounds
+        type: uxsearch.journeys.StateSpaceBounds
+      - name: states_count
+        type: Integer
+      - name: bound_hit
+        type: Optional<uxsearch.journeys.BoundKind>
+    invariants:
+      - states_count >= 0
+    relations:
+      - name: journey
+        kind: references
+        target: uxsearch.journeys.Journey
+        cardinality: one
+        via: journey_id
+      - name: variant
+        kind: references
+        target: uxsearch.design.Variant
+        cardinality: one
+        via: variant_digest
+      - name: states
+        kind: owns
+        target: uxsearch.journeys.UiState
+        cardinality: many
+        via: state_space_key
+    lifecycle:
+      initial: Enumerating
+      states:
+        - Enumerating
+        - {name: Complete, summary: Every reachable state within the bounds was enumerated.}
+        - {name: Truncated, summary: A bound was hit; states beyond it are unknown.}
+      terminal: [Complete, Truncated]
+      transitions:
+        - name: complete
+          from: [Enumerating]
+          to: Complete
+        - name: truncate
+          from: [Enumerating]
+          to: Truncated
+
+  - name: uxsearch.journeys.UiState
+    naming:
+      summary: One reachable configuration of a page in a state space.
+    identity:
+      name: ui_state_id
+      type: uxsearch.journeys.UiStateId
+    fields:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: state_digest
+        type: uxsearch.journeys.UiStateDigest
+      - name: page
+        type: uxsearch.design.NodePath
+      - name: overlay
+        type: Optional<uxsearch.design.NodePath>
+      - name: focus
+        type: Optional<uxsearch.design.NodePath>
+      # Row keys of the selection, by section path, in canonical form.
+      - name: selection
+        type: List<String>
+      - name: virtual_time_ms
+        type: Integer
+      - name: depth
+        type: Integer
+      # False when the engine cannot evaluate the state (the layout model refuses it, a fixture is
+      # missing); an evaluation over a state space holding such a state is insufficient evidence.
+      - name: evaluable
+        type: Boolean
+      - name: unevaluable_reason
+        type: Optional<String>
+    invariants:
+      - virtual_time_ms >= 0
+      - depth >= 0
+    lifecycle:
+      initial: Reached
+      states: [Reached]
+      terminal: [Reached]
+
+actors:
+  - name: uxsearch.journeys.JourneyAuthor
+    naming:
+      display: Journey author
+      summary: A person who binds ess-ui-test/1 journeys to a target.
+    may:
+      - uxsearch.journeys.DeclareJourney
+      - uxsearch.journeys.RetireJourney
+
+  - name: uxsearch.journeys.Enumerator
+    naming:
+      display: Enumerator
+      summary: The engine's state-space enumerator.
+    system: true
+    may:
+      - uxsearch.journeys.EnumerateStateSpace
+      - uxsearch.journeys.RecordUiState
+      - uxsearch.journeys.CompleteStateSpace
+      - uxsearch.journeys.TruncateStateSpace
+
+errors:
+  - name: uxsearch.journeys.TestRefused
+    summary: The file is not an ess-ui-test/1 file of the target's document, or it has no test of that name.
+    fields:
+      - name: test_file
+        type: String
+
+  - name: uxsearch.journeys.OutsideTarget
+    summary: A step of the test drives a node outside the target's path, so the journey is not bound.
+    fields:
+      - name: node_path
+        type: uxsearch.design.NodePath
+
+  - name: uxsearch.journeys.TargetNotFound
+    summary: No target has this id, so nothing was declared.
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.journeys.JourneyStateConflict
+    summary: The journey is not in a state this command acts from, so nothing moved.
+    fields:
+      - name: state
+        type: uxsearch.journeys.Journey.State
+
+  - name: uxsearch.journeys.JourneyRetired
+    summary: The journey is retired, so no state space is enumerated for it.
+    fields:
+      - name: journey_id
+        type: uxsearch.journeys.JourneyId
+
+  - name: uxsearch.journeys.JourneyNotFound
+    summary: No journey has this id, so nothing was enumerated.
+    fields:
+      - name: journey_id
+        type: uxsearch.journeys.JourneyId
+
+  - name: uxsearch.journeys.VariantPruned
+    summary: The variant is pruned by a hard rule, so it is not enumerated.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.journeys.StateSpaceNotFound
+    summary: No state space has this key, so nothing was recorded.
+    fields:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+
+  - name: uxsearch.journeys.StateSpaceStateConflict
+    summary: The state space is no longer being enumerated, so nothing changed.
+    fields:
+      - name: state
+        type: uxsearch.journeys.StateSpace.State
+
+commands:
+  - name: uxsearch.journeys.DeclareJourney
+    naming:
+      wire: declare-journey
+      display: Declare a journey
+    input:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      - name: test_file
+        type: String
+      - name: test_name
+        type: String
+      - name: bounds
+        type: uxsearch.journeys.StateSpaceBounds
+    outcomes:
+      - name: no-target
+        when_related:
+          via: input.target_id
+          exists: false
+        error: uxsearch.journeys.TargetNotFound
+        payload:
+          uxsearch.journeys.TargetNotFound:
+            target_id: input.target_id
+        summary: Nothing was declared.
+
+      - name: test-refused
+        external: the file is not an ess-ui-test/1 file naming the target's document, or holds no such test
+        error: uxsearch.journeys.TestRefused
+        payload:
+          uxsearch.journeys.TestRefused:
+            test_file: input.test_file
+        summary: Nothing was declared.
+
+      - name: outside-target
+        external: a step of the test names a node path outside the target's node path or members
+        error: uxsearch.journeys.OutsideTarget
+        summary: Nothing was declared.
+
+      - name: declared
+        creates: uxsearch.journeys.Journey
+        instance: journey_id
+        sets:
+          target_id: input.target_id
+          name: input.name
+          test_file: input.test_file
+          test_name: input.test_name
+          bounds: input.bounds
+        emits:
+          - uxsearch.journeys.JourneyDeclared
+        payload:
+          uxsearch.journeys.JourneyDeclared:
+            journey_id: {generated: true}
+            target_id: input.target_id
+        summary: The journey is Active and can be named by a campaign.
+
+  - name: uxsearch.journeys.RetireJourney
+    naming:
+      wire: retire-journey
+      display: Retire a journey
+    input:
+      - name: journey_id
+        type: uxsearch.journeys.JourneyId
+    outcomes:
+      - name: retired
+        moves: uxsearch.journeys.Journey.retire
+        instance: journey_id
+        emits:
+          - uxsearch.journeys.JourneyRetiredEvent
+        payload:
+          uxsearch.journeys.JourneyRetiredEvent:
+            journey_id: input.journey_id
+        summary: No new campaign names the journey; past evaluations keep it.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.journeys.JourneyStateConflict
+        summary: The journey was already retired.
+
+  # The state space is a pure function of its key: an unknown key starts enumeration, a known
+  # one is answered from what was enumerated before.
+  - name: uxsearch.journeys.EnumerateStateSpace
+    naming:
+      wire: enumerate-state-space
+      display: Enumerate a state space
+    input:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: journey_id
+        type: uxsearch.journeys.JourneyId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: bounds
+        type: uxsearch.journeys.StateSpaceBounds
+    outcomes:
+      - name: no-journey
+        when_related:
+          via: input.journey_id
+          exists: false
+        error: uxsearch.journeys.JourneyNotFound
+        payload:
+          uxsearch.journeys.JourneyNotFound:
+            journey_id: input.journey_id
+        summary: Nothing was enumerated.
+
+      - name: journey-retired
+        when_related:
+          via: input.journey_id
+          predicate: state == Retired
+        error: uxsearch.journeys.JourneyRetired
+        payload:
+          uxsearch.journeys.JourneyRetired:
+            journey_id: input.journey_id
+        summary: Nothing was enumerated.
+
+      # A variant with a hard Violated verdict is never evaluated further, pruned yet or not.
+      - name: variant-pruned
+        when_related:
+          entity: uxsearch.rules.RuleVerdict
+          where:
+            all:
+              - variant_digest == input.variant_digest
+              - strength == hard
+              - verdict == violated
+          exists: true
+        error: uxsearch.journeys.VariantPruned
+        payload:
+          uxsearch.journeys.VariantPruned:
+            variant_digest: input.variant_digest
+        summary: Nothing was enumerated.
+
+      - name: started
+        unknown_instance: true
+        creates: uxsearch.journeys.StateSpace
+        instance: state_space_key
+        sets:
+          journey_id: input.journey_id
+          variant_digest: input.variant_digest
+          bounds: input.bounds
+          states_count: 0
+        emits:
+          - uxsearch.journeys.StateSpaceStarted
+        payload:
+          uxsearch.journeys.StateSpaceStarted:
+            state_space_key: input.state_space_key
+        summary: Enumeration of a new state space started.
+
+      - name: cached
+        preserves: uxsearch.journeys.StateSpace
+        instance: state_space_key
+        summary: The state space was enumerated before; nothing is enumerated again.
+
+  - name: uxsearch.journeys.RecordUiState
+    naming:
+      wire: record-ui-state
+      display: Record a UI state
+    input:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: state_digest
+        type: uxsearch.journeys.UiStateDigest
+      - name: page
+        type: uxsearch.design.NodePath
+      - name: overlay
+        type: Optional<uxsearch.design.NodePath>
+      - name: focus
+        type: Optional<uxsearch.design.NodePath>
+      - name: selection
+        type: List<String>
+      - name: virtual_time_ms
+        type: Integer
+      - name: depth
+        type: Integer
+      - name: evaluable
+        type: Boolean
+      - name: unevaluable_reason
+        type: Optional<String>
+    outcomes:
+      - name: no-state-space
+        when_related:
+          via: input.state_space_key
+          exists: false
+        error: uxsearch.journeys.StateSpaceNotFound
+        payload:
+          uxsearch.journeys.StateSpaceNotFound:
+            state_space_key: input.state_space_key
+        summary: Nothing was recorded.
+
+      - name: not-enumerating
+        when_related:
+          via: input.state_space_key
+          predicate: state != Enumerating
+        error: uxsearch.journeys.StateSpaceStateConflict
+        payload:
+          uxsearch.journeys.StateSpaceStateConflict:
+            state: {related: {via: input.state_space_key, field: state}}
+        summary: The state space is closed; nothing was recorded.
+
+      - name: recorded
+        creates: uxsearch.journeys.UiState
+        instance: ui_state_id
+        sets:
+          state_space_key: input.state_space_key
+          state_digest: input.state_digest
+          page: input.page
+          overlay: input.overlay
+          focus: input.focus
+          selection: input.selection
+          virtual_time_ms: input.virtual_time_ms
+          depth: input.depth
+          evaluable: input.evaluable
+          unevaluable_reason: input.unevaluable_reason
+        emits:
+          - uxsearch.journeys.UiStateReached
+        payload:
+          uxsearch.journeys.UiStateReached:
+            ui_state_id: {generated: true}
+            state_space_key: input.state_space_key
+            evaluable: input.evaluable
+        summary: The state is part of the state space.
+
+  - name: uxsearch.journeys.CompleteStateSpace
+    naming:
+      wire: complete-state-space
+      display: Complete a state space
+    input:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: states_count
+        type: Integer
+    outcomes:
+      - name: completed
+        moves: uxsearch.journeys.StateSpace.complete
+        instance: state_space_key
+        sets:
+          states_count: input.states_count
+        emits:
+          - uxsearch.journeys.StateSpaceClosed
+        payload:
+          uxsearch.journeys.StateSpaceClosed:
+            state_space_key: input.state_space_key
+            states_count: input.states_count
+            truncated: false
+        summary: Every reachable state within the bounds is recorded.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.journeys.StateSpaceStateConflict
+        summary: The state space was already closed.
+
+  - name: uxsearch.journeys.TruncateStateSpace
+    naming:
+      wire: truncate-state-space
+      display: Truncate a state space
+    input:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: states_count
+        type: Integer
+      - name: bound_hit
+        type: uxsearch.journeys.BoundKind
+    outcomes:
+      - name: truncated
+        moves: uxsearch.journeys.StateSpace.truncate
+        instance: state_space_key
+        sets:
+          states_count: input.states_count
+          bound_hit: input.bound_hit
+        emits:
+          - uxsearch.journeys.StateSpaceClosed
+        payload:
+          uxsearch.journeys.StateSpaceClosed:
+            state_space_key: input.state_space_key
+            states_count: input.states_count
+            truncated: true
+        summary: A bound was hit; evaluations over this state space are insufficient evidence.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.journeys.StateSpaceStateConflict
+        summary: The state space was already closed.
+
+events:
+  - name: uxsearch.journeys.JourneyDeclared
+    fields:
+      - name: journey_id
+        type: uxsearch.journeys.JourneyId
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.journeys.JourneyRetiredEvent
+    fields:
+      - name: journey_id
+        type: uxsearch.journeys.JourneyId
+
+  - name: uxsearch.journeys.StateSpaceStarted
+    fields:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+
+  - name: uxsearch.journeys.UiStateReached
+    fields:
+      - name: ui_state_id
+        type: uxsearch.journeys.UiStateId
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: evaluable
+        type: Boolean
+
+  - name: uxsearch.journeys.StateSpaceClosed
+    fields:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: states_count
+        type: Integer
+      - name: truncated
+        type: Boolean
+
+views:
+  - name: uxsearch.journeys.Journeys
+    source: uxsearch.journeys.Journey
+    consistency: read_your_writes
+    fields:
+      - name: journey_id
+        type: uxsearch.journeys.JourneyId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      - name: test_file
+        type: String
+      - name: test_name
+        type: String
+      - name: state
+        type: uxsearch.journeys.Journey.State
+    naming:
+      wire: journeys
+      display: Journeys
+
+  - name: uxsearch.journeys.StateSpaces
+    source: uxsearch.journeys.StateSpace
+    consistency: read_your_writes
+    fields:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: journey_id
+        type: uxsearch.journeys.JourneyId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: states_count
+        type: Integer
+      - name: bound_hit
+        type: Optional<uxsearch.journeys.BoundKind>
+      - name: state
+        type: uxsearch.journeys.StateSpace.State
+    naming:
+      wire: state-spaces
+      display: State spaces
+
+  - name: uxsearch.journeys.UiStates
+    source: uxsearch.journeys.UiState
+    consistency: read_your_writes
+    fields:
+      - name: ui_state_id
+        type: uxsearch.journeys.UiStateId
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: state_digest
+        type: uxsearch.journeys.UiStateDigest
+      - name: page
+        type: uxsearch.design.NodePath
+      - name: overlay
+        type: Optional<uxsearch.design.NodePath>
+      - name: virtual_time_ms
+        type: Integer
+      - name: depth
+        type: Integer
+      - name: evaluable
+        type: Boolean
+      - name: state
+        type: uxsearch.journeys.UiState.State
+    naming:
+      wire: ui-states
+      display: UI states

@@ -1,0 +1,26 @@
+# The UX search engine (working title; docs/brief.md). It takes a UI written as an `ess-ui/1`
+# document, generates its design variants by rule, evaluates every variant against every reachable
+# UI state of every journey with no I/O, and searches the design space for the best compositions.
+# A person watches the climb in the studio, switches axes by hand, compares variants and promotes
+# one. Promotion is a reviewed change to the `ess-ui/1` document, gated by ratchet.
+#
+# The engine's pure functions (mutation operators, the layout model, metric computation, the
+# search strategies) are specified by their contracts only: what goes in, what comes out, and the
+# records they leave. Their algorithms are out of scope for this round (docs/brief.md).
+format: ess/37
+system: uxsearch
+version: v1
+
+summary: >-
+  Search the design space of an ess-ui/1 document for the best compositions, measured by declared
+  UX metrics over every reachable UI state, and promote one through ratchet.
+
+domains:
+  - uxsearch.design
+  - uxsearch.journeys
+  - uxsearch.rules
+  - uxsearch.metrics
+  - uxsearch.evaluation
+  - uxsearch.search
+  - uxsearch.promotion
+  - uxsearch.ratchet

@@ -1,0 +1,695 @@
+domain: uxsearch.evaluation
+
+summary: >-
+  Environments a target is evaluated in, the layout model's contract, and evaluations: every
+  metric for one variant on one state space in one environment. An evaluation is a pure function
+  of its input digests, so it is keyed by them and computed once.
+
+naming:
+  wire: evaluation
+  display: Evaluation
+
+types:
+  - name: uxsearch.evaluation.EnvironmentId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.evaluation.EnvironmentDigest
+    kind: newtype
+    of: String
+    prefix: "sha256:"
+
+  # The digest of every input digest of an evaluation: variant, state space (which holds the
+  # fixture digest), environment, layout model version (with its font table), metric catalogue
+  # and UX declarations. Same key, same metric values.
+  - name: uxsearch.evaluation.EvaluationKey
+    kind: newtype
+    of: String
+    prefix: "sha256:"
+
+  # The digest of an evaluation's result (its metric values in canonical form).
+  - name: uxsearch.evaluation.ResultDigest
+    kind: newtype
+    of: String
+    prefix: "sha256:"
+
+  # The digest of the metric catalogue an evaluation computed (keys and versions).
+  - name: uxsearch.evaluation.CatalogueDigest
+    kind: newtype
+    of: String
+    prefix: "sha256:"
+
+  - name: uxsearch.evaluation.LayoutModelVersion
+    kind: newtype
+    of: String
+
+  - name: uxsearch.evaluation.ThemeMode
+    kind: enum
+    variants: [light, dark]
+
+  - name: uxsearch.evaluation.InputMode
+    kind: enum
+    variants: [pointer, keyboard]
+
+  # Why an evaluation is insufficient evidence (docs/state-space.md § 7): a journey hit its state
+  # bound; the layout model refused a node a metric reads; the terminal path refused a step or a
+  # clock move passed its cycle limit; an accessibility rule said `cantTell`; a view or channel
+  # has no fixture.
+  - name: uxsearch.evaluation.Insufficiency
+    kind: enum
+    variants: [bound_hit, layout_refused, step_refused, cant_tell, fixture_missing]
+
+  # The geometry a layout model version produces. Version 0 is ESS's terminal renderer: cell
+  # geometry per node path (`Region {path, row, area, text}`), no pixels, no tokens, no
+  # accessibility tree. A later version is a pixel model in CSS px.
+  - name: uxsearch.evaluation.GeometryUnit
+    kind: enum
+    variants: [cells, css_px]
+
+  # The layout model's contract, inputs and outputs only (its algorithm is out of scope). A
+  # deterministic function from (variant, UI state, environment) to geometry and an
+  # accessibility tree: no browser, no network, no clock. The same input digests give the same
+  # output digests.
+  - name: uxsearch.evaluation.LayoutInput
+    kind: struct
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: state_digest
+        type: uxsearch.journeys.UiStateDigest
+      - name: environment_digest
+        type: uxsearch.evaluation.EnvironmentDigest
+
+  - name: uxsearch.evaluation.NodeBox
+    kind: struct
+    fields:
+      - name: node_path
+        type: uxsearch.design.NodePath
+      - name: x_px
+        type: Integer
+      - name: y_px
+        type: Integer
+      - name: width_px
+        type: Integer
+      - name: height_px
+        type: Integer
+      # Share of the box inside the viewport and not covered, in per mille.
+      - name: visible_per_mille
+        type: Integer
+    invariants:
+      - width_px >= 0
+      - height_px >= 0
+      - visible_per_mille >= 0
+      - visible_per_mille <= 1000
+
+  - name: uxsearch.evaluation.AccessibleNode
+    kind: struct
+    fields:
+      - name: node_path
+        type: uxsearch.design.NodePath
+      - name: role
+        type: String
+      - name: name
+        type: String
+      - name: focusable
+        type: Boolean
+
+  - name: uxsearch.evaluation.LayoutOutput
+    kind: struct
+    fields:
+      - name: boxes
+        type: List<uxsearch.evaluation.NodeBox>
+      - name: accessibility_tree
+        type: List<uxsearch.evaluation.AccessibleNode>
+      # Nodes the model could not place (an unknown construct); a state with any is not
+      # evaluable.
+      - name: unplaceable
+        type: List<uxsearch.design.NodePath>
+      - name: document_scroll_width_px
+        type: Integer
+
+entities:
+  # An evaluation condition, not a design choice. A component or widget target is rendered in a
+  # harness container of the environment's container width; a wider target in the viewport.
+  - name: uxsearch.evaluation.Environment
+    naming:
+      summary: Viewport, theme mode, input mode, text scale and motion for one target's evaluations.
+    identity:
+      name: environment_id
+      type: uxsearch.evaluation.EnvironmentId
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      - name: viewport_width_px
+        type: Integer
+      - name: viewport_height_px
+        type: Integer
+      # The harness container width for a component or widget target; absent for wider scopes.
+      - name: container_width_px
+        type: Optional<Integer>
+      - name: theme_mode
+        type: uxsearch.evaluation.ThemeMode
+      - name: input_mode
+        type: uxsearch.evaluation.InputMode
+      - name: text_scale_percent
+        type: Integer
+      - name: reduced_motion
+        type: Boolean
+      - name: environment_digest
+        type: uxsearch.evaluation.EnvironmentDigest
+    invariants:
+      - viewport_width_px > 0
+      - viewport_height_px > 0
+      - text_scale_percent > 0
+    relations:
+      - name: target
+        kind: references
+        target: uxsearch.design.Target
+        cardinality: one
+        via: target_id
+    lifecycle:
+      initial: Declared
+      states: [Declared]
+      terminal: [Declared]
+
+  # Layout model versions ship with the engine. A new version is a new evidence series in ratchet.
+  # D1 (2026-11-23): version 0 is ESS's terminal renderer (cell geometry, `geometry: cells`); a
+  # pixel model (`css_px`) comes later. Every evidence record names the version it used.
+  - name: uxsearch.evaluation.LayoutModel
+    naming:
+      summary: One version of the deterministic layout model, known by its contract.
+    identity:
+      name: version
+      type: uxsearch.evaluation.LayoutModelVersion
+    provided: true
+    fields:
+      - name: summary
+        type: String
+      - name: geometry
+        type: uxsearch.evaluation.GeometryUnit
+      # The digest of the font-metrics table the version lays text out with; absent for the
+      # cell model.
+      - name: font_table_digest
+        type: Optional<String>
+    lifecycle:
+      initial: Available
+      states: [Available]
+      terminal: [Available]
+
+  - name: uxsearch.evaluation.Evaluation
+    naming:
+      summary: Every metric for one variant on one state space in one environment, keyed by its input digests.
+    identity:
+      name: evaluation_key
+      type: uxsearch.evaluation.EvaluationKey
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      # Complete or Truncated: the state of the state space when the evaluation was requested
+      # (an Enumerating one is refused). A Truncated one makes the evaluation insufficient.
+      - name: state_space_state
+        type: uxsearch.journeys.StateSpace.State
+      - name: environment_id
+        type: uxsearch.evaluation.EnvironmentId
+      - name: layout_model_version
+        type: uxsearch.evaluation.LayoutModelVersion
+      - name: catalogue_digest
+        type: uxsearch.evaluation.CatalogueDigest
+      # The digest of the uxui-declarations/1 file the metrics read (required, always-visible,
+      # completion signal and cue nodes); absent when the base document has none.
+      - name: declarations_digest
+        type: Optional<uxsearch.design.DocumentDigest>
+      - name: values
+        type: List<uxsearch.metrics.MetricValue>
+      - name: result_digest
+        type: Optional<uxsearch.evaluation.ResultDigest>
+      - name: insufficient_because
+        type: Optional<uxsearch.evaluation.Insufficiency>
+    relations:
+      - name: variant
+        kind: references
+        target: uxsearch.design.Variant
+        cardinality: one
+        via: variant_digest
+      - name: state_space
+        kind: references
+        target: uxsearch.journeys.StateSpace
+        cardinality: one
+        via: state_space_key
+      - name: environment
+        kind: references
+        target: uxsearch.evaluation.Environment
+        cardinality: one
+        via: environment_id
+      - name: layout_model
+        kind: references
+        target: uxsearch.evaluation.LayoutModel
+        cardinality: one
+        via: layout_model_version
+    lifecycle:
+      initial: Requested
+      states:
+        - Requested
+        - {name: Computed, summary: Every metric has a value over a complete state space.}
+        - {name: Insufficient, summary: A bound was hit or a state was not evaluable; never a pass.}
+      terminal: [Computed, Insufficient]
+      transitions:
+        - name: compute
+          from: [Requested]
+          to: Computed
+        - name: insufficient
+          from: [Requested]
+          to: Insufficient
+
+actors:
+  - name: uxsearch.evaluation.EnvironmentAuthor
+    naming:
+      display: Environment author
+      summary: A person who declares the environments a target is evaluated in.
+    may:
+      - uxsearch.evaluation.DeclareEnvironment
+
+  - name: uxsearch.evaluation.Evaluator
+    naming:
+      display: Evaluator
+      summary: The engine's evaluator; it runs the layout model and the metric functions.
+    system: true
+    may:
+      - uxsearch.evaluation.RequestEvaluation
+      - uxsearch.evaluation.RecordEvaluationResult
+
+errors:
+  - name: uxsearch.evaluation.TargetNotFound
+    summary: No target has this id, so nothing was declared.
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.evaluation.ContainerMismatch
+    summary: A component or widget target needs a container width, and a wider target takes none.
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.evaluation.VariantPruned
+    summary: The variant has a hard Violated verdict, so it is not evaluated.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.evaluation.StateSpaceNotFound
+    summary: No state space has this key.
+    fields:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+
+  - name: uxsearch.evaluation.StateSpaceOpen
+    summary: The state space is still being enumerated, so nothing is evaluated over it yet.
+    fields:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+
+  # The determinism invariant as a refusal: a second result for one key that differs from the
+  # first is a defect of the layout model or a metric function, never a new value.
+  - name: uxsearch.evaluation.NotDeterministic
+    summary: A result for this key was recorded before and differs; the stored result stands.
+    fields:
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+
+  - name: uxsearch.evaluation.EvaluationNotFound
+    summary: No evaluation has this key.
+    fields:
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+
+commands:
+  - name: uxsearch.evaluation.DeclareEnvironment
+    naming:
+      wire: declare-environment
+      display: Declare an environment
+    input:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      - name: viewport_width_px
+        type: Integer
+      - name: viewport_height_px
+        type: Integer
+      - name: container_width_px
+        type: Optional<Integer>
+      - name: theme_mode
+        type: uxsearch.evaluation.ThemeMode
+      - name: input_mode
+        type: uxsearch.evaluation.InputMode
+      - name: text_scale_percent
+        type: Integer
+      - name: reduced_motion
+        type: Boolean
+    outcomes:
+      - name: no-target
+        when_related:
+          via: input.target_id
+          exists: false
+        error: uxsearch.evaluation.TargetNotFound
+        payload:
+          uxsearch.evaluation.TargetNotFound:
+            target_id: input.target_id
+        summary: Nothing was declared.
+
+      - name: needs-container
+        when: {not: defined(container_width_px)}
+        when_related:
+          via: input.target_id
+          predicate: {scope: [component, widget]}
+        error: uxsearch.evaluation.ContainerMismatch
+        payload:
+          uxsearch.evaluation.ContainerMismatch:
+            target_id: input.target_id
+        summary: A component or widget is rendered in a harness container; nothing was declared.
+
+      - name: declared
+        creates: uxsearch.evaluation.Environment
+        instance: environment_id
+        sets:
+          target_id: input.target_id
+          name: input.name
+          viewport_width_px: input.viewport_width_px
+          viewport_height_px: input.viewport_height_px
+          container_width_px: input.container_width_px
+          theme_mode: input.theme_mode
+          input_mode: input.input_mode
+          text_scale_percent: input.text_scale_percent
+          reduced_motion: input.reduced_motion
+          environment_digest: {generated: true}
+        emits:
+          - uxsearch.evaluation.EnvironmentDeclared
+        payload:
+          uxsearch.evaluation.EnvironmentDeclared:
+            environment_id: {generated: true}
+            target_id: input.target_id
+        summary: Campaigns on the target can evaluate in this environment.
+
+  # An evaluation is computed once per key: an unknown key is requested, a known one is answered
+  # from the cache.
+  - name: uxsearch.evaluation.RequestEvaluation
+    naming:
+      wire: request-evaluation
+      display: Request an evaluation
+    input:
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: environment_id
+        type: uxsearch.evaluation.EnvironmentId
+      - name: layout_model_version
+        type: uxsearch.evaluation.LayoutModelVersion
+      - name: catalogue_digest
+        type: uxsearch.evaluation.CatalogueDigest
+      - name: declarations_digest
+        type: Optional<uxsearch.design.DocumentDigest>
+    outcomes:
+      - name: no-state-space
+        when_related:
+          via: input.state_space_key
+          exists: false
+        error: uxsearch.evaluation.StateSpaceNotFound
+        payload:
+          uxsearch.evaluation.StateSpaceNotFound:
+            state_space_key: input.state_space_key
+        summary: Nothing was requested.
+
+      - name: state-space-open
+        when_related:
+          via: input.state_space_key
+          predicate: state == Enumerating
+        error: uxsearch.evaluation.StateSpaceOpen
+        payload:
+          uxsearch.evaluation.StateSpaceOpen:
+            state_space_key: input.state_space_key
+        summary: Nothing was requested.
+
+      # A variant with a hard Violated verdict is never evaluated further, pruned yet or not.
+      - name: variant-pruned
+        when_related:
+          entity: uxsearch.rules.RuleVerdict
+          where:
+            all:
+              - variant_digest == input.variant_digest
+              - strength == hard
+              - verdict == violated
+          exists: true
+        error: uxsearch.evaluation.VariantPruned
+        payload:
+          uxsearch.evaluation.VariantPruned:
+            variant_digest: input.variant_digest
+        summary: Nothing was requested.
+
+      - name: requested
+        unknown_instance: true
+        creates: uxsearch.evaluation.Evaluation
+        instance: evaluation_key
+        sets:
+          variant_digest: input.variant_digest
+          state_space_key: input.state_space_key
+          state_space_state: {related: {via: input.state_space_key, field: state}}
+          environment_id: input.environment_id
+          layout_model_version: input.layout_model_version
+          catalogue_digest: input.catalogue_digest
+          declarations_digest: input.declarations_digest
+          values: []
+        emits:
+          - uxsearch.evaluation.EvaluationRequested
+        payload:
+          uxsearch.evaluation.EvaluationRequested:
+            evaluation_key: input.evaluation_key
+            variant_digest: input.variant_digest
+        summary: The evaluation is queued.
+
+      - name: cached
+        preserves: uxsearch.evaluation.Evaluation
+        instance: evaluation_key
+        summary: The key was evaluated before; its values are reused and nothing is computed.
+
+  # The evaluation's own row holds the state of its state space, read when it was requested, so
+  # every branch here is decided by the stored row and the input alone.
+  - name: uxsearch.evaluation.RecordEvaluationResult
+    naming:
+      wire: record-evaluation-result
+      display: Record an evaluation result
+    input:
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+      - name: result_digest
+        type: uxsearch.evaluation.ResultDigest
+      - name: values
+        type: List<uxsearch.metrics.MetricValue>
+      # Present when the evaluator could not decide a metric over some state: the first cause
+      # it met. A bound hit is not sent here; it is read from the state space.
+      - name: refused
+        type: Optional<uxsearch.evaluation.Insufficiency>
+    outcomes:
+      - name: no-evaluation
+        unknown_instance: true
+        error: uxsearch.evaluation.EvaluationNotFound
+        payload:
+          uxsearch.evaluation.EvaluationNotFound:
+            evaluation_key: input.evaluation_key
+        summary: Nothing was recorded.
+
+      - name: not-deterministic
+        when_subject:
+          predicate:
+            all:
+              - state == Computed
+              - result_digest != input.result_digest
+        error: uxsearch.evaluation.NotDeterministic
+        payload:
+          uxsearch.evaluation.NotDeterministic:
+            evaluation_key: input.evaluation_key
+        summary: The stored result stands; the evaluator is defective.
+
+      - name: already-recorded
+        when_subject:
+          predicate: {state: [Computed, Insufficient]}
+        preserves: uxsearch.evaluation.Evaluation
+        instance: evaluation_key
+        summary: A result was recorded before; nothing changed.
+
+      # A bound hit is insufficient evidence, whatever the values say.
+      - name: bound-hit
+        when_subject:
+          predicate: state_space_state == Truncated
+        moves: uxsearch.evaluation.Evaluation.insufficient
+        instance: evaluation_key
+        sets:
+          values: input.values
+          result_digest: input.result_digest
+          insufficient_because: bound_hit
+        emits:
+          - uxsearch.evaluation.EvaluationInsufficient
+        payload:
+          uxsearch.evaluation.EvaluationInsufficient:
+            evaluation_key: input.evaluation_key
+            because: bound_hit
+        summary: The state space was truncated; the evaluation is insufficient evidence.
+
+      - name: refused
+        when: defined(refused)
+        moves: uxsearch.evaluation.Evaluation.insufficient
+        instance: evaluation_key
+        sets:
+          values: input.values
+          result_digest: input.result_digest
+          insufficient_because: input.refused
+        emits:
+          - uxsearch.evaluation.EvaluationInsufficient
+        payload:
+          uxsearch.evaluation.EvaluationInsufficient:
+            evaluation_key: input.evaluation_key
+            because: input.refused
+        summary: A metric could not be decided over some state; the evaluation is insufficient evidence.
+
+      - name: computed
+        moves: uxsearch.evaluation.Evaluation.compute
+        instance: evaluation_key
+        sets:
+          values: input.values
+          result_digest: input.result_digest
+        emits:
+          - uxsearch.evaluation.EvaluationComputed
+        payload:
+          uxsearch.evaluation.EvaluationComputed:
+            evaluation_key: input.evaluation_key
+            result_digest: input.result_digest
+        summary: Every metric has a value over the complete state space.
+
+events:
+  - name: uxsearch.evaluation.EnvironmentDeclared
+    fields:
+      - name: environment_id
+        type: uxsearch.evaluation.EnvironmentId
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.evaluation.EvaluationRequested
+    fields:
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.evaluation.EvaluationComputed
+    fields:
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+      - name: result_digest
+        type: uxsearch.evaluation.ResultDigest
+
+  - name: uxsearch.evaluation.EvaluationInsufficient
+    fields:
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+      - name: because
+        type: uxsearch.evaluation.Insufficiency
+
+views:
+  - name: uxsearch.evaluation.Environments
+    source: uxsearch.evaluation.Environment
+    consistency: read_your_writes
+    fields:
+      - name: environment_id
+        type: uxsearch.evaluation.EnvironmentId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      - name: viewport_width_px
+        type: Integer
+      - name: viewport_height_px
+        type: Integer
+      - name: container_width_px
+        type: Optional<Integer>
+      - name: theme_mode
+        type: uxsearch.evaluation.ThemeMode
+      - name: input_mode
+        type: uxsearch.evaluation.InputMode
+      - name: text_scale_percent
+        type: Integer
+      - name: reduced_motion
+        type: Boolean
+      - name: state
+        type: uxsearch.evaluation.Environment.State
+    naming:
+      wire: environments
+      display: Environments
+
+  - name: uxsearch.evaluation.LayoutModels
+    source: uxsearch.evaluation.LayoutModel
+    consistency: read_your_writes
+    fields:
+      - name: version
+        type: uxsearch.evaluation.LayoutModelVersion
+      - name: summary
+        type: String
+      - name: state
+        type: uxsearch.evaluation.LayoutModel.State
+    naming:
+      wire: layout-models
+      display: Layout models
+
+  - name: uxsearch.evaluation.Evaluations
+    source: uxsearch.evaluation.Evaluation
+    consistency: read_your_writes
+    fields:
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: environment_id
+        type: uxsearch.evaluation.EnvironmentId
+      - name: layout_model_version
+        type: uxsearch.evaluation.LayoutModelVersion
+      - name: result_digest
+        type: Optional<uxsearch.evaluation.ResultDigest>
+      - name: insufficient_because
+        type: Optional<uxsearch.evaluation.Insufficiency>
+      - name: state
+        type: uxsearch.evaluation.Evaluation.State
+    naming:
+      wire: evaluations
+      display: Evaluations
+
+  - name: uxsearch.evaluation.EvaluationsOfVariant
+    source: uxsearch.evaluation.Evaluation
+    consistency: read_your_writes
+    params:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+    filter: variant_digest == param.variant_digest
+    fields:
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: environment_id
+        type: uxsearch.evaluation.EnvironmentId
+      - name: values
+        type: List<uxsearch.metrics.MetricValue>
+      - name: insufficient_because
+        type: Optional<uxsearch.evaluation.Insufficiency>
+      - name: state
+        type: uxsearch.evaluation.Evaluation.State
+    naming:
+      wire: evaluations-of-variant
+      display: Evaluations of a variant

@@ -1,0 +1,5 @@
+channel: switches
+loop: false
+events:
+  - {at: 2s, event: uxsearch.design.AxisSwitchRequested, payload: {axis_switch_id: sw-02, from_variant: "sha256:v-a1", axis_id: ax-theme, axis_value_id: av-02}}
+  - {at: 4s, event: uxsearch.design.AxisSwitchResolved, payload: {axis_switch_id: sw-02, reached: "sha256:v-e5"}}

@@ -1,0 +1,20 @@
+{
+  "name": "uxui",
+  "version": "0.1.0",
+  "description": "Measured UI improvement loop: rounds of trial, measure, triage, design decision, build and gate, with hard gates on every merge and lower-is-better ratchets against a baseline.",
+  "author": {
+    "name": "Beyond10x"
+  },
+  "license": "Apache-2.0",
+  "repository": "https://github.com/beyond10x/uxui",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "UX/UI",
+    "shortDescription": "Improve a web UI in measured rounds that never make a measured value worse.",
+    "longDescription": "Run rounds of trial, measure, triage, design decision, build and gate on a web UI or docs site: hard gates on every merge (no scroll, always-visible controls, unmissable completion, a screen-only user, axe-core accessibility), every finding turned into a regression test, and lower-is-better ratchets against a committed baseline.json.",
+    "developerName": "Beyond10x",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Use the ui-iteration-loop skill to run a measured improvement round on this UI."
+  }
+}

@@ -1,0 +1,114 @@
+# One deployable: the engine, its studio API and its live progress stream. The studio
+# (ui/studio.ui.yaml) reads its views and sends its commands over the network.
+components:
+  - component: ux-search-engine
+    summary: Generates, evaluates and searches the variants of an ess-ui/1 document, and serves the studio.
+    owns:
+      domains:
+        - uxsearch.design
+        - uxsearch.journeys
+        - uxsearch.rules
+        - uxsearch.metrics
+        - uxsearch.evaluation
+        - uxsearch.search
+        - uxsearch.promotion
+        - uxsearch.ratchet
+    accepts:
+      commands:
+        - uxsearch.design.RegisterBaseDocument
+        - uxsearch.design.DeclareTarget
+        - uxsearch.design.DeclareDesignSpace
+        - uxsearch.design.RegisterUxDeclarations
+        - uxsearch.design.BindComponent
+        - uxsearch.design.AddAxis
+        - uxsearch.design.AddAxisValue
+        - uxsearch.design.FreezeDesignSpace
+        - uxsearch.design.MaterializeVariant
+        - uxsearch.design.RequestAxisSwitch
+        - uxsearch.design.ResolveAxisSwitch
+        - uxsearch.journeys.DeclareJourney
+        - uxsearch.journeys.RetireJourney
+        - uxsearch.journeys.EnumerateStateSpace
+        - uxsearch.journeys.RecordUiState
+        - uxsearch.journeys.CompleteStateSpace
+        - uxsearch.journeys.TruncateStateSpace
+        - uxsearch.rules.DeclareRule
+        - uxsearch.rules.RetireRule
+        - uxsearch.rules.RecordRuleVerdict
+        - uxsearch.rules.PruneVariant
+        - uxsearch.metrics.DefineMetric
+        - uxsearch.metrics.DeprecateMetric
+        - uxsearch.metrics.DeclareKpi
+        - uxsearch.metrics.ReweighKpi
+        - uxsearch.metrics.RetireKpi
+        - uxsearch.evaluation.DeclareEnvironment
+        - uxsearch.evaluation.RequestEvaluation
+        - uxsearch.evaluation.RecordEvaluationResult
+        - uxsearch.search.StartCampaign
+        - uxsearch.search.StopCampaign
+        - uxsearch.search.EndCampaign
+        - uxsearch.search.RecordProgress
+        - uxsearch.search.AdmitToFrontier
+        - uxsearch.search.MarkDominated
+        - uxsearch.promotion.ProposePromotion
+        - uxsearch.promotion.AcceptPromotion
+        - uxsearch.promotion.AcceptTradeOff
+        - uxsearch.promotion.RejectPromotion
+        - uxsearch.promotion.RecordJudgement
+        - uxsearch.promotion.DispositionJudgement
+        - uxsearch.ratchet.BindRequirement
+        - uxsearch.ratchet.UnbindRequirement
+        - uxsearch.ratchet.RecordMetricEvidence
+        - uxsearch.ratchet.RecordRuleEvidence
+        - uxsearch.ratchet.RecordGateDecision
+        - uxsearch.ratchet.ProposeReference
+        - uxsearch.ratchet.RecordReferenceDecision
+    publishes:
+      events:
+        - uxsearch.design.UxDeclarationsRegistered
+        - uxsearch.design.ComponentBound
+        - uxsearch.design.BaseDocumentRegistered
+        - uxsearch.design.TargetDeclared
+        - uxsearch.design.DesignSpaceDeclared
+        - uxsearch.design.AxisAdded
+        - uxsearch.design.AxisValueAdded
+        - uxsearch.design.DesignSpaceFrozenEvent
+        - uxsearch.design.VariantMaterialized
+        - uxsearch.design.VariantReachedAgain
+        - uxsearch.design.AxisSwitchRequested
+        - uxsearch.design.AxisSwitchResolved
+        - uxsearch.journeys.JourneyDeclared
+        - uxsearch.journeys.JourneyRetiredEvent
+        - uxsearch.journeys.StateSpaceStarted
+        - uxsearch.journeys.UiStateReached
+        - uxsearch.journeys.StateSpaceClosed
+        - uxsearch.rules.RuleDeclared
+        - uxsearch.rules.RuleRetired
+        - uxsearch.rules.RuleVerdictRecorded
+        - uxsearch.rules.VariantPruned
+        - uxsearch.metrics.MetricDefined
+        - uxsearch.metrics.MetricDeprecated
+        - uxsearch.metrics.KpiDeclared
+        - uxsearch.metrics.KpiReweighed
+        - uxsearch.metrics.KpiRetired
+        - uxsearch.evaluation.EnvironmentDeclared
+        - uxsearch.evaluation.EvaluationRequested
+        - uxsearch.evaluation.EvaluationComputed
+        - uxsearch.evaluation.EvaluationInsufficient
+        - uxsearch.search.CampaignStarted
+        - uxsearch.search.CampaignStopped
+        - uxsearch.search.CampaignEnded
+        - uxsearch.search.CampaignProgressed
+        - uxsearch.search.FrontierChanged
+        - uxsearch.promotion.PromotionProposed
+        - uxsearch.promotion.PromotionAccepted
+        - uxsearch.promotion.PromotionRejected
+        - uxsearch.promotion.JudgementRecorded
+        - uxsearch.promotion.JudgementDispositioned
+        - uxsearch.ratchet.RequirementBound
+        - uxsearch.ratchet.RequirementUnbound
+        - uxsearch.ratchet.EvidenceRecorded
+        - uxsearch.ratchet.GateDecided
+        - uxsearch.ratchet.ReferenceProposed
+        - uxsearch.ratchet.ReferenceDecided
+    reached_by: network

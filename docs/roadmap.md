@@ -1,0 +1,55 @@
+# Roadmap
+
+State on 2026-11-24 and the next steps, in order. Each step names what it unblocks. Specification first, code
+second; the first code is a thin vertical slice that measures the assumption the whole design rests on.
+
+## State
+
+- `plugin/`: the `ui-iteration-loop` skill, unchanged from its first version (rounds with people, browser
+  runs, a baseline file). One round on its own explainer page: `reviews/2026-11-23-r01-explainer-round.md`.
+- `ess/`: specification `uxsearch` v1, valid and compiled (216 declarations); no scenarios yet (156 outcomes
+  without one), 13 UNMAPPED markers, 11 gaps in ESS (`ess/GAPS.md`).
+- `docs/`: concept, state spaces, 47 metrics, mapping onto ratchet. `presets/`: a draft ratchet preset family.
+- ratchet (`beyond10x/ratchet`) is in design; uxui offered to be the first consumer of its "ESS UI behavior"
+  integration and sent it four gaps (trade-offs, result scope, exact vs sampled, finding identity).
+- Decisions: layout model v0 is ESS's terminal renderer; UX declarations live in a `uxui-declarations/1` file;
+  only a person accepts a trade-off.
+
+## Next
+
+1. **Specification round 2.** Scenarios for the 156 outcomes; resolve the 13 UNMAPPED markers or move each to
+   `ess/GAPS.md`; an independent review of the spec by an agent that did not write it (design, scope,
+   acceptance). Unblocks: generating anything from the spec.
+2. **ESS gaps upstream, ordered by what blocks the engine first.** As stories to the ESS maintainers:
+   (a) the actions available in a UI state and a cloneable or replay-free UI state, (b) a canonical digest of a
+   UI state and of an `ess-ui/1` document, (c) a per-step trace in the `ess-ui-test` report, (d) rendering one
+   component alone (a harness), (e) UX declarations as constructs (proposal from `uxui-declarations/1`).
+   (a) and (b) decide whether exhaustive search is possible at all.
+3. **Spike: measure the cost of one evaluation.** `docs/state-space.md` assumes 50 µs per layout call; nothing
+   has measured it. Drive ESS's terminal renderer in process on one example page, time open + N steps +
+   geometry read, report per-state cost and memory. Go/no-go for "exhaustive" per scope. Code in Rust, no
+   third-party dependency beyond ESS.
+4. **Thin vertical slice `ux-static@1`.** Read an `ess-ui/1` document, its `ess-ui-test/1` journeys and a
+   `uxui-declarations/1` file; compute the static metrics (required nodes present, actions per journey,
+   accessible names); write ratchet evidence records in ratchet's draft shape. No browser, no layout model.
+   Proves the evidence contract with ratchet.
+5. **First climb on a toy.** Two axes (theme x section order) on an ESS example page, exhaustive, layout model
+   v0, a ranked frontier printed as text. Then the studio, generated from `ess/ui/studio.ui.yaml`.
+6. **Trial target.** One page or component of an admin console generated from an `ess-ui/1` document (a
+   private repository; its fixtures make it I/O-free). Results stay in that repository; only generic findings
+   come back here.
+7. **Ratchet integration.** When ratchet's format settles: presets from `presets/web-ux.ratchet.yaml`, gates on
+   merge and promote, and the migration of one of the organization's seven UI-loop copies (each with its own
+   baseline file) onto ratchet + uxui, the smallest first.
+8. **The skill.** Thin `ui-iteration-loop` to the round on top of the engine: findings become ratchet
+   requirements, design decisions and taste stay with people. Take the generic process improvements of the
+   loop's original author (decision template, reviewer sections, A/B decision order, survey rule) without their
+   project details.
+
+## Risks
+
+- Layout model v0 has cells, not pixels: overflow, clipping and density are coarse until a pixel model exists.
+- Exhaustive search depends on step 2 (a) and on the cost measured in step 3.
+- The metrics rank what is declared; aesthetics and focus stay judgement. The original loop's own data shows
+  hermetic metrics did not separate 28 design variants.
+- Two older copies of the skill exist outside this repository; until they point here, they drift.

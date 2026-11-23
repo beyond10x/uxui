@@ -1,0 +1,714 @@
+domain: uxsearch.promotion
+
+summary: >-
+  Promotion of a frontier variant: the ess-ui/1 diff it makes to the base document, gated by
+  ratchet, accepted by a person or an authorized policy. Judgement records: a person's or a
+  review agent's pairwise preference or finding on variants, never an input to a gate.
+
+naming:
+  wire: promotion
+  display: Promotion
+
+types:
+  - name: uxsearch.promotion.PromotionId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.promotion.JudgementId
+    kind: newtype
+    of: Uuid
+
+  # The change a promotion makes, as ess-ui/1 patches against the base document's node paths
+  # (`{patches: [{op, at, node}]}`, the shape uilab's proposals use), read into JSON.
+  - name: uxsearch.promotion.DocumentDiff
+    kind: newtype
+    of: Json
+
+  - name: uxsearch.promotion.JudgementKind
+    kind: enum
+    variants: [pairwise_preference, finding]
+
+  - name: uxsearch.promotion.AuthorKind
+    kind: enum
+    variants: [person, review_agent]
+
+  # What a judgement became. It never changes a verdict itself: a person turns it into a design
+  # rule (DeclareRule), a KPI weight (ReweighKpi) or a finding, or drops it.
+  - name: uxsearch.promotion.Disposition
+    kind: enum
+    variants: [design_rule, kpi_weight, finding, dropped]
+
+entities:
+  - name: uxsearch.promotion.Promotion
+    naming:
+      summary: A frontier variant proposed as the next base document, with its diff.
+    identity:
+      name: promotion_id
+      type: uxsearch.promotion.PromotionId
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: diff
+        type: uxsearch.promotion.DocumentDiff
+      # For a widget or component target: every node path that uses it, which the promoted
+      # variant reaches. Empty for wider targets.
+      - name: propagates_to
+        type: List<uxsearch.design.NodePath>
+      - name: rationale
+        type: String
+      # A Pareto trade-off: the variant is worse than the protected reference on some
+      # requirements of a declared trade-off group and better on at least one. The group's name,
+      # and the requirements that got worse; absent and empty for a promotion that is no worse
+      # anywhere. D3 (2026-11-23): only a person accepts a trade-off (AcceptTradeOff).
+      - name: trade_off_group
+        type: Optional<String>
+      - name: worse
+        type: List<uxsearch.ratchet.RequirementId>
+      # Who accepted it: a person's name, or the policy's id.
+      - name: accepted_by
+        type: Optional<String>
+      - name: rejection_reason
+        type: Optional<String>
+    relations:
+      - {name: campaign, kind: references, target: uxsearch.search.Campaign, cardinality: one, via: campaign_id}
+      - {name: variant, kind: references, target: uxsearch.design.Variant, cardinality: one, via: variant_digest}
+      - {name: worse_requirements, kind: references, target: uxsearch.ratchet.RequirementBinding, cardinality: many, via: worse}
+    lifecycle:
+      initial: Proposed
+      states:
+        - Proposed
+        - {name: Accepted, summary: The gate passed and a person or an authorized policy accepted it.}
+        - {name: Rejected, summary: A person rejected it; the base document is unchanged.}
+      terminal: [Accepted, Rejected]
+      transitions:
+        - name: accept
+          from: [Proposed]
+          to: Accepted
+        - name: reject
+          from: [Proposed]
+          to: Rejected
+
+  - name: uxsearch.promotion.JudgementRecord
+    naming:
+      summary: A pairwise preference or a finding on variants by a person or a review agent.
+    identity:
+      name: judgement_id
+      type: uxsearch.promotion.JudgementId
+    fields:
+      - name: kind
+        type: uxsearch.promotion.JudgementKind
+      - name: author_kind
+        type: uxsearch.promotion.AuthorKind
+      - name: author
+        type: String
+      - name: left_variant
+        type: uxsearch.design.VariantDigest
+      - name: right_variant
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: preferred
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: node_path
+        type: Optional<uxsearch.design.NodePath>
+      - name: note
+        type: String
+      - name: disposition
+        type: Optional<uxsearch.promotion.Disposition>
+    invariants:
+      - {any: [kind == finding, defined(right_variant)]}
+    relations:
+      - {name: left, kind: references, target: uxsearch.design.Variant, cardinality: one, via: left_variant}
+      - {name: right, kind: references, target: uxsearch.design.Variant, cardinality: one, via: right_variant}
+      - {name: preferred_variant, kind: references, target: uxsearch.design.Variant, cardinality: one, via: preferred}
+    lifecycle:
+      initial: Recorded
+      states: [Recorded, Dispositioned]
+      terminal: [Dispositioned]
+      transitions:
+        - name: disposition
+          from: [Recorded]
+          to: Dispositioned
+
+actors:
+  - name: uxsearch.promotion.Designer
+    naming:
+      display: Designer
+      summary: Proposes a frontier variant and records judgements.
+    may:
+      - uxsearch.promotion.ProposePromotion
+      - uxsearch.promotion.RecordJudgement
+      - uxsearch.promotion.DispositionJudgement
+
+  - name: uxsearch.promotion.Owner
+    naming:
+      display: Owner
+      summary: The person who accepts or rejects a promotion of the base document.
+    may:
+      - uxsearch.promotion.AcceptPromotion
+      - uxsearch.promotion.AcceptTradeOff
+      - uxsearch.promotion.RejectPromotion
+
+  # UNMAPPED: the brief allows "an authorized policy" to accept a promotion. Who authorizes it,
+  # and for which targets, is not stated. Taken here: a system actor that may accept only a
+  # promotion that is no trade-off (D3); it is held to the same guards as a person.
+  - name: uxsearch.promotion.AcceptancePolicy
+    naming:
+      display: Acceptance policy
+      summary: An authorized policy that accepts promotions whose gate passed and that trade nothing.
+    system: true
+    may:
+      - uxsearch.promotion.AcceptPromotion
+
+  - name: uxsearch.promotion.ReviewAgent
+    naming:
+      display: Review agent
+      summary: An agent that records judgements; its records are never gate inputs.
+    may:
+      - uxsearch.promotion.RecordJudgement
+
+errors:
+  - name: uxsearch.promotion.CampaignNotFound
+    summary: No campaign has this id.
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+
+  - name: uxsearch.promotion.NotOnFrontier
+    summary: The variant is not on the campaign's frontier, so it is not promoted.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.promotion.HardRuleNotPassed
+    summary: A hard rule verdict of the variant is Violated or insufficient evidence; it is not promoted.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.promotion.GateNotPassed
+    summary: No promote gate decision of ratchet passed this promotion, so it is not accepted.
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+
+  - name: uxsearch.promotion.TradeOffNeedsPerson
+    summary: The promotion trades requirements; only a person accepts it, with AcceptTradeOff.
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+
+  - name: uxsearch.promotion.NotATradeOff
+    summary: The promotion trades nothing; it is accepted with AcceptPromotion.
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+
+  - name: uxsearch.promotion.VariantMismatch
+    summary: The variant named is not the promotion's variant.
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+
+  - name: uxsearch.promotion.PromotionStateConflict
+    summary: The promotion is not in a state this command acts from, so nothing moved.
+    fields:
+      - name: state
+        type: uxsearch.promotion.Promotion.State
+
+  - name: uxsearch.promotion.SecondVariantMissing
+    summary: A pairwise preference names two variants.
+    fields:
+      - name: kind
+        type: uxsearch.promotion.JudgementKind
+
+  - name: uxsearch.promotion.JudgementStateConflict
+    summary: The judgement was already dispositioned, so nothing moved.
+    fields:
+      - name: state
+        type: uxsearch.promotion.JudgementRecord.State
+
+commands:
+  - name: uxsearch.promotion.ProposePromotion
+    naming:
+      wire: propose-promotion
+      display: Propose a promotion
+    input:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: rationale
+        type: String
+      - name: trade_off_group
+        type: Optional<String>
+      - name: worse
+        type: List<uxsearch.ratchet.RequirementId>
+    outcomes:
+      - name: no-campaign
+        when_related:
+          via: input.campaign_id
+          exists: false
+        error: uxsearch.promotion.CampaignNotFound
+        payload:
+          uxsearch.promotion.CampaignNotFound:
+            campaign_id: input.campaign_id
+        summary: Nothing was proposed.
+
+      - name: not-on-frontier
+        when_related:
+          entity: uxsearch.search.FrontierEntry
+          where:
+            all:
+              - campaign_id == input.campaign_id
+              - variant_digest == input.variant_digest
+              - state == OnFrontier
+          exists: false
+        error: uxsearch.promotion.NotOnFrontier
+        payload:
+          uxsearch.promotion.NotOnFrontier:
+            variant_digest: input.variant_digest
+        summary: Nothing was proposed.
+
+      - name: hard-rule-not-passed
+        when_related:
+          entity: uxsearch.rules.RuleVerdict
+          where:
+            all:
+              - variant_digest == input.variant_digest
+              - strength == hard
+              - verdict != pass
+          exists: true
+        error: uxsearch.promotion.HardRuleNotPassed
+        payload:
+          uxsearch.promotion.HardRuleNotPassed:
+            variant_digest: input.variant_digest
+        summary: Nothing was proposed.
+
+      - name: proposed
+        creates: uxsearch.promotion.Promotion
+        instance: promotion_id
+        sets:
+          campaign_id: input.campaign_id
+          variant_digest: input.variant_digest
+          diff: {generated: true}
+          propagates_to: {generated: true}
+          rationale: input.rationale
+          trade_off_group: input.trade_off_group
+          worse: input.worse
+        emits:
+          - uxsearch.promotion.PromotionProposed
+        payload:
+          uxsearch.promotion.PromotionProposed:
+            promotion_id: {generated: true}
+            campaign_id: input.campaign_id
+            variant_digest: input.variant_digest
+        summary: The diff is computed; ratchet's promote gate is evaluated on the variant's evidence.
+
+  # Promotion requires every hard rule and the promote gate to pass. Judgement records are not
+  # read here, and no gate decision reads them.
+  - name: uxsearch.promotion.AcceptPromotion
+    naming:
+      wire: accept-promotion
+      display: Accept a promotion
+    input:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: accepted_by
+        type: String
+    outcomes:
+      - name: variant-mismatch
+        when_related:
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - variant_digest != input.variant_digest
+          exists: true
+        error: uxsearch.promotion.VariantMismatch
+        payload:
+          uxsearch.promotion.VariantMismatch:
+            promotion_id: input.promotion_id
+        summary: Nothing moved.
+
+      # D3: a trade-off is accepted only by a person, through AcceptTradeOff; no policy may.
+      - name: trade-off
+        when_related:
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - defined(trade_off_group)
+          exists: true
+        error: uxsearch.promotion.TradeOffNeedsPerson
+        payload:
+          uxsearch.promotion.TradeOffNeedsPerson:
+            promotion_id: input.promotion_id
+        summary: Nothing moved; a person accepts a trade-off with AcceptTradeOff.
+
+      - name: hard-rule-not-passed
+        when_related:
+          entity: uxsearch.rules.RuleVerdict
+          where:
+            all:
+              - variant_digest == input.variant_digest
+              - strength == hard
+              - verdict != pass
+          exists: true
+        error: uxsearch.promotion.HardRuleNotPassed
+        payload:
+          uxsearch.promotion.HardRuleNotPassed:
+            variant_digest: input.variant_digest
+        summary: Nothing moved.
+
+      - name: gate-not-passed
+        when_related:
+          entity: uxsearch.ratchet.GateDecision
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - gate_stage == promote
+              - verdict == pass
+          exists: false
+        error: uxsearch.promotion.GateNotPassed
+        payload:
+          uxsearch.promotion.GateNotPassed:
+            promotion_id: input.promotion_id
+        summary: Nothing moved; a fail or insufficient evidence never passes.
+
+      - name: accepted
+        moves: uxsearch.promotion.Promotion.accept
+        instance: promotion_id
+        sets:
+          accepted_by: input.accepted_by
+        emits:
+          - uxsearch.promotion.PromotionAccepted
+        payload:
+          uxsearch.promotion.PromotionAccepted:
+            promotion_id: input.promotion_id
+            variant_digest: input.variant_digest
+            trade_off: false
+        summary: The diff is applied to the base document as a reviewed change; ratchet is offered the new references.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.promotion.PromotionStateConflict
+        summary: The promotion was already decided.
+
+  # D3 (2026-11-23): only a person accepts a Pareto trade-off as the new protected reference.
+  # Only the Owner, a person, may issue this command; no system actor holds it. Hard rules never
+  # trade: every one passes. The gate passes, or ratchet reports that every failing requirement
+  # is a regression inside the declared trade-off group (`trade_off_only`).
+  - name: uxsearch.promotion.AcceptTradeOff
+    naming:
+      wire: accept-trade-off
+      display: Accept a trade-off
+    input:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: accepted_by
+        type: String
+    outcomes:
+      - name: variant-mismatch
+        when_related:
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - variant_digest != input.variant_digest
+          exists: true
+        error: uxsearch.promotion.VariantMismatch
+        payload:
+          uxsearch.promotion.VariantMismatch:
+            promotion_id: input.promotion_id
+        summary: Nothing moved.
+
+      - name: not-a-trade-off
+        when_related:
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - {not: defined(trade_off_group)}
+          exists: true
+        error: uxsearch.promotion.NotATradeOff
+        payload:
+          uxsearch.promotion.NotATradeOff:
+            promotion_id: input.promotion_id
+        summary: Nothing moved; a promotion that is no worse anywhere is accepted with AcceptPromotion.
+
+      - name: hard-rule-not-passed
+        when_related:
+          entity: uxsearch.rules.RuleVerdict
+          where:
+            all:
+              - variant_digest == input.variant_digest
+              - strength == hard
+              - verdict != pass
+          exists: true
+        error: uxsearch.promotion.HardRuleNotPassed
+        payload:
+          uxsearch.promotion.HardRuleNotPassed:
+            variant_digest: input.variant_digest
+        summary: Nothing moved.
+
+      - name: gate-not-passed
+        when_related:
+          entity: uxsearch.ratchet.GateDecision
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - gate_stage == promote
+              - {any: [verdict == pass, trade_off_only == true]}
+          exists: false
+        error: uxsearch.promotion.GateNotPassed
+        payload:
+          uxsearch.promotion.GateNotPassed:
+            promotion_id: input.promotion_id
+        summary: Nothing moved; a hard limit failed, something was insufficient, or a requirement outside the trade-off group got worse.
+
+      - name: accepted
+        moves: uxsearch.promotion.Promotion.accept
+        instance: promotion_id
+        sets:
+          accepted_by: input.accepted_by
+        emits:
+          - uxsearch.promotion.PromotionAccepted
+        payload:
+          uxsearch.promotion.PromotionAccepted:
+            promotion_id: input.promotion_id
+            variant_digest: input.variant_digest
+            trade_off: true
+        summary: A person accepted the trade-off; ratchet is offered the reference change naming it.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.promotion.PromotionStateConflict
+        summary: The promotion was already decided.
+
+  - name: uxsearch.promotion.RejectPromotion
+    naming:
+      wire: reject-promotion
+      display: Reject a promotion
+    input:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: reason
+        type: String
+    outcomes:
+      - name: rejected
+        moves: uxsearch.promotion.Promotion.reject
+        instance: promotion_id
+        sets:
+          rejection_reason: input.reason
+        emits:
+          - uxsearch.promotion.PromotionRejected
+        payload:
+          uxsearch.promotion.PromotionRejected:
+            promotion_id: input.promotion_id
+        summary: The base document is unchanged.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.promotion.PromotionStateConflict
+        summary: The promotion was already decided.
+
+  - name: uxsearch.promotion.RecordJudgement
+    naming:
+      wire: record-judgement
+      display: Record a judgement
+    input:
+      - name: kind
+        type: uxsearch.promotion.JudgementKind
+      - name: author_kind
+        type: uxsearch.promotion.AuthorKind
+      - name: author
+        type: String
+      - name: left_variant
+        type: uxsearch.design.VariantDigest
+      - name: right_variant
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: preferred
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: node_path
+        type: Optional<uxsearch.design.NodePath>
+      - name: note
+        type: String
+    outcomes:
+      - name: second-variant-missing
+        when:
+          all:
+            - kind == pairwise_preference
+            - {not: defined(right_variant)}
+        error: uxsearch.promotion.SecondVariantMissing
+        payload:
+          uxsearch.promotion.SecondVariantMissing:
+            kind: input.kind
+        summary: Nothing was recorded.
+
+      - name: recorded
+        creates: uxsearch.promotion.JudgementRecord
+        instance: judgement_id
+        sets:
+          kind: input.kind
+          author_kind: input.author_kind
+          author: input.author
+          left_variant: input.left_variant
+          right_variant: input.right_variant
+          preferred: input.preferred
+          node_path: input.node_path
+          note: input.note
+        emits:
+          - uxsearch.promotion.JudgementRecorded
+        payload:
+          uxsearch.promotion.JudgementRecorded:
+            judgement_id: {generated: true}
+            kind: input.kind
+        summary: The judgement is recorded; no verdict changes.
+
+  - name: uxsearch.promotion.DispositionJudgement
+    naming:
+      wire: disposition-judgement
+      display: Disposition a judgement
+    input:
+      - name: judgement_id
+        type: uxsearch.promotion.JudgementId
+      - name: disposition
+        type: uxsearch.promotion.Disposition
+    outcomes:
+      - name: dispositioned
+        moves: uxsearch.promotion.JudgementRecord.disposition
+        instance: judgement_id
+        sets:
+          disposition: input.disposition
+        emits:
+          - uxsearch.promotion.JudgementDispositioned
+        payload:
+          uxsearch.promotion.JudgementDispositioned:
+            judgement_id: input.judgement_id
+            disposition: input.disposition
+        summary: The judgement says what it became; the rule or weight itself changes by its own command.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.promotion.JudgementStateConflict
+        summary: The judgement was already dispositioned.
+
+events:
+  - name: uxsearch.promotion.PromotionProposed
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.promotion.PromotionAccepted
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: trade_off
+        type: Boolean
+
+  - name: uxsearch.promotion.PromotionRejected
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+
+  - name: uxsearch.promotion.JudgementRecorded
+    fields:
+      - name: judgement_id
+        type: uxsearch.promotion.JudgementId
+      - name: kind
+        type: uxsearch.promotion.JudgementKind
+
+  - name: uxsearch.promotion.JudgementDispositioned
+    fields:
+      - name: judgement_id
+        type: uxsearch.promotion.JudgementId
+      - name: disposition
+        type: uxsearch.promotion.Disposition
+
+views:
+  - name: uxsearch.promotion.Promotions
+    source: uxsearch.promotion.Promotion
+    consistency: read_your_writes
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: rationale
+        type: String
+      - name: trade_off_group
+        type: Optional<String>
+      - name: accepted_by
+        type: Optional<String>
+      - name: rejection_reason
+        type: Optional<String>
+      - name: state
+        type: uxsearch.promotion.Promotion.State
+    naming:
+      wire: promotions
+      display: Promotions
+
+  - name: uxsearch.promotion.PromotionById
+    source: uxsearch.promotion.Promotion
+    consistency: read_your_writes
+    params:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+    filter: promotion_id == param.promotion_id
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: diff
+        type: uxsearch.promotion.DocumentDiff
+      - name: propagates_to
+        type: List<uxsearch.design.NodePath>
+      - name: rationale
+        type: String
+      - name: state
+        type: uxsearch.promotion.Promotion.State
+    naming:
+      wire: promotion
+      display: Promotion
+
+  - name: uxsearch.promotion.Judgements
+    source: uxsearch.promotion.JudgementRecord
+    consistency: read_your_writes
+    fields:
+      - name: judgement_id
+        type: uxsearch.promotion.JudgementId
+      - name: kind
+        type: uxsearch.promotion.JudgementKind
+      - name: author_kind
+        type: uxsearch.promotion.AuthorKind
+      - name: author
+        type: String
+      - name: left_variant
+        type: uxsearch.design.VariantDigest
+      - name: right_variant
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: preferred
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: note
+        type: String
+      - name: disposition
+        type: Optional<uxsearch.promotion.Disposition>
+      - name: state
+        type: uxsearch.promotion.JudgementRecord.State
+    naming:
+      wire: judgements
+      display: Judgements

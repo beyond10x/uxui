@@ -1,0 +1,1405 @@
+domain: uxsearch.design
+
+summary: >-
+  The base document, the target a campaign optimises inside it, the design space declared on that
+  target as axes of finite values, the mutation operators that realise an axis value, and the
+  variants they produce, each identified by the digest of its canonical document.
+
+naming:
+  wire: design
+  display: Design
+
+types:
+  - name: uxsearch.design.BaseDocumentId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.design.TargetId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.design.DesignSpaceId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.design.AxisId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.design.AxisValueId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.design.AxisSwitchId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.design.ComponentBindingId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.design.UxDeclarationsId
+    kind: newtype
+    of: Uuid
+
+  # The format `uxui-declarations/1`: a uxui file beside the ess-ui/1 document (D2,
+  # 2026-11-23) holding what the metrics read and ess-ui/1 cannot say today; proposed to ESS
+  # later (GAPS.md). Per target: the nodes that must stay fully visible in every state and the
+  # cue node (the one node that says what to do next). Per journey: the required nodes and the
+  # completion signal.
+  - name: uxsearch.design.TargetDeclaration
+    kind: struct
+    fields:
+      # The target's node path; absent for the product.
+      - name: node_path
+        type: Optional<uxsearch.design.NodePath>
+      - name: always_visible
+        type: List<uxsearch.design.NodePath>
+      - name: cue_node
+        type: Optional<uxsearch.design.NodePath>
+
+  - name: uxsearch.design.JourneyDeclaration
+    kind: struct
+    fields:
+      # The ess-ui-test/1 file and the test name the journey is.
+      - name: test_file
+        type: String
+      - name: test_name
+        type: String
+      - name: required_nodes
+        type: List<uxsearch.design.NodePath>
+      - name: completion_signal
+        type: Optional<uxsearch.design.NodePath>
+
+  - name: uxsearch.design.UxDeclarationsDocument
+    kind: struct
+    fields:
+      # Always `uxui-declarations/1`.
+      - name: format
+        type: String
+      # The ess-ui/1 document it declares for, relative to this file.
+      - name: document
+        type: String
+      - name: targets
+        type: List<uxsearch.design.TargetDeclaration>
+      - name: journeys
+        type: List<uxsearch.design.JourneyDeclaration>
+
+  # The digest of a canonical `ess-ui/1` document: the document loaded, widgets expanded, page
+  # kinds merged, maps in key order, written as canonical JSON, hashed with SHA-256. Two routes
+  # that reach the same canonical document reach the same digest.
+  # UNMAPPED: the canonical form is not defined by ESS today (`ess ui load` prints what a document
+  # holds, not a canonical byte form). The engine needs one; whether ESS owns it is open (GAPS.md).
+  - name: uxsearch.design.DocumentDigest
+    kind: newtype
+    of: String
+    prefix: "sha256:"
+
+  # A variant is its canonical document, so its identity is that document's digest.
+  - name: uxsearch.design.VariantDigest
+    kind: newtype
+    of: String
+    prefix: "sha256:"
+
+  # A canonical `ess-ui/1` node path (`pages/partners.list/sections/list`, `widgets/money`).
+  - name: uxsearch.design.NodePath
+    kind: newtype
+    of: String
+
+  # The name a mutation operator is registered under (`reorder_sections`, `swap_composite`).
+  - name: uxsearch.design.OperatorName
+    kind: newtype
+    of: String
+
+  # What a campaign optimises. `component` is one composite node (a built-in member of the
+  # composite union at a node path); `widget` is an app-defined widget declaration
+  # (`widgets/<name>`), whose change reaches every use of it; `section` and `page` are a section
+  # or a page by node path (the brief's "view/page": an ESS `view` is a model read, so the UI unit
+  # is named `page` here); `composition` is several nodes optimised together; `product` is the
+  # whole document.
+  - name: uxsearch.design.TargetScope
+    kind: enum
+    variants: [component, widget, section, page, composition, product]
+
+  - name: uxsearch.design.AxisKind
+    kind: enum
+    variants: [theme, template, layout, component, interaction, copy]
+
+  # How a campaign on a wider target treats the component and widget targets inside it:
+  # `fixed` keeps each as the base document declares it (its promoted variant, once one is
+  # accepted); `axes` adds one `component` axis per inner target whose values are that target's
+  # frontier variants.
+  - name: uxsearch.design.ComponentTreatment
+    kind: enum
+    variants: [fixed, axes]
+
+  - name: uxsearch.design.RouteOrigin
+    kind: enum
+    variants: [base, search, manual]
+
+  - name: uxsearch.design.OperatorApplication
+    kind: struct
+    fields:
+      - name: operator
+        type: uxsearch.design.OperatorName
+      - name: at
+        type: uxsearch.design.NodePath
+      - name: args
+        type: Json
+
+  - name: uxsearch.design.AxisChoice
+    kind: struct
+    fields:
+      - name: axis_id
+        type: uxsearch.design.AxisId
+      - name: axis_value_id
+        type: uxsearch.design.AxisValueId
+
+  # One way a variant was reached: the axis values chosen in a design space and the operator
+  # applications that realised them, in order.
+  - name: uxsearch.design.Route
+    kind: struct
+    fields:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: origin
+        type: uxsearch.design.RouteOrigin
+      - name: choices
+        type: List<uxsearch.design.AxisChoice>
+      - name: applications
+        type: List<uxsearch.design.OperatorApplication>
+
+entities:
+  - name: uxsearch.design.BaseDocument
+    naming:
+      summary: The ess-ui/1 document being improved, at one revision.
+    identity:
+      name: base_document_id
+      type: uxsearch.design.BaseDocumentId
+    fields:
+      - name: path
+        type: String
+      - name: app
+        type: String
+      - name: document_digest
+        type: uxsearch.design.DocumentDigest
+    relations:
+      - name: targets
+        kind: owns
+        target: uxsearch.design.Target
+        cardinality: many
+        via: base_document_id
+      - name: ux_declarations
+        kind: owns
+        target: uxsearch.design.UxDeclarations
+        cardinality: many
+        via: base_document_id
+    lifecycle:
+      initial: Registered
+      states: [Registered]
+      terminal: [Registered]
+
+  - name: uxsearch.design.UxDeclarations
+    naming:
+      summary: A uxui-declarations/1 file beside the base document, at one digest.
+    identity:
+      name: ux_declarations_id
+      type: uxsearch.design.UxDeclarationsId
+    fields:
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: path
+        type: String
+      - name: digest
+        type: uxsearch.design.DocumentDigest
+      - name: content
+        type: uxsearch.design.UxDeclarationsDocument
+    lifecycle:
+      initial: Registered
+      states: [Registered]
+      terminal: [Registered]
+
+  # A target is a node of the base document a campaign optimises, picked from the catalog the
+  # document declares (its widgets, composites, sections, pages). Journeys, environments and
+  # metrics of a campaign are bound to its target's scope.
+  - name: uxsearch.design.Target
+    naming:
+      summary: What a campaign optimises, from one component to the whole product.
+    identity:
+      name: target_id
+      type: uxsearch.design.TargetId
+    fields:
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: name
+        type: String
+      - name: scope
+        type: uxsearch.design.TargetScope
+      # Absent for `product`; for every other scope the node path the target stands at.
+      - name: node_path
+        type: Optional<uxsearch.design.NodePath>
+      # UNMAPPED: the brief and the owner's note name `composition` as a scope but not what it holds.
+      # Taken here: the node paths of the nodes optimised together, empty for every other scope;
+      # docs/concept.md § 3 reads it as "the shell, navigation and pages one journey crosses".
+      # Open question for the owner: is that the meaning, or is a composition a page kind
+      # (template) with the pages using it?
+      - name: members
+        type: List<uxsearch.design.NodePath>
+      # True when the node is a host slot (`host:` in ess-ui/1): ESS does not draw it, so no
+      # operator may change it and no campaign may target it.
+      - name: host_slot
+        type: Boolean
+      # For `component` and `widget` scope: the widths of the harness container the target is
+      # rendered in on its own. Empty for wider scopes, which use the environment's viewport.
+      # ESS has no harness that renders one composite or widget alone today (GAPS.md).
+      - name: harness_widths_px
+        type: List<Integer>
+    relations:
+      - name: design_spaces
+        kind: owns
+        target: uxsearch.design.DesignSpace
+        cardinality: many
+        via: target_id
+    lifecycle:
+      initial: Declared
+      states: [Declared]
+      terminal: [Declared]
+
+  - name: uxsearch.design.DesignSpace
+    naming:
+      summary: The variants a target admits, declared as axes; frozen before a campaign searches it.
+    identity:
+      name: design_space_id
+      type: uxsearch.design.DesignSpaceId
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      - name: component_treatment
+        type: uxsearch.design.ComponentTreatment
+      # The digest of the frozen declaration (axes, values, operator applications); absent while
+      # Open. A campaign records it, so a later change cannot alter what a campaign searched.
+      - name: space_digest
+        type: Optional<uxsearch.design.DocumentDigest>
+    relations:
+      - name: axes
+        kind: owns
+        target: uxsearch.design.Axis
+        cardinality: many
+        via: design_space_id
+      - name: component_bindings
+        kind: owns
+        target: uxsearch.design.ComponentBinding
+        cardinality: many
+        via: design_space_id
+    lifecycle:
+      initial: Open
+      states: [Open, Frozen]
+      terminal: [Frozen]
+      transitions:
+        - name: freeze
+          from: [Open]
+          to: Frozen
+
+  # How a design space on a wider target treats one component or widget target inside it
+  # (docs/concept.md § 3): `fixed` pins it (at `pinned_variant`, or as the base document declares
+  # it), `axes` makes the top `top_k` frontier variants of its own campaign one `component` axis.
+  # Inner targets with no binding take the design space's `component_treatment`. Search runs
+  # bottom-up: components, then pages, then product-level axes.
+  - name: uxsearch.design.ComponentBinding
+    naming:
+      summary: Whether one inner component is fixed or an axis in a wider design space.
+    identity:
+      name: component_binding_id
+      type: uxsearch.design.ComponentBindingId
+    fields:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: inner_target_id
+        type: uxsearch.design.TargetId
+      - name: treatment
+        type: uxsearch.design.ComponentTreatment
+      - name: pinned_variant
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: top_k
+        type: Optional<Integer>
+    relations:
+      - {name: inner_target, kind: references, target: uxsearch.design.Target, cardinality: one, via: inner_target_id}
+      - {name: pinned, kind: references, target: uxsearch.design.Variant, cardinality: one, via: pinned_variant}
+    lifecycle:
+      initial: Bound
+      states: [Bound]
+      terminal: [Bound]
+
+  - name: uxsearch.design.Axis
+    naming:
+      summary: One dimension of variation with a finite value set.
+    identity:
+      name: axis_id
+      type: uxsearch.design.AxisId
+    fields:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: name
+        type: String
+      - name: kind
+        type: uxsearch.design.AxisKind
+      # The node the axis varies; absent for a document-wide axis such as a theme.
+      - name: at
+        type: Optional<uxsearch.design.NodePath>
+    relations:
+      - name: values
+        kind: owns
+        target: uxsearch.design.AxisValue
+        cardinality: many
+        via: axis_id
+    lifecycle:
+      initial: Declared
+      states: [Declared]
+      terminal: [Declared]
+
+  # An axis value is realised by a sequence of operator applications on the document. A theme
+  # value is one application of `select_theme`; a brand layer outside the document's tokens is no
+  # axis value (GAPS.md).
+  - name: uxsearch.design.AxisValue
+    naming:
+      summary: One value of an axis and the operator applications that realise it.
+    identity:
+      name: axis_value_id
+      type: uxsearch.design.AxisValueId
+    fields:
+      - name: axis_id
+        type: uxsearch.design.AxisId
+      - name: name
+        type: String
+      - name: applications
+        type: List<uxsearch.design.OperatorApplication>
+    lifecycle:
+      initial: Declared
+      states: [Declared]
+      terminal: [Declared]
+
+  # Operators ship with the engine: deterministic, validity-preserving transforms of an ess-ui/1
+  # document. Each declares its preconditions; an application whose result fails `ess ui check`
+  # is an operator defect, refused where it is applied (AddAxisValue, MaterializeVariant).
+  # UNMAPPED: a precondition is held here as text (`preconditions`); ESS has no construct for a
+  # predicate over an ess-ui/1 document (GAPS.md).
+  - name: uxsearch.design.MutationOperator
+    naming:
+      summary: A deterministic transform of an ess-ui/1 document that keeps it valid.
+    identity:
+      name: name
+      type: uxsearch.design.OperatorName
+    provided: true
+    fields:
+      - name: axis_kind
+        type: uxsearch.design.AxisKind
+      - name: summary
+        type: String
+      - name: preconditions
+        type: List<String>
+      - name: version
+        type: String
+    lifecycle:
+      initial: Available
+      states: [Available]
+      terminal: [Available]
+
+  # Two routes that reach one canonical document are one variant: the identity is the digest,
+  # and a second route is appended to the same row (MaterializeVariant).
+  - name: uxsearch.design.Variant
+    naming:
+      summary: A base document with a choice per axis, identified by its canonical digest.
+    identity:
+      name: variant_digest
+      type: uxsearch.design.VariantDigest
+    fields:
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: routes
+        type: List<uxsearch.design.Route>
+    relations:
+      - name: target
+        kind: references
+        target: uxsearch.design.Target
+        cardinality: one
+        via: target_id
+      - name: base_document
+        kind: references
+        target: uxsearch.design.BaseDocument
+        cardinality: one
+        via: base_document_id
+    lifecycle:
+      initial: Candidate
+      # Pruned: a hard design rule is violated; the variant is never evaluated further, never
+      # enters a frontier and is never promoted (uxsearch.rules.RecordRuleVerdict moves it).
+      states:
+        - Candidate
+        - {name: Pruned, summary: A hard design rule is violated; nothing more is done with the variant.}
+      terminal: [Pruned]
+      transitions:
+        - name: prune
+          from: [Candidate]
+          to: Pruned
+          summary: A hard rule verdict of Violated was recorded for the variant.
+
+  # A person's request to switch one axis of one variant by hand. The engine resolves it to the
+  # variant the switch reaches, which may be one that already exists.
+  - name: uxsearch.design.AxisSwitch
+    naming:
+      summary: A by-hand switch of one axis value on one variant, and the variant it reached.
+    identity:
+      name: axis_switch_id
+      type: uxsearch.design.AxisSwitchId
+    fields:
+      - name: from_variant
+        type: uxsearch.design.VariantDigest
+      - name: axis_id
+        type: uxsearch.design.AxisId
+      - name: axis_value_id
+        type: uxsearch.design.AxisValueId
+      - name: reached
+        type: Optional<uxsearch.design.VariantDigest>
+    relations:
+      - name: from
+        kind: references
+        target: uxsearch.design.Variant
+        cardinality: one
+        via: from_variant
+      - name: axis
+        kind: references
+        target: uxsearch.design.Axis
+        cardinality: one
+        via: axis_id
+      - name: axis_value
+        kind: references
+        target: uxsearch.design.AxisValue
+        cardinality: one
+        via: axis_value_id
+      - name: reached_variant
+        kind: references
+        target: uxsearch.design.Variant
+        cardinality: one
+        via: reached
+    lifecycle:
+      initial: Requested
+      states: [Requested, Resolved]
+      terminal: [Resolved]
+      transitions:
+        - name: resolve
+          from: [Requested]
+          to: Resolved
+
+actors:
+  - name: uxsearch.design.Designer
+    naming:
+      display: Designer
+      summary: A person who declares targets and design spaces and switches axes by hand.
+    may:
+      - uxsearch.design.RegisterBaseDocument
+      - uxsearch.design.DeclareTarget
+      - uxsearch.design.DeclareDesignSpace
+      - uxsearch.design.AddAxis
+      - uxsearch.design.AddAxisValue
+      - uxsearch.design.FreezeDesignSpace
+      - uxsearch.design.RequestAxisSwitch
+      - uxsearch.design.RegisterUxDeclarations
+      - uxsearch.design.BindComponent
+
+  - name: uxsearch.design.Engine
+    naming:
+      display: Engine
+      summary: The search engine itself; it materializes variants and resolves switches.
+    system: true
+    may:
+      - uxsearch.design.MaterializeVariant
+      - uxsearch.design.ResolveAxisSwitch
+
+errors:
+  - name: uxsearch.design.DocumentRefused
+    summary: The file is not an ess-ui/1 document or `ess ui check` reports an error, so nothing was registered.
+    fields:
+      - name: path
+        type: String
+
+  - name: uxsearch.design.NodeNotFound
+    summary: The base document has no node at this path, so nothing was declared.
+    fields:
+      - name: node_path
+        type: uxsearch.design.NodePath
+
+  - name: uxsearch.design.ScopeMismatch
+    summary: The node at the path is not of the declared scope, so nothing was declared.
+    fields:
+      - name: scope
+        type: uxsearch.design.TargetScope
+
+  - name: uxsearch.design.HostSlotNotMutable
+    summary: The target is a host slot, which ESS does not draw and no operator may change.
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.design.BaseDocumentNotFound
+    summary: No base document has this id.
+    fields:
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+
+  - name: uxsearch.design.DeclarationsRefused
+    summary: The UX declarations file is refused; nothing was registered.
+    fields:
+      - name: path
+        type: String
+
+  - name: uxsearch.design.TopKMissing
+    summary: An inner component made an axis needs the number of frontier variants it takes.
+    fields:
+      - name: inner_target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.design.TargetNotFound
+    summary: No target has this id, so nothing was declared.
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.design.DesignSpaceNotFound
+    summary: No design space has this id, so nothing changed.
+    fields:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+
+  - name: uxsearch.design.DesignSpaceFrozen
+    summary: The design space is frozen, so its axes do not change.
+    fields:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+
+  - name: uxsearch.design.OperatorRefused
+    summary: An operator's precondition does not hold, or its result fails `ess ui check`; nothing was added.
+    fields:
+      - name: check
+        type: String
+
+  - name: uxsearch.design.DesignSpaceStateConflict
+    summary: The design space is not in a state this command acts from, so nothing moved.
+    fields:
+      - name: state
+        type: uxsearch.design.DesignSpace.State
+
+  - name: uxsearch.design.AxisSwitchStateConflict
+    summary: The switch is already resolved, so nothing moved.
+    fields:
+      - name: state
+        type: uxsearch.design.AxisSwitch.State
+
+commands:
+  - name: uxsearch.design.RegisterBaseDocument
+    naming:
+      wire: register-base-document
+      display: Register a base document
+    input:
+      - name: path
+        type: String
+      - name: app
+        type: String
+      - name: document_digest
+        type: uxsearch.design.DocumentDigest
+    outcomes:
+      - name: refused
+        external: the file does not load as ess-ui/1, or `ess ui check` reports an error
+        error: uxsearch.design.DocumentRefused
+        payload:
+          uxsearch.design.DocumentRefused:
+            path: input.path
+        summary: Nothing was registered.
+
+      - name: registered
+        creates: uxsearch.design.BaseDocument
+        instance: base_document_id
+        sets:
+          path: input.path
+          app: input.app
+          document_digest: input.document_digest
+        emits:
+          - uxsearch.design.BaseDocumentRegistered
+        payload:
+          uxsearch.design.BaseDocumentRegistered:
+            base_document_id: {generated: true}
+            document_digest: input.document_digest
+        summary: The document is registered and its catalog can be read.
+
+  - name: uxsearch.design.DeclareTarget
+    naming:
+      wire: declare-target
+      display: Declare a target
+      summary: Pick what a campaign optimises, from the catalog of the base document.
+    input:
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: name
+        type: String
+      - name: scope
+        type: uxsearch.design.TargetScope
+      - name: node_path
+        type: Optional<uxsearch.design.NodePath>
+      - name: members
+        type: List<uxsearch.design.NodePath>
+      - name: harness_widths_px
+        type: List<Integer>
+    outcomes:
+      - name: not-found
+        external: the base document has no node at the path, or no node at a member path
+        error: uxsearch.design.NodeNotFound
+        summary: Nothing was declared.
+
+      - name: scope-mismatch
+        external: the node at the path is not of the declared scope
+        error: uxsearch.design.ScopeMismatch
+        payload:
+          uxsearch.design.ScopeMismatch:
+            scope: input.scope
+        summary: Nothing was declared.
+
+      - name: declared
+        creates: uxsearch.design.Target
+        instance: target_id
+        sets:
+          base_document_id: input.base_document_id
+          name: input.name
+          scope: input.scope
+          node_path: input.node_path
+          members: input.members
+          host_slot: {generated: true}
+          harness_widths_px: input.harness_widths_px
+        emits:
+          - uxsearch.design.TargetDeclared
+        payload:
+          uxsearch.design.TargetDeclared:
+            target_id: {generated: true}
+            base_document_id: input.base_document_id
+            scope: input.scope
+        summary: The target exists; whether it is a host slot is read from the document.
+
+  - name: uxsearch.design.DeclareDesignSpace
+    naming:
+      wire: declare-design-space
+      display: Declare a design space
+    input:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      - name: component_treatment
+        type: uxsearch.design.ComponentTreatment
+    outcomes:
+      - name: no-target
+        when_related:
+          via: input.target_id
+          exists: false
+        error: uxsearch.design.TargetNotFound
+        payload:
+          uxsearch.design.TargetNotFound:
+            target_id: input.target_id
+        summary: Nothing was declared.
+
+      - name: host-slot
+        when_related:
+          via: input.target_id
+          predicate: host_slot == true
+        error: uxsearch.design.HostSlotNotMutable
+        payload:
+          uxsearch.design.HostSlotNotMutable:
+            target_id: input.target_id
+        summary: A host slot has no design space; nothing was declared.
+
+      - name: declared
+        creates: uxsearch.design.DesignSpace
+        instance: design_space_id
+        sets:
+          target_id: input.target_id
+          name: input.name
+          component_treatment: input.component_treatment
+        emits:
+          - uxsearch.design.DesignSpaceDeclared
+        payload:
+          uxsearch.design.DesignSpaceDeclared:
+            design_space_id: {generated: true}
+            target_id: input.target_id
+        summary: The design space is Open and takes axes.
+
+  # D2 (2026-11-23): the UX declarations live in a uxui file beside the ess-ui/1 document.
+  - name: uxsearch.design.RegisterUxDeclarations
+    naming:
+      wire: register-ux-declarations
+      display: Register a UX declarations file
+    input:
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: path
+        type: String
+      - name: digest
+        type: uxsearch.design.DocumentDigest
+      - name: content
+        type: uxsearch.design.UxDeclarationsDocument
+    outcomes:
+      - name: no-base-document
+        when_related:
+          via: input.base_document_id
+          exists: false
+        error: uxsearch.design.BaseDocumentNotFound
+        payload:
+          uxsearch.design.BaseDocumentNotFound:
+            base_document_id: input.base_document_id
+        summary: Nothing was registered.
+
+      - name: refused
+        external: the file is not uxui-declarations/1, names another document, or a node path or test it names does not exist
+        error: uxsearch.design.DeclarationsRefused
+        payload:
+          uxsearch.design.DeclarationsRefused:
+            path: input.path
+        summary: Nothing was registered.
+
+      - name: registered
+        creates: uxsearch.design.UxDeclarations
+        instance: ux_declarations_id
+        sets:
+          base_document_id: input.base_document_id
+          path: input.path
+          digest: input.digest
+          content: input.content
+        emits:
+          - uxsearch.design.UxDeclarationsRegistered
+        payload:
+          uxsearch.design.UxDeclarationsRegistered:
+            ux_declarations_id: {generated: true}
+            base_document_id: input.base_document_id
+            digest: input.digest
+        summary: Evaluations from now on read these declarations; their digest is part of every evaluation key.
+
+  - name: uxsearch.design.BindComponent
+    naming:
+      wire: bind-component
+      display: Fix a component or make it an axis
+    input:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: inner_target_id
+        type: uxsearch.design.TargetId
+      - name: treatment
+        type: uxsearch.design.ComponentTreatment
+      - name: pinned_variant
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: top_k
+        type: Optional<Integer>
+    outcomes:
+      - name: top-k-missing
+        when:
+          all:
+            - treatment == axes
+            - {not: defined(top_k)}
+        error: uxsearch.design.TopKMissing
+        payload:
+          uxsearch.design.TopKMissing:
+            inner_target_id: input.inner_target_id
+        summary: An axis of frontier variants needs its size; nothing was bound.
+
+      - name: no-design-space
+        when_related:
+          via: input.design_space_id
+          exists: false
+        error: uxsearch.design.DesignSpaceNotFound
+        payload:
+          uxsearch.design.DesignSpaceNotFound:
+            design_space_id: input.design_space_id
+        summary: Nothing was bound.
+
+      - name: frozen
+        when_related:
+          via: input.design_space_id
+          predicate: state == Frozen
+        error: uxsearch.design.DesignSpaceFrozen
+        payload:
+          uxsearch.design.DesignSpaceFrozen:
+            design_space_id: input.design_space_id
+        summary: Nothing was bound.
+
+      - name: not-inside
+        external: the inner target is not a component or widget target inside the design space's target
+        error: uxsearch.design.NodeNotFound
+        summary: Nothing was bound.
+
+      - name: bound
+        creates: uxsearch.design.ComponentBinding
+        instance: component_binding_id
+        sets:
+          design_space_id: input.design_space_id
+          inner_target_id: input.inner_target_id
+          treatment: input.treatment
+          pinned_variant: input.pinned_variant
+          top_k: input.top_k
+        emits:
+          - uxsearch.design.ComponentBound
+        payload:
+          uxsearch.design.ComponentBound:
+            component_binding_id: {generated: true}
+            design_space_id: input.design_space_id
+            treatment: input.treatment
+        summary: The inner component is fixed, or its frontier is an axis of the space.
+
+  - name: uxsearch.design.AddAxis
+    naming:
+      wire: add-axis
+      display: Add an axis
+    input:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: name
+        type: String
+      - name: kind
+        type: uxsearch.design.AxisKind
+      - name: at
+        type: Optional<uxsearch.design.NodePath>
+    outcomes:
+      - name: no-design-space
+        when_related:
+          via: input.design_space_id
+          exists: false
+        error: uxsearch.design.DesignSpaceNotFound
+        payload:
+          uxsearch.design.DesignSpaceNotFound:
+            design_space_id: input.design_space_id
+        summary: Nothing was added.
+
+      - name: frozen
+        when_related:
+          via: input.design_space_id
+          predicate: state == Frozen
+        error: uxsearch.design.DesignSpaceFrozen
+        payload:
+          uxsearch.design.DesignSpaceFrozen:
+            design_space_id: input.design_space_id
+        summary: Nothing was added.
+
+      - name: not-found
+        external: the base document has no node at the axis path, or the node is a host slot
+        error: uxsearch.design.NodeNotFound
+        summary: Nothing was added.
+
+      - name: added
+        creates: uxsearch.design.Axis
+        instance: axis_id
+        sets:
+          design_space_id: input.design_space_id
+          name: input.name
+          kind: input.kind
+          at: input.at
+        emits:
+          - uxsearch.design.AxisAdded
+        payload:
+          uxsearch.design.AxisAdded:
+            axis_id: {generated: true}
+            design_space_id: input.design_space_id
+            kind: input.kind
+        summary: The axis exists with no values yet.
+
+  - name: uxsearch.design.AddAxisValue
+    naming:
+      wire: add-axis-value
+      display: Add an axis value
+    input:
+      - name: axis_id
+        type: uxsearch.design.AxisId
+      - name: name
+        type: String
+      - name: applications
+        type: List<uxsearch.design.OperatorApplication>
+    outcomes:
+      # The operator's validity guarantee, checked where the value is declared: every
+      # application's precondition holds on the base document and the result passes `ess ui check`.
+      - name: operator-refused
+        external: an application's precondition does not hold, or its result fails `ess ui check`
+        error: uxsearch.design.OperatorRefused
+        summary: Nothing was added.
+
+      - name: added
+        creates: uxsearch.design.AxisValue
+        instance: axis_value_id
+        sets:
+          axis_id: input.axis_id
+          name: input.name
+          applications: input.applications
+        emits:
+          - uxsearch.design.AxisValueAdded
+        payload:
+          uxsearch.design.AxisValueAdded:
+            axis_value_id: {generated: true}
+            axis_id: input.axis_id
+        summary: The value can be chosen on its axis.
+      # UNMAPPED: adding a value to an axis of a Frozen design space should be refused as
+      # AddAxis is; that needs a two-hop guard (value -> axis -> design space state), which
+      # `when_related` does not read (one hop). Open question: copy the design space id onto the
+      # input, or accept the gap (GAPS.md).
+
+  - name: uxsearch.design.FreezeDesignSpace
+    naming:
+      wire: freeze-design-space
+      display: Freeze a design space
+    input:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+    outcomes:
+      - name: frozen
+        moves: uxsearch.design.DesignSpace.freeze
+        instance: design_space_id
+        sets:
+          space_digest: {generated: true, present: true}
+        emits:
+          - uxsearch.design.DesignSpaceFrozenEvent
+        payload:
+          uxsearch.design.DesignSpaceFrozenEvent:
+            design_space_id: input.design_space_id
+        summary: The design space no longer changes; campaigns may search it.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.design.DesignSpaceStateConflict
+        summary: The design space is already frozen.
+
+  # Two routes to one canonical document are one variant: an unknown digest creates the
+  # variant, a known one appends the new route to it.
+  - name: uxsearch.design.MaterializeVariant
+    naming:
+      wire: materialize-variant
+      display: Materialize a variant
+    input:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: route
+        type: uxsearch.design.Route
+    outcomes:
+      - name: operator-defect
+        external: an operator application's result fails `ess ui check`
+        before_row: true
+        error: uxsearch.design.OperatorRefused
+        summary: No variant was made; the operator is defective.
+
+      - name: new
+        unknown_instance: true
+        creates: uxsearch.design.Variant
+        instance: variant_digest
+        sets:
+          base_document_id: input.base_document_id
+          target_id: input.target_id
+          routes: []
+        emits:
+          - uxsearch.design.VariantMaterialized
+        payload:
+          uxsearch.design.VariantMaterialized:
+            variant_digest: input.variant_digest
+            target_id: input.target_id
+        summary: The variant exists, reached by its first route.
+
+      - name: known
+        updates: uxsearch.design.Variant
+        instance: variant_digest
+        sets:
+          routes: {append: input.route}
+        emits:
+          - uxsearch.design.VariantReachedAgain
+        payload:
+          uxsearch.design.VariantReachedAgain:
+            variant_digest: input.variant_digest
+        summary: The variant already existed; the route is added to it and nothing is evaluated again.
+
+  - name: uxsearch.design.RequestAxisSwitch
+    naming:
+      wire: request-axis-switch
+      display: Switch an axis by hand
+    input:
+      - name: from_variant
+        type: uxsearch.design.VariantDigest
+      - name: axis_id
+        type: uxsearch.design.AxisId
+      - name: axis_value_id
+        type: uxsearch.design.AxisValueId
+    outcomes:
+      - name: operator-refused
+        external: the axis is not of the variant's design space, or the value's operators refuse the variant
+        error: uxsearch.design.OperatorRefused
+        summary: Nothing was requested.
+
+      - name: requested
+        creates: uxsearch.design.AxisSwitch
+        instance: axis_switch_id
+        sets:
+          from_variant: input.from_variant
+          axis_id: input.axis_id
+          axis_value_id: input.axis_value_id
+        emits:
+          - uxsearch.design.AxisSwitchRequested
+        payload:
+          uxsearch.design.AxisSwitchRequested:
+            axis_switch_id: {generated: true}
+            from_variant: input.from_variant
+        summary: The engine materializes the switched variant and evaluates it.
+
+  - name: uxsearch.design.ResolveAxisSwitch
+    naming:
+      wire: resolve-axis-switch
+      display: Resolve an axis switch
+    input:
+      - name: axis_switch_id
+        type: uxsearch.design.AxisSwitchId
+      - name: reached
+        type: uxsearch.design.VariantDigest
+    outcomes:
+      - name: resolved
+        moves: uxsearch.design.AxisSwitch.resolve
+        instance: axis_switch_id
+        sets:
+          reached: input.reached
+        emits:
+          - uxsearch.design.AxisSwitchResolved
+        payload:
+          uxsearch.design.AxisSwitchResolved:
+            axis_switch_id: input.axis_switch_id
+            reached: input.reached
+        summary: The switch names the variant it reached.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.design.AxisSwitchStateConflict
+        summary: The switch was already resolved.
+
+events:
+  - name: uxsearch.design.UxDeclarationsRegistered
+    fields:
+      - name: ux_declarations_id
+        type: uxsearch.design.UxDeclarationsId
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: digest
+        type: uxsearch.design.DocumentDigest
+
+  - name: uxsearch.design.ComponentBound
+    fields:
+      - name: component_binding_id
+        type: uxsearch.design.ComponentBindingId
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: treatment
+        type: uxsearch.design.ComponentTreatment
+
+  - name: uxsearch.design.BaseDocumentRegistered
+    fields:
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: document_digest
+        type: uxsearch.design.DocumentDigest
+
+  - name: uxsearch.design.TargetDeclared
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: scope
+        type: uxsearch.design.TargetScope
+
+  - name: uxsearch.design.DesignSpaceDeclared
+    fields:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.design.AxisAdded
+    fields:
+      - name: axis_id
+        type: uxsearch.design.AxisId
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: kind
+        type: uxsearch.design.AxisKind
+
+  - name: uxsearch.design.AxisValueAdded
+    fields:
+      - name: axis_value_id
+        type: uxsearch.design.AxisValueId
+      - name: axis_id
+        type: uxsearch.design.AxisId
+
+  - name: uxsearch.design.DesignSpaceFrozenEvent
+    fields:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+
+  - name: uxsearch.design.VariantMaterialized
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.design.VariantReachedAgain
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.design.AxisSwitchRequested
+    fields:
+      - name: axis_switch_id
+        type: uxsearch.design.AxisSwitchId
+      - name: from_variant
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.design.AxisSwitchResolved
+    fields:
+      - name: axis_switch_id
+        type: uxsearch.design.AxisSwitchId
+      - name: reached
+        type: uxsearch.design.VariantDigest
+
+views:
+  - name: uxsearch.design.BaseDocuments
+    source: uxsearch.design.BaseDocument
+    consistency: read_your_writes
+    fields:
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: path
+        type: String
+      - name: app
+        type: String
+      - name: document_digest
+        type: uxsearch.design.DocumentDigest
+      - name: state
+        type: uxsearch.design.BaseDocument.State
+    naming:
+      wire: base-documents
+      display: Base documents
+
+  - name: uxsearch.design.Targets
+    source: uxsearch.design.Target
+    consistency: read_your_writes
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: name
+        type: String
+      - name: scope
+        type: uxsearch.design.TargetScope
+      - name: node_path
+        type: Optional<uxsearch.design.NodePath>
+      - name: host_slot
+        type: Boolean
+      - name: state
+        type: uxsearch.design.Target.State
+    naming:
+      wire: targets
+      display: Targets
+
+  # The catalog a person picks a target from.
+  - name: uxsearch.design.TargetCatalog
+    source: uxsearch.design.Target
+    consistency: read_your_writes
+    params:
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+    filter: base_document_id == param.base_document_id
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      - name: scope
+        type: uxsearch.design.TargetScope
+      - name: node_path
+        type: Optional<uxsearch.design.NodePath>
+      - name: host_slot
+        type: Boolean
+    naming:
+      wire: target-catalog
+      display: Target catalog
+
+  - name: uxsearch.design.DesignSpaces
+    source: uxsearch.design.DesignSpace
+    consistency: read_your_writes
+    fields:
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: name
+        type: String
+      - name: component_treatment
+        type: uxsearch.design.ComponentTreatment
+      - name: space_digest
+        type: Optional<uxsearch.design.DocumentDigest>
+      - name: state
+        type: uxsearch.design.DesignSpace.State
+    naming:
+      wire: design-spaces
+      display: Design spaces
+
+  - name: uxsearch.design.Axes
+    source: uxsearch.design.Axis
+    consistency: read_your_writes
+    fields:
+      - name: axis_id
+        type: uxsearch.design.AxisId
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: name
+        type: String
+      - name: kind
+        type: uxsearch.design.AxisKind
+      - name: at
+        type: Optional<uxsearch.design.NodePath>
+      - name: state
+        type: uxsearch.design.Axis.State
+    naming:
+      wire: axes
+      display: Axes
+
+  - name: uxsearch.design.AxisValues
+    source: uxsearch.design.AxisValue
+    consistency: read_your_writes
+    fields:
+      - name: axis_value_id
+        type: uxsearch.design.AxisValueId
+      - name: axis_id
+        type: uxsearch.design.AxisId
+      - name: name
+        type: String
+      - name: state
+        type: uxsearch.design.AxisValue.State
+    naming:
+      wire: axis-values
+      display: Axis values
+
+  - name: uxsearch.design.Operators
+    source: uxsearch.design.MutationOperator
+    consistency: read_your_writes
+    fields:
+      - name: name
+        type: uxsearch.design.OperatorName
+      - name: axis_kind
+        type: uxsearch.design.AxisKind
+      - name: summary
+        type: String
+      - name: version
+        type: String
+      - name: state
+        type: uxsearch.design.MutationOperator.State
+    naming:
+      wire: operators
+      display: Mutation operators
+
+  - name: uxsearch.design.Variants
+    source: uxsearch.design.Variant
+    consistency: read_your_writes
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: state
+        type: uxsearch.design.Variant.State
+    naming:
+      wire: variants
+      display: Variants
+
+  - name: uxsearch.design.VariantById
+    source: uxsearch.design.Variant
+    consistency: read_your_writes
+    params:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+    filter: variant_digest == param.variant_digest
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: routes
+        type: List<uxsearch.design.Route>
+      - name: state
+        type: uxsearch.design.Variant.State
+    naming:
+      wire: variant
+      display: Variant
+
+  - name: uxsearch.design.AxisSwitches
+    source: uxsearch.design.AxisSwitch
+    consistency: read_your_writes
+    fields:
+      - name: axis_switch_id
+        type: uxsearch.design.AxisSwitchId
+      - name: from_variant
+        type: uxsearch.design.VariantDigest
+      - name: axis_id
+        type: uxsearch.design.AxisId
+      - name: axis_value_id
+        type: uxsearch.design.AxisValueId
+      - name: reached
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: state
+        type: uxsearch.design.AxisSwitch.State
+    naming:
+      wire: axis-switches
+      display: Axis switches
+
+  - name: uxsearch.design.ComponentBindings
+    source: uxsearch.design.ComponentBinding
+    consistency: read_your_writes
+    fields:
+      - name: component_binding_id
+        type: uxsearch.design.ComponentBindingId
+      - name: design_space_id
+        type: uxsearch.design.DesignSpaceId
+      - name: inner_target_id
+        type: uxsearch.design.TargetId
+      - name: treatment
+        type: uxsearch.design.ComponentTreatment
+      - name: pinned_variant
+        type: Optional<uxsearch.design.VariantDigest>
+      - name: top_k
+        type: Optional<Integer>
+      - name: state
+        type: uxsearch.design.ComponentBinding.State
+    naming:
+      wire: component-bindings
+      display: Component bindings
+
+  - name: uxsearch.design.UxDeclarationFiles
+    source: uxsearch.design.UxDeclarations
+    consistency: read_your_writes
+    fields:
+      - name: ux_declarations_id
+        type: uxsearch.design.UxDeclarationsId
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+      - name: path
+        type: String
+      - name: digest
+        type: uxsearch.design.DocumentDigest
+      - name: state
+        type: uxsearch.design.UxDeclarations.State
+    naming:
+      wire: ux-declarations
+      display: UX declarations

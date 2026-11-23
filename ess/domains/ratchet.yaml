@@ -1,0 +1,835 @@
+domain: uxsearch.ratchet
+
+summary: >-
+  How the engine's records map to ratchet's terms. The engine keeps no baseline of its own:
+  metrics are ratchet measurements, hard rules and gates are ratchet requirements, the engine is
+  an assessor that returns evidence records carrying the resolved target, ratchet decides every
+  gate, and a promoted variant's values reach ratchet only as a proposed protected reference.
+
+naming:
+  wire: ratchet
+  display: Ratchet
+
+types:
+  # Ratchet's own identifiers, held as text: the engine names them and never owns them.
+  - name: uxsearch.ratchet.RequirementId
+    kind: newtype
+    of: String
+
+  - name: uxsearch.ratchet.EvidenceId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.ratchet.GateDecisionId
+    kind: newtype
+    of: Uuid
+
+  - name: uxsearch.ratchet.ReferenceProposalId
+    kind: newtype
+    of: Uuid
+
+  # What a requirement is about on the engine's side.
+  - name: uxsearch.ratchet.RequirementSource
+    kind: enum
+    variants: [metric, design_rule]
+
+  # Ratchet's comparison: an absolute limit, a regression against the protected reference, or
+  # no new findings by finding identity.
+  - name: uxsearch.ratchet.Comparison
+    kind: enum
+    variants: [absolute_limit, regression, no_new_findings]
+
+  - name: uxsearch.ratchet.GateStage
+    kind: enum
+    variants: [merge, promote]
+
+  # What the assessor returns. `insufficient_evidence` is never read as a pass; whether an
+  # observation passes is ratchet's decision against its requirement, never the engine's.
+  - name: uxsearch.ratchet.EvidenceStatus
+    kind: enum
+    variants: [observed, insufficient_evidence]
+
+  - name: uxsearch.ratchet.GateVerdict
+    kind: enum
+    variants: [pass, fail, insufficient_evidence]
+
+  # The resolved target an evidence record carries, so ratchet can refuse incomparable evidence.
+  - name: uxsearch.ratchet.ResolvedTarget
+    kind: struct
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: layout_model_version
+        type: Optional<uxsearch.evaluation.LayoutModelVersion>
+      - name: environment_digest
+        type: Optional<uxsearch.evaluation.EnvironmentDigest>
+      - name: evaluation_key
+        type: Optional<uxsearch.evaluation.EvaluationKey>
+      # The font-metrics table the layout model laid text out with; absent for the cell model.
+      - name: font_table_digest
+        type: Optional<String>
+      - name: fixture_digest
+        type: Optional<String>
+      - name: declarations_digest
+        type: Optional<uxsearch.design.DocumentDigest>
+      - name: metric_version
+        type: Optional<Integer>
+      # The assessor and its version (`ux-eval@1` for evaluations, `ux-static@1` for the document
+      # alone; docs/ratchet.md § 1).
+      - name: assessor
+        type: String
+
+  # A finding's stable identity: rule check, node path, environment.
+  - name: uxsearch.ratchet.FindingIdentity
+    kind: struct
+    fields:
+      - name: check
+        type: uxsearch.rules.RuleCheck
+      - name: node_path
+        type: uxsearch.design.NodePath
+      - name: environment_digest
+        type: Optional<uxsearch.evaluation.EnvironmentDigest>
+
+  - name: uxsearch.ratchet.RequirementVerdict
+    kind: struct
+    fields:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+      - name: verdict
+        type: uxsearch.ratchet.GateVerdict
+
+entities:
+  # The engine's side of a ratchet requirement: which metric or design rule of which target it
+  # is about, and at which gate. Thresholds, tolerances and protected references stay in ratchet.
+  - name: uxsearch.ratchet.RequirementBinding
+    naming:
+      summary: Which metric or rule a ratchet requirement measures, on which target, at which gate.
+    identity:
+      name: requirement_id
+      type: uxsearch.ratchet.RequirementId
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: source
+        type: uxsearch.ratchet.RequirementSource
+      - name: metric_key
+        type: Optional<uxsearch.metrics.MetricKey>
+      - name: rule_id
+        type: Optional<uxsearch.rules.RuleId>
+      - name: comparison
+        type: uxsearch.ratchet.Comparison
+      - name: gate_stage
+        type: uxsearch.ratchet.GateStage
+    relations:
+      - {name: target, kind: references, target: uxsearch.design.Target, cardinality: one, via: target_id}
+      - {name: metric, kind: references, target: uxsearch.metrics.MetricDefinition, cardinality: one, via: metric_key}
+      - {name: rule, kind: references, target: uxsearch.rules.DesignRule, cardinality: one, via: rule_id}
+    lifecycle:
+      initial: Bound
+      states: [Bound, Unbound]
+      terminal: [Unbound]
+      transitions:
+        - name: unbind
+          from: [Bound]
+          to: Unbound
+
+  - name: uxsearch.ratchet.EvidenceRecord
+    naming:
+      summary: One observation the engine returns to ratchet as an assessor, with its resolved target.
+    identity:
+      name: evidence_id
+      type: uxsearch.ratchet.EvidenceId
+    fields:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+      - name: resolved_target
+        type: uxsearch.ratchet.ResolvedTarget
+      - name: status
+        type: uxsearch.ratchet.EvidenceStatus
+      - name: observed
+        type: Optional<Decimal>
+      - name: findings
+        type: List<uxsearch.ratchet.FindingIdentity>
+    relations:
+      - {name: requirement, kind: references, target: uxsearch.ratchet.RequirementBinding, cardinality: one, via: requirement_id}
+    lifecycle:
+      initial: Recorded
+      states: [Recorded]
+      terminal: [Recorded]
+
+  # A gate decision is ratchet's (`ratchet evaluate --gate promote`), imported as it was made,
+  # under policy from a trusted revision. Its inputs are evidence records only: no judgement
+  # record is an input to it.
+  - name: uxsearch.ratchet.GateDecision
+    naming:
+      summary: Ratchet's verdict on a promotion at one gate, imported as ratchet made it.
+    identity:
+      name: gate_decision_id
+      type: uxsearch.ratchet.GateDecisionId
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: gate_stage
+        type: uxsearch.ratchet.GateStage
+      - name: verdict
+        type: uxsearch.ratchet.GateVerdict
+      - name: policy_revision
+        type: String
+      - name: evidence_ids
+        type: List<uxsearch.ratchet.EvidenceId>
+      - name: requirement_verdicts
+        type: List<uxsearch.ratchet.RequirementVerdict>
+      - name: trade_off_only
+        type: Boolean
+    relations:
+      - {name: promotion, kind: references, target: uxsearch.promotion.Promotion, cardinality: one, via: promotion_id}
+      - {name: evidence, kind: references, target: uxsearch.ratchet.EvidenceRecord, cardinality: many, via: evidence_ids}
+    lifecycle:
+      initial: Decided
+      states: [Decided]
+      terminal: [Decided]
+
+  # The promoted variant's values offered to ratchet as a stronger protected reference
+  # (`ratchet reference propose`). Ratchet adopts or declines it under its ratchet policy.
+  - name: uxsearch.ratchet.ReferenceProposal
+    naming:
+      summary: A proposed protected reference for one requirement, from an accepted promotion.
+    identity:
+      name: reference_proposal_id
+      type: uxsearch.ratchet.ReferenceProposalId
+    fields:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: proposed_value
+        type: Optional<Decimal>
+      - name: evidence_ids
+        type: List<uxsearch.ratchet.EvidenceId>
+      # Ratchet's record of who or what authorized the decision.
+      - name: decided_by
+        type: Optional<String>
+    relations:
+      - {name: requirement, kind: references, target: uxsearch.ratchet.RequirementBinding, cardinality: one, via: requirement_id}
+      - {name: promotion, kind: references, target: uxsearch.promotion.Promotion, cardinality: one, via: promotion_id}
+      - {name: evidence, kind: references, target: uxsearch.ratchet.EvidenceRecord, cardinality: many, via: evidence_ids}
+    lifecycle:
+      initial: Proposed
+      states: [Proposed, Adopted, Declined]
+      terminal: [Adopted, Declined]
+      transitions:
+        - name: adopt
+          from: [Proposed]
+          to: Adopted
+        - name: decline
+          from: [Proposed]
+          to: Declined
+
+actors:
+  - name: uxsearch.ratchet.QualityOwner
+    naming:
+      display: Quality owner
+      summary: Binds ratchet requirements to a target's metrics and rules.
+    may:
+      - uxsearch.ratchet.BindRequirement
+      - uxsearch.ratchet.UnbindRequirement
+
+  - name: uxsearch.ratchet.Assessor
+    naming:
+      display: Assessor
+      summary: The engine acting as a ratchet assessor; it records evidence and proposes references.
+    system: true
+    may:
+      - uxsearch.ratchet.RecordMetricEvidence
+      - uxsearch.ratchet.RecordRuleEvidence
+      - uxsearch.ratchet.ProposeReference
+
+  - name: uxsearch.ratchet.Ratchet
+    naming:
+      display: Ratchet
+      summary: Ratchet itself; its gate decisions and reference decisions are imported.
+    system: true
+    may:
+      - uxsearch.ratchet.RecordGateDecision
+      - uxsearch.ratchet.RecordReferenceDecision
+
+errors:
+  - name: uxsearch.ratchet.TargetNotFound
+    summary: No target has this id.
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.ratchet.SourceMissing
+    summary: A metric requirement names no metric key, or a rule requirement no rule.
+    fields:
+      - name: source
+        type: uxsearch.ratchet.RequirementSource
+
+  - name: uxsearch.ratchet.RequirementBoundElsewhere
+    summary: The requirement id is already bound to another source; nothing changed.
+    fields:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+
+  - name: uxsearch.ratchet.RequirementStateConflict
+    summary: The binding is not in a state this command acts from, so nothing moved.
+    fields:
+      - name: state
+        type: uxsearch.ratchet.RequirementBinding.State
+
+  - name: uxsearch.ratchet.RequirementNotBound
+    summary: No bound requirement has this id, so no evidence was recorded.
+    fields:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+
+  - name: uxsearch.ratchet.EvaluationNotFound
+    summary: No evaluation has this key, so no evidence was recorded.
+    fields:
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+
+  - name: uxsearch.ratchet.RuleVerdictNotFound
+    summary: No rule verdict has this id, so no evidence was recorded.
+    fields:
+      - name: rule_verdict_id
+        type: uxsearch.rules.RuleVerdictId
+
+  - name: uxsearch.ratchet.PromotionNotFound
+    summary: No promotion has this id.
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+
+  - name: uxsearch.ratchet.PromotionNotAccepted
+    summary: A reference is proposed only from an accepted promotion.
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+
+  - name: uxsearch.ratchet.ReferenceProposalStateConflict
+    summary: The proposal was already decided, so nothing moved.
+    fields:
+      - name: state
+        type: uxsearch.ratchet.ReferenceProposal.State
+
+commands:
+  - name: uxsearch.ratchet.BindRequirement
+    naming:
+      wire: bind-requirement
+      display: Bind a ratchet requirement
+    input:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: source
+        type: uxsearch.ratchet.RequirementSource
+      - name: metric_key
+        type: Optional<uxsearch.metrics.MetricKey>
+      - name: rule_id
+        type: Optional<uxsearch.rules.RuleId>
+      - name: comparison
+        type: uxsearch.ratchet.Comparison
+      - name: gate_stage
+        type: uxsearch.ratchet.GateStage
+    outcomes:
+      - name: metric-missing
+        when:
+          all:
+            - source == metric
+            - {not: defined(metric_key)}
+        error: uxsearch.ratchet.SourceMissing
+        payload:
+          uxsearch.ratchet.SourceMissing:
+            source: input.source
+        summary: Nothing was bound.
+
+      - name: rule-missing
+        when:
+          all:
+            - source == design_rule
+            - {not: defined(rule_id)}
+        error: uxsearch.ratchet.SourceMissing
+        payload:
+          uxsearch.ratchet.SourceMissing:
+            source: input.source
+        summary: Nothing was bound.
+
+      - name: no-target
+        when_related:
+          via: input.target_id
+          exists: false
+        error: uxsearch.ratchet.TargetNotFound
+        payload:
+          uxsearch.ratchet.TargetNotFound:
+            target_id: input.target_id
+        summary: Nothing was bound.
+
+      - name: bound
+        unknown_instance: true
+        creates: uxsearch.ratchet.RequirementBinding
+        instance: requirement_id
+        sets:
+          target_id: input.target_id
+          source: input.source
+          metric_key: input.metric_key
+          rule_id: input.rule_id
+          comparison: input.comparison
+          gate_stage: input.gate_stage
+        emits:
+          - uxsearch.ratchet.RequirementBound
+        payload:
+          uxsearch.ratchet.RequirementBound:
+            requirement_id: input.requirement_id
+            target_id: input.target_id
+        summary: The engine records evidence for the requirement from now on.
+
+      - name: bound-elsewhere
+        external: the requirement id is bound to another target, source or gate
+        error: uxsearch.ratchet.RequirementBoundElsewhere
+        payload:
+          uxsearch.ratchet.RequirementBoundElsewhere:
+            requirement_id: input.requirement_id
+        summary: Nothing changed.
+
+      - name: same
+        preserves: uxsearch.ratchet.RequirementBinding
+        instance: requirement_id
+        summary: The same binding exists; nothing changed.
+
+  - name: uxsearch.ratchet.UnbindRequirement
+    naming:
+      wire: unbind-requirement
+      display: Unbind a ratchet requirement
+    input:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+    outcomes:
+      - name: unbound
+        moves: uxsearch.ratchet.RequirementBinding.unbind
+        instance: requirement_id
+        emits:
+          - uxsearch.ratchet.RequirementUnbound
+        payload:
+          uxsearch.ratchet.RequirementUnbound:
+            requirement_id: input.requirement_id
+        summary: No more evidence is recorded for it; ratchet still holds the requirement.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.ratchet.RequirementStateConflict
+        summary: The binding was already removed.
+
+  # Evidence from an evaluation. An evaluation that is not Computed (a bound hit, a state not
+  # evaluable, not yet computed) yields insufficient evidence with no observed value: never an
+  # observation ratchet could pass.
+  - name: uxsearch.ratchet.RecordMetricEvidence
+    naming:
+      wire: record-metric-evidence
+      display: Record metric evidence
+    input:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+      - name: resolved_target
+        type: uxsearch.ratchet.ResolvedTarget
+      - name: value
+        type: Decimal
+    outcomes:
+      - name: no-evaluation
+        when_related:
+          via: input.evaluation_key
+          exists: false
+        error: uxsearch.ratchet.EvaluationNotFound
+        payload:
+          uxsearch.ratchet.EvaluationNotFound:
+            evaluation_key: input.evaluation_key
+        summary: Nothing was recorded.
+
+      - name: insufficient
+        when_related:
+          via: input.evaluation_key
+          predicate: state != Computed
+        creates: uxsearch.ratchet.EvidenceRecord
+        instance: evidence_id
+        sets:
+          requirement_id: input.requirement_id
+          resolved_target: input.resolved_target
+          status: insufficient_evidence
+          findings: []
+        emits:
+          - uxsearch.ratchet.EvidenceRecorded
+        payload:
+          uxsearch.ratchet.EvidenceRecorded:
+            evidence_id: {generated: true}
+            requirement_id: input.requirement_id
+            status: insufficient_evidence
+        summary: The evaluation is not Computed; ratchet reads insufficient evidence, never a pass.
+
+      - name: observed
+        creates: uxsearch.ratchet.EvidenceRecord
+        instance: evidence_id
+        sets:
+          requirement_id: input.requirement_id
+          resolved_target: input.resolved_target
+          status: observed
+          observed: input.value
+          findings: []
+        emits:
+          - uxsearch.ratchet.EvidenceRecorded
+        payload:
+          uxsearch.ratchet.EvidenceRecorded:
+            evidence_id: {generated: true}
+            requirement_id: input.requirement_id
+            status: observed
+        summary: The observed value goes to ratchet, which compares it with its requirement.
+      # UNMAPPED: the requirement should be Bound (a guard over a second named row beside the
+      # evaluation guard); not added in this round. Open question: refuse, or record and let
+      # ratchet drop evidence for an unknown requirement?
+
+  - name: uxsearch.ratchet.RecordRuleEvidence
+    naming:
+      wire: record-rule-evidence
+      display: Record rule evidence
+    input:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+      - name: rule_verdict_id
+        type: uxsearch.rules.RuleVerdictId
+      - name: resolved_target
+        type: uxsearch.ratchet.ResolvedTarget
+      - name: findings
+        type: List<uxsearch.ratchet.FindingIdentity>
+    outcomes:
+      - name: no-verdict
+        when_related:
+          via: input.rule_verdict_id
+          exists: false
+        error: uxsearch.ratchet.RuleVerdictNotFound
+        payload:
+          uxsearch.ratchet.RuleVerdictNotFound:
+            rule_verdict_id: input.rule_verdict_id
+        summary: Nothing was recorded.
+
+      - name: insufficient
+        when_related:
+          via: input.rule_verdict_id
+          predicate: verdict == insufficient_evidence
+        creates: uxsearch.ratchet.EvidenceRecord
+        instance: evidence_id
+        sets:
+          requirement_id: input.requirement_id
+          resolved_target: input.resolved_target
+          status: insufficient_evidence
+          findings: []
+        emits:
+          - uxsearch.ratchet.EvidenceRecorded
+        payload:
+          uxsearch.ratchet.EvidenceRecorded:
+            evidence_id: {generated: true}
+            requirement_id: input.requirement_id
+            status: insufficient_evidence
+        summary: The rule could not be decided; ratchet reads insufficient evidence, never a pass.
+
+      - name: observed
+        creates: uxsearch.ratchet.EvidenceRecord
+        instance: evidence_id
+        sets:
+          requirement_id: input.requirement_id
+          resolved_target: input.resolved_target
+          status: observed
+          findings: input.findings
+        emits:
+          - uxsearch.ratchet.EvidenceRecorded
+        payload:
+          uxsearch.ratchet.EvidenceRecorded:
+            evidence_id: {generated: true}
+            requirement_id: input.requirement_id
+            status: observed
+        summary: The findings go to ratchet, which compares them by identity.
+
+  # Imported from `ratchet evaluate --gate <stage>`. The input names evidence records only.
+  - name: uxsearch.ratchet.RecordGateDecision
+    naming:
+      wire: record-gate-decision
+      display: Record a gate decision
+    input:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: gate_stage
+        type: uxsearch.ratchet.GateStage
+      - name: verdict
+        type: uxsearch.ratchet.GateVerdict
+      - name: policy_revision
+        type: String
+      - name: evidence_ids
+        type: List<uxsearch.ratchet.EvidenceId>
+      - name: requirement_verdicts
+        type: List<uxsearch.ratchet.RequirementVerdict>
+      # True when the only failing requirements are regressions inside the trade-off group the
+      # promotion declares: no hard limit fails and nothing is insufficient (ratchet gap 1).
+      - name: trade_off_only
+        type: Boolean
+    outcomes:
+      - name: no-promotion
+        when_related:
+          via: input.promotion_id
+          exists: false
+        error: uxsearch.ratchet.PromotionNotFound
+        payload:
+          uxsearch.ratchet.PromotionNotFound:
+            promotion_id: input.promotion_id
+        summary: Nothing was recorded.
+
+      - name: recorded
+        creates: uxsearch.ratchet.GateDecision
+        instance: gate_decision_id
+        sets:
+          promotion_id: input.promotion_id
+          gate_stage: input.gate_stage
+          verdict: input.verdict
+          policy_revision: input.policy_revision
+          evidence_ids: input.evidence_ids
+          requirement_verdicts: input.requirement_verdicts
+          trade_off_only: input.trade_off_only
+        emits:
+          - uxsearch.ratchet.GateDecided
+        payload:
+          uxsearch.ratchet.GateDecided:
+            gate_decision_id: {generated: true}
+            promotion_id: input.promotion_id
+            verdict: input.verdict
+        summary: The decision is recorded as ratchet made it.
+
+  - name: uxsearch.ratchet.ProposeReference
+    naming:
+      wire: propose-reference
+      display: Propose a protected reference
+    input:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: proposed_value
+        type: Optional<Decimal>
+      - name: evidence_ids
+        type: List<uxsearch.ratchet.EvidenceId>
+    outcomes:
+      - name: no-promotion
+        when_related:
+          via: input.promotion_id
+          exists: false
+        error: uxsearch.ratchet.PromotionNotFound
+        payload:
+          uxsearch.ratchet.PromotionNotFound:
+            promotion_id: input.promotion_id
+        summary: Nothing was proposed.
+
+      - name: not-accepted
+        when_related:
+          via: input.promotion_id
+          predicate: state != Accepted
+        error: uxsearch.ratchet.PromotionNotAccepted
+        payload:
+          uxsearch.ratchet.PromotionNotAccepted:
+            promotion_id: input.promotion_id
+        summary: Nothing was proposed.
+
+      - name: proposed
+        creates: uxsearch.ratchet.ReferenceProposal
+        instance: reference_proposal_id
+        sets:
+          requirement_id: input.requirement_id
+          promotion_id: input.promotion_id
+          proposed_value: input.proposed_value
+          evidence_ids: input.evidence_ids
+        emits:
+          - uxsearch.ratchet.ReferenceProposed
+        payload:
+          uxsearch.ratchet.ReferenceProposed:
+            reference_proposal_id: {generated: true}
+            requirement_id: input.requirement_id
+        summary: Ratchet decides under its ratchet policy; the engine stores no reference.
+
+  - name: uxsearch.ratchet.RecordReferenceDecision
+    naming:
+      wire: record-reference-decision
+      display: Record a reference decision
+    input:
+      - name: reference_proposal_id
+        type: uxsearch.ratchet.ReferenceProposalId
+      - name: adopted
+        type: Boolean
+      - name: decided_by
+        type: String
+    outcomes:
+      - name: adopted
+        when: adopted == true
+        moves: uxsearch.ratchet.ReferenceProposal.adopt
+        instance: reference_proposal_id
+        sets:
+          decided_by: input.decided_by
+        emits:
+          - uxsearch.ratchet.ReferenceDecided
+        payload:
+          uxsearch.ratchet.ReferenceDecided:
+            reference_proposal_id: input.reference_proposal_id
+            adopted: true
+        summary: Ratchet adopted the reference.
+
+      - name: declined
+        moves: uxsearch.ratchet.ReferenceProposal.decline
+        instance: reference_proposal_id
+        sets:
+          decided_by: input.decided_by
+        emits:
+          - uxsearch.ratchet.ReferenceDecided
+        payload:
+          uxsearch.ratchet.ReferenceDecided:
+            reference_proposal_id: input.reference_proposal_id
+            adopted: false
+        summary: Ratchet declined the reference; the old one stands.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.ratchet.ReferenceProposalStateConflict
+        summary: The proposal was already decided.
+
+events:
+  - name: uxsearch.ratchet.RequirementBound
+    fields:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.ratchet.RequirementUnbound
+    fields:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+
+  - name: uxsearch.ratchet.EvidenceRecorded
+    fields:
+      - name: evidence_id
+        type: uxsearch.ratchet.EvidenceId
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+      - name: status
+        type: uxsearch.ratchet.EvidenceStatus
+
+  - name: uxsearch.ratchet.GateDecided
+    fields:
+      - name: gate_decision_id
+        type: uxsearch.ratchet.GateDecisionId
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: verdict
+        type: uxsearch.ratchet.GateVerdict
+
+  - name: uxsearch.ratchet.ReferenceProposed
+    fields:
+      - name: reference_proposal_id
+        type: uxsearch.ratchet.ReferenceProposalId
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+
+  - name: uxsearch.ratchet.ReferenceDecided
+    fields:
+      - name: reference_proposal_id
+        type: uxsearch.ratchet.ReferenceProposalId
+      - name: adopted
+        type: Boolean
+
+views:
+  - name: uxsearch.ratchet.Requirements
+    source: uxsearch.ratchet.RequirementBinding
+    consistency: read_your_writes
+    fields:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: source
+        type: uxsearch.ratchet.RequirementSource
+      - name: metric_key
+        type: Optional<uxsearch.metrics.MetricKey>
+      - name: rule_id
+        type: Optional<uxsearch.rules.RuleId>
+      - name: comparison
+        type: uxsearch.ratchet.Comparison
+      - name: gate_stage
+        type: uxsearch.ratchet.GateStage
+      - name: state
+        type: uxsearch.ratchet.RequirementBinding.State
+    naming:
+      wire: requirements
+      display: Requirements
+
+  - name: uxsearch.ratchet.Evidence
+    source: uxsearch.ratchet.EvidenceRecord
+    consistency: read_your_writes
+    fields:
+      - name: evidence_id
+        type: uxsearch.ratchet.EvidenceId
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+      - name: resolved_target
+        type: uxsearch.ratchet.ResolvedTarget
+      - name: status
+        type: uxsearch.ratchet.EvidenceStatus
+      - name: observed
+        type: Optional<Decimal>
+      - name: findings
+        type: List<uxsearch.ratchet.FindingIdentity>
+      - name: state
+        type: uxsearch.ratchet.EvidenceRecord.State
+    naming:
+      wire: evidence
+      display: Evidence
+
+  - name: uxsearch.ratchet.GateDecisions
+    source: uxsearch.ratchet.GateDecision
+    consistency: read_your_writes
+    fields:
+      - name: gate_decision_id
+        type: uxsearch.ratchet.GateDecisionId
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: gate_stage
+        type: uxsearch.ratchet.GateStage
+      - name: verdict
+        type: uxsearch.ratchet.GateVerdict
+      - name: policy_revision
+        type: String
+      - name: requirement_verdicts
+        type: List<uxsearch.ratchet.RequirementVerdict>
+      - name: trade_off_only
+        type: Boolean
+      - name: state
+        type: uxsearch.ratchet.GateDecision.State
+    naming:
+      wire: gate-decisions
+      display: Gate decisions
+
+  - name: uxsearch.ratchet.ReferenceProposals
+    source: uxsearch.ratchet.ReferenceProposal
+    consistency: read_your_writes
+    fields:
+      - name: reference_proposal_id
+        type: uxsearch.ratchet.ReferenceProposalId
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: proposed_value
+        type: Optional<Decimal>
+      - name: decided_by
+        type: Optional<String>
+      - name: state
+        type: uxsearch.ratchet.ReferenceProposal.State
+    naming:
+      wire: reference-proposals
+      display: Reference proposals

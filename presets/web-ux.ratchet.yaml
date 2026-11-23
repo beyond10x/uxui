@@ -1,0 +1,234 @@
+format: ratchet/1
+family: web-ux@1
+status: "proposal; ratchet's format is in design (ratchet docs/design.md § 3); field names follow § 3, fields listed under extensions are not in it"
+summary: UX quality of an ess-ui/1 document, measured without I/O by the uxui assessors; catalogue in uxui docs/metrics.md.
+extensions:
+  - family
+  - inputs
+  - assessors
+  - target.kind ui-variant
+  - target.resolve
+  - observation.conditions
+  - observation.bounds
+  - observation.stage
+  - measurement.scope
+  - measurement.kind
+  - measurement.direction
+  - measurement.findings
+  - requirement.reference
+  - requirement.per
+  - requirement.insufficient_when
+  - trade_offs
+  - gate.insufficient
+  - gate.reference_change
+  - gate.requires_from
+  - gate.observation_stage
+  - preset.applies_when
+  - defaults
+  - presets
+  - preset.label
+  - assessment.config
+inputs:
+  subject: {type: name, required: true, note: the project subject a binding applies the family to}
+  document: {type: path, required: true, note: the base ess-ui/1 document}
+  journeys: {type: list of path, required: true, note: ess-ui-test/1 files whose tests are the journeys}
+  declarations: {type: path, required: true, note: required, always-visible: '', completion-signal and cue node paths per journey: ''}
+  target_scope: {type: enum, values: [component, widget, section, page, composition, product], default: page}
+  gating_conditions:
+    type: matrix
+    default:
+      viewport: [1440x900, 1280x720, 390x844]
+      theme_mode: [light, dark]
+      input_mode: [pointer, keyboard]
+      text_scale: [1.0, 2.0]
+      reduced_motion: [false]
+  harness_widths: {type: list of length, default: [320px, 480px, 768px, 1200px], note: used instead of viewport when target_scope is component or widget}
+  layout_model: {type: version, default: layout-model/1}
+  klm: {type: record, default: {K: 0.2s, P: 1.1s, H: 0.4s, M: 1.35s}}
+  reading_rate: {type: number, default: 238, unit: words per minute}
+  max_states: {type: integer, default: 65536}
+assessors:
+  ux-static@1:
+    reads: [document, declarations]
+    targets: [ui-variant]
+    outputs: [effort.actions_min, a11y.contrast_min, a11y.name_missing, consistency.state_vocabulary, consistency.command_label, consistency.primary_actions, consistency.pattern, proxy.type_scale, proxy.radii]
+  ux-eval@1:
+    reads: [document, journeys, declarations, fixtures, layout_model]
+    targets: [ui-variant]
+    outputs: all dynamic metrics of docs/metrics.md
+  ux-walk@1:
+    reads: [document, journeys]
+    targets: [deployment]
+    outputs: [layout_model.box_delta_p95]
+defaults:
+  target:
+    kind: ui-variant
+    selection: candidate
+    resolve: [variant_digest, document_revision, layout_model, font_table_digest, fixture_digest, ess_version, metric_version]
+  observation:
+    kind: snapshot
+    conditions: "{inputs.gating_conditions}"
+    bounds: {max_states: '{inputs.max_states}'}
+    stage: full
+presets:
+  completion:
+    assessments:
+      completion.journey_completes: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: completion.journey_completes, unit: journeys, aggregation: count, scope: journey, kind: exact, direction: lower}}
+      completion.keyboard_parity: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: completion.keyboard_parity, unit: journeys, aggregation: count, scope: journey, kind: exact, direction: lower}}
+      completion.miss: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: completion.miss, unit: nodes, aggregation: max, scope: state, kind: exact, direction: lower}}
+      completion.false_complete: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: completion.false_complete, unit: states, aggregation: count, scope: journey, kind: exact, direction: lower}}
+      completion.refusal_visible: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: completion.refusal_visible, unit: refusals, aggregation: count, scope: journey, kind: exact, direction: lower}}
+      completion.content_true: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: completion.content_true, unit: findings, aggregation: distinct, scope: page, kind: exact, direction: lower, findings: {identity: [metric, node_path, condition_cell]}}}
+    requirements:
+      completion.journey_completes.limit: {assessment: completion.journey_completes, condition: {operator: eq, value: 0, unit: journeys}, per: condition_cell}
+      completion.keyboard_parity.limit: {assessment: completion.keyboard_parity, condition: {operator: eq, value: 0, unit: journeys}, per: condition_cell}
+      completion.miss.limit: {assessment: completion.miss, condition: {operator: eq, value: 0, unit: nodes}, per: condition_cell}
+      completion.false_complete.limit: {assessment: completion.false_complete, condition: {operator: eq, value: 0, unit: states}, per: condition_cell}
+      completion.refusal_visible.limit: {assessment: completion.refusal_visible, condition: {operator: eq, value: 0, unit: refusals}, per: condition_cell}
+      completion.content_true.limit: {assessment: completion.content_true, condition: {operator: eq, value: 0, unit: findings}, per: condition_cell}
+  effort:
+    assessments:
+      effort.actions: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: effort.actions, unit: actions, aggregation: sum, scope: journey, kind: exact, direction: lower}}
+      effort.actions_min: {subject: "{inputs.subject}", assessor: ux-static@1, observation: {kind: snapshot, conditions: none}, measurement: {output: effort.actions_min, unit: actions, aggregation: sum, scope: journey, kind: exact, direction: lower}}
+      effort.klm_time: {subject: "{inputs.subject}", assessor: ux-eval@1, config: {klm: "{inputs.klm}"}, measurement: {output: effort.klm_time, unit: s, aggregation: sum, scope: journey, kind: modelled, direction: lower}}
+      effort.fitts_id: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: effort.fitts_id, unit: bits, aggregation: sum, scope: journey, kind: modelled, direction: lower}}
+      effort.keys_keyboard: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: effort.keys_keyboard, unit: keys, aggregation: sum, scope: journey, kind: exact, direction: lower}}
+      effort.wait_virtual: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: effort.wait_virtual, unit: s, aggregation: sum, scope: journey, kind: exact, direction: lower}}
+    requirements:
+      effort.actions.reference: {assessment: effort.actions, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+      effort.klm_time.reference: {assessment: effort.klm_time, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+      effort.fitts_id.reference: {assessment: effort.fitts_id, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+      effort.keys_keyboard.reference: {assessment: effort.keys_keyboard, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+      effort.wait_virtual.reference: {assessment: effort.wait_virtual, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+  attention:
+    assessments:
+      attention.always_visible: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: attention.always_visible, unit: findings, aggregation: distinct, scope: page, kind: exact, direction: lower, findings: {identity: [metric, node_path, condition_cell]}}}
+      attention.offscreen_needed: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: attention.offscreen_needed, unit: steps, aggregation: sum, scope: journey, kind: exact, direction: lower}}
+      attention.glance_cost: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: attention.glance_cost, unit: level, aggregation: [median_pooled, p95_nearest_rank_pooled], scope: journey, kind: exact, direction: lower}}
+      attention.visible_required: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: attention.visible_required, unit: ratio, aggregation: min, scope: journey, kind: exact, direction: higher}}
+      attention.regions_in_view: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: attention.regions_in_view, unit: regions, aggregation: median, scope: journey, kind: exact, direction: none}}
+    requirements:
+      attention.always_visible.limit: {assessment: attention.always_visible, condition: {operator: eq, value: 0, unit: findings}, per: condition_cell}
+      attention.offscreen_needed.reference: {assessment: attention.offscreen_needed, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+      attention.glance_cost.reference: {assessment: attention.glance_cost, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+      attention.visible_required.reference: {assessment: attention.visible_required, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+  layout:
+    assessments:
+      layout.overflow: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: layout.overflow, unit: findings, aggregation: distinct, scope: page, kind: exact, direction: lower, findings: {identity: [metric, node_path, condition_cell]}}}
+      layout.clipping: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: layout.clipping, unit: findings, aggregation: distinct, scope: page, kind: exact, direction: lower, findings: {identity: [metric, node_path, condition_cell]}}}
+      layout.shift: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: layout.shift, unit: score, aggregation: sum, scope: journey, kind: exact, direction: lower}}
+      layout.shift_after_input: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: layout.shift_after_input, unit: score, aggregation: sum, scope: journey, kind: exact, direction: lower}}
+      layout.density: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: layout.density, unit: ratio, aggregation: median, scope: journey, kind: exact, direction: none}}
+    requirements:
+      layout.overflow.limit: {assessment: layout.overflow, condition: {operator: eq, value: 0, unit: findings}, per: condition_cell}
+      layout.clipping.reference: {assessment: layout.clipping, reference: {kind: protected, comparison: no_new_findings}, per: condition_cell}
+      layout.shift.reference: {assessment: layout.shift, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+  load:
+    assessments:
+      load.reading_words: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: load.reading_words, unit: words, aggregation: [median_pooled, max], scope: state, kind: exact, direction: lower, boundary: fixed-point-of-state}}
+      load.reading_time: {subject: "{inputs.subject}", assessor: ux-eval@1, config: {reading_rate: "{inputs.reading_rate}"}, measurement: {output: load.reading_time, unit: s, aggregation: max, scope: state, kind: modelled, direction: lower}}
+    requirements:
+      load.reading_words.reference: {assessment: load.reading_words, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+  a11y:
+    assessments:
+      a11y.act_failed: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: a11y.act_failed, unit: findings, aggregation: distinct, scope: page, kind: exact, direction: lower, findings: {identity: [rule, node_path, condition_cell]}}}
+      a11y.act_cant_tell: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: a11y.act_cant_tell, unit: findings, aggregation: distinct, scope: page, kind: exact, direction: lower, findings: {identity: [rule, node_path, condition_cell]}}}
+      a11y.contrast_min: {subject: "{inputs.subject}", assessor: ux-static@1, observation: {kind: snapshot, conditions: {theme_mode: [light, dark]}}, measurement: {output: a11y.contrast_min, unit: ratio, aggregation: min, scope: variant, kind: exact, direction: higher}}
+      a11y.name_missing: {subject: "{inputs.subject}", assessor: ux-static@1, observation: {kind: snapshot, conditions: none}, measurement: {output: a11y.name_missing, unit: nodes, aggregation: distinct, scope: variant, kind: exact, direction: lower, findings: {identity: [metric, node_path]}}}
+      a11y.keyboard_unreachable: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: a11y.keyboard_unreachable, unit: nodes, aggregation: distinct, scope: page, kind: exact, direction: lower, findings: {identity: [metric, node_path, condition_cell]}}}
+      a11y.focus_order: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: a11y.focus_order, unit: pairs, aggregation: sum, scope: journey, kind: exact, direction: lower}}
+      a11y.focus_obscured: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: a11y.focus_obscured, unit: stops, aggregation: distinct, scope: page, kind: exact, direction: lower, findings: {identity: [metric, node_path, condition_cell]}}}
+      a11y.focus_trap: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: a11y.focus_trap, unit: states, aggregation: distinct, scope: page, kind: exact, direction: lower, findings: {identity: [metric, node_path, condition_cell]}}}
+      a11y.target_size: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: a11y.target_size, unit: nodes, aggregation: distinct, scope: page, kind: exact, direction: lower, findings: {identity: [metric, node_path, condition_cell]}}}
+    requirements:
+      a11y.act_failed.limit: {assessment: a11y.act_failed, condition: {operator: eq, value: 0, unit: findings}, per: condition_cell}
+      a11y.act_cant_tell.insufficient: {assessment: a11y.act_cant_tell, insufficient_when: {operator: gt, value: 0, unit: findings}, per: condition_cell}
+      a11y.contrast_min.limit: {assessment: a11y.contrast_min, condition: {operator: gte, value: 4.5, unit: ratio}, per: condition_cell}
+      a11y.name_missing.limit: {assessment: a11y.name_missing, condition: {operator: eq, value: 0, unit: nodes}}
+      a11y.keyboard_unreachable.limit: {assessment: a11y.keyboard_unreachable, condition: {operator: eq, value: 0, unit: nodes}, per: condition_cell}
+      a11y.focus_order.reference: {assessment: a11y.focus_order, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+      a11y.focus_obscured.limit: {assessment: a11y.focus_obscured, condition: {operator: eq, value: 0, unit: stops}, per: condition_cell}
+      a11y.focus_trap.limit: {assessment: a11y.focus_trap, condition: {operator: eq, value: 0, unit: states}, per: condition_cell}
+      a11y.target_size.limit: {assessment: a11y.target_size, condition: {operator: eq, value: 0, unit: nodes}, per: condition_cell}
+  consistency:
+    assessments:
+      consistency.state_vocabulary: {subject: "{inputs.subject}", assessor: ux-static@1, observation: {kind: snapshot, conditions: none}, measurement: {output: consistency.state_vocabulary, unit: values, aggregation: distinct, scope: variant, kind: exact, direction: lower}}
+      consistency.command_label: {subject: "{inputs.subject}", assessor: ux-static@1, observation: {kind: snapshot, conditions: none}, measurement: {output: consistency.command_label, unit: commands, aggregation: distinct, scope: variant, kind: exact, direction: lower}}
+      consistency.primary_actions: {subject: "{inputs.subject}", assessor: ux-static@1, observation: {kind: snapshot, conditions: none}, measurement: {output: consistency.primary_actions, unit: regions, aggregation: distinct, scope: page, kind: exact, direction: lower, findings: {identity: [metric, node_path]}}}
+      consistency.pattern: {subject: "{inputs.subject}", assessor: ux-static@1, observation: {kind: snapshot, conditions: none}, measurement: {output: consistency.pattern, unit: views, aggregation: distinct, scope: variant, kind: exact, direction: lower}}
+    requirements:
+      consistency.state_vocabulary.reference: {assessment: consistency.state_vocabulary, reference: {kind: protected, comparison: no_regression, tolerance: 0}}
+      consistency.command_label.reference: {assessment: consistency.command_label, reference: {kind: protected, comparison: no_regression, tolerance: 0}}
+      consistency.primary_actions.limit: {assessment: consistency.primary_actions, condition: {operator: eq, value: 0, unit: regions}}
+  steering:
+    applies_when: declarations name a cue node
+    assessments:
+      steering.cue_accuracy: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: steering.cue_accuracy, unit: ratio, aggregation: pooled_share, scope: journey, kind: exact, direction: higher}}
+      steering.cue_churn: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: steering.cue_churn, unit: changes, aggregation: sum, scope: journey, kind: exact, direction: lower}}
+      steering.cue_leads: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: steering.cue_leads, unit: ratio, aggregation: pooled_share, scope: journey, kind: modelled, direction: higher}}
+    requirements:
+      steering.cue_accuracy.reference: {assessment: steering.cue_accuracy, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+      steering.cue_churn.reference: {assessment: steering.cue_churn, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+      steering.cue_leads.reference: {assessment: steering.cue_leads, reference: {kind: protected, comparison: no_regression, tolerance: 0}, per: condition_cell}
+  proxies:
+    label: design proxies; diagnostic only, never gated
+    assessments:
+      proxy.emphasis_per_region: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: proxy.emphasis_per_region, unit: regions, aggregation: max, scope: state, kind: exact, direction: lower}}
+      proxy.state_colour_share: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: proxy.state_colour_share, unit: ratio, aggregation: max, scope: state, kind: exact, direction: lower}}
+      proxy.urgency_levels: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: proxy.urgency_levels, unit: tones, aggregation: max, scope: state, kind: exact, direction: lower}}
+      proxy.type_scale: {subject: "{inputs.subject}", assessor: ux-static@1, observation: {kind: snapshot, conditions: none}, measurement: {output: proxy.type_scale, unit: sizes, aggregation: max, scope: variant, kind: exact, direction: lower}}
+      proxy.spacing_units: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: proxy.spacing_units, unit: gaps, aggregation: max, scope: state, kind: exact, direction: lower}}
+      proxy.alignment_edges: {subject: "{inputs.subject}", assessor: ux-eval@1, measurement: {output: proxy.alignment_edges, unit: edges, aggregation: median, scope: state, kind: exact, direction: lower}}
+      proxy.radii: {subject: "{inputs.subject}", assessor: ux-static@1, observation: {kind: snapshot, conditions: none}, measurement: {output: proxy.radii, unit: radii, aggregation: max, scope: variant, kind: exact, direction: lower}}
+    requirements: {}
+trade_offs:
+  effort-attention-load:
+    members: [effort.actions.reference, effort.klm_time.reference, effort.fitts_id.reference, effort.keys_keyboard.reference, attention.offscreen_needed.reference, attention.glance_cost.reference, attention.visible_required.reference, load.reading_words.reference, a11y.focus_order.reference]
+    rule: a candidate worse on a member passes only with an authorized reference change that names the members it makes worse and the members it makes better
+    never_members: '*.limit'
+gates:
+  merge:
+    stage: pre-merge
+    observation_stage: journey-paths
+    requires:
+      - completion.journey_completes.limit
+      - completion.keyboard_parity.limit
+      - completion.miss.limit
+      - completion.false_complete.limit
+      - completion.refusal_visible.limit
+      - completion.content_true.limit
+      - attention.always_visible.limit
+      - layout.overflow.limit
+      - a11y.act_failed.limit
+      - a11y.act_cant_tell.insufficient
+      - a11y.contrast_min.limit
+      - a11y.name_missing.limit
+      - a11y.keyboard_unreachable.limit
+      - a11y.focus_obscured.limit
+      - a11y.focus_trap.limit
+      - a11y.target_size.limit
+      - consistency.primary_actions.limit
+      - effort.actions.reference
+      - effort.klm_time.reference
+      - effort.fitts_id.reference
+      - effort.keys_keyboard.reference
+      - effort.wait_virtual.reference
+      - attention.offscreen_needed.reference
+      - attention.glance_cost.reference
+      - attention.visible_required.reference
+      - layout.clipping.reference
+      - layout.shift.reference
+      - load.reading_words.reference
+      - a11y.focus_order.reference
+      - consistency.state_vocabulary.reference
+      - consistency.command_label.reference
+      - steering.cue_accuracy.reference
+      - steering.cue_churn.reference
+      - steering.cue_leads.reference
+    insufficient: fail
+  promote:
+    stage: pre-promotion
+    observation_stage: full
+    insufficient: fail
+    reference_change: required
+    requires_from: merge
