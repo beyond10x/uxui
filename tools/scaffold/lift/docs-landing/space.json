@@ -1,0 +1,87 @@
+{
+  "schema": "uxui-source-space/1",
+  "target": {
+    "id": "tg-docs-landing",
+    "name": "Documentation landing page /uxui/",
+    "scope": "page",
+    "page": "/uxui/",
+    "sources": ["website/product.json", "website/data/status.json", "website/src/css/landing.css"]
+  },
+  "primary": ".b10x-hero__actions > a.b10x-button",
+  "journeys": [
+    {
+      "name": "install the plugin",
+      "targets": ["/docs/getting-started"],
+      "via": []
+    },
+    {
+      "name": "what exists today",
+      "targets": ["/docs/status"],
+      "via": []
+    },
+    {
+      "name": "find the metric catalogue",
+      "targets": ["/docs/reference/metrics"],
+      "via": ["/docs/reference/skill", "/docs/reference/specification", "/docs/reference/glossary"]
+    }
+  ],
+  "navbar": {
+    "wide_from": 997,
+    "links": ["/docs/getting-started", "/docs/status", "/docs/reference/skill", "/docs/guides/run-a-round", "/docs/"],
+    "narrow_menu_actions": 1,
+    "narrow_sidebar_actions": 1
+  },
+  "axes": {
+    "actions": {
+      "kind": "product.json /product/actions",
+      "values": {
+        "all_original": ["/docs/getting-started", "/docs/guides/run-a-round", "/docs/concepts/search-engine", "/docs/concepts/studio", "/docs/status"],
+        "all_status_second": ["/docs/getting-started", "/docs/status", "/docs/guides/run-a-round", "/docs/concepts/search-engine", "/docs/concepts/studio"],
+        "install_and_status": ["/docs/getting-started", "/docs/status"]
+      }
+    },
+    "section_order": {
+      "kind": "product.json /sections order",
+      "values": {
+        "original": ["features", "flow", "status", "related"],
+        "status_second": ["features", "status", "flow", "related"],
+        "status_first": ["status", "features", "flow", "related"]
+      }
+    },
+    "kpis": {
+      "kind": "product.json /product/kpis",
+      "values": {
+        "shown": ["shipped", "decided", "planned"],
+        "hidden": []
+      }
+    },
+    "features": {
+      "kind": "product.json /sections[kind=features]/items count",
+      "values": {
+        "six": 6,
+        "three": 3
+      }
+    },
+    "lede": {
+      "kind": "product.json /product/lede",
+      "values": {
+        "original": null,
+        "short": "A plugin for Claude Code and Codex that improves a web UI in measured rounds and never merges it worse, usable today. And the specification of a UX search engine, not built yet."
+      }
+    },
+    "density": {
+      "kind": "landing.css --uxui-density",
+      "values": {
+        "normal": 1,
+        "compact": 0.75
+      }
+    },
+    "heading_scale": {
+      "kind": "landing.css --uxui-heading-scale",
+      "values": {
+        "normal": 1,
+        "small": 0.85
+      }
+    }
+  }
+}

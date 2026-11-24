@@ -1,0 +1,30 @@
+{
+  "schema": "uxui-binding/1",
+  "document": "lifted by lift.mjs from website/product.json and website/data/status.json",
+  "page": "/uxui/",
+  "note": "Node path of the lifted document -> CSS selector of the element it stands for on the built page. Stage 0 checks that every selector matches exactly one element before a campaign starts.",
+  "root": ".b10x-product",
+  "nodes": {
+    "pages/landing": "#b10x-hero-title",
+    "pages/landing/sections/kicker": ".b10x-hero__copy > .b10x-kicker",
+    "pages/landing/sections/lede": ".b10x-hero__lede",
+    "pages/landing/sections/actions": ".b10x-hero__actions",
+    "pages/landing/sections/actions/actions/install_the_plugin": ".b10x-hero__actions > a.b10x-button",
+    "pages/landing/sections/actions/actions/run_one_round": ".b10x-hero__actions > a[href$='/guides/run-a-round']",
+    "pages/landing/sections/actions/actions/the_search_engine_design": ".b10x-hero__actions > a[href$='/concepts/search-engine']",
+    "pages/landing/sections/actions/actions/see_the_studio": ".b10x-hero__actions > a[href$='/concepts/studio']",
+    "pages/landing/sections/actions/actions/what_exists_today": ".b10x-hero__actions > a[href$='/docs/status']",
+    "pages/landing/sections/meta": ".b10x-hero__meta",
+    "pages/landing/sections/kpis": ".b10x-hero > .b10x-kpis",
+    "pages/landing/sections/s_features": "section.b10x-product-section--features",
+    "pages/landing/sections/s_flow": "section.b10x-product-section--flow",
+    "pages/landing/sections/s_status": "section.b10x-product-section--status",
+    "pages/landing/sections/s_related": "section.b10x-product-section--related"
+  },
+  "unmapped": [
+    "the second line of the title is emphasised (<em>); a page title is one plain string",
+    "the kicker's dot, the feature numbers, the status glyphs and the status bar are decoration with no node",
+    "links outside the landing (navbar, footer) are not lifted; both stages count them as fixed routes",
+    "colour, type scale and spacing: the terminal renderer draws no tokens, so density and heading scale are axes of the browser stage only"
+  ]
+}
