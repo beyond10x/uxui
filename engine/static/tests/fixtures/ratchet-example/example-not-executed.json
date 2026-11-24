@@ -1,0 +1,4 @@
+[
+  {"id":"effort.actions_per_journey@1 a progress event lands in the live climb step 4","state":"unsupported","reason":"`hover` is not a step ux-static@1 knows"},
+  {"id":"a11y.accessible_names@1 pages/campaigns.climb/sections/hill","state":"unsupported","reason":"component `sparkline` is not an ess-ui/1 composite"}
+]

@@ -55,9 +55,9 @@ tasks:
       - timeout 120 cargo test -p ux-static
 
   ux:static:
-    desc: Write the studio's ux-static@1 evidence records to target/ux-static.jsonl.
+    desc: Write the studio's ux-static@1 ratchet-evidence/1 document to target/studio-static.evidence.json.
     cmds:
-      - cargo run -q -p ux-static -- --document ess/ui/studio.ui.yaml --journeys ess/ui/tests/studio.yaml --declarations ess/ui/studio.uxui.yaml --out target/ux-static.jsonl
+      - cargo run -q -p ux-static -- --document ess/ui/studio.ui.yaml --journeys ess/ui/tests/studio.yaml --declarations ess/ui/studio.uxui.yaml --project uxui --assessment studio-static --out target/studio-static.evidence.json
 
   gen:climb:
     desc: Generate the live climb with the own generator into target/climb.

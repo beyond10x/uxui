@@ -1,0 +1,39 @@
+format: ess-ui-test/1
+document: ../studio.ui.yaml
+tests:
+  - name: stopping a running campaign asks first and sends the command
+    steps:
+      - open: campaigns.list
+      - expect: {at: pages/campaigns.list/sections/list, rows: [cp-01, cp-00]}
+      - act: pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop
+      - act: pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop/confirm/overlay
+      - expect_command: {command: uxsearch.search.StopCampaign, input: {campaign_id: cp-01}}
+
+  - name: a progress event lands in the live climb
+    steps:
+      - open: {page: campaigns.climb, params: {campaign_id: cp-01}}
+      - expect: {at: pages/campaigns.climb/sections/points, rows: 3}
+      - play: {event: uxsearch.search.CampaignProgressed, with: {climb_point_id: pt-04}}
+      - advance: 1s
+      - expect: {at: pages/campaigns.climb/sections/points/rows/pt-04, text: "70"}
+
+  - name: switching one axis of a variant sends the switch
+    steps:
+      - open: {page: variants.detail, params: {variant_digest: "sha256:v-a1"}}
+      - act: pages/variants.detail/sections/axes/rows/av-04/row_actions/switch
+      - expect_command: {command: uxsearch.design.RequestAxisSwitch, input: {from_variant: "sha256:v-a1", axis_id: ax-layout, axis_value_id: av-04}}
+
+  - name: the owner sees what gets worse and is offered only the accept that applies
+    steps:
+      - open: {page: promotions.detail, params: {promotion_id: pr-02}}
+      - expect: {at: pages/promotions.detail/sections/decision/rows/pr-02, text: attention.glance_cost}
+      - expect: {at: pages/promotions.detail/sections/decision/rows/pr-02/row_actions/trade_off, text: Accept trade-off}
+      - open: {page: promotions.detail, params: {promotion_id: pr-01}}
+      - expect: {at: pages/promotions.detail/sections/decision/rows/pr-01/row_actions/accept, text: Accept}
+      - expect: {at: pages/promotions.detail/sections/decision/rows/pr-01, not_text: Accept trade-off}
+
+  - name: starting a campaign from the catalog opens the form on that target
+    steps:
+      - open: targets.catalog
+      - act: pages/targets.catalog/sections/list/rows/tg-02/row_actions/start
+      - expect: {at: pages/campaigns.start/sections/target, text: Settings page}

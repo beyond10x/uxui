@@ -27,7 +27,7 @@ what is specific to uxui.
 | `website/` | the public documentation site, Docusaurus on the shared Docs System, served at `https://beyond10x.github.io/uxui/`; `website/README.md` lists what is generated |
 | `.github/workflows/` | `pages.yml` (builds and checks the site, uploads it on `main`; no credential, no deploy step) and `b10x-docs-site.yml` (hands that artifact to the shared publisher) |
 | `generators/own/` | `uxui-gen`, the smallest own generator: one page of the studio document as static HTML and plain JS (`docs/own-generator.md`); Rust, no third-party crates; workspace `Cargo.toml` and `rust-toolchain.toml` at the root |
-| `engine/` | the engine, Rust, no third-party crates: `doc` (`uxui-doc`: the YAML subset reader, the JSON writer, SHA-256 and the node tree of an `ess-ui/1` document, shared with `uxui-gen`) and `static` (`ux-static@1`: static metrics as ratchet evidence records, `docs/ux-static.md`; its declarations file `docs/uxui-declarations.md`, the studio's `ess/ui/studio.uxui.yaml`) |
+| `engine/` | the engine, Rust, no third-party crates: `doc` (`uxui-doc`: the YAML subset reader, the JSON writer, SHA-256 and the node tree of an `ess-ui/1` document, shared with `uxui-gen`) and `static` (`ux-static@1`: static metrics as one `ratchet-evidence/1` document per run, `docs/ux-static.md`; its declarations file `docs/uxui-declarations.md`, the studio's `ess/ui/studio.uxui.yaml`) |
 
 ## Direction
 
