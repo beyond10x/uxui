@@ -27,6 +27,7 @@ what is specific to uxui.
 | `website/` | the public documentation site, Docusaurus on the shared Docs System, served at `https://beyond10x.github.io/uxui/`; `website/README.md` lists what is generated |
 | `.github/workflows/` | `pages.yml` (builds and checks the site, uploads it on `main`; no credential, no deploy step) and `b10x-docs-site.yml` (hands that artifact to the shared publisher) |
 | `generators/own/` | `uxui-gen`, the smallest own generator: one page of the studio document as static HTML and plain JS (`docs/own-generator.md`); Rust, no third-party crates; workspace `Cargo.toml` and `rust-toolchain.toml` at the root |
+| `engine/` | the engine, Rust, no third-party crates: `doc` (`uxui-doc`: the YAML subset reader, the JSON writer, SHA-256 and the node tree of an `ess-ui/1` document, shared with `uxui-gen`) and `static` (`ux-static@1`: static metrics as ratchet evidence records, `docs/ux-static.md`; its declarations file `docs/uxui-declarations.md`, the studio's `ess/ui/studio.uxui.yaml`) |
 
 ## Direction
 
@@ -89,7 +90,7 @@ fails on a page that names it.
 `task check` must pass before every commit: `claude plugin validate --strict` on `plugin` and on
 the marketplace, `tools/check-plugin.sh` (manifests and marketplaces agree; every skill directory
 has a `SKILL.md` with `name` equal to the directory and a `description`; every `references/` path
-a skill names exists), `tools/docs.sh check`, and `tools/check-plugin.test.sh` and
-`tools/docs.test.sh`, which prove the checks fail on broken copies of the tree (written under
-`target/`)., and `cargo test -p uxui-gen`. The whole gate takes a few seconds once the crate is compiled.
-Building the site (`task docs-site`) is not part of the gate.
+a skill names exists), `tools/docs.sh check`, `tools/check-plugin.test.sh` and `tools/docs.test.sh`,
+which prove the checks fail on broken copies of the tree (written under `target/`), `cargo test -p uxui-gen`
+and `cargo test -p ux-static`. The whole gate takes a few seconds once the crates are compiled. Building the
+site (`task docs-site`) is not part of the gate.

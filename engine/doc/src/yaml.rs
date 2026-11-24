@@ -72,7 +72,10 @@ impl fmt::Display for Error {
 }
 
 fn err<T>(line: usize, message: impl Into<String>) -> Result<T, Error> {
-    Err(Error { line, message: message.into() })
+    Err(Error {
+        line,
+        message: message.into(),
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -89,7 +92,12 @@ pub fn parse(source: &str) -> Result<Value, Error> {
     for (index, raw) in source.lines().enumerate() {
         let indent = raw.len() - raw.trim_start_matches(' ').len();
         let text = strip_comment(&raw[indent..]).trim_end().to_string();
-        lines.push(Line { no: index + 1, indent, text, raw: raw.to_string() });
+        lines.push(Line {
+            no: index + 1,
+            indent,
+            text,
+            raw: raw.to_string(),
+        });
     }
     let mut p = Parser { lines, at: 0 };
     p.skip_blank();
@@ -191,7 +199,10 @@ impl Parser {
                 break;
             }
             let Some((key, rest)) = split_key(&line.text) else {
-                return err(line.no, format!("expected `key: value`, found `{}`", line.text));
+                return err(
+                    line.no,
+                    format!("expected `key: value`, found `{}`", line.text),
+                );
             };
             let key = unquote_key(key, line.no)?;
             self.at += 1;
@@ -199,7 +210,9 @@ impl Parser {
             let value = if rest.is_empty() {
                 match self.peek().cloned() {
                     Some(next) if next.indent > indent => self.block(next.indent)?,
-                    Some(next) if next.indent == indent && is_item(&next.text) => self.sequence(indent)?,
+                    Some(next) if next.indent == indent && is_item(&next.text) => {
+                        self.sequence(indent)?
+                    }
                     _ => Value::Null,
                 }
             } else if rest.starts_with('|') || rest.starts_with('>') {
@@ -258,7 +271,11 @@ impl Parser {
             let mut out = String::new();
             for (i, part) in body.iter().enumerate() {
                 if i > 0 {
-                    out.push(if part.is_empty() || body[i - 1].is_empty() { '\n' } else { ' ' });
+                    out.push(if part.is_empty() || body[i - 1].is_empty() {
+                        '\n'
+                    } else {
+                        ' '
+                    });
                 }
                 out.push_str(part);
             }
@@ -320,7 +337,11 @@ fn split_key(text: &str) -> Option<(&str, &str)> {
 fn unquote_key(key: &str, no: usize) -> Result<String, Error> {
     let key = key.trim();
     if key.starts_with('"') || key.starts_with('\'') {
-        let mut flow = Flow { chars: key.chars().collect(), at: 0, no };
+        let mut flow = Flow {
+            chars: key.chars().collect(),
+            at: 0,
+            no,
+        };
         match flow.scalar()? {
             Value::Str(s) => Ok(s),
             other => Ok(other.scalar_text().unwrap_or_default()),
@@ -331,7 +352,11 @@ fn unquote_key(key: &str, no: usize) -> Result<String, Error> {
 }
 
 fn scalar_or_flow(text: &str, no: usize) -> Result<Value, Error> {
-    let mut flow = Flow { chars: text.chars().collect(), at: 0, no };
+    let mut flow = Flow {
+        chars: text.chars().collect(),
+        at: 0,
+        no,
+    };
     let value = flow.value(false)?;
     flow.space();
     if flow.at < flow.chars.len() {
@@ -381,12 +406,22 @@ impl Flow {
             if in_flow && (c == ',' || c == '}' || c == ']') {
                 break;
             }
-            if in_flow && c == ':' && self.chars.get(self.at + 1).is_none_or(|n| n.is_whitespace()) {
+            if in_flow
+                && c == ':'
+                && self
+                    .chars
+                    .get(self.at + 1)
+                    .is_none_or(|n| n.is_whitespace())
+            {
                 break;
             }
             self.at += 1;
         }
-        self.chars[start..self.at].iter().collect::<String>().trim().to_string()
+        self.chars[start..self.at]
+            .iter()
+            .collect::<String>()
+            .trim()
+            .to_string()
     }
 
     fn scalar(&mut self) -> Result<Value, Error> {
@@ -418,7 +453,12 @@ impl Flow {
                     '\\' => out.push('\\'),
                     '/' => out.push('/'),
                     'u' => {
-                        let hex: String = self.chars.get(self.at..self.at + 4).unwrap_or(&[]).iter().collect();
+                        let hex: String = self
+                            .chars
+                            .get(self.at..self.at + 4)
+                            .unwrap_or(&[])
+                            .iter()
+                            .collect();
                         self.at += 4;
                         let code = u32::from_str_radix(&hex, 16).ok().and_then(char::from_u32);
                         match code {
@@ -465,7 +505,10 @@ impl Flow {
             if self.eat('}') {
                 return Ok(Value::Map(entries));
             }
-            return err(self.no, format!("expected `,` or `}}` at `{}`", self.rest()));
+            return err(
+                self.no,
+                format!("expected `,` or `}}` at `{}`", self.rest()),
+            );
         }
     }
 
@@ -509,7 +552,9 @@ fn plain(text: &str) -> Value {
         "false" | "False" | "FALSE" => return Value::Bool(false),
         _ => {}
     }
-    let numeric = text.chars().all(|c| c.is_ascii_digit() || "+-.eE".contains(c))
+    let numeric = text
+        .chars()
+        .all(|c| c.is_ascii_digit() || "+-.eE".contains(c))
         && text.chars().any(|c| c.is_ascii_digit());
     if numeric {
         if let Ok(n) = text.parse::<i64>() {

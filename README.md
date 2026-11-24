@@ -46,6 +46,8 @@ regression ratchet, or call the skill by name: `/uxui:ui-iteration-loop` in Clau
 - `docs/`: design of the UX search engine (start with `docs/roadmap.md`, `docs/brief.md` and `docs/concept.md`).
 - `ess/`: its ESS specification, including the studio UI.
 - `presets/`: a proposed ratchet preset family for the metric catalogue.
+- `engine/`: the engine's first code; `ux-static` writes static UX metrics of an `ess-ui/1` document as
+  ratchet evidence records (`docs/ux-static.md`, `task ux:static`).
 
 ## Check
 

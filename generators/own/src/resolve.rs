@@ -109,27 +109,7 @@ fn field(doc: &Value, written: &Value, parent: &str, container: &str) -> Value {
 /// An action's name when it declares none: the first of `opens`, the command's last segment in
 /// snake case, `navigate.to`, `export.reads`, `upload.does`, the first key `sets`.
 fn action_name(action: &Value) -> String {
-    if let Some(name) = action.get_str("name") {
-        return name.to_string();
-    }
-    if let Some(opens) = action.get_str("opens") {
-        return opens.to_string();
-    }
-    if let Some(does) = action.get_str("does") {
-        let last = does.rsplit('.').next().unwrap_or(does);
-        let mut out = String::new();
-        for (i, c) in last.chars().enumerate() {
-            if c.is_uppercase() && i > 0 {
-                out.push('_');
-            }
-            out.extend(c.to_lowercase());
-        }
-        return out;
-    }
-    if let Some(to) = action.get("navigate").and_then(|n| n.get_str("to")) {
-        return to.to_string();
-    }
-    "action".to_string()
+    uxui_doc::tree::action_name(action).unwrap_or_else(|| "action".to_string())
 }
 
 /// An action: its name, label, effect and, for an inline `confirm: {title}`, the confirm overlay

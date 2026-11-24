@@ -26,8 +26,8 @@ command does not take, is refused with its node path. It also warns where ESS do
 
 ## Dependencies
 
-None. The crate has no third-party dependency; the YAML subset reader (`src/yaml.rs`) and the JSON
-writer (`src/json.rs`) are its own. Considered and not taken:
+None. The crate has no third-party dependency; the YAML subset reader (`engine/doc/src/yaml.rs`) and the JSON
+writer (`engine/doc/src/json.rs`, crate `uxui-doc`, shared with `ux-static`) are this repository's own. Considered and not taken:
 
 - `serde` + `serde_yaml`: `serde_yaml` is archived and unmaintained, and depends on
   `unsafe-libyaml` (RUSTSEC-2024-0449); ESS itself moved to a fork (`serde_norway`) behind its own
@@ -50,7 +50,7 @@ renderer, and hands none of it over: `ess ui load` prints a summary line. Each p
 
 | Part | Where | Lines | What it covers on this one page |
 |---|---|---|---|
-| YAML subset reader | `src/yaml.rs` | 493 | the documents themselves; with a JSON form a JSON reader replaces it (about 150 lines) |
+| YAML subset reader | `engine/doc/src/yaml.rs` | 493 | the documents themselves; with a JSON form a JSON reader replaces it (about 150 lines) |
 | Defaults and short forms | `src/resolve.rs` | 144 | built-in page kinds and their merge (named lists by name, maps deep, `null` and `remove: true`), field short form, `name` from `field`, label from the name, action name derivation, inline `confirm:` expanded to its overlay, durations |
 | Page resolution and node paths | `src/resolve.rs` | 117 | header (title `from_page`, `switch_to` labels), layout `columns` or the `stack` default, sections, reads (`key` defaulting to `live.match`, else `id`), empty-state text; the path of every page, header, action, confirm overlay, layout column, section, field and column |
 | Tone maps | `src/resolve.rs` | 8 | `tone_by: <name>` to the document's map |

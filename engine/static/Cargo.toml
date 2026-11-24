@@ -1,0 +1,25 @@
+[package]
+name = "ux-static"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+description = "ux-static@1: static UX metrics of an ess-ui/1 document as ratchet evidence records, without a browser or a layout model."
+
+[lib]
+name = "ux_static"
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[[bin]]
+name = "ux-static"
+path = "src/main.rs"
+test = false
+
+[[test]]
+name = "main"
+path = "tests/main.rs"
+
+[dependencies]
+uxui-doc = { path = "../doc" }

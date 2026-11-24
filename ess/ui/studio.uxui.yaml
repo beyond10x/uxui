@@ -1,0 +1,36 @@
+format: uxui-declarations/1
+document: studio.ui.yaml
+always:
+  - pages/campaigns.climb/header/actions/stop
+  - pages/campaigns.climb/sections/summary/fields/state
+  - pages/promotions.detail/sections/decision/columns/gate
+journeys:
+  stopping a running campaign asks first and sends the command:
+    required:
+      - pages/campaigns.list/sections/list
+      - pages/campaigns.list/sections/list/row_actions/stop
+      - pages/campaigns.list/sections/list/row_actions/stop/confirm/overlay
+    signal: pages/campaigns.list/sections/list/columns/state
+  a progress event lands in the live climb:
+    required:
+      - pages/campaigns.climb/sections/progress
+      - pages/campaigns.climb/sections/points
+    signal: pages/campaigns.climb/sections/points
+  switching one axis of a variant sends the switch:
+    required:
+      - pages/variants.detail/sections/axes
+      - pages/variants.detail/sections/axes/row_actions/switch
+    signal: pages/variants.detail/sections/switches
+  the owner sees what gets worse and is offered only the accept that applies:
+    required:
+      - pages/promotions.detail/sections/decision/columns/losses
+      - pages/promotions.detail/sections/decision/columns/gains
+      - pages/promotions.detail/sections/decision/row_actions/accept
+      - pages/promotions.detail/sections/decision/row_actions/trade_off
+    signal: pages/promotions.detail/sections/decision/columns/gate
+  starting a campaign from the catalog opens the form on that target:
+    required:
+      - pages/targets.catalog/sections/list/row_actions/start
+      - pages/campaigns.start/sections/target
+      - pages/campaigns.start/sections/form
+    signal: pages/campaigns.start/sections/target

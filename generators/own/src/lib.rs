@@ -1,14 +1,15 @@
 //! uxui-gen: the smallest own generator. It reads an `ess-ui/1` document, its fixtures and the
 //! ESS model it names, and writes one page as static HTML and plain JS that plays the fixture
-//! live scripts. No third-party crates: the YAML subset reader and the JSON writer are its own.
+//! live scripts. No third-party crates: the YAML subset reader and the JSON writer are this
+//! repository's own (crate `uxui-doc`).
 
 pub mod binding;
 pub mod emit;
 pub mod fixtures;
-pub mod json;
 pub mod model;
 pub mod resolve;
-pub mod yaml;
+
+pub use uxui_doc::{json, yaml};
 
 use std::path::Path;
 
