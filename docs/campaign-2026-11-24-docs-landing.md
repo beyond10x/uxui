@@ -112,6 +112,56 @@ variance is the lede (stage 1 ranks it the wrong way round, below), density and 
 1 draws neither) and section order (moves no KPI in either stage). Stage 1 put the 12 long-lede
 variants first; the browser put the 12 short-lede variants first.
 
+### Stage agreement, revision
+
+Method. Stage 1 keeps the terminal drawing of `uxui-cells` (order and nesting of the nodes, the
+region widths) and reflows it in uxui's own model, `tools/scaffold/lift/docs-landing/cells-model.mjs`,
+which campaign.mjs now calls. Each row of the drawing gets a height in body lines from four inputs:
+
+- **wrap**: a text node takes the lines greedy word wrap needs at its region's width, and words
+  before the action count every text above it in full;
+- **fonts**: a text of f rem has width / f characters per line and f x its line height / 1.65
+  rows per line; the sizes are the theme's (`space.json` `type`: title 4 rem wide and 2.6 rem narrow,
+  section titles 2.6 and 1.9, hero lede 1.08, kickers 0.7);
+- **heading**: titles are scaled by the variant's heading scale;
+- **density**: the drawing's border rows stand for spacing and are scaled by the variant's density.
+
+Only facts known before rendering go in: the text, the drawing's width, density, heading scale and
+the theme's font sizes and line heights. Nothing is fitted, per variant or in all. With every
+input off the reflow is the identity, and the run-2 stage-1 scores come out to the fourth decimal.
+`tools/scaffold/agreement.mjs` recomputes stage 1 for the 31 variants of run 2 from their lifted
+documents and compares with run 2's stage-2 scores in `results.json`; Chromium did not run again.
+
+| inputs | tau-b | concordant / discordant | tied in stage 1 only |
+|---|---|---|---|
+| none (run 2) | 0.059 | 169 / 147 | 121 |
+| all four | **0.998** | 437 / 0 | 0 |
+| all but wrap | 0.454 | 318 / 119 | 0 |
+| all but fonts | 0.880 | 412 / 25 | 0 |
+| all but heading | 0.839 | 373 / 23 | 41 |
+| all but density | 0.936 | 394 / 3 | 40 |
+| wrap alone | 0.832 | 313 / 3 | 121 |
+| fonts alone | 0.059 | 169 / 147 | 121 |
+| heading alone | 0.247 | 250 / 147 | 40 |
+| density alone | 0.235 | 247 / 149 | 41 |
+
+The remaining pairs are 26 tied in both stages (section order) and 2 tied in stage 2 only. Wrapping
+corrects the lede; heading scale and density break the ties, and the fonts make heading scale count
+more than density, as in the browser (run 2: heading scale 0.85 saved 29-58 px at the worst
+viewport, density 0.75 26-39 px). The stage-1 top 3 are stage 2's top 3.
+Sensitivity, all four inputs on, one `type` fact changed at a time: hero and section texts at body
+size, 0.998; every line height 1.65, 0.957; one title size at both widths, 0.998; the title at 1.5
+times its size, 0.984; at half its size, 0.891.
+
+Time per variant and size, median: `uxui-cells` 10.8 ms (unchanged binary; 10.5 ms in run 2), the
+reflow and the KPI reading 0.13 ms. Over the whole space of 288: 9.4 ms and 0.18 ms. With the
+model, the 72 variants that pass stage 1 rank differently: the short lede leads with any actions
+set, so a new run sends a different top 30 to stage 2 and is the next agreement check.
+
+Limit: 0.998 is in-sample. The model was written while comparing against these 31 variants, and no
+other browser measurements exist (run 1's were overwritten). Its first held-out figure is the
+agreement of the next run's new top 30, and a second page shape after that.
+
 ### Frontier and top six
 
 The frontier has three entries, the same page with the sections in three orders: section order moves
@@ -187,8 +237,10 @@ the removed cards: fewer links in the body, and the status section one screenful
    every short-lede variant ranked below its long-lede twin in stage 1 and above it in the browser.
    With the content axes fixed this is most of what is left to rank, so run 2's tau-b fell to 0.059.
    The top-30 cut kept the short-lede variants only because 30 of 72 is a wide cut.
+   Revised: stage 1 now wraps text (§ Stage agreement, revision), tau-b 0.998 on the same 31.
 2. **Stage 1 is blind to two axes and mostly to a third.** Density and heading scale draw nothing
    on the terminal; section order moves no KPI in either stage.
+   Revised: stage 1 now models both (§ Stage agreement, revision).
 3. **The layout hard rules never bound.** The hero is first in every variant and the theme already
    passes contrast in both modes. A space that tests them needs axes that move the primary action (an
    order inside the hero, a hero art) or colour. The content rule bound: it pruned 216 of 288.
@@ -245,6 +297,14 @@ node tools/scaffold/campaign-server.mjs --port 5200 --dir target/campaign \
 The live climb is `/campaigns/climb/cp-docs-landing-<date>`, the side-by-side page `/compare`, a
 variant rendered from its sources `/uxui/?variant=<digest>&mode=light`. Scripts that serve and
 measure run without `slot`; `uxui-cells` builds through it.
+
+The stage agreement of a finished run, again and with each subset of the model's inputs (no browser,
+about 1 s):
+
+```sh
+node tools/scaffold/agreement.mjs --results target/campaign/results.json --s1 target/campaign/s1 \
+  --cells <uxui-cells binary>
+```
 
 ## Lessons for the next campaign
 

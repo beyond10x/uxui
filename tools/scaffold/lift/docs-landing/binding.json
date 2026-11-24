@@ -25,6 +25,6 @@
     "the second line of the title is emphasised (<em>); a page title is one plain string",
     "the kicker's dot, the feature numbers, the status glyphs and the status bar are decoration with no node",
     "links outside the landing (navbar, footer) are not lifted; both stages count them as fixed routes",
-    "colour, type scale and spacing: the terminal renderer draws no tokens, so density and heading scale are axes of the browser stage only"
+    "colour, type scale and spacing: the terminal renderer draws no tokens; stage 1 models font sizes, heading scale and density over its drawing (cells-model.mjs, space.json type), colour is measured by the browser stage only"
   ]
 }

@@ -6,7 +6,9 @@
 //            and check that every selector of binding.json matches one element of the built page
 //   stage 1  every variant of the SOURCE space (space.json: product.json fields and landing.css
 //            custom properties), lifted to ess-ui/1, checked and drawn in process by uxui-cells
-//            on the terminal renderer at a wide and a narrow size; hard rules prune, a KPI ranks
+//            on the terminal renderer at a wide and a narrow size, reflowed by uxui's own model
+//            (lift/docs-landing/cells-model.mjs: wrapping, font sizes, heading scale, density);
+//            hard rules prune, a KPI ranks
 //   stage 2  the top --top of stage 1 (and the current page) rendered in Chromium from their
 //            patched sources over the built site (lift/docs-landing/landing-page.js), measured at
 //            1440x900, 1024x768 and 390x844 in light and dark; Kendall's tau between the stages
@@ -19,6 +21,7 @@ import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { HERE, launch, parseArgs } from './cdp.mjs';
 import { materialize, liftDocument, variants, digest, baseChoice, pageOf, contentOf } from './lift/docs-landing/lift.mjs';
+import { SIZES, DRAW_H, CONTENT, KPI_KEYS, HIGHER, measure, staticMeasure, k1Of, fails1, score, kendall } from './lift/docs-landing/cells-model.mjs';
 
 const { opt } = parseArgs(process.argv.slice(2));
 const DIR = resolve(opt.dir || 'target/campaign');
@@ -60,13 +63,9 @@ async function shutdown(code) {
 process.on('SIGTERM', () => shutdown(143));
 process.on('SIGINT', () => shutdown(130));
 
-const CONTENT = 'content.items_kept';
 const STAGE1_SPACE = 'stage1-cells';
 const STAGE2_SPACE = 'stage2-chromium';
 const CONTRAST_MIN = 'a11y.contrast_min';
-const KPI_KEYS = ['load.words_before_action', 'attention.primary_top_px', 'effort.actions_per_journey', 'attention.regions_crossed', 'a11y.tap_targets_under_44px', CONTENT];
-// Higher is better for the content KPI, lower for the others.
-const HIGHER = new Set([CONTENT]);
 const vecOf = (k) => KPI_KEYS.filter((x) => k && x in k).map((x) => (HIGHER.has(x) ? -k[x] : k[x]));
 const SCORE_NOTE = 'mean over the six KPIs of value / value of the current page (content: current / value); lower is better; +1000 per failed hard rule';
 // Content hard rule: every section and card of the current page stays present (lift.mjs contentOf).
@@ -124,96 +123,11 @@ emit({
 log(`stage 0: ${all.length} variants, lift + check ${times.stage0_lift_ms} ms, ${baseFindings.length} errors`);
 
 // ---- stage 1 --------------------------------------------------------------------------------
-const words = (s) => (s.match(/[\p{L}\p{N}][\p{L}\p{N}'’.-]*/gu) || []).length;
-const SIZES = [
-  { name: 'cells-120x40', w: 120, view: 40, wide: true },
-  { name: 'cells-48x50', w: 48, view: 50, wide: false },
-];
-const DRAW_H = 600;
-
-// Links of a lifted document to a page: [{label}] from hero actions and link primitives.
-function linksTo(doc, page) {
-  const out = [];
-  for (const s of doc.pages.landing.sections) {
-    for (const a of s.actions || []) if (a.navigate?.to === page) out.push({ label: a.label, path: `pages/landing/sections/${s.name}/actions/${a.name}`, section: s.name });
-    for (const c of s.children || []) if (c.primitive === 'link' && c.to?.to === page) out.push({ label: c.text, path: `pages/landing/sections/${s.name}/children/${c.name}`, section: s.name });
-  }
-  return out;
-}
-const HERO = new Set(['kicker', 'lede', 'actions', 'meta', 'kpis']);
-// Fixed routes outside the lifted page, the same model as stage 2's navbar.
-function navbarRoute(target, wide) {
-  const direct = space.navbar.links.includes(target);
-  const viaNav = (space.journeys.find((j) => j.targets.includes(target))?.via || []).some((v) => space.navbar.links.includes(v));
-  const menu = wide ? 0 : space.navbar.narrow_menu_actions;
-  if (direct) return { cost: 1 + menu, regions: 1, where: 'navbar' };
-  if (viaNav) return { cost: 2 + menu + (wide ? 0 : space.navbar.narrow_sidebar_actions), regions: 2, where: 'navbar via' };
-  return null;
-}
-
 function stage1Cells(batch, size) {
   if (!opt.cells || !existsSync(opt.cells)) return null;
   const res = spawnSync(opt.cells, [`${size.w}x${DRAW_H}`, join(S1, 'state'), ...batch.map((r) => join(S1, `v${String(r.seq).padStart(3, '0')}.ui.json`))], { encoding: 'utf8', maxBuffer: 1 << 28 });
   if (res.status !== 0) log('cells: ' + res.stderr.slice(0, 300));
   return res.stdout.trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
-}
-
-function stage1Measure(r, doc, cell, size) {
-  const body = size.view - 2;
-  const screen = cell.screen || [];
-  const rowOf = (label) => {
-    const needle = label.slice(0, Math.min(label.length, size.w - 8, 18));
-    const i = screen.findIndex((l) => l.includes(needle));
-    return i < 0 ? null : i;
-  };
-  const reg = (p) => (cell.regions || []).find((x) => x.path === p);
-  const sectionTop = (name) => reg(`pages/landing/sections/${name}`)?.y ?? null;
-  const primaryAction = doc.pages.landing.sections.find((s) => s.name === 'actions').actions[0];
-  const pr = reg(`pages/landing/sections/actions/actions/${primaryAction.name}`);
-  const primaryRow = pr ? pr.y : rowOf(primaryAction.label);
-  const regionTops = ['hero', ...doc.pages.landing.sections.filter((s) => s.name.startsWith('s_')).map((s) => s.name)].map((n) =>
-    n === 'hero' ? 0 : sectionTop(n),
-  );
-  const journeys = {};
-  for (const j of space.journeys) {
-    let best = navbarRoute(j.targets[0], size.wide);
-    for (const l of j.targets.flatMap((t) => linksTo(doc, pageOf(t)))) {
-      const p = reg(l.path);
-      const row = p ? p.y : rowOf(l.label);
-      if (row === null) continue;
-      const cost = 1 + Math.floor(row / body);
-      const regions = 1 + regionTops.filter((y) => y !== null && y <= row).length;
-      if (!best || cost < best.cost || (cost === best.cost && regions < best.regions)) best = { cost, regions, where: l.section };
-    }
-    journeys[j.name] = best;
-  }
-  return {
-    primary_row: primaryRow,
-    primary_in_view: primaryRow !== null && primaryRow + 1 <= body,
-    words_before_action: primaryRow === null ? null : screen.slice(1, primaryRow).reduce((n, l) => n + words(l), 0),
-    actions_total: Object.values(journeys).reduce((n, x) => n + (x?.cost ?? 99), 0),
-    regions_total: Object.values(journeys).reduce((n, x) => n + (x?.regions ?? 99), 0),
-    journeys,
-    check_errors: (cell.check_errors || []).length,
-    error: cell.error || null,
-    us: (cell.check_us || 0) + (cell.open_us || 0) + (cell.draw_us || 0),
-  };
-}
-
-// Static reading, used for tap targets and when no cell reader is given.
-function staticMeasure(doc) {
-  const secs = doc.pages.landing.sections.filter((s) => !s.remove);
-  let w = words(doc.pages.landing.title);
-  let found = false;
-  for (const s of secs) {
-    if (s.name === 'actions') {
-      found = true;
-      break;
-    }
-    for (const c of s.children || []) w += words(c.text || '');
-  }
-  const links = secs.reduce((n, s) => n + (s.actions || []).filter((a) => a.as === 'link').length + (s.children || []).filter((c) => c.primitive === 'link').length, 0);
-  return { words_before_action: found ? w : null, small_targets: links };
 }
 
 let seq = 0;
@@ -239,35 +153,22 @@ for (const r of records) {
 }
 times.stage1_materialize_ms = ms(t1);
 const cellsUs = [];
+const modelUs = [];
 for (let i = 0; i < records.length; i += BATCH) {
   const batch = records.slice(i, i + BATCH);
-  const per = {};
   for (const size of SIZES) {
     const cells = stage1Cells(batch, size);
     batch.forEach((r, k) => {
       r.s1 = r.s1 || {};
-      r.s1[size.name] = cells ? stage1Measure(r, r.doc, cells[k], size) : null;
-      if (cells) cellsUs.push(r.s1[size.name].us);
+      r.s1[size.name] = cells ? measure({ space, doc: r.doc, cell: cells[k], size, css: r.css, pageOf }) : null;
+      if (cells) cellsUs.push(r.s1[size.name].us), modelUs.push(r.s1[size.name].model_us);
     });
   }
   for (const r of batch) {
     const m = Object.values(r.s1).filter(Boolean);
-    const fails = [];
-    if (m.some((x) => x.check_errors || x.error)) fails.push('ess_ui_check');
-    if (m.some((x) => !x.primary_in_view)) fails.push('primary_in_view');
-    for (const j of space.journeys) if (m.some((x) => !x.journeys[j.name])) fails.push('journey:' + j.name);
-    if (r.contentMissing.length) fails.push('content_missing');
+    const fails = fails1(m, space, r.contentMissing);
     r.s1fails = fails;
-    r.k1 = m.length
-      ? {
-          'load.words_before_action': Math.max(...m.map((x) => x.words_before_action ?? 999)),
-          'attention.primary_top_px': Math.max(...m.map((x) => x.primary_row ?? 99)),
-          'effort.actions_per_journey': Math.max(...m.map((x) => x.actions_total)),
-          'attention.regions_crossed': Math.max(...m.map((x) => x.regions_total)),
-          'a11y.tap_targets_under_44px': r.static.small_targets,
-          [CONTENT]: baseContent.length - r.contentMissing.length,
-        }
-      : { 'load.words_before_action': r.static.words_before_action, 'a11y.tap_targets_under_44px': r.static.small_targets, [CONTENT]: baseContent.length - r.contentMissing.length };
+    r.k1 = k1Of(m, r.static, baseContent.length - r.contentMissing.length);
     evaluated++;
     if (fails.length) pruned++;
     if (m.some((x) => x.error)) insufficient++;
@@ -282,12 +183,7 @@ for (let i = 0; i < records.length; i += BATCH) {
 }
 times.stage1_ms = ms(t1);
 times.stage1_cells_us_median = cellsUs.length ? cellsUs.sort((a, b) => a - b)[Math.floor(cellsUs.length / 2)] : null;
-
-function score(k, b, fails) {
-  const keys = KPI_KEYS.filter((x) => k && b && x in k && x in b && b[x]);
-  const s = keys.reduce((n, x) => n + (HIGHER.has(x) ? (k[x] ? b[x] / k[x] : 10) : k[x] / b[x]), 0) / (keys.length || 1);
-  return fails * 1000 + s;
-}
+times.stage1_model_us_median = modelUs.length ? modelUs.sort((a, b) => a - b)[Math.floor(modelUs.length / 2)] : null;
 
 const ranked1 = [...records].sort((a, b) => a.score1 - b.score1 || a.seq - b.seq);
 ranked1.forEach((r, i) => (r.rank1 = i + 1));
@@ -299,7 +195,7 @@ for (const r of records) {
 }
 pruned = records.length - chosen.length;
 point({ stage: 1, evaluated, pruned, insufficient, frontier_size: chosen.length, best: ranked1[0].digest, best_score: +ranked1[0].score1.toFixed(4), note: `stage 1 kept ${chosen.length}` });
-log(`stage 1: ${records.length} variants in ${times.stage1_ms} ms (cells median ${times.stage1_cells_us_median} us), ${records.filter((r) => r.s1fails.length).length} fail hard rules, ${chosen.length} go to stage 2`);
+log(`stage 1: ${records.length} variants in ${times.stage1_ms} ms (cells median ${times.stage1_cells_us_median} us, model ${times.stage1_model_us_median} us), ${records.filter((r) => r.s1fails.length).length} fail hard rules, ${chosen.length} go to stage 2`);
 
 function variantRecord(r) {
   const evals = [];
@@ -462,29 +358,6 @@ function frontierEntries(front) {
 }
 
 // agreement
-function kendall(xs, ys) {
-  let c = 0, d = 0, tx = 0, ty = 0, txy = 0;
-  for (let i = 0; i < xs.length; i++)
-    for (let j = i + 1; j < xs.length; j++) {
-      const a = Math.sign(xs[i] - xs[j]), b = Math.sign(ys[i] - ys[j]);
-      if (a === 0 && b === 0) txy++;
-      else if (a === 0) tx++;
-      else if (b === 0) ty++;
-      else if (a === b) c++;
-      else d++;
-    }
-  const n0 = (xs.length * (xs.length - 1)) / 2;
-  return {
-    pairs: n0,
-    concordant: c,
-    discordant: d,
-    tied_stage1_only: tx,
-    tied_stage2_only: ty,
-    tied_both: txy,
-    tau_a: +((c - d) / n0).toFixed(3),
-    tau_b: +((c - d) / Math.sqrt((c + d + tx) * (c + d + ty) || 1)).toFixed(3),
-  };
-}
 const agreement = kendall(measured.map((r) => r.score1), measured.map((r) => r.score2));
 const ranked2 = [...measured].sort((a, b) => a.score2 - b.score2);
 ranked2.forEach((r, i) => (r.rank2 = i + 1));
