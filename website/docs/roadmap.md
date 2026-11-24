@@ -36,7 +36,7 @@ Waves:
 3. `story:migrate-smallest-ui-loop-copy` (first `llm`) and `story:point-old-skill-copies-here`: the
    `llm` ratchet reads uxui's evidence for those checks, and its copies of them leave `ux/core`.
 
-Release 0.1.0 holds what is merged on 2026-11-24 (`CHANGELOG.md`). The next release follows wave 2.
+Release 0.1.0 holds what is merged on 2026-11-24; 0.2.0 adds waves 1 and 2 and ships `ux-browser` and `ux-static` as Linux archives (`CHANGELOG.md`).
 
 State on 2026-11-24 and the next steps, in order. Each step names what it unblocks. Specification first, code
 second; the first code is a thin vertical slice that measures the assumption the whole design rests on.

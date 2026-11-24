@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0 — 2026-11-24
+
 - Specification round 3: browser targets (base URL, build command), source patches as axis values,
   scripted journeys, source diffs on promotion, and the funnel's lifted component with its binding
   table; a lift that does not reproduce the component is refused (#10). A browser journey names its
