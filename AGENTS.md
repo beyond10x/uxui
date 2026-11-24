@@ -94,3 +94,13 @@ a skill names exists), `tools/docs.sh check`, `tools/check-plugin.test.sh` and `
 which prove the checks fail on broken copies of the tree (written under `target/`), `cargo test -p uxui-gen`
 and `cargo test -p ux-static`. The whole gate takes a few seconds once the crates are compiled. Building the
 site (`task docs-site`) is not part of the gate.
+
+On a host with a shared build pool the gate runs in two parts:
+
+- `task validate` runs on the host, without the pool. It needs the host's `claude` executable and
+  its login, which the pool's nodes do not have, and it compiles nothing and starts no test runner.
+  The operator's rule of 2026-11-24.
+- `slot task check:pool` runs the rest in the pool: the checks, the test scripts and the cargo
+  tests.
+
+`task check` runs both parts in one process, for a checkout without a pool.
