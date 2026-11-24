@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-24T00:10:40Z",
+  "actor": "human:operator",
+  "artifact": "story:spec-round-2-scenarios",
+  "kind": "story",
+  "revision": 3,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:parallel-safety-round-1",
+    "review": "review-result:parallel-safety-round-1",
+    "outcome": "fixed"
+  }
+}

@@ -1,0 +1,44 @@
+type: ess-scenario/6
+domain: uxsearch.design
+scenario: variant-keeps-every-route
+# Hardening target 10 (R13): a new variant records the route that first reached it; reaching the
+# same digest again adds that route to `routes` and leaves the first route unchanged.
+summary: A variant keeps its first route and adds every later one
+arrange:
+  - instance: space
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000020
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: settings page
+        component_treatment: fixed
+        space_digest: "sha256:space-decl"
+      state: Frozen
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.design.MaterializeVariant
+    actor: uxsearch.design.Engine
+    input:
+      variant_digest: "sha256:variant-a"
+      base_document_id: 00000000-0000-4000-8000-000000000010
+      target_id: 00000000-0000-4000-8000-000000000001
+      design_space_id: {$instance: space}
+      route: {design_space_id: 00000000-0000-4000-8000-000000000020, origin: search, choices: [], applications: []}
+    outcome: new
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.design.MaterializeVariant
+    actor: uxsearch.design.Engine
+    input:
+      variant_digest: "sha256:variant-a"
+      base_document_id: 00000000-0000-4000-8000-000000000010
+      target_id: 00000000-0000-4000-8000-000000000001
+      design_space_id: {$instance: space}
+      route: {design_space_id: 00000000-0000-4000-8000-000000000020, origin: manual, choices: [], applications: []}
+    outcome: known
+assert:
+  - view: uxsearch.design.VariantById
+    params: {variant_digest: "sha256:variant-a"}
+    contains:
+      first_route: {design_space_id: 00000000-0000-4000-8000-000000000020, origin: search, choices: [], applications: []}
+      routes: [{design_space_id: 00000000-0000-4000-8000-000000000020, origin: manual, choices: [], applications: []}]

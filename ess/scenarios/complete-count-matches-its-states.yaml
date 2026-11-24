@@ -1,0 +1,87 @@
+type: ess-scenario/6
+domain: uxsearch.journeys
+scenario: complete-count-matches-its-states
+# Hardening target 9 (R27): a completion counting more states than the bound, or fewer than were
+# recorded, is refused; the count equal to both closes the space Complete.
+summary: A state space completes only with the count of its recorded states
+arrange:
+  - instance: space
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-a"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-a"
+        stage: full
+        bounds: {max_states: 3, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 0
+      state: Enumerating
+  - instance: state0
+    entity: uxsearch.journeys.UiState
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000b0
+      fields:
+        state_space_key: "sha256:space-a"
+        seq: 0
+        state_digest: "sha256:state-0"
+        page: pages/settings
+        selection: []
+        virtual_time_ms: 0
+        depth: 0
+        evaluable: true
+      state: Reached
+  - instance: state1
+    entity: uxsearch.journeys.UiState
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000b1
+      fields:
+        state_space_key: "sha256:space-a"
+        seq: 1
+        state_digest: "sha256:state-1"
+        page: pages/settings
+        selection: []
+        virtual_time_ms: 100
+        depth: 1
+        evaluable: true
+      state: Reached
+  - instance: state2
+    entity: uxsearch.journeys.UiState
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000b2
+      fields:
+        state_space_key: "sha256:space-a"
+        seq: 2
+        state_digest: "sha256:state-2"
+        page: pages/settings
+        selection: []
+        virtual_time_ms: 200
+        depth: 2
+        evaluable: true
+      state: Reached
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.journeys.CompleteStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      states_count: 4
+    outcome: over-bound
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.journeys.CompleteStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      states_count: 2
+    outcome: count-below-recorded
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.journeys.CompleteStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      states_count: 3
+    outcome: completed
+assert:
+  - view: uxsearch.journeys.StateSpaces
+    contains: {state_space_key: {$instance: space}, states_count: 3, state: Complete}

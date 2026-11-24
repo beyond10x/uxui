@@ -1,0 +1,171 @@
+/* uxui theme "studio", applied over any app the stock ess-ui generator writes: it sets the generated app's
+   --ui-* variables and adds what they do not cover (shadows, series palette, hover, focus, the sidebar).
+   Two modes: light and dark. The mode follows the system setting until a person picks one with the toggle
+   (themes/theme-toggle.js), which sets data-uxui-mode on <html> and remembers the choice. */
+
+:root {
+  color-scheme: light;
+  --ui-color-bg: #f4f5f9;
+  --ui-color-surface: #ffffff;
+  --ui-color-text: #161a2b;
+  --ui-color-muted: #646b82;
+  --ui-color-line: #e3e6ef;
+  --ui-color-accent: #5b5bd6;
+  --ui-color-on_accent: #ffffff;
+  --ui-color-focus: #eeeefc;
+  --ui-color-info: #3a6fd8;
+  --ui-color-info_fill: #e3ebfb;
+  --ui-color-success: #1f8a5b;
+  --ui-color-success_fill: #dcf3e8;
+  --ui-color-warning: #b26b00;
+  --ui-color-warning_fill: #fcefd6;
+  --ui-color-danger: #c63d4b;
+  --ui-color-danger_fill: #fbe1e4;
+  --ui-color-backdrop: rgb(10 12 24 / 0.35);
+  --uxui-glow: #e9e8ff;
+  --uxui-nav-bg: #11142a;
+  --uxui-nav-text: #d6d9ec;
+  --uxui-nav-head: #8b90b3;
+  --uxui-nav-hover: rgb(255 255 255 / 0.06);
+  --uxui-nav-current: rgb(124 124 255 / 0.22);
+  --uxui-shadow: 0 1px 2px rgb(22 26 43 / 0.04), 0 8px 24px -12px rgb(22 26 43 / 0.12);
+  --uxui-section-border: rgb(22 26 43 / 0.06);
+  --uxui-series-0: #5b5bd6;
+  --uxui-series-1: #e5484d;
+  --uxui-series-2: #f5a524;
+  --uxui-series-3: #12a594;
+}
+
+/* Dark: the system asks for it and nobody picked light, or somebody picked dark. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-uxui-mode="light"]) {
+    color-scheme: dark;
+    --ui-color-bg: #0e1020;
+    --ui-color-surface: #171a2e;
+    --ui-color-text: #e7e9f5;
+    --ui-color-muted: #9aa0bd;
+    --ui-color-line: #2a2e48;
+    --ui-color-accent: #8b8bff;
+    --ui-color-on_accent: #0e1020;
+    --ui-color-focus: #23264a;
+    --ui-color-info: #7aa5ff;
+    --ui-color-info_fill: #1d2a4d;
+    --ui-color-success: #4cc38a;
+    --ui-color-success_fill: #15362a;
+    --ui-color-warning: #f0b55a;
+    --ui-color-warning_fill: #3a2c12;
+    --ui-color-danger: #ff7a85;
+    --ui-color-danger_fill: #43202a;
+    --ui-color-backdrop: rgb(0 0 0 / 0.55);
+    --uxui-glow: #1f1f4a;
+    --uxui-nav-bg: #0a0c19;
+    --uxui-nav-text: #c9cde6;
+    --uxui-nav-head: #6f7598;
+    --uxui-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px -14px rgb(0 0 0 / 0.6);
+    --uxui-section-border: rgb(255 255 255 / 0.06);
+    --uxui-series-0: #8b8bff;
+    --uxui-series-1: #ff6b72;
+    --uxui-series-2: #ffc15e;
+    --uxui-series-3: #3dd6c1;
+  }
+}
+:root[data-uxui-mode="dark"] {
+  color-scheme: dark;
+  --ui-color-bg: #0e1020;
+  --ui-color-surface: #171a2e;
+  --ui-color-text: #e7e9f5;
+  --ui-color-muted: #9aa0bd;
+  --ui-color-line: #2a2e48;
+  --ui-color-accent: #8b8bff;
+  --ui-color-on_accent: #0e1020;
+  --ui-color-focus: #23264a;
+  --ui-color-info: #7aa5ff;
+  --ui-color-info_fill: #1d2a4d;
+  --ui-color-success: #4cc38a;
+  --ui-color-success_fill: #15362a;
+  --ui-color-warning: #f0b55a;
+  --ui-color-warning_fill: #3a2c12;
+  --ui-color-danger: #ff7a85;
+  --ui-color-danger_fill: #43202a;
+  --ui-color-backdrop: rgb(0 0 0 / 0.55);
+  --uxui-glow: #1f1f4a;
+  --uxui-nav-bg: #0a0c19;
+  --uxui-nav-text: #c9cde6;
+  --uxui-nav-head: #6f7598;
+  --uxui-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px -14px rgb(0 0 0 / 0.6);
+  --uxui-section-border: rgb(255 255 255 / 0.06);
+  --uxui-series-0: #8b8bff;
+  --uxui-series-1: #ff6b72;
+  --uxui-series-2: #ffc15e;
+  --uxui-series-3: #3dd6c1;
+}
+
+/* Values both modes share. */
+:root {
+  --ui-tone-info-fill: var(--ui-color-info_fill);
+  --ui-tone-success-fill: var(--ui-color-success_fill);
+  --ui-tone-warning-fill: var(--ui-color-warning_fill);
+  --ui-space-md: 1.1rem;
+  --ui-space-lg: 1.75rem;
+  --ui-radius-sm: 6px;
+  --ui-radius-md: 8px;
+  --ui-radius-lg: 12px;
+  --ui-type-body-family: Inter, "Segoe UI", system-ui, sans-serif;
+  --ui-type-caption-family: Inter, "Segoe UI", system-ui, sans-serif;
+  --ui-type-heading-family: Inter, "Segoe UI", system-ui, sans-serif;
+  --ui-type-caption-size: 0.78rem;
+  --ui-type-mono-family: "JetBrains Mono", ui-monospace, monospace;
+  -webkit-font-smoothing: antialiased;
+  font-size: 0.95rem;
+}
+
+body { background: radial-gradient(1200px 500px at 70% -10%, var(--uxui-glow) 0%, transparent 60%), var(--ui-color-bg); min-height: 100vh; }
+
+.ui-shell > .ui-region-navigation { position: sticky; top: 0; align-self: start; min-height: 100vh; box-sizing: border-box; background: var(--uxui-nav-bg); color: var(--uxui-nav-text); border-right: 0; padding: 1.25rem 0.9rem; }
+.ui-shell > .ui-region-navigation::before { content: "◆ uxui studio"; display: block; font-weight: 700; letter-spacing: 0.02em; color: #fff; margin: 0 0 1.4rem 0.4rem; }
+.ui-nav h2, .ui-nav h3, .ui-nav-section > :first-child { color: var(--uxui-nav-head); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.08em; font-weight: 600; }
+.ui-nav a { color: var(--uxui-nav-text); padding: 0.45rem 0.6rem; transition: background 120ms; }
+.ui-nav a:hover { background: var(--uxui-nav-hover); }
+.ui-nav a[aria-current="page"] { background: var(--uxui-nav-current); color: #fff; }
+
+.ui-region-page_outlet { padding: 1.5rem 2rem; }
+h1 { font-size: 1.55rem; letter-spacing: -0.01em; }
+.ui-section { border: 1px solid var(--uxui-section-border); box-shadow: var(--uxui-shadow); }
+.ui-section h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ui-color-muted); }
+
+.ui-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ui-color-muted); font-weight: 600; border-bottom-width: 2px; }
+.ui-table tbody tr { transition: background 120ms; }
+.ui-table tbody tr:hover { background: var(--ui-color-focus); }
+.ui-table td { padding-top: 0.6rem; padding-bottom: 0.6rem; }
+
+.ui-button { color: var(--ui-color-text); transition: background 120ms, border-color 120ms, box-shadow 120ms; font-weight: 500; }
+.ui-button:hover:not(:disabled) { border-color: var(--ui-color-accent); color: var(--ui-color-accent); }
+.ui-emphasis-primary, .ui-emphasis-primary:hover:not(:disabled) { color: var(--ui-color-on_accent); }
+.ui-emphasis-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.ui-button:focus-visible, .ui-nav a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--ui-color-accent); outline-offset: 2px; }
+input, select { font: inherit; color: var(--ui-color-text); padding: 0.4rem 0.6rem; border: 1px solid var(--ui-color-line); border-radius: var(--ui-radius-md); background: var(--ui-color-surface); }
+.ui-segment { color: var(--ui-color-text); }
+
+.ui-badge { font-weight: 600; letter-spacing: 0.01em; }
+.ui-live[data-lifecycle="live"] { color: var(--ui-color-success); font-weight: 600; }
+.ui-live[data-lifecycle="live"]::before { content: ""; display: inline-block; width: 0.45rem; height: 0.45rem; margin-right: 0.35rem; border-radius: 50%; background: var(--ui-color-success); animation: uxui-pulse 1.4s ease-in-out infinite; vertical-align: 0.05rem; }
+@keyframes uxui-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
+@media (prefers-reduced-motion: reduce) { .ui-live[data-lifecycle="live"]::before { animation: none; } }
+
+/* Series palette: the generated stylesheet colours two series. */
+.ui-chart-svg polyline { stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; stroke-width: 2; stroke-dasharray: none; }
+.ui-chart-svg polyline.ui-series-0 { stroke: var(--uxui-series-0); stroke-width: 2.5; }
+.ui-chart-svg polyline.ui-series-1 { stroke: var(--uxui-series-1); }
+.ui-chart-svg polyline.ui-series-2 { stroke: var(--uxui-series-2); }
+.ui-chart-svg polyline.ui-series-3 { stroke: var(--uxui-series-3); }
+.ui-swatch { border-radius: 3px; opacity: 1; }
+.ui-swatch.ui-series-0, .ui-bar.ui-series-0 { background: var(--uxui-series-0); }
+.ui-swatch.ui-series-1, .ui-bar.ui-series-1 { background: var(--uxui-series-1); opacity: 1; }
+.ui-swatch.ui-series-2, .ui-bar.ui-series-2 { background: var(--uxui-series-2); }
+.ui-swatch.ui-series-3, .ui-bar.ui-series-3 { background: var(--uxui-series-3); }
+.ui-chart-x-label { color: var(--ui-color-muted); }
+
+/* The mode toggle (themes/theme-toggle.js). */
+.uxui-theme-toggle { position: fixed; left: 1rem; bottom: 1rem; z-index: 40; font: inherit; font-size: 0.8rem; color: var(--uxui-nav-text); background: var(--uxui-nav-hover); border: 1px solid rgb(255 255 255 / 0.12); border-radius: 999px; padding: 0.35rem 0.75rem; cursor: pointer; }
+.uxui-theme-toggle:hover { background: var(--uxui-nav-current); }
+.uxui-theme-toggle:focus-visible { outline: 2px solid var(--ui-color-accent); outline-offset: 2px; }

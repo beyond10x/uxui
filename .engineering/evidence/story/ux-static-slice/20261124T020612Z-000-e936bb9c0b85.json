@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-24T02:06:12Z",
+  "actor": "human:operator",
+  "artifact": "story:ux-static-slice",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check exit 0 on branch ux-static 6741732: ux-static 9 passed, uxui-gen 7 passed, check-plugin 8 cases"
+  }
+}

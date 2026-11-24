@@ -26,16 +26,17 @@ components:
         - uxsearch.design.MaterializeVariant
         - uxsearch.design.RequestAxisSwitch
         - uxsearch.design.ResolveAxisSwitch
+        - uxsearch.design.FailAxisSwitch
         - uxsearch.journeys.DeclareJourney
         - uxsearch.journeys.RetireJourney
         - uxsearch.journeys.EnumerateStateSpace
         - uxsearch.journeys.RecordUiState
         - uxsearch.journeys.CompleteStateSpace
         - uxsearch.journeys.TruncateStateSpace
+        - uxsearch.journeys.AbandonStateSpace
         - uxsearch.rules.DeclareRule
         - uxsearch.rules.RetireRule
         - uxsearch.rules.RecordRuleVerdict
-        - uxsearch.rules.PruneVariant
         - uxsearch.metrics.DefineMetric
         - uxsearch.metrics.DeprecateMetric
         - uxsearch.metrics.DeclareKpi
@@ -50,17 +51,22 @@ components:
         - uxsearch.search.RecordProgress
         - uxsearch.search.AdmitToFrontier
         - uxsearch.search.MarkDominated
+        - uxsearch.search.PinPolicy
+        - uxsearch.search.RecordClimbReading
+        - uxsearch.search.WithdrawFromFrontier
         - uxsearch.promotion.ProposePromotion
         - uxsearch.promotion.AcceptPromotion
         - uxsearch.promotion.AcceptTradeOff
         - uxsearch.promotion.RejectPromotion
+        - uxsearch.promotion.ApplyPromotion
+        - uxsearch.promotion.SupersedePromotion
         - uxsearch.promotion.RecordJudgement
         - uxsearch.promotion.DispositionJudgement
         - uxsearch.ratchet.BindRequirement
         - uxsearch.ratchet.UnbindRequirement
         - uxsearch.ratchet.RecordMetricEvidence
         - uxsearch.ratchet.RecordRuleEvidence
-        - uxsearch.ratchet.RecordGateDecision
+        - uxsearch.promotion.RecordGateDecision
         - uxsearch.ratchet.ProposeReference
         - uxsearch.ratchet.RecordReferenceDecision
     publishes:
@@ -77,15 +83,16 @@ components:
         - uxsearch.design.VariantReachedAgain
         - uxsearch.design.AxisSwitchRequested
         - uxsearch.design.AxisSwitchResolved
+        - uxsearch.design.AxisSwitchFailed
         - uxsearch.journeys.JourneyDeclared
         - uxsearch.journeys.JourneyRetiredEvent
         - uxsearch.journeys.StateSpaceStarted
         - uxsearch.journeys.UiStateReached
         - uxsearch.journeys.StateSpaceClosed
+        - uxsearch.journeys.StateSpaceAbandoned
         - uxsearch.rules.RuleDeclared
         - uxsearch.rules.RuleRetired
         - uxsearch.rules.RuleVerdictRecorded
-        - uxsearch.rules.VariantPruned
         - uxsearch.metrics.MetricDefined
         - uxsearch.metrics.MetricDeprecated
         - uxsearch.metrics.KpiDeclared
@@ -100,15 +107,19 @@ components:
         - uxsearch.search.CampaignEnded
         - uxsearch.search.CampaignProgressed
         - uxsearch.search.FrontierChanged
+        - uxsearch.search.PolicyPinned
+        - uxsearch.search.ClimbReadingRecorded
         - uxsearch.promotion.PromotionProposed
         - uxsearch.promotion.PromotionAccepted
         - uxsearch.promotion.PromotionRejected
+        - uxsearch.promotion.PromotionApplied
+        - uxsearch.promotion.PromotionSuperseded
         - uxsearch.promotion.JudgementRecorded
         - uxsearch.promotion.JudgementDispositioned
         - uxsearch.ratchet.RequirementBound
         - uxsearch.ratchet.RequirementUnbound
         - uxsearch.ratchet.EvidenceRecorded
-        - uxsearch.ratchet.GateDecided
+        - uxsearch.promotion.GateDecided
         - uxsearch.ratchet.ReferenceProposed
         - uxsearch.ratchet.ReferenceDecided
     reached_by: network

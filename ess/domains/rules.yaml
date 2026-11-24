@@ -2,7 +2,9 @@ domain: uxsearch.rules
 
 summary: >-
   Design rules: constraints on a variant. A hard rule prunes: a variant breaking one is never
-  evaluated further, never enters a frontier and is never promoted. A soft rule scores.
+  evaluated further, never enters a frontier and is never promoted. A soft rule scores. Every rule
+  publishes its result as one metric of the catalogue; a hard rule is also one ratchet requirement,
+  whose condition is the rule's limit.
 
 naming:
   wire: rules
@@ -18,7 +20,10 @@ types:
     of: Uuid
 
   # The check a rule applies, from the engine's rule catalogue (`always_visible`,
-  # `one_primary_action`, `keyboard_reachable`, `no_overflow`, ...).
+  # `one_primary_action`, `keyboard_reachable`, `no_overflow`, ...). A check holds no limit: a
+  # hard rule's limit is the condition of its ratchet requirement, read from the trusted preset
+  # revision the campaign pinned (uxsearch.search.Campaign.policy_digest), so pruning and the gate
+  # read one limit.
   # UNMAPPED: the rule catalogue itself (its checks and their arguments) is not specified here;
   # uxui's preset family `web-ux@1` names candidates (research/2026-11-23-build-proposal.md).
   - name: uxsearch.rules.RuleCheck
@@ -40,13 +45,16 @@ types:
     kind: enum
     variants: [pass, violated, insufficient_evidence]
 
-  # A finding keeps a stable identity: the rule, the node path and the environment, so "no new
-  # findings" compares identities, not counts.
+  # A finding keeps a stable identity: the rule (the verdict's), the node path and the condition
+  # cell (environment; absent for a static check), so "no new findings" compares identities, not
+  # counts (docs/metrics.md § 1).
   - name: uxsearch.rules.Finding
     kind: struct
     fields:
       - name: node_path
         type: uxsearch.design.NodePath
+      - name: environment_id
+        type: Optional<uxsearch.evaluation.EnvironmentId>
       - name: message
         type: String
 
@@ -72,17 +80,21 @@ entities:
       # primary action); empty when the check covers the whole target.
       - name: node_paths
         type: List<uxsearch.design.NodePath>
-      # The weight of a soft rule's score in a KPI; 0 for a hard rule.
-      - name: weight
-        type: Decimal
-    invariants:
-      - weight >= 0
+      # The metric the rule's result is published as. A soft rule's score reaches a KPI only as
+      # this metric, named by a KPI term; a hard rule's metric has the role `hard_rule`.
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+      # A hard rule's ratchet requirement: its condition is the limit. Absent for a soft rule.
+      - name: requirement_id
+        type: Optional<uxsearch.ratchet.RequirementId>
     relations:
       - name: target
         kind: references
         target: uxsearch.design.Target
         cardinality: one
         via: target_id
+      - {name: metric, kind: references, target: uxsearch.metrics.MetricDefinition, cardinality: one, via: metric_key}
+      - {name: requirement, kind: references, target: uxsearch.ratchet.RequirementBinding, cardinality: one, via: requirement_id}
     lifecycle:
       initial: Active
       states: [Active, Retired]
@@ -92,6 +104,10 @@ entities:
           from: [Active]
           to: Retired
 
+  # A verdict is scoped: the rule's target and strength (copied when it is recorded), the
+  # condition cell and layout model it was checked under (absent for a static check), and the
+  # evaluation stage. Every guard that prunes reads Recorded verdicts only: retiring a rule voids
+  # its verdicts.
   - name: uxsearch.rules.RuleVerdict
     naming:
       summary: The outcome of one rule on one variant, with its findings.
@@ -103,10 +119,20 @@ entities:
         type: uxsearch.rules.RuleId
       - name: variant_digest
         type: uxsearch.design.VariantDigest
+      - name: target_id
+        type: uxsearch.design.TargetId
       # The rule's strength when the verdict was recorded, so a guard over the verdicts of a
       # variant reads it without a second hop.
       - name: strength
         type: uxsearch.rules.Strength
+      - name: requirement_id
+        type: Optional<uxsearch.ratchet.RequirementId>
+      - name: stage
+        type: uxsearch.evaluation.Stage
+      - name: environment_id
+        type: Optional<uxsearch.evaluation.EnvironmentId>
+      - name: layout_model_version
+        type: Optional<uxsearch.evaluation.LayoutModelVersion>
       - name: verdict
         type: uxsearch.rules.Verdict
       - name: findings
@@ -115,6 +141,8 @@ entities:
       - name: score
         type: Optional<Decimal>
     relations:
+      - {name: target, kind: references, target: uxsearch.design.Target, cardinality: one, via: target_id}
+      - {name: requirement, kind: references, target: uxsearch.ratchet.RequirementBinding, cardinality: one, via: requirement_id}
       - name: rule
         kind: references
         target: uxsearch.rules.DesignRule
@@ -125,10 +153,18 @@ entities:
         target: uxsearch.design.Variant
         cardinality: one
         via: variant_digest
+      - {name: environment, kind: references, target: uxsearch.evaluation.Environment, cardinality: one, via: environment_id}
+      - {name: layout_model, kind: references, target: uxsearch.evaluation.LayoutModel, cardinality: one, via: layout_model_version}
     lifecycle:
       initial: Recorded
-      states: [Recorded]
-      terminal: [Recorded]
+      states:
+        - Recorded
+        - {name: Void, summary: The rule was retired; the verdict stays readable and prunes nothing.}
+      terminal: [Void]
+      transitions:
+        - name: void
+          from: [Recorded]
+          to: Void
 
 actors:
   - name: uxsearch.rules.RuleAuthor
@@ -142,11 +178,9 @@ actors:
   - name: uxsearch.rules.RuleChecker
     naming:
       display: Rule checker
-      summary: The engine's rule checker.
-    system: true
+      summary: The engine's rule worker. Not a person.
     may:
       - uxsearch.rules.RecordRuleVerdict
-      - uxsearch.rules.PruneVariant
 
 errors:
   - name: uxsearch.rules.TargetNotFound
@@ -167,23 +201,53 @@ errors:
       - name: state
         type: uxsearch.rules.DesignRule.State
 
-  - name: uxsearch.rules.NoHardViolation
-    summary: No hard rule verdict of the variant is Violated, so it is not pruned.
-    fields:
-      - name: variant_digest
-        type: uxsearch.design.VariantDigest
-
-  - name: uxsearch.rules.VariantStateConflict
-    summary: The variant is not a candidate, so nothing moved.
-    fields:
-      - name: state
-        type: uxsearch.design.Variant.State
-
   - name: uxsearch.rules.RuleNotFound
     summary: No rule has this id, so no verdict was recorded.
     fields:
       - name: rule_id
         type: uxsearch.rules.RuleId
+
+  - name: uxsearch.rules.RuleNotActive
+    summary: The rule is retired, so no verdict of it is recorded.
+    fields:
+      - name: rule_id
+        type: uxsearch.rules.RuleId
+
+  - name: uxsearch.rules.RuleOfAnotherTarget
+    summary: The rule is declared on another target than the variant's, so no verdict is recorded.
+    fields:
+      - name: rule_id
+        type: uxsearch.rules.RuleId
+
+  - name: uxsearch.rules.VariantNotFound
+    summary: No variant has this digest, so no verdict was recorded.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.rules.MetricNotFound
+    summary: The catalogue has no metric of this key, so nothing was declared.
+    fields:
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+
+  - name: uxsearch.rules.MetricRoleMismatch
+    summary: A hard rule publishes a metric whose role is `hard_rule`, and a soft rule one that is not.
+    fields:
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+
+  - name: uxsearch.rules.HardRuleUnbound
+    summary: A hard rule names the ratchet requirement that holds its limit; a soft rule names none.
+    fields:
+      - name: strength
+        type: uxsearch.rules.Strength
+
+  - name: uxsearch.rules.RequirementMismatch
+    summary: The ratchet requirement is not bound, or it measures another metric or target.
+    fields:
+      - name: requirement_id
+        type: uxsearch.ratchet.RequirementId
 
 commands:
   - name: uxsearch.rules.DeclareRule
@@ -203,9 +267,33 @@ commands:
         type: uxsearch.rules.RuleCheck
       - name: node_paths
         type: List<uxsearch.design.NodePath>
-      - name: weight
-        type: Decimal
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+      - name: requirement_id
+        type: Optional<uxsearch.ratchet.RequirementId>
     outcomes:
+      - name: hard-unbound
+        when:
+          all:
+            - strength == hard
+            - {not: defined(requirement_id)}
+        error: uxsearch.rules.HardRuleUnbound
+        payload:
+          uxsearch.rules.HardRuleUnbound:
+            strength: input.strength
+        summary: A hard rule's limit lives in its ratchet requirement; nothing was declared.
+
+      - name: soft-bound
+        when:
+          all:
+            - strength == soft
+            - defined(requirement_id)
+        error: uxsearch.rules.HardRuleUnbound
+        payload:
+          uxsearch.rules.HardRuleUnbound:
+            strength: input.strength
+        summary: A soft rule scores and gates nothing; nothing was declared.
+
       - name: no-target
         when_related:
           via: input.target_id
@@ -215,6 +303,62 @@ commands:
           uxsearch.rules.TargetNotFound:
             target_id: input.target_id
         summary: Nothing was declared.
+
+      - name: no-metric
+        when_related:
+          via: input.metric_key
+          exists: false
+        error: uxsearch.rules.MetricNotFound
+        payload:
+          uxsearch.rules.MetricNotFound:
+            metric_key: input.metric_key
+        summary: Nothing was declared.
+
+      - name: no-requirement
+        when_related:
+          via: input.requirement_id
+          exists: false
+        error: uxsearch.rules.RequirementMismatch
+        payload:
+          uxsearch.rules.RequirementMismatch:
+            requirement_id: input.requirement_id
+        summary: Nothing was declared.
+
+      - name: hard-metric-role
+        when: strength == hard
+        when_related:
+          via: input.metric_key
+          predicate: role != hard_rule
+        error: uxsearch.rules.MetricRoleMismatch
+        payload:
+          uxsearch.rules.MetricRoleMismatch:
+            metric_key: input.metric_key
+        summary: A hard rule's metric is a hard-rule metric; nothing was declared.
+
+      - name: soft-metric-role
+        when: strength == soft
+        when_related:
+          via: input.metric_key
+          predicate: role == hard_rule
+        error: uxsearch.rules.MetricRoleMismatch
+        payload:
+          uxsearch.rules.MetricRoleMismatch:
+            metric_key: input.metric_key
+        summary: A soft rule's metric is not a hard-rule metric; nothing was declared.
+
+      - name: requirement-elsewhere
+        when_related:
+          via: input.requirement_id
+          predicate:
+            any:
+              - state != Bound
+              - metric_key != input.metric_key
+              - target_id != input.target_id
+        error: uxsearch.rules.RequirementMismatch
+        payload:
+          uxsearch.rules.RequirementMismatch:
+            requirement_id: input.requirement_id
+        summary: The requirement is unbound, or measures another metric or target; nothing was declared.
 
       - name: unknown-check
         external: the rule catalogue has no such check, or a node path is not in the target
@@ -234,7 +378,8 @@ commands:
           scope: input.scope
           check: input.check
           node_paths: input.node_paths
-          weight: input.weight
+          metric_key: input.metric_key
+          requirement_id: input.requirement_id
         emits:
           - uxsearch.rules.RuleDeclared
         payload:
@@ -242,8 +387,11 @@ commands:
             rule_id: {generated: true}
             target_id: input.target_id
             strength: input.strength
-        summary: The rule applies to every variant evaluated from now on.
+        summary: >-
+          The rule applies to campaigns started from now on; a running campaign keeps the policy
+          it started with (uxsearch.search.Campaign.policy_digest).
 
+  # Retiring a rule voids its verdicts, so a verdict of a retired rule prunes nothing.
   - name: uxsearch.rules.RetireRule
     naming:
       wire: retire-rule
@@ -255,19 +403,28 @@ commands:
       - name: retired
         moves: uxsearch.rules.DesignRule.retire
         instance: rule_id
+        affects:
+          - entity: uxsearch.rules.RuleVerdict
+            where:
+              all:
+                - rule_id == input.rule_id
+                - state == Recorded
+            moves: uxsearch.rules.RuleVerdict.void
         emits:
           - uxsearch.rules.RuleRetired
         payload:
           uxsearch.rules.RuleRetired:
             rule_id: input.rule_id
-        summary: The rule no longer applies; its recorded verdicts stay.
+        summary: The rule no longer applies; its recorded verdicts stay readable as Void.
 
       - name: wrong-state
         wrong_state: true
         error: uxsearch.rules.RuleStateConflict
         summary: The rule was already retired.
 
-  # A hard rule's violation prunes the variant in the same outcome that records it.
+  # A hard rule's Violated verdict prunes the variant: every later step (enumeration, evaluation,
+  # the frontier, promotion) refuses a variant with a Recorded hard Violated verdict, so the
+  # verdict is the prune. Nothing else holds a copy of it.
   - name: uxsearch.rules.RecordRuleVerdict
     naming:
       wire: record-rule-verdict
@@ -277,6 +434,12 @@ commands:
         type: uxsearch.rules.RuleId
       - name: variant_digest
         type: uxsearch.design.VariantDigest
+      - name: stage
+        type: uxsearch.evaluation.Stage
+      - name: environment_id
+        type: Optional<uxsearch.evaluation.EnvironmentId>
+      - name: layout_model_version
+        type: Optional<uxsearch.evaluation.LayoutModelVersion>
       - name: verdict
         type: uxsearch.rules.Verdict
       - name: findings
@@ -294,13 +457,61 @@ commands:
             rule_id: input.rule_id
         summary: No verdict was recorded.
 
+      - name: no-variant
+        when_related:
+          via: input.variant_digest
+          exists: false
+        error: uxsearch.rules.VariantNotFound
+        payload:
+          uxsearch.rules.VariantNotFound:
+            variant_digest: input.variant_digest
+        summary: No verdict was recorded.
+
+      - name: rule-retired
+        when_related:
+          via: input.rule_id
+          predicate: state != Active
+        error: uxsearch.rules.RuleNotActive
+        payload:
+          uxsearch.rules.RuleNotActive:
+            rule_id: input.rule_id
+        summary: A retired rule judges nothing; no verdict was recorded.
+
+      # The rule's target is the variant's target: the variant whose target declares no rule of
+      # this id refuses it.
+      - name: rule-of-another-target
+        when_related:
+          entity: uxsearch.design.Variant
+          where:
+            all:
+              - variant_digest == input.variant_digest
+              - not:
+                  exists:
+                    in: {entity: uxsearch.rules.DesignRule}
+                    as: rule
+                    that:
+                      all:
+                        - rule.target_id == target_id
+                        - rule.rule_id == input.rule_id
+          exists: true
+        error: uxsearch.rules.RuleOfAnotherTarget
+        payload:
+          uxsearch.rules.RuleOfAnotherTarget:
+            rule_id: input.rule_id
+        summary: No verdict was recorded.
+
       - name: recorded
         creates: uxsearch.rules.RuleVerdict
         instance: rule_verdict_id
         sets:
           rule_id: input.rule_id
           variant_digest: input.variant_digest
+          target_id: {related: {via: input.rule_id, field: target_id}}
           strength: {related: {via: input.rule_id, field: strength}}
+          requirement_id: {related: {via: input.rule_id, field: requirement_id}}
+          stage: input.stage
+          environment_id: input.environment_id
+          layout_model_version: input.layout_model_version
           verdict: input.verdict
           findings: input.findings
           score: input.score
@@ -311,50 +522,7 @@ commands:
             rule_verdict_id: {generated: true}
             variant_digest: input.variant_digest
             verdict: input.verdict
-        summary: The verdict is recorded; a soft rule's score enters the variant's KPIs.
-
-  # A hard-rule violation prunes the variant. ESS admits no secondary effect (`affects:`) beside
-  # a `creates:`, so the verdict and the prune are two steps: RecordRuleVerdict, then
-  # PruneVariant, which is refused unless a hard Violated verdict of the variant exists. Every
-  # later step (enumeration, evaluation, the frontier, promotion) refuses a variant with such a
-  # verdict on its own, so the order of the two steps changes no outcome.
-  - name: uxsearch.rules.PruneVariant
-    naming:
-      wire: prune-variant
-      display: Prune a variant
-    input:
-      - name: variant_digest
-        type: uxsearch.design.VariantDigest
-    outcomes:
-      - name: no-hard-violation
-        when_related:
-          entity: uxsearch.rules.RuleVerdict
-          where:
-            all:
-              - variant_digest == input.variant_digest
-              - strength == hard
-              - verdict == violated
-          exists: false
-        error: uxsearch.rules.NoHardViolation
-        payload:
-          uxsearch.rules.NoHardViolation:
-            variant_digest: input.variant_digest
-        summary: No hard rule is violated, so the variant stays a candidate.
-
-      - name: pruned
-        moves: uxsearch.design.Variant.prune
-        instance: variant_digest
-        emits:
-          - uxsearch.rules.VariantPruned
-        payload:
-          uxsearch.rules.VariantPruned:
-            variant_digest: input.variant_digest
-        summary: The variant is pruned; nothing more is done with it.
-
-      - name: wrong-state
-        wrong_state: true
-        error: uxsearch.rules.VariantStateConflict
-        summary: The variant was already pruned.
+        summary: The verdict is recorded; a hard Violated one prunes the variant.
 
 events:
   - name: uxsearch.rules.RuleDeclared
@@ -380,11 +548,6 @@ events:
       - name: verdict
         type: uxsearch.rules.Verdict
 
-  - name: uxsearch.rules.VariantPruned
-    fields:
-      - name: variant_digest
-        type: uxsearch.design.VariantDigest
-
 views:
   - name: uxsearch.rules.Rules
     source: uxsearch.rules.DesignRule
@@ -402,8 +565,12 @@ views:
         type: uxsearch.rules.RuleScope
       - name: check
         type: uxsearch.rules.RuleCheck
-      - name: weight
-        type: Decimal
+      - name: node_paths
+        type: List<uxsearch.design.NodePath>
+      - name: metric_key
+        type: uxsearch.metrics.MetricKey
+      - name: requirement_id
+        type: Optional<uxsearch.ratchet.RequirementId>
       - name: state
         type: uxsearch.rules.DesignRule.State
     naming:
@@ -420,12 +587,24 @@ views:
         type: uxsearch.rules.RuleId
       - name: variant_digest
         type: uxsearch.design.VariantDigest
+      - name: target_id
+        type: uxsearch.design.TargetId
       - name: strength
         type: uxsearch.rules.Strength
+      - name: requirement_id
+        type: Optional<uxsearch.ratchet.RequirementId>
+      - name: stage
+        type: uxsearch.evaluation.Stage
+      - name: environment_id
+        type: Optional<uxsearch.evaluation.EnvironmentId>
+      - name: layout_model_version
+        type: Optional<uxsearch.evaluation.LayoutModelVersion>
       - name: verdict
         type: uxsearch.rules.Verdict
       - name: findings
         type: List<uxsearch.rules.Finding>
+      - name: score
+        type: Optional<Decimal>
       - name: state
         type: uxsearch.rules.RuleVerdict.State
     naming:
@@ -446,12 +625,18 @@ views:
         type: uxsearch.rules.RuleId
       - name: strength
         type: uxsearch.rules.Strength
+      - name: stage
+        type: uxsearch.evaluation.Stage
+      - name: environment_id
+        type: Optional<uxsearch.evaluation.EnvironmentId>
       - name: verdict
         type: uxsearch.rules.Verdict
       - name: findings
         type: List<uxsearch.rules.Finding>
       - name: score
         type: Optional<Decimal>
+      - name: state
+        type: uxsearch.rules.RuleVerdict.State
     naming:
       wire: verdicts-of-variant
       display: Verdicts of a variant

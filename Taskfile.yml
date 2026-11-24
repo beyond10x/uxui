@@ -6,7 +6,10 @@ tasks:
     cmds:
       - task: validate
       - task: check:plugin
+      - task: docs-check
       - task: test
+      - task: test:own-gen
+      - task: test:ux-static
 
   validate:
     desc: Validate the Claude Code plugin and marketplace manifests.
@@ -20,6 +23,43 @@ tasks:
       - sh tools/check-plugin.sh
 
   test:
-    desc: Prove that the plugin check fails on broken trees.
+    desc: Prove that the plugin check and the docs check fail on broken trees.
     cmds:
       - timeout 60 sh tools/check-plugin.test.sh
+      - timeout 60 sh tools/docs.test.sh
+
+  docs-generate:
+    desc: Regenerate the derived documentation pages (website/docs/reference/skill.md, metrics.md, glossary.md, specification.md, website/docs/roadmap.md, status.md)
+    cmds:
+      - sh tools/docs.sh generate
+
+  docs-check:
+    desc: Fail when a derived documentation page is missing, stale or edited, or a page under website/docs breaks the page rules
+    cmds:
+      - sh tools/docs.sh check
+
+  docs-site:
+    desc: Build the Docusaurus site into website/build
+    cmds:
+      - npm --prefix website ci --allow-git=root
+      - npm --prefix website run build
+
+  test:own-gen:
+    desc: Test the own generator (generators/own).
+    cmds:
+      - timeout 120 cargo test -p uxui-gen
+
+  test:ux-static:
+    desc: Test ux-static@1 (engine/static) on the studio and on planted broken copies.
+    cmds:
+      - timeout 120 cargo test -p ux-static
+
+  ux:static:
+    desc: Write the studio's ux-static@1 evidence records to target/ux-static.jsonl.
+    cmds:
+      - cargo run -q -p ux-static -- --document ess/ui/studio.ui.yaml --journeys ess/ui/tests/studio.yaml --declarations ess/ui/studio.uxui.yaml --out target/ux-static.jsonl
+
+  gen:climb:
+    desc: Generate the live climb with the own generator into target/climb.
+    cmds:
+      - cargo run -q -p uxui-gen -- --path ess/ui/studio.ui.yaml --model ess --page campaigns.climb --out target/climb

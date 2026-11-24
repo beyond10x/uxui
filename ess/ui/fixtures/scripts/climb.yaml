@@ -1,4 +1,5 @@
 channel: climb
+session: {campaign_id: cp-01}
 loop: true
 events:
   - {at: 0s,  event: uxsearch.search.CampaignProgressed, payload: {climb_point_id: pt-04, campaign_id: cp-01, seq: 4, evaluated: 70, pruned: 19, frontier_size: 3}}
