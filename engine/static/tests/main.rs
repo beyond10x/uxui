@@ -601,7 +601,11 @@ fn the_output_matches_ratchets_example_document() {
         *items = taken.into_iter().map(without_name_items).collect();
     }
     // Revision 2 counts a node declared twice for one journey once, as ux-static does: 95 and 73.
-    let example = read_json(&fixtures.join("example.evidence.json"));
+    let mut example = read_json(&fixtures.join("example.evidence.json"));
+    // The example is ratchet's, copied verbatim; it names the tool version it was written with.
+    // Every other byte must match, so only that one field takes this build's version.
+    let tools = get_mut(get_mut(get_mut(&mut example, "evidence"), "conditions"), "tools");
+    *get_mut(tools, "ux-static") = Value::Str(env!("CARGO_PKG_VERSION").into());
     assert_eq!(coverage(&example, "executed"), 95);
     assert_eq!(coverage(&example, "passed"), 73);
     assert_eq!(doc, example);

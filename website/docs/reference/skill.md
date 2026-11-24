@@ -10,7 +10,7 @@ custom_edit_url: null
 
 # The ui-iteration-loop skill
 
-This page is the skill itself: [`plugin/skills/ui-iteration-loop/SKILL.md`](https://github.com/beyond10x/uxui/blob/main/plugin/skills/ui-iteration-loop/SKILL.md), plugin version `0.1.0`. Its references are [`heuristics.md`](https://github.com/beyond10x/uxui/blob/main/plugin/skills/ui-iteration-loop/references/heuristics.md), [`review-agents.md`](https://github.com/beyond10x/uxui/blob/main/plugin/skills/ui-iteration-loop/references/review-agents.md) and [`not-available.md`](https://github.com/beyond10x/uxui/blob/main/plugin/skills/ui-iteration-loop/references/not-available.md). How to install it is on [Getting started](../getting-started.md); one round, step by step, is the [guide](../guides/run-a-round.md).
+This page is the skill itself: [`plugin/skills/ui-iteration-loop/SKILL.md`](https://github.com/beyond10x/uxui/blob/main/plugin/skills/ui-iteration-loop/SKILL.md), plugin version `0.2.0`. Its references are [`heuristics.md`](https://github.com/beyond10x/uxui/blob/main/plugin/skills/ui-iteration-loop/references/heuristics.md), [`review-agents.md`](https://github.com/beyond10x/uxui/blob/main/plugin/skills/ui-iteration-loop/references/review-agents.md) and [`not-available.md`](https://github.com/beyond10x/uxui/blob/main/plugin/skills/ui-iteration-loop/references/not-available.md). How to install it is on [Getting started](../getting-started.md); one round, step by step, is the [guide](../guides/run-a-round.md).
 
 :::note[Description the hosts read]
 
