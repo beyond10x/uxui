@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-24T00:39:24Z",
+  "actor": "human:operator",
+  "artifact": "story:spec-hardening-pass",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "ess specify validate valid (10 scenarios) and ess ui test 5 passed at 9c2d91c"
+  }
+}

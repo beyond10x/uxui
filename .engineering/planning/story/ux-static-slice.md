@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:ux-static-slice
 kind: story
-status: draft
+status: active
 title: Thin vertical slice `ux-static@1`
 tags:
 - roadmap-step-4
@@ -11,7 +11,10 @@ relations:
 scope:
 - confidence: inferred
   path: Cargo.toml
-revision: 3
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-24T00:39:01Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"review_outcome":1}}}
+- {from: "proposed", to: "active", at: "2026-11-24T00:39:01Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"review_outcome":1}}}
 ---
 # Story: Thin vertical slice `ux-static@1`
 

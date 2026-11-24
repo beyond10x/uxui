@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:spec-hardening-pass
 kind: story
-status: active
+status: implemented
 title: Specification hardening pass
 tags:
 - in-flight
@@ -12,10 +12,11 @@ relations:
 scope:
 - confidence: cited
   path: ess
-revision: 4
+revision: 5
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-24T00:03:19Z", actor: "human:operator", revision: 2}
 - {from: "proposed", to: "active", at: "2026-11-24T00:03:19Z", actor: "human:operator", revision: 3}
+- {from: "active", to: "implemented", at: "2026-11-24T00:39:28Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"test_result":1}}}
 ---
 # Story: Specification hardening pass
 
