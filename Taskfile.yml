@@ -31,6 +31,7 @@ tasks:
     desc: Prove that the plugin check and the docs check fail on broken trees.
     cmds:
       - timeout 60 sh tools/check-plugin.test.sh
+      - timeout 60 sh tools/release.test.sh
       - timeout 60 sh tools/docs.test.sh
 
   docs-generate:
