@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-24T10:50:06Z",
+  "actor": "human:operator",
+  "artifact": "story:scaffold-spike",
+  "kind": "story",
+  "revision": 3,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "Acceptance read on main 97e1402: docs/scaffold-spike.md section 'Stage 0: the lift' states that the lifted hero of the documentation landing page (tools/scaffold/lift/docs-hero/) passes ess ui check and its three tests, that its 16 binding selectors each match one element, and what ess-ui/1 could not reproduce (title emphasis, label-free text, actions to outside addresses, decoration). Merged in PR #1",
+    "reference": "https://github.com/beyond10x/uxui/pull/1"
+  }
+}

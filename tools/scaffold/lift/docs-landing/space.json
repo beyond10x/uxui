@@ -31,6 +31,19 @@
     "narrow_menu_actions": 1,
     "narrow_sidebar_actions": 1
   },
+  "type": {
+    "source": "font sizes (rem) and line heights of the docs-system theme and landing.css at heading scale 1; wide is the 120-column drawing, narrow the 48-column one",
+    "body": { "rem": 1, "line_height": 1.65 },
+    "title": { "rem": { "wide": 4, "narrow": 2.6 }, "line_height": 1.08 },
+    "section_title": { "rem": { "wide": 2.6, "narrow": 1.9 }, "line_height": 1.18 },
+    "nodes": {
+      "kicker/line": { "rem": 0.7, "line_height": 1.3 },
+      "lede/line": { "rem": 1.08, "line_height": 1.75 },
+      "meta/line": { "rem": 0.77, "line_height": 1.65 },
+      "s_*/kicker": { "rem": 0.7, "line_height": 1.3 },
+      "s_*/lede": { "rem": 0.97, "line_height": 1.7 }
+    }
+  },
   "axes": {
     "actions": {
       "kind": "product.json /product/actions",

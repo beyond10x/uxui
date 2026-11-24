@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:own-generator-smallest
 kind: story
-status: draft
+status: implemented
 title: An own generator, smallest form
 tags:
 - in-flight
@@ -21,7 +21,11 @@ scope:
   path: ess/ui/studio.ui.yaml
 - confidence: cited
   path: generators/own
-revision: 5
+revision: 8
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-24T10:50:06Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1,"review_outcome":6}}}
+- {from: "proposed", to: "active", at: "2026-11-24T10:50:06Z", actor: "human:operator", revision: 7, decided_on: {"recorded":{"test_result":1,"review_outcome":6}}}
+- {from: "active", to: "implemented", at: "2026-11-24T10:50:06Z", actor: "human:operator", revision: 8, decided_on: {"recorded":{"test_result":1,"review_outcome":6}}}
 ---
 # Story: An own generator, smallest form
 

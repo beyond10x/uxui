@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:check-tool-internals-research
 kind: story
-status: draft
+status: implemented
 title: 'Research: how deterministic UI check tools work inside'
 tags:
 - in-flight
@@ -11,7 +11,11 @@ relations:
 scope:
 - confidence: cited
   path: research/2026-11-24-check-tool-internals.md
-revision: 4
+revision: 7
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-24T10:50:06Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"test_result":1,"review_outcome":2}}}
+- {from: "proposed", to: "active", at: "2026-11-24T10:50:06Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1,"review_outcome":2}}}
+- {from: "active", to: "implemented", at: "2026-11-24T10:50:06Z", actor: "human:operator", revision: 7, decided_on: {"recorded":{"test_result":1,"review_outcome":2}}}
 ---
 # Story: Research: how deterministic UI check tools work inside
 

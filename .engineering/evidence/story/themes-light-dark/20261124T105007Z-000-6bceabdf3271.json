@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-24T10:50:07Z",
+  "actor": "human:operator",
+  "artifact": "story:themes-light-dark",
+  "kind": "story",
+  "revision": 6,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "Acceptance read on main 97e1402: themes/ holds one theme, themes/studio.css, whose light and dark modes key on data-uxui-mode set by themes/theme-toggle.js, so the generated app's data-theme does not override the picked mode; docs/own-generator.md (Verification; row C2 light and dark modes) records both modes seen in a headless browser over the stock and the own studio, and generators/own/tests/main.rs checks that a theme script loads in the head. Merged in PR #1",
+    "reference": "https://github.com/beyond10x/uxui/pull/1"
+  }
+}

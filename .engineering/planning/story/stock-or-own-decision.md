@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:stock-or-own-decision
 kind: story
-status: draft
+status: implemented
 title: Stock generator or our own, per UI
 relations:
 - decomposes: epic:generators-and-themes
@@ -10,7 +10,11 @@ relations:
 scope:
 - confidence: cited
   path: docs/generator-round.md
-revision: 5
+revision: 8
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-24T10:50:06Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1,"review_outcome":1}}}
+- {from: "proposed", to: "active", at: "2026-11-24T10:50:07Z", actor: "human:operator", revision: 7, decided_on: {"recorded":{"test_result":1,"review_outcome":1}}}
+- {from: "active", to: "implemented", at: "2026-11-24T10:50:07Z", actor: "human:operator", revision: 8, decided_on: {"recorded":{"test_result":1,"review_outcome":1}}}
 ---
 # Story: Stock generator or our own, per UI
 

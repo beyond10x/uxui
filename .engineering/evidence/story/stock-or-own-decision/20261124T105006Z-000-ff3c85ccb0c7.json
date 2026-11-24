@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-24T10:50:06Z",
+  "actor": "human:operator",
+  "artifact": "story:stock-or-own-decision",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "Acceptance read on main 97e1402: docs/generator-round.md records slot's web UI on an own generator after 45 minutes on the stock one (section 'slot case study') and the studio on an own generator under two conditions, with durability, cost per change and price measured (section 'Studio: own generator'; docs/change-list.md, docs/own-generator.md). Merged in PR #1",
+    "reference": "https://github.com/beyond10x/uxui/pull/1"
+  }
+}

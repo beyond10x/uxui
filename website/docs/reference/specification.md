@@ -16,7 +16,7 @@ Search the design space of an ess-ui/1 document for the best compositions, measu
 
 | domains | entities | commands | views | events |
 |---|---|---|---|---|
-| 8 | 29 | 54 | 42 | 51 |
+| 8 | 29 | 56 | 42 | 51 |
 
 The repository gate for the specification:
 
@@ -64,7 +64,7 @@ Source: [`ess/domains/journeys.yaml`](https://github.com/beyond10x/uxui/blob/mai
 | `StateSpace` | Every UI state one journey reaches on one variant within its bounds. |
 | `UiState` | One reachable configuration of a page in a state space. |
 
-Commands: `DeclareJourney`, `RetireJourney`, `EnumerateStateSpace`, `RecordUiState`, `CompleteStateSpace`, `TruncateStateSpace`, `AbandonStateSpace`.
+Commands: `DeclareJourney`, `RetireJourney`, `EnumerateStateSpace`, `ReuseStateSpace`, `RecordUiState`, `CompleteStateSpace`, `TruncateStateSpace`, `AbandonStateSpace`.
 
 Views: `Journeys`, `JourneysOfTarget`, `StateSpaces`, `UiStates`.
 
@@ -110,7 +110,7 @@ Source: [`ess/domains/evaluation.yaml`](https://github.com/beyond10x/uxui/blob/m
 | `LayoutModel` | One version of the deterministic layout model, known by its contract. |
 | `Evaluation` | Every metric for one variant on one state space in one environment, keyed by its input digests. |
 
-Commands: `DeclareEnvironment`, `RequestEvaluation`, `RecordEvaluationResult`.
+Commands: `DeclareEnvironment`, `RequestEvaluation`, `ReuseEvaluation`, `RecordEvaluationResult`.
 
 Views: `Environments`, `EnvironmentsOfTarget`, `LayoutModels`, `Evaluations`, `EvaluationsOfVariant`.
 

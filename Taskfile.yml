@@ -5,6 +5,11 @@ tasks:
     desc: The complete offline gate.
     cmds:
       - task: validate
+      - task: check:pool
+
+  check:pool:
+    desc: The gate without validate, for a build pool whose nodes have no claude executable.
+    cmds:
       - task: check:plugin
       - task: docs-check
       - task: test

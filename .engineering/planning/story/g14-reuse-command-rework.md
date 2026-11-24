@@ -7,7 +7,7 @@ title: Decide the reuse-command rework of the uxsearch guards (G14)
 summary: Keep or drop the reuse-command rework, by synthesis time on the ESS release with the G14 fix
 relations:
 - decomposes: epic:ess-dependencies
-revision: 1
+revision: 2
 ---
 # Story: Decide the reuse-command rework of the uxsearch guards (G14)
 
@@ -35,3 +35,10 @@ commands instead: a stored key is never requested again (`already-requested` ref
 - If `main` synthesizes in under 60 s, the branch is closed unmerged and this story records why.
 - Otherwise the branch merges after the hardening scenarios still catch every planted defect
   (24 of 24 today).
+
+## Decision on 2026-11-24
+
+Measured on the shared build node with the ESS release of that day: conformance synthesis of this
+branch 11 s; of main about 1000 s (`ess/GAPS.md` G14). No ESS release fixes G14 yet. Taken: merge the
+rework now (reversible by a revert). When ESS ships the G14 fix, synthesis of the guard form is measured
+again and the form with the clearer specification is kept.
