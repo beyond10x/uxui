@@ -1,0 +1,70 @@
+type: ess-scenario/6
+domain: uxsearch.journeys
+scenario: unevaluable-state-is-insufficient
+# Hardening target 3 (R3): a state space holding a state that is not evaluable closes Incomplete,
+# and an evaluation over an Incomplete state space is insufficient evidence, never computed.
+summary: A state that is not evaluable makes the evaluation over it insufficient
+arrange:
+  - instance: space
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-a"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-a"
+        stage: full
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 0
+      state: Enumerating
+  - instance: state0
+    entity: uxsearch.journeys.UiState
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000b0
+      fields:
+        state_space_key: "sha256:space-a"
+        seq: 0
+        state_digest: "sha256:state-0"
+        page: pages/settings
+        selection: []
+        virtual_time_ms: 0
+        depth: 0
+        evaluable: false
+        unevaluable_reason: the layout model refused a node
+      state: Reached
+  - instance: evaluation
+    entity: uxsearch.evaluation.Evaluation
+    setup:
+      identity: "sha256:eval-b"
+      fields:
+        variant_digest: "sha256:variant-b"
+        state_space_key: "sha256:space-b"
+        journey_id: 00000000-0000-4000-8000-000000000030
+        state_space_state: Incomplete
+        stage: full
+        states_count: 3
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        values: []
+      state: Requested
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.journeys.CompleteStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      states_count: 1
+    outcome: unevaluable
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.evaluation.RecordEvaluationResult
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: {$instance: evaluation}
+      result_digest: "sha256:result-b"
+      values: [{metric_key: effort.actions, at: journey, value: 5}]
+    outcome: state-not-evaluable
+assert:
+  - view: uxsearch.journeys.StateSpaces
+    contains: {state_space_key: {$instance: space}, states_count: 1, state: Incomplete}
+  - view: uxsearch.evaluation.Evaluations
+    contains: {evaluation_key: {$instance: evaluation}, insufficient_because: state_not_evaluable, state: Insufficient}

@@ -60,8 +60,8 @@ fn the_climb_page_is_resolved_with_paths_defaults_and_live_semantics() {
     let page = uxui_gen::resolve::page(&doc, "campaigns.climb").unwrap();
     let sections = page.get("sections").unwrap().list();
     let names: Vec<_> = sections.iter().map(|s| s.get_str("name").unwrap()).collect();
-    assert_eq!(names, ["summary", "progress", "points", "frontier"]);
-    let progress = &sections[1];
+    assert_eq!(names, ["summary", "hill_kpis", "hill", "progress", "points", "frontier"]);
+    let progress = &sections[3];
     let live = progress.get("live").unwrap();
     assert_eq!(live.get_str("match"), Some("climb_point_id"));
     assert_eq!(live.get("coalesce"), Some(&Value::Int(500)));
@@ -74,7 +74,7 @@ fn the_climb_page_is_resolved_with_paths_defaults_and_live_semantics() {
         stop.get("confirm").unwrap().get_str("path"),
         Some("pages/campaigns.climb/header/actions/stop/confirm/overlay")
     );
-    let points = &sections[2];
+    let points = &sections[4];
     assert_eq!(points.get_str("empty"), Some("Nothing to show yet"));
     assert_eq!(points.get("fields").unwrap().list()[4].get_str("label"), Some("frontier size"));
 }

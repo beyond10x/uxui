@@ -1,0 +1,66 @@
+type: ess-scenario/6
+domain: uxsearch.promotion
+scenario: only-the-owner-accepts-a-trade-off
+# Hardening target 8 (R15): the acceptance policy and a review agent may not accept a trade-off;
+# the owner may, and the promotion records the owner's principal from the caller, not the input.
+summary: Only the owner accepts a trade-off and is recorded as its acceptor
+arrange:
+  - instance: entry
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000a0
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-a"
+        evaluation_keys: ["sha256:ev-a"]
+        kpi_values: []
+      state: OnFrontier
+  - instance: promotion
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000070
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-a"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: fewer actions, one more glance
+        gate: fail
+        gate_trade_off_only: true
+        gate_evidence_ids: []
+        gate_requirement_verdicts: [{requirement_id: attention.glance_cost, verdict: fail}]
+        losses: [{requirement_id: attention.glance_cost, reference: 2, candidate: 3}]
+        gains: [{requirement_id: effort.actions, reference: 8, candidate: 5}]
+      state: Proposed
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.promotion.AcceptTradeOff
+    actor: uxsearch.promotion.AcceptancePolicy
+    caller: {principal: policy-web-ux}
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-a"
+    refused: not_granted
+    no_events: [uxsearch.promotion.PromotionAccepted]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.promotion.AcceptTradeOff
+    actor: uxsearch.promotion.ReviewAgent
+    caller: {principal: reviewer-1, principal_kind: review_agent}
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-a"
+    refused: not_granted
+    no_events: [uxsearch.promotion.PromotionAccepted]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.promotion.AcceptTradeOff
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-a"
+    outcome: accepted
+assert:
+  - view: uxsearch.promotion.PromotionById
+    params: {promotion_id: {$instance: promotion}}
+    contains: {accepted_by: owner-1, state: Accepted}

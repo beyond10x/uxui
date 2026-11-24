@@ -25,10 +25,9 @@ specification.
 [unsupported_construct] command.uxsearch.rules.RecordRuleVerdict.outcomes.pruned.affects: outcome `pruned` creates its subject and declares `affects:`; a secondary effect is admitted beside `moves:` and `updates:`, and, from ess/23, `deletes:`, whose subject exists before the outcome (hint: move `affects:` to the branch that moves, updates or deletes an existing row)
 ```
 
-"A hard-rule violation prunes" is two steps: `RecordRuleVerdict` records the verdict and
-`PruneVariant` (refused without a hard violated verdict) moves the variant to `Pruned`. Between the
-two, the variant is not yet pruned. Every later step (enumeration, evaluation, frontier, promotion)
-refuses on the hard violated verdict itself, so nothing proceeds in the gap.
+Instead: the variant has no `Pruned` state. "Pruned" is the `Recorded` hard `violated` verdict
+itself: every later step (enumeration, evaluation, frontier, promotion) refuses on it, and
+`RetireRule` voids the rule's verdicts, so a retired rule prunes nothing.
 
 ### G3. A related-row guard beside a held-state guard
 
@@ -43,13 +42,13 @@ evaluation's own field. This works because a state space no longer changes after
 
 ## Missing constructs
 
-### G4. Universal quantification over related rows
+### G4. Universal quantification over related rows (closed)
 
-"Promotion requires every hard rule to pass" needs "for every Active hard rule of the target a
-`pass` verdict exists for this variant". ESS has `exists: true|false` over a row set, not "for
-all". Expressed: no hard `violated` verdict exists (row set, `exists: false`), plus a `pass`
-`GateDecision` from ratchet at stage `promote`. A hard rule with no verdict at all is not caught by
-the engine; ratchet's gate catches it if every hard rule is bound as a requirement. Owner decision.
+"Promotion requires every hard rule to pass" is "no Active hard rule of the target without a
+Recorded `pass` verdict for this variant". ESS 0.98.0 states it as a row set over `DesignRule` whose
+`where` holds `not: {exists: {in: {entity: RuleVerdict}, ...}}` (`hard-rule-unchecked` in
+`AcceptPromotion` and `AcceptTradeOff`). Kept here because the earlier text said it could not be
+expressed.
 
 ### G5. Pareto dominance
 
@@ -96,14 +95,44 @@ Expressed by construction only: `RecordGateDecision` takes no judgement input, a
   `RegisterUxDeclarations`; to be proposed to ESS later.
 - A component harness (a component rendered alone at given widths): `Target.harness_widths_px`;
   ess-ui/1 has no harness construct.
-- The layout model is only a contract here (`LayoutInput`, `LayoutOutput`); v0 is ESS's terminal
-  renderer with cell geometry (decision D1 A), a pixel model later.
+- The layout model is named by version only (`LayoutModel`); v0 is ESS's terminal renderer with
+  cell geometry (decision D1 A), a pixel model later. Its input and output are not modelled.
+
+### G12. A product of list counts
+
+"The campaign's evidence covers every journey × environment cell" needs
+`input.journeys.count * input.environments.count` in an expression; `{expr: ...}` reads no count of
+an input list. `AdmitToFrontier` refuses an empty or repeated `evaluation_keys` and a
+`kpi_values` that misses a KPI of the campaign; full coverage is the external branch
+`evidence-incomplete` (UNMAPPED in `domains/search.yaml`).
+
+### G13. A system actor with attributes
+
+A command that records its caller (`accepted_by: {caller: principal}`) needs every granted actor to
+declare the attribute, and a `system: true` actor declares none. `AcceptancePolicy` is therefore a
+non-system actor. The engine's workers (`Enumerator`, `Evaluator`, `Searcher`, `Assessor`,
+`Ratchet`) are non-system too: synthesis refuses a system-issued command it cannot await
+(`ESS-SYNTH-023`), which left their commands without a scenario.
+
+### G14. Synthesis time
+
+`ess verify conform synthesize` (and so `ess specify validate --format json`, which reports
+completeness) took 2 s on the specification before the 2026-11-24 hardening and takes 1000 s
+after it. Profiling shows the time in the arrangement search (scenario steps cloned).
+No single domain causes it; removing the row-set guards of every refusal branch brought it to
+59 s. The repository gate does not run synthesis. An ESS performance gap, not yet filed upstream;
+the authored scenarios in `scenarios/` run in under 2 s.
+
+### G15. Fixtures are not typed against the model
+
+`ess ui check --model` and `ess ui test --model` pass fixtures whose rows contradict the view
+types (a digest where a list is declared, a missing struct field, a renamed field). The fixtures
+were corrected by hand (review R22); no check holds them.
 
 ## Studio document (ess/ui/studio.ui.yaml)
 
 - No view lists the axis values of the design space a variant was reached in, so the variant page
   lists every axis value (UNMAPPED in the document). A view with a parameter over the variant's
   routes would need a read through a list field.
-- A channel with `scope: param` and `session: {per: campaign_id}` delivered no scripted event in
-  `ess ui test` (the terminal renderer). The document uses `only_if: matches(params)` on each live
-  section instead; the server-side scoping is not declared. Not investigated further.
+- Compare shows verdict and evaluation tables, not the variants in one state and environment: no
+  view exposes a laid-out result (UNMAPPED in the document).

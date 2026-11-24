@@ -1,8 +1,10 @@
 # Invented sample data for ess/ui/studio.ui.yaml. Metric ids are the catalogue's (docs/metrics.md).
+# The rows agree with the model: nothing on the frontier fails a hard rule (completion.miss is a
+# hard rule, H = 0), the trade-off names a soft requirement only, and KPI values are keyed by KPI.
 views:
   uxsearch.design.BaseDocuments:
     rows:
-      - {base_document_id: doc-01, path: specs/console/ui.yaml, app: console, document_digest: "sha256:4f1c", state: Registered}
+      - {base_document_id: doc-01, path: specs/console/ui.yaml, app: console, document_digest: "sha256:4f1c", supersedes: null, state: Registered}
   uxsearch.design.TargetCatalog:
     rows:
       - {target_id: tg-01, name: Whole console, scope: product, node_path: "/", host_slot: false}
@@ -14,9 +16,23 @@ views:
     rows:
       - {target_id: tg-01, base_document_id: doc-01, name: Whole console, scope: product, node_path: "/", host_slot: false, state: Declared}
       - {target_id: tg-02, base_document_id: doc-01, name: Settings page, scope: page, node_path: pages/settings, host_slot: false, state: Declared}
-  uxsearch.design.DesignSpaces:
+  uxsearch.design.DesignSpacesOfTarget:
     rows:
-      - {design_space_id: ds-01, target_id: tg-02, name: Settings layout and copy, component_treatment: fixed, space_digest: "sha256:9a07", state: Frozen}
+      - {design_space_id: ds-01, name: Settings layout and copy, state: Frozen}
+  uxsearch.journeys.JourneysOfTarget:
+    rows:
+      - {journey_id: jr-01, name: Change the notification email}
+  uxsearch.evaluation.EnvironmentsOfTarget:
+    rows:
+      - {environment_id: env-desk, name: Desktop light}
+      - {environment_id: env-narrow, name: Narrow dark}
+  uxsearch.metrics.KpisOfTarget:
+    rows:
+      - {kpi_id: kpi-effort, name: Effort to change settings, direction: lower_is_better, weight: 1}
+  uxsearch.metrics.Kpis:
+    rows:
+      - {kpi_id: kpi-effort, target_id: tg-02, name: Effort to change settings, aggregation: weighted_sum, terms: [{metric_key: effort.actions, weight: 1}], direction: lower_is_better, weight: 1, state: Active}
+      - {kpi_id: kpi-glance, target_id: tg-02, name: Glance cost, aggregation: mean, terms: [{metric_key: attention.glance_cost, weight: 1}], direction: lower_is_better, weight: 0.5, state: Active}
   uxsearch.design.AxisValues:
     rows:
       - {axis_value_id: av-01, axis_id: ax-theme, name: brand-dense, state: Declared}
@@ -25,41 +41,42 @@ views:
       - {axis_value_id: av-04, axis_id: ax-layout, name: one-column, state: Declared}
   uxsearch.design.AxisSwitches:
     rows:
-      - {axis_switch_id: sw-01, from_variant: "sha256:v-a1", axis_id: ax-layout, axis_value_id: av-04, reached: "sha256:v-b2", state: Resolved}
+      - {axis_switch_id: sw-01, from_variant: "sha256:v-a1", axis_id: ax-layout, axis_value_id: av-04, reached: "sha256:v-b2", failure: null, state: Resolved}
   uxsearch.design.Variants:
     rows:
-      - {variant_digest: "sha256:v-a1", base_document_id: doc-01, target_id: tg-02, state: Candidate, routes: [{design_space_id: ds-01, origin: search, choices: [], applications: []}]}
-      - {variant_digest: "sha256:v-b2", base_document_id: doc-01, target_id: tg-02, state: Candidate, routes: [{design_space_id: ds-01, origin: manual, choices: [], applications: []}]}
-      - {variant_digest: "sha256:v-c3", base_document_id: doc-01, target_id: tg-02, state: Pruned, routes: []}
+      - {variant_digest: "sha256:v-a1", base_document_id: doc-01, target_id: tg-02, first_route: {design_space_id: ds-01, origin: search, choices: [], applications: []}, routes: [], state: Candidate}
+      - {variant_digest: "sha256:v-b2", base_document_id: doc-01, target_id: tg-02, first_route: {design_space_id: ds-01, origin: manual, choices: [], applications: []}, routes: [], state: Candidate}
+      - {variant_digest: "sha256:v-c3", base_document_id: doc-01, target_id: tg-02, first_route: {design_space_id: ds-01, origin: search, choices: [], applications: []}, routes: [], state: Candidate}
   uxsearch.search.Campaigns:
     rows:
-      - {campaign_id: cp-01, target_id: tg-02, design_space_id: ds-01, journeys: [jr-01], environments: [env-desk], kpis: [kpi-effort], strategy: beam, seed: 7, budget: {max_variants: 400}, ended_because: null, state: Running}
-      - {campaign_id: cp-00, target_id: tg-02, design_space_id: ds-01, journeys: [jr-01], environments: [env-desk], kpis: [kpi-effort], strategy: exhaustive, seed: 1, budget: {max_variants: 50}, ended_because: space_exhausted, state: Ended}
+      - {campaign_id: cp-01, target_id: tg-02, design_space_id: ds-01, journeys: [jr-01], environments: [env-desk], kpis: [kpi-effort, kpi-glance], strategy: beam, seed: 7, budget: {max_variants: 400, max_wall_time_s: 3600}, policy_digest: "sha256:p-01", layout_model_version: layout-model/0, catalogue_digest: "sha256:c-01", ended_because: null, state: Running}
+      - {campaign_id: cp-00, target_id: tg-02, design_space_id: ds-01, journeys: [jr-01], environments: [env-desk], kpis: [kpi-effort, kpi-glance], strategy: exhaustive, seed: 1, budget: {max_variants: 50, max_wall_time_s: 600}, policy_digest: "sha256:p-00", layout_model_version: layout-model/0, catalogue_digest: "sha256:c-01", ended_because: space_exhausted, state: Ended}
   uxsearch.search.Climb:
     rows:
-      - {climb_point_id: pt-01, seq: 1, evaluated: 12, pruned: 3, insufficient: 1, frontier_size: 2, best: "sha256:v-a1", at: "2026-11-23T10:00:00Z"}
-      - {climb_point_id: pt-02, seq: 2, evaluated: 30, pruned: 9, insufficient: 2, frontier_size: 3, best: "sha256:v-a1", at: "2026-11-23T10:00:20Z"}
-      - {climb_point_id: pt-03, seq: 3, evaluated: 51, pruned: 14, insufficient: 2, frontier_size: 3, best: "sha256:v-b2", at: "2026-11-23T10:00:40Z"}
+      - {climb_point_id: pt-01, seq: 1, evaluated: 12, pruned: 3, insufficient: 1, frontier_size: 2, at: "2026-11-23T10:00:00Z"}
+      - {climb_point_id: pt-02, seq: 2, evaluated: 30, pruned: 9, insufficient: 2, frontier_size: 3, at: "2026-11-23T10:00:20Z"}
+      - {climb_point_id: pt-03, seq: 3, evaluated: 51, pruned: 14, insufficient: 2, frontier_size: 3, at: "2026-11-23T10:00:40Z"}
+  uxsearch.search.ClimbOfKpi:
+    rows:
+      - {climb_reading_id: rd-01, seq: 1, best: 9}
+      - {climb_reading_id: rd-02, seq: 2, best: 7}
+      - {climb_reading_id: rd-03, seq: 3, best: 5}
   uxsearch.search.Frontier:
     rows:
-      - {frontier_entry_id: fe-01, variant_digest: "sha256:v-a1", kpi_values: [{metric_key: effort.actions, value: 6}, {metric_key: completion.miss, value: 0}], evaluation_keys: [ev-a1-desk]}
-      - {frontier_entry_id: fe-02, variant_digest: "sha256:v-b2", kpi_values: [{metric_key: effort.actions, value: 5}, {metric_key: completion.miss, value: 1}], evaluation_keys: [ev-b2-desk]}
+      - {frontier_entry_id: fe-01, variant_digest: "sha256:v-a1", kpi_values: [{kpi_id: kpi-effort, value: 6}, {kpi_id: kpi-glance, value: 2}], evaluation_keys: [ev-a1-desk]}
+      - {frontier_entry_id: fe-02, variant_digest: "sha256:v-b2", kpi_values: [{kpi_id: kpi-effort, value: 5}, {kpi_id: kpi-glance, value: 3}], evaluation_keys: [ev-b2-desk]}
   uxsearch.rules.VerdictsOfVariant:
     rows:
-      - {rule_verdict_id: rv-01, rule_id: rl-required-visible, strength: hard, verdict: pass, findings: [], score: null}
-      - {rule_verdict_id: rv-02, rule_id: rl-density, strength: soft, verdict: violated, findings: [{node_path: pages/settings/sections/form, note: "layout.density above 0.8"}], score: 0.4}
+      - {rule_verdict_id: rv-01, rule_id: rl-required-visible, strength: hard, verdict: pass, stage: full, environment_id: env-desk, findings: [], score: null, state: Recorded}
+      - {rule_verdict_id: rv-02, rule_id: rl-density, strength: soft, verdict: violated, stage: full, environment_id: env-desk, findings: [{node_path: pages/settings/sections/form, environment_id: env-desk, message: "layout.density above 0.8"}], score: 0.4, state: Recorded}
   uxsearch.evaluation.EvaluationsOfVariant:
     rows:
-      - {evaluation_key: ev-a1-desk, state_space_key: ss-01, environment_id: env-desk, values: [{metric_key: effort.actions, at: journey, value: 6}, {metric_key: attention.visible_required, at: journey, value: 1}], insufficient_because: null, state: Computed}
-      - {evaluation_key: ev-a1-narrow, state_space_key: ss-02, environment_id: env-narrow, values: [], insufficient_because: bound_hit, state: Insufficient}
+      - {evaluation_key: ev-a1-desk, state_space_key: ss-01, environment_id: env-desk, stage: full, values: [{metric_key: effort.actions, at: journey, value: 6}, {metric_key: attention.visible_required, at: journey, value: 1}], insufficient_because: null, state: Computed}
+      - {evaluation_key: ev-a1-narrow, state_space_key: ss-02, environment_id: env-narrow, stage: full, values: [], insufficient_because: bound_hit, state: Insufficient}
   uxsearch.promotion.Promotions:
     rows:
-      - {promotion_id: pr-01, campaign_id: cp-00, variant_digest: "sha256:v-a1", rationale: "Two fewer actions, no new miss", trade_off_group: null, accepted_by: null, rejection_reason: null, state: Proposed, diff: {changed: [pages/settings/layout]}, propagates_to: []}
-      - {promotion_id: pr-02, campaign_id: cp-00, variant_digest: "sha256:v-b2", rationale: "One action less, one completion miss more", trade_off_group: tg-effort-vs-miss, accepted_by: null, rejection_reason: null, state: Proposed, diff: {changed: [pages/settings/layout]}, propagates_to: []}
+      - {promotion_id: pr-01, campaign_id: cp-00, target_id: tg-02, variant_digest: "sha256:v-a1", rationale: "Two fewer actions, no new miss", gate: pass, gate_trade_off_only: false, gate_policy_revision: "web-ux@3", gate_requirement_verdicts: [{requirement_id: effort.actions, verdict: pass}, {requirement_id: completion.miss, verdict: pass}], gate_evidence_ids: [evd-01, evd-02], losses: [], gains: [{requirement_id: effort.actions, reference: 8, candidate: 6}], accepted_by: null, rejection_reason: null, applied_as: null, superseded_reason: null, state: Proposed, diff: {changed: [pages/settings/layout]}, propagates_to: []}
+      - {promotion_id: pr-02, campaign_id: cp-00, target_id: tg-02, variant_digest: "sha256:v-b2", rationale: "Three fewer actions, one more glance", gate: fail, gate_trade_off_only: true, gate_policy_revision: "web-ux@3", gate_requirement_verdicts: [{requirement_id: effort.actions, verdict: pass}, {requirement_id: attention.glance_cost, verdict: fail}, {requirement_id: completion.miss, verdict: pass}], gate_evidence_ids: [evd-03, evd-04, evd-05], losses: [{requirement_id: attention.glance_cost, reference: 2, candidate: 3}], gains: [{requirement_id: effort.actions, reference: 8, candidate: 5}], accepted_by: null, rejection_reason: null, applied_as: null, superseded_reason: null, state: Proposed, diff: {changed: [pages/settings/layout]}, propagates_to: []}
   uxsearch.promotion.Judgements:
     rows:
       - {judgement_id: jd-01, kind: pairwise_preference, author_kind: person, author: designer-1, left_variant: "sha256:v-a1", right_variant: "sha256:v-b2", preferred: "sha256:v-a1", note: "The one-column form hides the save button below the fold", disposition: null, state: Recorded}
-  uxsearch.ratchet.GateDecisions:
-    rows:
-      - {gate_decision_id: gd-01, promotion_id: pr-01, gate_stage: promote, verdict: pass, policy_revision: "web-ux@3", requirement_verdicts: [], trade_off_only: false, state: Decided}
-      - {gate_decision_id: gd-02, promotion_id: pr-02, gate_stage: promote, verdict: fail, policy_revision: "web-ux@3", requirement_verdicts: [{requirement_id: completion.miss, verdict: fail}], trade_off_only: true, state: Decided}
