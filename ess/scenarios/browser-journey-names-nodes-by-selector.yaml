@@ -1,0 +1,152 @@
+type: ess-scenario/6
+domain: uxsearch.journeys
+scenario: browser-journey-names-nodes-by-selector
+# Wave 2 (story browser-adapter; docs/browser-adapter.md): what the browser adapter ux-browser@1
+# answers by being built. A scripted journey's steps open a URL, press a key, scroll and wait, as
+# the shared page checks do (the keyboard walk presses Tab and Enter; the always-visible check
+# scrolls to the bottom and waits before it looks again). Its required nodes and completion signal
+# are CSS selectors, as every node the adapter reads is named (render record `nodes[].selector`,
+# page checks `css`). A browser journey that names ess-ui/1 node paths, and a model journey that
+# names selectors, are refused.
+summary: A scripted journey presses, scrolls and waits, and names its nodes by CSS selector, never by node path
+arrange:
+  - instance: site
+    entity: uxsearch.design.BaseDocument
+    setup:
+      identity: 00000000-0000-4000-8000-000000000110
+      fields:
+        path: website
+        app: uxui-docs
+        document_digest: "sha256:site-0"
+        adapter: browser
+      state: Registered
+  - instance: landing
+    entity: uxsearch.design.Target
+    setup:
+      identity: 00000000-0000-4000-8000-000000000111
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000110
+        name: landing page
+        scope: page
+        members: []
+        host_slot: false
+        harness_widths_px: []
+        adapter: browser
+        browser: {base_url: "http://localhost:3000/uxui/", build_command: npm --prefix website run build}
+      state: Declared
+  - instance: studio
+    entity: uxsearch.design.BaseDocument
+    setup:
+      identity: 00000000-0000-4000-8000-000000000120
+      fields:
+        path: ess/ui/studio.ui.yaml
+        app: studio
+        document_digest: "sha256:studio-0"
+        adapter: ess-ui
+      state: Registered
+  - instance: catalog
+    entity: uxsearch.design.Target
+    setup:
+      identity: 00000000-0000-4000-8000-000000000121
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000120
+        name: target catalog
+        scope: page
+        node_path: pages/targets.catalog
+        members: []
+        host_slot: false
+        harness_widths_px: []
+        adapter: ess-ui
+      state: Declared
+  - {instance: keyboard, entity: uxsearch.journeys.Journey}
+timeline:
+  # The keyboard walk of the page checks as a journey: open the page, Tab to the skip link, Enter,
+  # scroll to the bottom and wait; it completes when the main region holds focus.
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.journeys.DeclareJourney
+    actor: uxsearch.journeys.JourneyAuthor
+    input:
+      target_id: {$instance: landing}
+      name: skip to the content
+      script:
+        steps:
+          - {action: visit, target: /uxui/}
+          - {action: press, target: Tab}
+          - {action: press, target: Enter}
+          - {action: scroll, target: bottom}
+          - {action: wait, target: "200"}
+      required_nodes: []
+      required_selectors: ["a[href='#__docusaurus_skipToContent_fallback']", nav.navbar]
+      completion_selector: "main:focus-within"
+      bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 0}
+    outcome: declared
+    events: [{event: uxsearch.journeys.JourneyDeclared}]
+    capture: {instance: keyboard, event: uxsearch.journeys.JourneyDeclared, field: journey_id}
+  # The same journey naming an ess-ui/1 node path: a browser page has none.
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.journeys.DeclareJourney
+    actor: uxsearch.journeys.JourneyAuthor
+    input:
+      target_id: {$instance: landing}
+      name: skip to the content by node path
+      script:
+        steps:
+          - {action: visit, target: /uxui/}
+          - {action: press, target: Tab}
+      required_nodes: [pages/home/sections/hero]
+      required_selectors: []
+      bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 0}
+    outcome: node-paths-on-browser
+    no_events: [uxsearch.journeys.JourneyDeclared]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.journeys.DeclareJourney
+    actor: uxsearch.journeys.JourneyAuthor
+    input:
+      target_id: {$instance: landing}
+      name: skip to the content by signal path
+      script:
+        steps:
+          - {action: visit, target: /uxui/}
+      required_nodes: []
+      required_selectors: []
+      completion_signal: pages/home/sections/hero
+      bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 0}
+    outcome: node-paths-on-browser
+    no_events: [uxsearch.journeys.JourneyDeclared]
+  # A model journey naming a CSS selector: an ess-ui target's nodes are node paths.
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.journeys.DeclareJourney
+    actor: uxsearch.journeys.JourneyAuthor
+    input:
+      target_id: {$instance: catalog}
+      name: start a campaign
+      test_file: ess/ui/tests/studio.yaml
+      test_name: starting a campaign from the catalog opens the form on that target
+      required_nodes: [pages/targets.catalog/sections/list]
+      required_selectors: [section.list]
+      bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+    outcome: selectors-on-ess-ui
+    no_events: [uxsearch.journeys.JourneyDeclared]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.journeys.DeclareJourney
+    actor: uxsearch.journeys.JourneyAuthor
+    input:
+      target_id: {$instance: catalog}
+      name: start a campaign by signal selector
+      test_file: ess/ui/tests/studio.yaml
+      test_name: starting a campaign from the catalog opens the form on that target
+      required_nodes: [pages/targets.catalog/sections/list]
+      required_selectors: []
+      completion_selector: section.form
+      bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+    outcome: selectors-on-ess-ui
+    no_events: [uxsearch.journeys.JourneyDeclared]
+assert:
+  - view: uxsearch.journeys.Journeys
+    contains:
+      journey_id: {$instance: keyboard}
+      name: skip to the content
+      required_selectors: ["a[href='#__docusaurus_skipToContent_fallback']", nav.navbar]
+      completion_selector: "main:focus-within"
+  - view: uxsearch.journeys.Journeys
+    excludes: {name: skip to the content by node path}

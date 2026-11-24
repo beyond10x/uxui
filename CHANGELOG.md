@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Specification round 3: browser targets (base URL, build command), source patches as axis values,
+  scripted journeys, source diffs on promotion, and the funnel's lifted component with its binding
+  table; a lift that does not reproduce the component is refused (#10). A browser journey names its
+  nodes by CSS selector; scripted steps visit, click, press, scroll and wait.
+- `ux-browser` (`engine/browser`, no third-party crates): drives Chromium over the DevTools protocol
+  with its own WebSocket client. `ux-browser render` writes a render record (box, computed styles and
+  accessibility entry per declared node, plus a screenshot). `ux-browser checks` writes one
+  `ratchet-evidence/1` document per run with five page checks: page scroll, overflow, always-visible
+  items, keyboard reach and layout shift after ready, with viewports, modes and declared items as
+  input. On the `llm` documentation site (27 pages) it equals that repository's own harness on 135 of
+  135 values. axe is not covered.
+- `research/2026-11-24-loop-copies-page-checks.md`: the page checks of the eight UI loop copies in
+  seven repositories, and how they differ.
+
 ## 0.1.0 — 2026-11-24
 
 The first tagged release. It holds the plugin as first published and the work merged on 2026-11-24

@@ -1,0 +1,26 @@
+[package]
+name = "ux-browser"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+autotests = false
+description = "ux-browser@1: the browser adapter. Renders any page with a URL in headless Chromium over its own DevTools-protocol client, writes render records and the shared page checks as ratchet-evidence/1."
+
+[lib]
+name = "ux_browser"
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[[bin]]
+name = "ux-browser"
+path = "src/main.rs"
+test = false
+
+[[test]]
+name = "main"
+path = "tests/main.rs"
+
+[dependencies]
+uxui-doc = { path = "../doc" }

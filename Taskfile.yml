@@ -15,6 +15,7 @@ tasks:
       - task: test
       - task: test:own-gen
       - task: test:ux-static
+      - task: test:ux-browser
 
   validate:
     desc: Validate the Claude Code plugin and marketplace manifests.
@@ -58,6 +59,11 @@ tasks:
     desc: Test ux-static@1 (engine/static) on the studio and on planted broken copies.
     cmds:
       - timeout 120 cargo test -p ux-static
+
+  test:ux-browser:
+    desc: Test ux-browser@1 (engine/browser) without a browser, on WebSocket frames, scripted DevTools messages and recorded page geometry.
+    cmds:
+      - timeout 120 cargo test -p ux-browser
 
   ux:static:
     desc: Write the studio's ux-static@1 ratchet-evidence/1 document to target/studio-static.evidence.json.

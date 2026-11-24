@@ -12,6 +12,7 @@ specification:
   - domains/promotion.yaml
   - domains/ratchet.yaml
 scenarios:
+  - scenarios/browser-journey-names-nodes-by-selector.yaml
   - scenarios/browser-target-from-patch-to-promotion.yaml
   - scenarios/complete-count-matches-its-states.yaml
   - scenarios/evaluation-key-matches-its-inputs.yaml
