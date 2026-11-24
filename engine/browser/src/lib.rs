@@ -7,7 +7,8 @@
 //! - [`cdp`]: commands, responses, events and the request guard;
 //! - [`chrome`]: finding and starting Chromium; [`session`]: one page driven through a session;
 //! - [`serve`]: a static server for a built site;
-//! - [`render`]: the render record `ux-browser-render/1`.
+//! - [`render`]: the render record `ux-browser-render/1`;
+//! - [`pool`]: the worker threads a checks run measures its pages with.
 
 pub mod base64;
 pub mod cdp;
@@ -16,6 +17,7 @@ pub mod chrome;
 pub mod evidence;
 pub mod json;
 pub mod measure;
+pub mod pool;
 pub mod render;
 pub mod serve;
 pub mod session;

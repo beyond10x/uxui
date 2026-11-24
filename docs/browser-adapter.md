@@ -22,14 +22,16 @@ It does two things for any page with a URL:
 | protocol | `src/cdp.rs` | commands with ids, responses matched by id, events queued until asked for, flat sessions; a guard that answers every paused request: requests to the served build go on, every other one fails (`BlockedByClient`) |
 | Chromium | `src/chrome.rs` | `UXUI_CHROME`, else the newest `chromium-<n>/chrome-linux*/chrome` under the Playwright cache (`PLAYWRIGHT_BROWSERS_PATH`, else `~/.cache/ms-playwright`); started headless with its own profile, `--remote-debugging-port=0`, and the switches of Playwright's headless Chromium that change what a page measures (`--hide-scrollbars`, the hover and pointer media of a headless device, sRGB); ended with `Browser.close`, then by its PID |
 | pages | `src/session.rs` | one browser context per page and viewport (as a fresh Playwright context): viewport, `prefers-color-scheme`, `prefers-reduced-motion`, focus emulation, scripts before the page's own, navigation to the `load` event, keys, the accessibility tree, screenshots |
+| workers | `src/pool.rs`, `src/measure.rs` | a checks run starts one Chromium and measures up to `--jobs` page and viewport pairs at a time in it, each worker on a DevTools connection of its own; pairs are taken in order, results are put back in order, and the first browser failure stops the run |
 | server | `src/serve.rs` | a static server for a built site under its base path on a free loopback port (file, file plus `.html`, `index.html`; else `404.html` with status 404) |
 | probes | `src/probes/*.js` | the JavaScript the page runs: it returns geometry, and decides nothing |
 | checks | `src/checks.rs`, `src/evidence.rs` | every rule and every count, in Rust, from the recorded geometry |
 
 The test step (`task test:ux-browser`, `cargo test -p ux-browser`) starts no browser and opens no
-socket: framing runs over an in-memory stream, the protocol client over a scripted transport, and each
-check over geometry recorded from real runs (`tests/fixtures/`, written with `--capture`). Real browser
-runs are measurements, run by hand on a host with Chromium.
+socket: framing runs over an in-memory stream, the protocol client over a scripted transport, each
+check over geometry recorded from real runs (`tests/fixtures/`, written with `--capture`), the worker
+pool over plain functions, and the binary only with `--help` or an invocation it refuses before it
+starts a browser. Real browser runs are measurements, run by hand on a host with Chromium.
 
 ## `ux-browser render`
 
@@ -69,11 +71,13 @@ fixture `tests/fixtures/render/landing.capture.json`.
 ```sh
 ux-browser checks --config engine/browser/examples/llm.checks.yaml --build <llm>/website/build \
   --project llm-docs --assessment page-checks --out llm-docs.evidence.json \
-  [--root .] [--class local] [--pages /llm/,/llm/search] [--capture <dir>]
+  [--root .] [--class local] [--pages /llm/,/llm/search] [--capture <dir>] [--jobs 4]
 ```
 
 It serves `--build` itself, measures every page (the sitemap's, or a list), and writes one
-`ratchet-evidence/1` document. `--capture` writes each page's recorded geometry as
+`ratchet-evidence/1` document. `--jobs` is the number of page and viewport pairs measured at a time
+in the one Chromium of the run: by default the CPUs the process may use, at most 4; at least 1. The
+values do not depend on it (Timings). `--capture` writes each page's recorded geometry as
 `<page>.capture.json`, the input `checks::page_result` reads. Exit statuses as `ux-static`
 (`docs/ux-static.md`): 0 written; 1 refused inputs (a configuration or build that does not read); 2
 wrong invocation; 3 infrastructure (Chromium did not start or answer, the document was not written). A
@@ -106,7 +110,10 @@ mode]`, `/skip to (main )?content/i` is `[skip to content, skip to main content]
 Per page and viewport, as llm's L2 spec does it: a fresh context in the first mode, the page loaded to
 its `load` event, ready (fonts loaded, two frames), the settle time, the layout shifts read; then per
 mode: scroll to the top, overflow and page scroll, the always-visible items, scroll to the bottom and
-the scroll settle time, the items again; the keyboard walk in the keyboard modes.
+the scroll settle time, the items again; the keyboard walk in the keyboard modes. A later mode is
+switched in place (`Emulation.setEmulatedMedia` on the loaded page, no reload); the run waits for the
+page to show it in `mode_attribute` (watched in the page, no polling), then the mode settle time. The
+only fixed waits are the declared settle times.
 
 | result (`scope: page`) | per page | definition (llm's) |
 |---|---|---|
@@ -127,14 +134,89 @@ As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
 | field | value |
 |---|---|
 | `evidence.assessor` | `ux-browser@1` |
-| `evidence.target` | ratchet's format has no target kind for a URL. The target is `kind: document`: the served build, identified by its tree digest, `digest_form: tree` (SHA-256 over one line `<sha256 hex>  <path>` per file, sorted by path, as `sha256sum` prints them); `path` only for a build under `--root`. `evidence.candidate` is that digest. |
+| `evidence.target` | `kind: build` (ratchet `docs/evidence-format.md`, `evidence.target.kind`): the served build, `identifiers: {artifact_digest: <build digest>}`, `selection: candidate`, no `revision` |
+| `evidence.candidate` | the build digest, as ratchet's format asks of a `build` ("the artifact digest"): see below |
 | `evidence.inputs.config` | the configuration file, `{value: <path>, digest, digest_form: bytes}` |
+| `evidence.inputs.build` | `{value: <path>}` for a build under `--root`, absent for one outside it; no digest beside it, the candidate is its digest |
+| `evidence.inputs.pages` | `{value: <the --pages list>}` when the run measured a list and not the whole sitemap |
 | `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, settle_ms, reduced_motion}` |
+| `run.local_inputs` | `jobs` (the value used), and `capture` and `profile` when given: they differ per machine and change no value, so they stay outside the evidence |
 | `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk (skip link first, its target, each target), and one counted layout-shift reading per viewport. A page that did not load is one `not_run` entry, id the page path |
 | `evidence.results[]` | per page the five numbers, then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read) and the per-viewport values in `details`, so the document has `run.started_at` and `run.ended_at` |
 
 A page that is not served or does not apply a mode has every result incomplete with cause
 `incompatible_target` and no value.
+
+**The build digest** (`evidence::build_digest`), the candidate of every run: SHA-256 over the text
+that has one line `<hex>  <path>\n` per file of the served directory, where `<hex>` is the SHA-256 of
+the file's bytes in lower-case hex and `<path>` is the file's path relative to that directory with `/`;
+the lines sorted by the bytes of the path; written `sha256:<hex>`. Directories add nothing, a symbolic
+link counts as what it points to. The same value from a shell, in the served directory:
+
+```sh
+find . -type f | sed 's|^\./||' | LC_ALL=C sort | xargs sha256sum | sha256sum
+```
+
+The digest is of the bytes served, so two builds of one commit that differ in a byte are two
+candidates: the two builds of llm `58e27a4bb` measured here, PR #11's and this change's, have two
+digests and the same 1,234 values.
+
+### Declaration `ratchet-assessor/1`
+
+`engine/browser/ux-browser.assessor.yaml`, the declaration of ux-browser@1 (ratchet
+`docs/evidence-format.md` § 10), modelled on `engine/static/ux-static.assessor.yaml`:
+
+| field | value |
+|---|---|
+| `command` | `ux-browser checks` |
+| `targets` | `[build]`; no `target_input`, which only a `document` target has |
+| `inputs` | `config` and `build` (paths, required), `pages` (text: paths separated by commas), and the local inputs `capture`, `profile` (paths) and `jobs` (integer) |
+| `conditions` | `viewports`, `modes`, `settle_ms`, `reduced_motion`: the keys of `conditions.other` |
+| `coverage_unit`, `coverage` | `check`; all six counts |
+| `outputs` | the five numbers (`scope: page`; unit `units`, `blocks`, `items`, `checks`, `score`; layout shift `sampled`, the others `exact`) and `findings` (`identity_key: [rule, node_path]`, `item_fields: [reason]`) |
+
+A test (`tests/assessor.rs`) reads it and compares its inputs with the arguments of the `checks` usage
+(required where the usage does not bracket them), its conditions with a document's, and its outputs with
+every result of the example document and of the test document.
+
+## Timings
+
+`ux-browser checks` over llm's documentation site (27 pages, 2 viewports, 2 modes, 1,234 checks),
+built at llm `58e27a4bb`, Chromium 158.0.8127.18, on a shared 20-CPU workstation with other jobs
+running, 2026-11-24. Each run started as a transient user service so the CPU time of every Chromium
+process is counted. Before: PR #11 (`4171e3a`), one page and viewport after the other; after: this
+version.
+
+Two rounds, each the four runs one after another; the host's 1-minute load at the start of each run
+beside it. PR #11 has no `--jobs`: it measures one pair at a time.
+
+| round | binary | `--jobs` | load | wall | CPU | values against PR #11's document |
+|---|---|---|---|---|---|---|
+| 1 | PR #11 | none | 20.3 | 91.7 s | 83.3 s | equal |
+| 1 | this | 1 | 8.9 | 88.0 s | 80.3 s | equal |
+| 1 | this | 2 | 5.0 | 47.4 s | 86.5 s | equal |
+| 1 | this | 4 | 4.3 | 27.2 s | 92.4 s | equal |
+| 2 | PR #11 | none | 4.1 | 96.4 s | 91.0 s | equal |
+| 2 | this | 1 | 6.4 | 90.1 s | 85.1 s | equal |
+| 2 | this | 2 | 5.6 | 64.0 s | 122.8 s | equal |
+| 2 | this | 4 | 17.4 | 42.2 s | 139.8 s | equal |
+
+The example document was written by a run with the default (4 on this host) at a load of 14.8: 31.7 s.
+"Equal": all 162 results (numbers, findings, the per-viewport layout shifts) and the coverage counts of
+the 1,234 checks are the same. The time moves with the host's load more than with anything else; at a
+low load four workers take about 30 % of the wall time of one, for about 15 % more CPU time.
+
+What the time goes to, per page and viewport: three loads (the measured one and the two fresh loads of
+the keyboard walk), the accessibility tree five times, and the declared waits (250 + 200 + 200 + 100 +
+100 ms). The declared waits alone are 46 s of a one-worker run; workers overlap them.
+
+Tried and left out: one page reused per worker and viewport, reset to the first mode and with the
+origin's storage cleared between paths (the server sends every file with `no-store`). One worker took
+93.2 s, a fresh context per pair 93.3 s, and the reused page read the layout shift of
+`/llm/docs/concepts/protocols` at 1440 x 900 as 0 where every fresh-context run (PR #11, the rebuild
+before this change, and each run above) read 0.0004. Not isolated; the shift is likely the swap of a web
+font that a reused renderer already holds. So each pair keeps a context of its own, as a fresh
+Playwright context does.
 
 ## Comparison with llm, 2026-11-24
 
@@ -144,7 +226,9 @@ light and dark, navbar, search, theme toggle and sidebar, keyboard targets searc
 ms). Chromium 158.0.8127.18 (Playwright revision 1254) for both: ux-browser starts `chrome
 --headless=new`, llm's Playwright 1.65.0 its headless shell of the same version.
 
-ux-browser: 27 pages, 1,234 checks, 107 s. Document: `engine/browser/examples/llm-docs.evidence.json`.
+ux-browser: 27 pages, 1,234 checks, 107 s at PR #11 (one pair at a time; now: Timings). Document:
+`engine/browser/examples/llm-docs.evidence.json`, rewritten by this version's run on a rebuild of the
+same commit: the same 1,234 values, the new target kind, another build digest.
 
 Each cell: ux-browser / llm's `ux/baseline.json` / llm's own harness (`ux/tests/l2-layout.spec.ts`)
 run on the same build the same day.
