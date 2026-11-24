@@ -161,6 +161,7 @@ timeline:
           - {action: visit, target: /uxui/}
           - {action: click, target: "a[href$='install']"}
       required_nodes: []
+      required_selectors: []
       bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 0}
     outcome: declared
     events: [{event: uxsearch.journeys.JourneyDeclared}]

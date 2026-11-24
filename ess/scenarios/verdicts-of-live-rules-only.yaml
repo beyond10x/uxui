@@ -80,6 +80,7 @@ arrange:
         test_file: tests/settings.yaml
         test_name: change the email
         required_nodes: []
+        required_selectors: []
         bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
       state: Active
 timeline:

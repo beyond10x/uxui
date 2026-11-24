@@ -1,0 +1,20 @@
+format: ux-browser-render/1
+viewport: {width: 1440, height: 900}
+mode: light
+settle_ms: 250
+styles: [display, position, color, background-color, font-family, font-size, font-weight, line-height]
+nodes:
+  - name: navbar
+    selector: nav.navbar
+  - name: hero
+    selector: section.b10x-hero
+  - name: hero title
+    selector: '#b10x-hero-title'
+  - name: primary action
+    selector: .b10x-hero__actions .b10x-button
+  - name: status link
+    selector: .b10x-hero__actions .b10x-text-link
+  - name: key figures
+    selector: dl.b10x-kpis
+  - name: footer
+    selector: footer.footer

@@ -28,6 +28,7 @@ what is specific to uxui.
 | `.github/workflows/` | `pages.yml` (builds and checks the site, uploads it on `main`; no credential, no deploy step) and `b10x-docs-site.yml` (hands that artifact to the shared publisher) |
 | `generators/own/` | `uxui-gen`, the smallest own generator: one page of the studio document as static HTML and plain JS (`docs/own-generator.md`); Rust, no third-party crates; workspace `Cargo.toml` and `rust-toolchain.toml` at the root |
 | `engine/` | the engine, Rust, no third-party crates: `doc` (`uxui-doc`: the YAML subset reader, the JSON writer, SHA-256 and the node tree of an `ess-ui/1` document, shared with `uxui-gen`) and `static` (`ux-static@1`: static metrics as one `ratchet-evidence/1` document per run, `docs/ux-static.md`; its declarations file `docs/uxui-declarations.md`, the studio's `ess/ui/studio.uxui.yaml`) |
+| `engine/browser/` | `ux-browser@1`, the browser adapter (`docs/browser-adapter.md`): Chromium driven over its own DevTools-protocol client (WebSocket, JSON, no crate), a static server for a built site, the render record `ux-browser-render/1` and the five shared page checks as one `ratchet-evidence/1` document per run; `examples/` holds the declarations of the documentation landing page and of the first consumer's site; its tests start no browser and read geometry recorded from real runs (`tests/fixtures/`) |
 
 ## Direction
 
@@ -91,8 +92,8 @@ fails on a page that names it.
 the marketplace, `tools/check-plugin.sh` (manifests and marketplaces agree; every skill directory
 has a `SKILL.md` with `name` equal to the directory and a `description`; every `references/` path
 a skill names exists), `tools/docs.sh check`, `tools/check-plugin.test.sh`, `tools/release.test.sh` and `tools/docs.test.sh`,
-which prove the checks fail on broken copies of the tree (written under `target/`), `cargo test -p uxui-gen`
-and `cargo test -p ux-static`. The whole gate takes a few seconds once the crates are compiled. Building the
+which prove the checks fail on broken copies of the tree (written under `target/`), `cargo test -p uxui-gen`,
+`cargo test -p ux-static` and `cargo test -p ux-browser` (no browser starts in it; the real runs are measurements, `docs/browser-adapter.md`). The whole gate takes a few seconds once the crates are compiled. Building the
 site (`task docs-site`) is not part of the gate.
 
 On a host with a shared build pool the gate runs in two parts:

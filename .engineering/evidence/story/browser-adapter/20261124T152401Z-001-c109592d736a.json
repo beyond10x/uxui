@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-24T15:24:01Z",
+  "actor": "human:operator",
+  "artifact": "story:browser-adapter",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "ux-browser checks on llm docs 58e27a4bb: 135 of 135 per-page metrics equal to llm harness on the same build, 132 of 135 equal to ux/baseline.json",
+    "reference": "engine/browser/examples/llm-docs.evidence.json"
+  }
+}

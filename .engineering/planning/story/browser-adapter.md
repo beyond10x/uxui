@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:browser-adapter
 kind: story
-status: draft
+status: implemented
 title: Browser adapter
 tags:
 - roadmap-step-5
@@ -13,7 +13,11 @@ relations:
 scope:
 - confidence: inferred
   path: Cargo.toml
-revision: 5
+revision: 8
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-24T15:24:07Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":2,"review_outcome":7}}}
+- {from: "proposed", to: "active", at: "2026-11-24T15:24:07Z", actor: "human:operator", revision: 7, decided_on: {"recorded":{"test_result":2,"review_outcome":7}}}
+- {from: "active", to: "implemented", at: "2026-11-24T15:24:07Z", actor: "human:operator", revision: 8, decided_on: {"recorded":{"test_result":2,"review_outcome":7}}}
 ---
 # Story: Browser adapter
 

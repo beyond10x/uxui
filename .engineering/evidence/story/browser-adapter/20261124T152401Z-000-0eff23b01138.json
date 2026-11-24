@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-24T15:24:01Z",
+  "actor": "human:operator",
+  "artifact": "story:browser-adapter",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check:pool; cargo test -p ux-browser: 58 passed, 0 failed",
+    "reference": "engine/browser/examples/uxui-landing.render.json"
+  }
+}

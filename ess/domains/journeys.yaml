@@ -56,20 +56,24 @@ types:
     variants: [max_states, max_depth, max_virtual_time]
 
   # What one scripted step of a `browser` journey does (docs/targets.md:17: "scripted steps (URLs,
-  # clicks) for a site"): open a URL, or click the element a CSS selector finds.
-  # UNMAPPED: docs/targets.md names URLs and clicks only; typing, scrolling, waiting and an
-  # assertion step ("find the install command", line 65) are not stated. Open question for the
-  # owner.
+  # clicks) for a site"): open a URL, click the element a CSS selector finds, press one key, scroll
+  # the page to its top or bottom, or wait. `press`, `scroll` and `wait` are the steps the browser
+  # adapter `ux-browser@1` takes in the shared page checks (docs/browser-adapter.md): the keyboard
+  # walk presses Tab and Enter, the always-visible check scrolls to the bottom and waits before it
+  # looks again.
+  # UNMAPPED: typing text and an assertion step ("find the install command", docs/targets.md:65)
+  # are not stated. Open question for the owner.
   - name: uxsearch.journeys.ScriptedAction
     kind: enum
-    variants: [visit, click]
+    variants: [visit, click, press, scroll, wait]
 
   - name: uxsearch.journeys.ScriptedStep
     kind: struct
     fields:
       - name: action
         type: uxsearch.journeys.ScriptedAction
-      # The URL or URL path for `visit`, the CSS selector for `click`.
+      # The URL or URL path for `visit`, the CSS selector for `click`, the key for `press` (`Tab`,
+      # `Enter`), `top` or `bottom` for `scroll`, the milliseconds for `wait`.
       - name: target
         type: String
 
@@ -90,9 +94,11 @@ entities:
   # task-completion metrics read.
   # The model fields and the script are Optional so that one record holds either; DeclareJourney
   # refuses a journey with both, with neither, or of the other adapter than its target's.
-  # UNMAPPED: the required nodes and the completion signal are ess-ui/1 node paths; what names them
-  # on a browser page (a CSS selector, or a node path through the lift's binding table) is not
-  # stated. Open question for the owner.
+  # A model journey names its required nodes and completion signal by ess-ui/1 node path; a
+  # scripted journey names them by CSS selector, as the browser adapter names every node it reads
+  # (the render record's `nodes[].selector`, the page checks' `css`; docs/browser-adapter.md). A
+  # lifted component maps one to the other through its binding table. DeclareJourney refuses the
+  # other adapter's naming.
   - name: uxsearch.journeys.Journey
     naming:
       summary: A task through the UI, from one ess-ui-test/1 test or one script of steps, bound to one target.
@@ -118,6 +124,12 @@ entities:
       # The node whose appearance says the journey completed.
       - name: completion_signal
         type: Optional<uxsearch.design.NodePath>
+      # A scripted journey's required nodes and completion signal, by CSS selector; empty and
+      # absent for a model journey.
+      - name: required_selectors
+        type: List<uxsearch.design.CssSelector>
+      - name: completion_selector
+        type: Optional<uxsearch.design.CssSelector>
       # The bounds every state space of this journey is enumerated within.
       - name: bounds
         type: uxsearch.journeys.StateSpaceBounds
@@ -396,6 +408,10 @@ commands:
         type: List<uxsearch.design.NodePath>
       - name: completion_signal
         type: Optional<uxsearch.design.NodePath>
+      - name: required_selectors
+        type: List<uxsearch.design.CssSelector>
+      - name: completion_selector
+        type: Optional<uxsearch.design.CssSelector>
       - name: bounds
         type: uxsearch.journeys.StateSpaceBounds
     outcomes:
@@ -447,6 +463,36 @@ commands:
             adapter: ess-ui
         summary: Nothing was declared.
 
+      # A browser page has no ess-ui/1 node paths: a scripted journey names its nodes by selector.
+      - name: node-paths-on-browser
+        when:
+          any:
+            - required_nodes.count > 0
+            - defined(completion_signal)
+        when_related:
+          via: input.target_id
+          predicate: adapter == browser
+        error: uxsearch.journeys.AdapterMismatch
+        payload:
+          uxsearch.journeys.AdapterMismatch:
+            adapter: browser
+        summary: Nothing was declared.
+
+      # An ess-ui target's nodes are node paths of its document, not CSS selectors.
+      - name: selectors-on-ess-ui
+        when:
+          any:
+            - required_selectors.count > 0
+            - defined(completion_selector)
+        when_related:
+          via: input.target_id
+          predicate: {adapter: [ess-ui]}
+        error: uxsearch.journeys.AdapterMismatch
+        payload:
+          uxsearch.journeys.AdapterMismatch:
+            adapter: ess-ui
+        summary: Nothing was declared.
+
       - name: test-refused
         external: the file is not an ess-ui-test/1 file naming the target's document, or holds no such test
         error: uxsearch.journeys.TestRefused
@@ -471,6 +517,8 @@ commands:
           script: input.script
           required_nodes: input.required_nodes
           completion_signal: input.completion_signal
+          required_selectors: input.required_selectors
+          completion_selector: input.completion_selector
           bounds: input.bounds
         emits:
           - uxsearch.journeys.JourneyDeclared
@@ -984,6 +1032,10 @@ views:
         type: List<uxsearch.design.NodePath>
       - name: completion_signal
         type: Optional<uxsearch.design.NodePath>
+      - name: required_selectors
+        type: List<uxsearch.design.CssSelector>
+      - name: completion_selector
+        type: Optional<uxsearch.design.CssSelector>
       - name: state
         type: uxsearch.journeys.Journey.State
     naming:
