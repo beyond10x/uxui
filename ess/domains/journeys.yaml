@@ -1,9 +1,10 @@
 domain: uxsearch.journeys
 
 summary: >-
-  Journeys a target is evaluated on, taken from ess-ui-test/1 tests, and the state space each
-  journey reaches on one variant within declared bounds: every UI state the engine enumerates
-  from fixtures, scripted live events and a virtual clock.
+  Journeys a target is evaluated on, taken from ess-ui-test/1 tests or, on a browser target, from
+  scripted steps, and the state space each journey reaches on one variant within declared bounds:
+  every UI state the engine enumerates from fixtures, scripted live events and a virtual clock, or
+  the pages the scripted steps reach.
 
 naming:
   wire: journeys
@@ -54,15 +55,47 @@ types:
     kind: enum
     variants: [max_states, max_depth, max_virtual_time]
 
+  # What one scripted step of a `browser` journey does (docs/targets.md:17: "scripted steps (URLs,
+  # clicks) for a site"): open a URL, or click the element a CSS selector finds.
+  # UNMAPPED: docs/targets.md names URLs and clicks only; typing, scrolling, waiting and an
+  # assertion step ("find the install command", line 65) are not stated. Open question for the
+  # owner.
+  - name: uxsearch.journeys.ScriptedAction
+    kind: enum
+    variants: [visit, click]
+
+  - name: uxsearch.journeys.ScriptedStep
+    kind: struct
+    fields:
+      - name: action
+        type: uxsearch.journeys.ScriptedAction
+      # The URL or URL path for `visit`, the CSS selector for `click`.
+      - name: target
+        type: String
+
+  # The steps of a scripted journey, in order. Each step's page is one UI state of the journey.
+  - name: uxsearch.journeys.JourneyScript
+    kind: struct
+    fields:
+      - name: steps
+        type: List<uxsearch.journeys.ScriptedStep>
+
 entities:
-  # A journey is a named test of an ess-ui-test/1 file over the target's document. Its steps
-  # must stay inside the target: a component journey drives only nodes under the component's path
-  # (a table's sort, filter and page states), rendered in the target's harness. It is the one
-  # home of the journey's required nodes and completion signal, which the task-completion metrics
-  # read.
+  # A journey has either a model or a script (docs/targets.md:82). On an `ess-ui` target it is a
+  # named test of an ess-ui-test/1 file over the target's document, and its states are enumerated
+  # from the model. On a `browser` target it is a script of steps, and its states are the pages
+  # the steps reach. Its steps must stay inside the target: a component journey drives only nodes
+  # under the component's path (a table's sort, filter and page states), rendered in the target's
+  # harness. It is the one home of the journey's required nodes and completion signal, which the
+  # task-completion metrics read.
+  # The model fields and the script are Optional so that one record holds either; DeclareJourney
+  # refuses a journey with both, with neither, or of the other adapter than its target's.
+  # UNMAPPED: the required nodes and the completion signal are ess-ui/1 node paths; what names them
+  # on a browser page (a CSS selector, or a node path through the lift's binding table) is not
+  # stated. Open question for the owner.
   - name: uxsearch.journeys.Journey
     naming:
-      summary: A task through the UI, from one ess-ui-test/1 test, bound to one target.
+      summary: A task through the UI, from one ess-ui-test/1 test or one script of steps, bound to one target.
     identity:
       name: journey_id
       type: uxsearch.journeys.JourneyId
@@ -71,11 +104,14 @@ entities:
         type: uxsearch.design.TargetId
       - name: name
         type: String
-      # The ess-ui-test/1 file and the test in it (`tests[].name`).
+      # The ess-ui-test/1 file and the test in it (`tests[].name`); present for a model journey.
       - name: test_file
-        type: String
+        type: Optional<String>
       - name: test_name
-        type: String
+        type: Optional<String>
+      # The scripted steps; present for a scripted journey.
+      - name: script
+        type: Optional<uxsearch.journeys.JourneyScript>
       # The nodes a variant must keep for the journey to stay completable.
       - name: required_nodes
         type: List<uxsearch.design.NodePath>
@@ -183,6 +219,9 @@ entities:
         type: Integer
       - name: state_digest
         type: uxsearch.journeys.UiStateDigest
+      # The page node path; for a scripted journey's state, the URL path its step reached.
+      # UNMAPPED: docs/targets.md does not say how a browser state names its page; taken here: the
+      # URL path, held in the node path's place. Open question for the owner.
       - name: page
         type: uxsearch.design.NodePath
       - name: overlay
@@ -239,7 +278,19 @@ errors:
     summary: The file is not an ess-ui-test/1 file of the target's document, or it has no test of that name.
     fields:
       - name: test_file
+        type: Optional<String>
+
+  - name: uxsearch.journeys.JourneySourceInvalid
+    summary: A journey has either a test file and a test name, or a script, and not both; nothing was declared.
+    fields:
+      - name: name
         type: String
+
+  - name: uxsearch.journeys.AdapterMismatch
+    summary: A model journey needs an ess-ui target and a scripted journey a browser target; nothing was declared.
+    fields:
+      - name: adapter
+        type: uxsearch.design.AdapterKind
 
   - name: uxsearch.journeys.OutsideTarget
     summary: A step of the test drives a node outside the target's path, so the journey is not bound.
@@ -336,9 +387,11 @@ commands:
       - name: name
         type: String
       - name: test_file
-        type: String
+        type: Optional<String>
       - name: test_name
-        type: String
+        type: Optional<String>
+      - name: script
+        type: Optional<uxsearch.journeys.JourneyScript>
       - name: required_nodes
         type: List<uxsearch.design.NodePath>
       - name: completion_signal
@@ -346,6 +399,20 @@ commands:
       - name: bounds
         type: uxsearch.journeys.StateSpaceBounds
     outcomes:
+      # Either a test file with a test name, or a script: not both, not neither, not half a test.
+      - name: source-invalid
+        when:
+          any:
+            - all: [{not: defined(test_file)}, {not: defined(script)}]
+            - all: [defined(test_file), defined(script)]
+            - all: [defined(test_file), {not: defined(test_name)}]
+            - all: [defined(test_name), {not: defined(test_file)}]
+        error: uxsearch.journeys.JourneySourceInvalid
+        payload:
+          uxsearch.journeys.JourneySourceInvalid:
+            name: input.name
+        summary: Nothing was declared.
+
       - name: no-target
         when_related:
           via: input.target_id
@@ -354,6 +421,30 @@ commands:
         payload:
           uxsearch.journeys.TargetNotFound:
             target_id: input.target_id
+        summary: Nothing was declared.
+
+      # A browser target has no model to enumerate states from.
+      - name: model-on-browser
+        when: defined(test_file)
+        when_related:
+          via: input.target_id
+          predicate: adapter == browser
+        error: uxsearch.journeys.AdapterMismatch
+        payload:
+          uxsearch.journeys.AdapterMismatch:
+            adapter: browser
+        summary: Nothing was declared.
+
+      # An ess-ui target's states are enumerated from its model, not walked by a script.
+      - name: script-on-ess-ui
+        when: defined(script)
+        when_related:
+          via: input.target_id
+          predicate: {adapter: [ess-ui]}
+        error: uxsearch.journeys.AdapterMismatch
+        payload:
+          uxsearch.journeys.AdapterMismatch:
+            adapter: ess-ui
         summary: Nothing was declared.
 
       - name: test-refused
@@ -365,7 +456,7 @@ commands:
         summary: Nothing was declared.
 
       - name: outside-target
-        external: a step of the test, a required node or the completion signal names a node path outside the target's node path or members
+        external: a step of the test, a required node or the completion signal names a node path outside the target's node path or members; a scripted step leaves the target's base URL
         error: uxsearch.journeys.OutsideTarget
         summary: Nothing was declared.
 
@@ -377,6 +468,7 @@ commands:
           name: input.name
           test_file: input.test_file
           test_name: input.test_name
+          script: input.script
           required_nodes: input.required_nodes
           completion_signal: input.completion_signal
           bounds: input.bounds
@@ -883,9 +975,11 @@ views:
       - name: name
         type: String
       - name: test_file
-        type: String
+        type: Optional<String>
       - name: test_name
-        type: String
+        type: Optional<String>
+      - name: script
+        type: Optional<uxsearch.journeys.JourneyScript>
       - name: required_nodes
         type: List<uxsearch.design.NodePath>
       - name: completion_signal

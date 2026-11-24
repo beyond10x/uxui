@@ -1,9 +1,11 @@
 domain: uxsearch.design
 
 summary: >-
-  The base document, the target a campaign optimises inside it, the design space declared on that
-  target as axes of finite values, the mutation operators that realise an axis value, and the
-  variants they produce, each identified by the digest of its canonical document.
+  The base document, the target a campaign optimises inside it and the adapter it is evaluated
+  through, the design space declared on that target as axes of finite values, the mutation
+  operators and source patches that realise an axis value, the variants they produce, each
+  identified by the digest of its canonical document, and the components lifted from a browser
+  page with their binding tables.
 
 naming:
   wire: design
@@ -122,6 +124,94 @@ types:
     kind: enum
     variants: [base, search, manual]
 
+  # What the engine materializes, renders and enumerates a target through (docs/targets.md:9-30).
+  # `ess-ui`: an ess-ui/1 document on the layout model, no I/O, states enumerated from the model.
+  # `browser`: any page with a URL; materialize writes the variant's source files and builds them,
+  # render is a headless browser, states are a journey's scripted steps.
+  - name: uxsearch.design.AdapterKind
+    kind: enum
+    variants: [ess-ui, browser]
+
+  # What a `browser` target needs beyond its base (docs/targets.md:79): the URL its page is served
+  # at once built, and the command that builds the site from its source files.
+  - name: uxsearch.design.BrowserTarget
+    kind: struct
+    fields:
+      - name: base_url
+        type: String
+      - name: build_command
+        type: String
+
+  # A CSS selector on a rendered page (`header.hero`, `a[href$='install']`).
+  - name: uxsearch.design.CssSelector
+    kind: newtype
+    of: String
+
+  # How a source patch addresses its place in the file (docs/targets.md:80): a JSON pointer into a
+  # JSON file, or the name of a CSS custom property.
+  - name: uxsearch.design.SourcePatchKind
+    kind: enum
+    variants: [json_pointer, css_variable]
+
+  # One change an axis value makes to a named source file of a `browser` target: the value at a
+  # JSON pointer, or the value of a CSS variable. `file` is relative to the base's source root.
+  # UNMAPPED: docs/targets.md:80 names the two kinds and no other (a whole replaced file, a text
+  # patch); open question for the owner whether these two are all.
+  - name: uxsearch.design.SourcePatch
+    kind: struct
+    fields:
+      - name: file
+        type: String
+      - name: kind
+        type: uxsearch.design.SourcePatchKind
+      # The JSON pointer (`/theme/default`) or the CSS variable (`--ifm-background-color`).
+      - name: at
+        type: String
+      - name: value
+        type: Json
+
+  - name: uxsearch.design.LiftId
+    kind: newtype
+    of: Uuid
+
+  # One row of a binding table: a node of the lifted ess-ui/1 document and the element of the real
+  # page it stands for (docs/targets.md:42, 47-49).
+  - name: uxsearch.design.Binding
+    kind: struct
+    fields:
+      - name: node_path
+        type: uxsearch.design.NodePath
+      - name: selector
+        type: uxsearch.design.CssSelector
+
+  # The funnel's binding table (node path <-> CSS selector): what makes "when the scaffold moves,
+  # the page moves". A change to the lifted document is a change to known nodes of the real page,
+  # so stage 2 applies a variant of stage 1 to the page through it (docs/targets.md:44).
+  # UNMAPPED: whether one node binds one element, or a node may bind several (a list's rows), is
+  # not stated. Taken here: one selector per node, which may match several elements. Open
+  # question for the owner.
+  - name: uxsearch.design.BindingTable
+    kind: struct
+    fields:
+      - name: bindings
+        type: List<uxsearch.design.Binding>
+
+  # What the lift-fidelity check compares (docs/targets.md:53-54): the rendered lifted document
+  # against the component as the page shows it.
+  - name: uxsearch.design.FidelityAspect
+    kind: enum
+    variants: [nodes, order, actions, names]
+
+  - name: uxsearch.design.FidelityMismatch
+    kind: struct
+    fields:
+      - name: aspect
+        type: uxsearch.design.FidelityAspect
+      - name: node_path
+        type: Optional<uxsearch.design.NodePath>
+      - name: detail
+        type: String
+
   - name: uxsearch.design.OperatorApplication
     kind: struct
     fields:
@@ -155,9 +245,65 @@ types:
         type: List<uxsearch.design.OperatorApplication>
 
 entities:
+  # Funnel stage 0 (docs/targets.md:40-56): a model lifts one component of a browser target's page
+  # into an intermediate ess-ui/1 document, with fixtures of the page's real content and a binding
+  # table. The engine then renders the lifted document and compares it with the component as the
+  # page shows it (nodes, order, actions, names). A faithful lift is Verified and may be
+  # registered as the base document of an `ess-ui` target, which stage 1 searches; an unfaithful
+  # one is Refused, never registered, so never searched.
+  - name: uxsearch.design.LiftedComponent
+    naming:
+      summary: One component of a browser page lifted into an ess-ui/1 document, with its fixtures and binding table.
+    identity:
+      name: lift_id
+      type: uxsearch.design.LiftId
+    fields:
+      # The browser target whose page holds the component.
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: component
+        type: String
+      - name: document_path
+        type: String
+      - name: document_digest
+        type: uxsearch.design.DocumentDigest
+      # The fixtures holding the page's real content, which the lifted document renders.
+      - name: fixtures_path
+        type: String
+      - name: fixtures_digest
+        type: uxsearch.design.DocumentDigest
+      - name: binding_table
+        type: uxsearch.design.BindingTable
+      # What the render did not reproduce; empty unless Refused.
+      - name: mismatches
+        type: List<uxsearch.design.FidelityMismatch>
+    relations:
+      - {name: target, kind: references, target: uxsearch.design.Target, cardinality: one, via: target_id}
+    lifecycle:
+      initial: Proposed
+      states:
+        - Proposed
+        - {name: Verified, summary: "The lifted document renders the component's nodes, order, actions and names as the page shows them."}
+        - {name: Refused, summary: "The render did not reproduce the component's structure; the lift is not searched."}
+      terminal: [Verified, Refused]
+      transitions:
+        - name: verify
+          from: [Proposed]
+          to: Verified
+        - name: refuse
+          from: [Proposed]
+          to: Refused
+
+  # For an `ess-ui` target the base is the ess-ui/1 document. For a `browser` target it is the
+  # site's source tree: `path` is its source root and `document_digest` the digest of its source
+  # files, so a variant's digest is the digest of the patched files.
+  # UNMAPPED: docs/targets.md names the base of a browser target only by example (`product.json`
+  # plus a CSS file, lines 15 and 74). Taken here: the source tree registered as a base document
+  # whose adapter is `browser`. Open question for the owner: is the base the whole tree, or only
+  # the files the design space patches?
   - name: uxsearch.design.BaseDocument
     naming:
-      summary: The ess-ui/1 document being improved, at one revision.
+      summary: The ess-ui/1 document, or a browser target's source tree, being improved, at one revision.
     identity:
       name: base_document_id
       type: uxsearch.design.BaseDocumentId
@@ -168,12 +314,19 @@ entities:
         type: String
       - name: document_digest
         type: uxsearch.design.DocumentDigest
+      # The adapter every target of this base is evaluated through.
+      - name: adapter
+        type: uxsearch.design.AdapterKind
       # The revision this one follows: an accepted promotion's diff, merged as a reviewed change,
       # registers the next revision of the document with `supersedes` naming the one it changed.
       - name: supersedes
         type: Optional<uxsearch.design.BaseDocumentId>
+      # The Verified lift this document is, when it was lifted from a browser page.
+      - name: lifted_from
+        type: Optional<uxsearch.design.LiftId>
     relations:
       - {name: previous, kind: references, target: uxsearch.design.BaseDocument, cardinality: one, via: supersedes}
+      - {name: lift, kind: references, target: uxsearch.design.LiftedComponent, cardinality: one, via: lifted_from}
       - name: targets
         kind: owns
         target: uxsearch.design.Target
@@ -244,6 +397,16 @@ entities:
       # ESS has no harness that renders one composite or widget alone today (GAPS.md).
       - name: harness_widths_px
         type: List<Integer>
+      # The adapter the target names (docs/targets.md:79), always its base document's.
+      - name: adapter
+        type: uxsearch.design.AdapterKind
+      # Present exactly for a `browser` target: its base URL and build command.
+      # UNMAPPED: what locates a section or a component of a browser target on its page (a CSS
+      # selector, a URL fragment) is not stated in docs/targets.md:79; `node_path` holds an
+      # ess-ui/1 node path only. Taken here: a browser target is a page or the product, at its
+      # base URL. Open question for the owner.
+      - name: browser
+        type: Optional<uxsearch.design.BrowserTarget>
     relations:
       - name: design_spaces
         kind: owns
@@ -369,8 +532,12 @@ entities:
         type: uxsearch.design.AxisId
       - name: name
         type: String
+      # For an `ess-ui` target: the operator applications on the document.
       - name: applications
         type: List<uxsearch.design.OperatorApplication>
+      # For a `browser` target: the patches to named source files (docs/targets.md:80).
+      - name: patches
+        type: List<uxsearch.design.SourcePatch>
     lifecycle:
       initial: Declared
       states: [Declared]
@@ -510,6 +677,7 @@ actors:
       - uxsearch.promotion.DispositionJudgement
       - uxsearch.promotion.SupersedePromotion
       - uxsearch.design.RegisterBaseDocument
+      - uxsearch.design.RegisterLiftedDocument
       - uxsearch.design.DeclareTarget
       - uxsearch.design.DeclareDesignSpace
       - uxsearch.design.AddAxis
@@ -533,6 +701,18 @@ actors:
       - uxsearch.design.ResolveAxisSwitch
       - uxsearch.design.FailAxisSwitch
       - uxsearch.promotion.ApplyPromotion
+      - uxsearch.promotion.RecordSourceDiff
+      - uxsearch.design.RecordLiftFidelity
+
+  # Funnel stage 0: "a model proposes" a lift (docs/targets.md:42). A caller with a credential of
+  # its own, like the engine's workers; the engine, not the lifter, records whether the lift is
+  # faithful.
+  - name: uxsearch.design.Lifter
+    naming:
+      display: Lifter
+      summary: The model that proposes a lift of one component of a page. Not a person.
+    may:
+      - uxsearch.design.ProposeLift
 
 errors:
   - name: uxsearch.design.DocumentRefused
@@ -655,6 +835,60 @@ errors:
       - name: inner_target_id
         type: uxsearch.design.TargetId
 
+  - name: uxsearch.design.BrowserSiteMissing
+    summary: A browser target needs its base URL and build command, so nothing was declared.
+    fields:
+      - name: base_document_id
+        type: uxsearch.design.BaseDocumentId
+
+  - name: uxsearch.design.AdapterMismatch
+    summary: The input is of the other adapter than the target's, so nothing was declared or added.
+    fields:
+      - name: adapter
+        type: uxsearch.design.AdapterKind
+
+  - name: uxsearch.design.LiftNotFound
+    summary: No lift has this id, so nothing was registered.
+    fields:
+      - name: lift_id
+        type: uxsearch.design.LiftId
+
+  - name: uxsearch.design.LiftNotVerified
+    summary: The lift is not Verified, so its document is not registered and not searched.
+    fields:
+      - name: lift_id
+        type: uxsearch.design.LiftId
+
+  - name: uxsearch.design.LiftDocumentRefused
+    summary: The lifted document fails `ess ui check`, or a binding names a node it does not hold; nothing was proposed.
+    fields:
+      - name: document_path
+        type: String
+
+  - name: uxsearch.design.BindingTableEmpty
+    summary: A lift binds at least one node to the page, so nothing was proposed.
+    fields:
+      - name: component
+        type: String
+
+  - name: uxsearch.design.FidelityInconsistent
+    summary: A faithful render names no mismatch, and an unfaithful one at least one; nothing moved.
+    fields:
+      - name: lift_id
+        type: uxsearch.design.LiftId
+
+  - name: uxsearch.design.LiftStateConflict
+    summary: The lift was already verified or refused, so nothing moved.
+    fields:
+      - name: state
+        type: uxsearch.design.LiftedComponent.State
+
+  - name: uxsearch.design.PatchRefused
+    summary: A source patch names a file the base does not hold, or a JSON pointer or CSS variable the file does not have; nothing was added.
+    fields:
+      - name: file
+        type: String
+
 commands:
   - name: uxsearch.design.RegisterBaseDocument
     naming:
@@ -669,6 +903,8 @@ commands:
         type: uxsearch.design.DocumentDigest
       - name: supersedes
         type: Optional<uxsearch.design.BaseDocumentId>
+      - name: adapter
+        type: uxsearch.design.AdapterKind
     outcomes:
       - name: no-previous
         when_related:
@@ -681,7 +917,7 @@ commands:
         summary: The revision it follows is unknown; nothing was registered.
 
       - name: refused
-        external: the file does not load as ess-ui/1, or `ess ui check` reports an error
+        external: "`ess-ui`: the file does not load as ess-ui/1, or `ess ui check` reports an error; `browser`: the path is no source tree"
         error: uxsearch.design.DocumentRefused
         payload:
           uxsearch.design.DocumentRefused:
@@ -696,6 +932,7 @@ commands:
           app: input.app
           document_digest: input.document_digest
           supersedes: input.supersedes
+          adapter: input.adapter
         emits:
           - uxsearch.design.BaseDocumentRegistered
         payload:
@@ -703,6 +940,189 @@ commands:
             base_document_id: {generated: true}
             document_digest: input.document_digest
         summary: The document is registered and its catalog can be read.
+
+  - name: uxsearch.design.ProposeLift
+    naming:
+      wire: propose-lift
+      display: Propose a lift
+      summary: Lift one component of a browser target's page into an ess-ui/1 document with fixtures and a binding table.
+    input:
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: component
+        type: String
+      - name: document_path
+        type: String
+      - name: document_digest
+        type: uxsearch.design.DocumentDigest
+      - name: fixtures_path
+        type: String
+      - name: fixtures_digest
+        type: uxsearch.design.DocumentDigest
+      - name: binding_table
+        type: uxsearch.design.BindingTable
+    outcomes:
+      - name: bindings-empty
+        when: binding_table.bindings.count == 0
+        error: uxsearch.design.BindingTableEmpty
+        payload:
+          uxsearch.design.BindingTableEmpty:
+            component: input.component
+        summary: A lift no node of which maps to the page cannot be projected back; nothing was proposed.
+
+      - name: no-target
+        when_related:
+          via: input.target_id
+          exists: false
+        error: uxsearch.design.TargetNotFound
+        payload:
+          uxsearch.design.TargetNotFound:
+            target_id: input.target_id
+        summary: Nothing was proposed.
+
+      - name: not-a-page
+        when_related:
+          via: input.target_id
+          predicate: {adapter: [ess-ui]}
+        error: uxsearch.design.AdapterMismatch
+        payload:
+          uxsearch.design.AdapterMismatch:
+            adapter: ess-ui
+        summary: Only a browser target's page is lifted; nothing was proposed.
+
+      - name: document-refused
+        external: the lifted document fails `ess ui check` with its fixtures, or a binding names a node path the document does not hold
+        error: uxsearch.design.LiftDocumentRefused
+        payload:
+          uxsearch.design.LiftDocumentRefused:
+            document_path: input.document_path
+        summary: Nothing was proposed.
+
+      - name: proposed
+        creates: uxsearch.design.LiftedComponent
+        instance: lift_id
+        sets:
+          target_id: input.target_id
+          component: input.component
+          document_path: input.document_path
+          document_digest: input.document_digest
+          fixtures_path: input.fixtures_path
+          fixtures_digest: input.fixtures_digest
+          binding_table: input.binding_table
+          mismatches: []
+        emits:
+          - uxsearch.design.LiftProposed
+        payload:
+          uxsearch.design.LiftProposed:
+            lift_id: {generated: true}
+            target_id: input.target_id
+        summary: The lift is Proposed; the engine renders it and compares it with the page.
+
+  # The render-and-compare of docs/targets.md:42: the engine renders the lifted document and
+  # compares nodes, order, actions and names with the component on the page.
+  - name: uxsearch.design.RecordLiftFidelity
+    naming:
+      wire: record-lift-fidelity
+      display: Record a lift's fidelity
+    input:
+      - name: lift_id
+        type: uxsearch.design.LiftId
+      - name: reproduces
+        type: Boolean
+      - name: mismatches
+        type: List<uxsearch.design.FidelityMismatch>
+    outcomes:
+      - name: inconsistent
+        when:
+          any:
+            - all: [reproduces == true, mismatches.count > 0]
+            - all: [reproduces == false, mismatches.count == 0]
+        error: uxsearch.design.FidelityInconsistent
+        payload:
+          uxsearch.design.FidelityInconsistent:
+            lift_id: input.lift_id
+        summary: Nothing moved.
+
+      - name: unfaithful
+        when: reproduces == false
+        moves: uxsearch.design.LiftedComponent.refuse
+        instance: lift_id
+        sets:
+          mismatches: input.mismatches
+        emits:
+          - uxsearch.design.LiftRejected
+        payload:
+          uxsearch.design.LiftRejected:
+            lift_id: input.lift_id
+        summary: The lift is Refused with what its render did not reproduce; it is never searched.
+
+      - name: faithful
+        moves: uxsearch.design.LiftedComponent.verify
+        instance: lift_id
+        emits:
+          - uxsearch.design.LiftVerified
+        payload:
+          uxsearch.design.LiftVerified:
+            lift_id: input.lift_id
+        summary: The lift is Verified; its document may become the base of an ess-ui target.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.design.LiftStateConflict
+        summary: The lift was already verified or refused.
+
+  # A Verified lift's document becomes the base document of `ess-ui` targets, which stage 1
+  # searches. Split from RegisterBaseDocument, as the cache lookups are (GAPS.md G14): the lift
+  # guards on an Optional input of the general command left its `registered` branch without a
+  # synthesized scenario, and with it every target, design space and journey after it.
+  - name: uxsearch.design.RegisterLiftedDocument
+    naming:
+      wire: register-lifted-document
+      display: Register a lifted document
+    input:
+      - name: lift_id
+        type: uxsearch.design.LiftId
+      - name: app
+        type: String
+    outcomes:
+      - name: no-lift
+        when_related:
+          via: input.lift_id
+          exists: false
+        error: uxsearch.design.LiftNotFound
+        payload:
+          uxsearch.design.LiftNotFound:
+            lift_id: input.lift_id
+        summary: Nothing was registered.
+
+      # Lift fidelity (docs/targets.md:53-54): a lift whose render did not reproduce the
+      # component's structure, or that was not checked yet, is refused, never searched.
+      - name: lift-not-verified
+        when_related:
+          via: input.lift_id
+          predicate: state != Verified
+        error: uxsearch.design.LiftNotVerified
+        payload:
+          uxsearch.design.LiftNotVerified:
+            lift_id: input.lift_id
+        summary: Nothing was registered; no target, so no campaign, can search the lift.
+
+      - name: registered
+        creates: uxsearch.design.BaseDocument
+        instance: base_document_id
+        sets:
+          path: {related: {via: input.lift_id, field: document_path}}
+          app: input.app
+          document_digest: {related: {via: input.lift_id, field: document_digest}}
+          adapter: ess-ui
+          lifted_from: input.lift_id
+        emits:
+          - uxsearch.design.BaseDocumentRegistered
+        payload:
+          uxsearch.design.BaseDocumentRegistered:
+            base_document_id: {generated: true}
+            document_digest: {related: {via: input.lift_id, field: document_digest}}
+        summary: The lifted document is an ess-ui base document; targets on it are searched without a browser.
 
   - name: uxsearch.design.DeclareTarget
     naming:
@@ -722,7 +1142,35 @@ commands:
         type: List<uxsearch.design.NodePath>
       - name: harness_widths_px
         type: List<Integer>
+      # The adapter the target names (docs/targets.md:79); it is its base document's adapter.
+      - name: adapter
+        type: uxsearch.design.AdapterKind
+      # A browser target's base URL and build command; absent for an `ess-ui` target.
+      - name: browser
+        type: Optional<uxsearch.design.BrowserTarget>
     outcomes:
+      - name: browser-site-missing
+        when:
+          all:
+            - adapter == browser
+            - {not: defined(browser)}
+        error: uxsearch.design.BrowserSiteMissing
+        payload:
+          uxsearch.design.BrowserSiteMissing:
+            base_document_id: input.base_document_id
+        summary: A browser target is built and served from its base URL and build command; nothing was declared.
+
+      - name: site-on-ess-ui
+        when:
+          all:
+            - {adapter: [ess-ui]}
+            - defined(browser)
+        error: uxsearch.design.AdapterMismatch
+        payload:
+          uxsearch.design.AdapterMismatch:
+            adapter: input.adapter
+        summary: An ess-ui/1 document is not built or served; nothing was declared.
+
       - name: no-base-document
         when_related:
           via: input.base_document_id
@@ -732,6 +1180,16 @@ commands:
           uxsearch.design.BaseDocumentNotFound:
             base_document_id: input.base_document_id
         summary: Nothing was declared.
+
+      - name: adapter-of-another-base
+        when_related:
+          via: input.base_document_id
+          predicate: adapter != input.adapter
+        error: uxsearch.design.AdapterMismatch
+        payload:
+          uxsearch.design.AdapterMismatch:
+            adapter: input.adapter
+        summary: A target is evaluated through its base document's adapter; nothing was declared.
 
       - name: not-found
         external: the base document has no node at the path, or no node at a member path
@@ -757,6 +1215,8 @@ commands:
           members: input.members
           host_slot: {generated: true}
           harness_widths_px: input.harness_widths_px
+          adapter: input.adapter
+          browser: input.browser
         emits:
           - uxsearch.design.TargetDeclared
         payload:
@@ -1034,6 +1494,8 @@ commands:
         type: String
       - name: applications
         type: List<uxsearch.design.OperatorApplication>
+      - name: patches
+        type: List<uxsearch.design.SourcePatch>
     outcomes:
       - name: no-axis
         when_related:
@@ -1069,9 +1531,21 @@ commands:
 
       # The operator's validity guarantee, checked where the value is declared: every
       # application's precondition holds on the base document and the result passes `ess ui check`.
+      # The target is three relations away (value -> axis -> design space -> target), which a
+      # `when_related` guard does not reach (GAPS.md G8), so the engine answers it.
+      - name: adapter-mismatch
+        external: the value carries operator applications and the axis's target is a `browser` target, or source patches and the target is an `ess-ui` target
+        error: uxsearch.design.AdapterMismatch
+        summary: Operators change an ess-ui/1 document, patches change a browser target's source files; nothing was added.
+
       - name: operator-refused
         external: an application's precondition does not hold, or its result fails `ess ui check`
         error: uxsearch.design.OperatorRefused
+        summary: Nothing was added.
+
+      - name: patch-refused
+        external: a patch names a file the base's source tree does not hold, or a JSON pointer or CSS variable the file does not have
+        error: uxsearch.design.PatchRefused
         summary: Nothing was added.
 
       - name: added
@@ -1081,6 +1555,7 @@ commands:
           axis_id: input.axis_id
           name: input.name
           applications: input.applications
+          patches: input.patches
         emits:
           - uxsearch.design.AxisValueAdded
         payload:
@@ -1142,7 +1617,7 @@ commands:
         summary: The route names another design space than the one given; no variant was made.
 
       - name: operator-defect
-        external: an operator application's result fails `ess ui check`
+        external: "`ess-ui`: an operator application's result fails `ess ui check`; `browser`: a patch does not apply, or the build command fails on the patched files"
         before_row: true
         error: uxsearch.design.OperatorRefused
         summary: No variant was made; the operator is defective.
@@ -1326,6 +1801,23 @@ commands:
         summary: The switch was already resolved or failed.
 
 events:
+  - name: uxsearch.design.LiftProposed
+    fields:
+      - name: lift_id
+        type: uxsearch.design.LiftId
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.design.LiftVerified
+    fields:
+      - name: lift_id
+        type: uxsearch.design.LiftId
+
+  - name: uxsearch.design.LiftRejected
+    fields:
+      - name: lift_id
+        type: uxsearch.design.LiftId
+
   - name: uxsearch.design.UxDeclarationsRegistered
     fields:
       - name: ux_declarations_id
@@ -1420,6 +1912,32 @@ events:
         type: uxsearch.design.VariantDigest
 
 views:
+  - name: uxsearch.design.LiftedComponents
+    source: uxsearch.design.LiftedComponent
+    consistency: read_your_writes
+    fields:
+      - name: lift_id
+        type: uxsearch.design.LiftId
+      - name: target_id
+        type: uxsearch.design.TargetId
+      - name: component
+        type: String
+      - name: document_path
+        type: String
+      - name: document_digest
+        type: uxsearch.design.DocumentDigest
+      - name: fixtures_path
+        type: String
+      - name: binding_table
+        type: uxsearch.design.BindingTable
+      - name: mismatches
+        type: List<uxsearch.design.FidelityMismatch>
+      - name: state
+        type: uxsearch.design.LiftedComponent.State
+    naming:
+      wire: lifted-components
+      display: Lifted components
+
   - name: uxsearch.design.BaseDocuments
     source: uxsearch.design.BaseDocument
     consistency: read_your_writes
@@ -1432,6 +1950,10 @@ views:
         type: String
       - name: document_digest
         type: uxsearch.design.DocumentDigest
+      - name: adapter
+        type: uxsearch.design.AdapterKind
+      - name: lifted_from
+        type: Optional<uxsearch.design.LiftId>
       - name: state
         type: uxsearch.design.BaseDocument.State
     naming:
@@ -1454,6 +1976,10 @@ views:
         type: Optional<uxsearch.design.NodePath>
       - name: host_slot
         type: Boolean
+      - name: adapter
+        type: uxsearch.design.AdapterKind
+      - name: browser
+        type: Optional<uxsearch.design.BrowserTarget>
       - name: state
         type: uxsearch.design.Target.State
     naming:
@@ -1479,6 +2005,8 @@ views:
         type: Optional<uxsearch.design.NodePath>
       - name: host_slot
         type: Boolean
+      - name: adapter
+        type: uxsearch.design.AdapterKind
     naming:
       wire: target-catalog
       display: Target catalog
@@ -1501,6 +2029,10 @@ views:
         type: Optional<uxsearch.design.NodePath>
       - name: host_slot
         type: Boolean
+      - name: adapter
+        type: uxsearch.design.AdapterKind
+      - name: browser
+        type: Optional<uxsearch.design.BrowserTarget>
     naming:
       wire: target
       display: Target
@@ -1574,6 +2106,8 @@ views:
         type: uxsearch.design.AxisId
       - name: name
         type: String
+      - name: patches
+        type: List<uxsearch.design.SourcePatch>
       - name: state
         type: uxsearch.design.AxisValue.State
     naming:

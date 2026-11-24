@@ -1,8 +1,9 @@
 domain: uxsearch.evaluation
 
 summary: >-
-  Environments a target is evaluated in, the layout model's contract, and evaluations: every
-  metric for one variant on one state space in one environment. An evaluation is a pure function
+  Environments a target is evaluated in, the contract of each adapter's renderer (the layout model
+  for ess-ui, a headless browser for browser), and evaluations: every metric for one variant on
+  one state space in one environment. An evaluation is a pure function
   of its input digests, so it is keyed by them and computed once.
 
 naming:
@@ -20,7 +21,8 @@ types:
     prefix: "sha256:"
 
   # The digest of every input digest of an evaluation: variant, state space (which holds the
-  # fixture digest), environment, layout model version (with its font table), metric catalogue
+  # fixture digest), environment, renderer (the layout model version with its font table for
+  # `ess-ui`, the browser version for `browser`: the adapter and its version), metric catalogue
   # and UX declarations. Same key, same metric values.
   - name: uxsearch.evaluation.EvaluationKey
     kind: newtype
@@ -125,9 +127,16 @@ entities:
   # Layout model versions ship with the engine. A new version is a new evidence series in ratchet.
   # D1 (2026-11-23): version 0 is ESS's terminal renderer (cell geometry, `geometry: cells`); a
   # pixel model (`css_px`) comes later. Every evidence record names the version it used.
+  # Round 3 (docs/targets.md:83-84): the layout model is one adapter's renderer. A row is the
+  # renderer of one adapter at one version: `layout-model/0` renders for `ess-ui`, a headless
+  # browser version (`browser/1`, `css_px`) for `browser`. The evaluation key names the row, so it
+  # holds the adapter and its version, and a value measured in a browser never answers for the
+  # cell model (ReuseEvaluation's `key-collision`). The name `LayoutModel` is kept so that the
+  # records that copy `layout_model_version` (rule verdicts, ratchet evidence, campaigns) stay as
+  # they are.
   - name: uxsearch.evaluation.LayoutModel
     naming:
-      summary: One version of the deterministic layout model, known by its contract.
+      summary: One version of one adapter's renderer, known by its contract; the deterministic layout model for ess-ui.
     identity:
       name: version
       type: uxsearch.evaluation.LayoutModelVersion
@@ -135,6 +144,8 @@ entities:
     fields:
       - name: summary
         type: String
+      - name: adapter
+        type: uxsearch.design.AdapterKind
       - name: geometry
         type: uxsearch.evaluation.GeometryUnit
       # The digest of the font-metrics table the version lays text out with; absent for the
@@ -288,6 +299,12 @@ errors:
 
   - name: uxsearch.evaluation.LayoutModelNotFound
     summary: The engine ships no layout model of this version.
+    fields:
+      - name: version
+        type: uxsearch.evaluation.LayoutModelVersion
+
+  - name: uxsearch.evaluation.RendererMismatch
+    summary: The renderer renders for another adapter than the target's, so nothing is evaluated with it.
     fields:
       - name: version
         type: uxsearch.evaluation.LayoutModelVersion
@@ -497,6 +514,17 @@ commands:
           uxsearch.evaluation.VariantPruned:
             variant_digest: input.variant_digest
         summary: Nothing was requested.
+
+      # The renderer renders for one adapter, and the variant's target names the adapter it is
+      # evaluated through. The target is two relations from the input (environment -> target ->
+      # adapter), which `when_related` does not reach (GAPS.md G8), so the evaluator answers it.
+      - name: renderer-of-another-adapter
+        external: the renderer's adapter is not the adapter of the environment's target
+        error: uxsearch.evaluation.RendererMismatch
+        payload:
+          uxsearch.evaluation.RendererMismatch:
+            version: input.layout_model_version
+        summary: Nothing was requested; a browser target is never evaluated on the cell model, nor an ess-ui target in a browser.
 
       - name: requested
         creates: uxsearch.evaluation.Evaluation
@@ -789,6 +817,10 @@ views:
         type: uxsearch.evaluation.LayoutModelVersion
       - name: summary
         type: String
+      - name: adapter
+        type: uxsearch.design.AdapterKind
+      - name: geometry
+        type: uxsearch.evaluation.GeometryUnit
       - name: state
         type: uxsearch.evaluation.LayoutModel.State
     naming:

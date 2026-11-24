@@ -12,11 +12,13 @@ specification:
   - domains/promotion.yaml
   - domains/ratchet.yaml
 scenarios:
+  - scenarios/browser-target-from-patch-to-promotion.yaml
   - scenarios/complete-count-matches-its-states.yaml
   - scenarios/evaluation-key-matches-its-inputs.yaml
   - scenarios/evidence-copies-its-evaluation.yaml
   - scenarios/frontier-needs-evidence.yaml
   - scenarios/latest-gate-decides.yaml
+  - scenarios/lift-must-reproduce-the-component.yaml
   - scenarios/only-the-owner-accepts-a-trade-off.yaml
   - scenarios/trade-off-needs-a-clean-fail.yaml
   - scenarios/unevaluable-state-is-insufficient.yaml

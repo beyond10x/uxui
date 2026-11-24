@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-24T13:14:46Z",
+  "actor": "human:operator",
+  "artifact": "story:spec-round-3-target-adapter",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "ess specify validate --path ess: uxsearch v1 — 10 file(s), 12 scenario(s), valid",
+    "reference": "ess/scenarios/browser-target-from-patch-to-promotion.yaml"
+  }
+}

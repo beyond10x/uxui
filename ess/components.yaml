@@ -27,6 +27,9 @@ components:
         - uxsearch.design.RequestAxisSwitch
         - uxsearch.design.ResolveAxisSwitch
         - uxsearch.design.FailAxisSwitch
+        - uxsearch.design.ProposeLift
+        - uxsearch.design.RecordLiftFidelity
+        - uxsearch.design.RegisterLiftedDocument
         - uxsearch.journeys.DeclareJourney
         - uxsearch.journeys.RetireJourney
         - uxsearch.journeys.EnumerateStateSpace
@@ -61,6 +64,7 @@ components:
         - uxsearch.promotion.AcceptTradeOff
         - uxsearch.promotion.RejectPromotion
         - uxsearch.promotion.ApplyPromotion
+        - uxsearch.promotion.RecordSourceDiff
         - uxsearch.promotion.SupersedePromotion
         - uxsearch.promotion.RecordJudgement
         - uxsearch.promotion.DispositionJudgement
@@ -86,6 +90,9 @@ components:
         - uxsearch.design.AxisSwitchRequested
         - uxsearch.design.AxisSwitchResolved
         - uxsearch.design.AxisSwitchFailed
+        - uxsearch.design.LiftProposed
+        - uxsearch.design.LiftVerified
+        - uxsearch.design.LiftRejected
         - uxsearch.journeys.JourneyDeclared
         - uxsearch.journeys.JourneyRetiredEvent
         - uxsearch.journeys.StateSpaceStarted
@@ -115,6 +122,7 @@ components:
         - uxsearch.promotion.PromotionAccepted
         - uxsearch.promotion.PromotionRejected
         - uxsearch.promotion.PromotionApplied
+        - uxsearch.promotion.SourceDiffRecorded
         - uxsearch.promotion.PromotionSuperseded
         - uxsearch.promotion.JudgementRecorded
         - uxsearch.promotion.JudgementDispositioned

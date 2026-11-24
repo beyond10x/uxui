@@ -1,7 +1,7 @@
 domain: uxsearch.promotion
 
 summary: >-
-  Promotion of a frontier variant: the ess-ui/1 diff it makes to the base document, gated by
+  Promotion of a frontier variant: the diff it makes to the base, per source file, gated by
   ratchet, accepted by a person or an authorized policy. Judgement records: a person's or a
   review agent's pairwise preference or finding on variants, never an input to a gate.
 
@@ -18,8 +18,13 @@ types:
     kind: newtype
     of: Uuid
 
+  - name: uxsearch.promotion.SourceDiffId
+    kind: newtype
+    of: Uuid
+
   # The change a promotion makes, as ess-ui/1 patches against the base document's node paths
-  # (`{patches: [{op, at, node}]}`), read into JSON.
+  # (`{patches: [{op, at, node}]}`), read into JSON. For an `ess-ui` target only; the change of
+  # every target, per source file, is its SourceDiff rows.
   - name: uxsearch.promotion.DocumentDiff
     kind: newtype
     of: Json
@@ -118,6 +123,7 @@ entities:
       - {name: variant, kind: references, target: uxsearch.design.Variant, cardinality: one, via: variant_digest}
       - {name: gate_evidence, kind: references, target: uxsearch.ratchet.EvidenceRecord, cardinality: many, via: gate_evidence_ids}
       - {name: applied_as, kind: references, target: uxsearch.design.BaseDocument, cardinality: one, via: applied_as}
+      - {name: source_diffs, kind: owns, target: uxsearch.promotion.SourceDiff, cardinality: many, via: promotion_id}
     lifecycle:
       initial: Proposed
       states:
@@ -143,6 +149,35 @@ entities:
         - name: supersede
           from: [Proposed, Accepted]
           to: Superseded
+
+  # The promotion's change to one source file (docs/targets.md:85): for a `browser` target one row
+  # per file the variant's patches touch (`website/product.json`, the theme CSS), for an `ess-ui`
+  # target one row for the document. The engine records them while the promotion is Proposed; the
+  # reviewed change (a pull request) is these diffs.
+  # UNMAPPED: the form of one file's diff is not stated; taken here: unified diff text, which a
+  # pull request carries. Open question for the owner.
+  # UNMAPPED: for an `ess-ui` target, `Promotion.diff` and its one SourceDiff state the same change
+  # twice. Open question for the owner: does `diff` go, leaving the per-file rows its one home?
+  # A second diff of the same file for one promotion is not refused: ESS reads no other row of the
+  # same entity here without a row-set guard (GAPS.md G14).
+  - name: uxsearch.promotion.SourceDiff
+    naming:
+      summary: A promotion's change to one source file, as a unified diff.
+    identity:
+      name: source_diff_id
+      type: uxsearch.promotion.SourceDiffId
+    fields:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      # Relative to the base's source root (for `ess-ui`, the document's path).
+      - name: path
+        type: String
+      - name: unified_diff
+        type: String
+    lifecycle:
+      initial: Recorded
+      states: [Recorded]
+      terminal: [Recorded]
 
   - name: uxsearch.promotion.JudgementRecord
     naming:
@@ -409,6 +444,56 @@ commands:
             campaign_id: input.campaign_id
             variant_digest: input.variant_digest
         summary: The diff is computed; ratchet's promote gate is evaluated on the variant's evidence.
+
+  # The engine writes the promotion's change one source file at a time, from the patches the
+  # variant's route chose (docs/targets.md:74, 85).
+  - name: uxsearch.promotion.RecordSourceDiff
+    naming:
+      wire: record-source-diff
+      display: Record a source diff
+    input:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: path
+        type: String
+      - name: unified_diff
+        type: String
+    outcomes:
+      - name: no-promotion
+        when_related:
+          via: input.promotion_id
+          exists: false
+        error: uxsearch.promotion.PromotionNotFound
+        payload:
+          uxsearch.promotion.PromotionNotFound:
+            promotion_id: input.promotion_id
+        summary: Nothing was recorded.
+
+      - name: not-proposed
+        when_related:
+          via: input.promotion_id
+          predicate: state != Proposed
+        error: uxsearch.promotion.PromotionStateConflict
+        payload:
+          uxsearch.promotion.PromotionStateConflict:
+            state: {related: {via: input.promotion_id, field: state}}
+        summary: The change of a decided promotion no longer changes; nothing was recorded.
+
+      - name: recorded
+        creates: uxsearch.promotion.SourceDiff
+        instance: source_diff_id
+        sets:
+          promotion_id: input.promotion_id
+          path: input.path
+          unified_diff: input.unified_diff
+        emits:
+          - uxsearch.promotion.SourceDiffRecorded
+        payload:
+          uxsearch.promotion.SourceDiffRecorded:
+            source_diff_id: {generated: true}
+            promotion_id: input.promotion_id
+            path: input.path
+        summary: The promotion's change to this file is recorded.
 
   # Imported from `ratchet evaluate --gate promote`. The decision replaces the promotion's
   # previous one, so acceptance reads the latest decision only. The input names evidence records
@@ -1041,6 +1126,15 @@ commands:
         summary: The judgement was already dispositioned.
 
 events:
+  - name: uxsearch.promotion.SourceDiffRecorded
+    fields:
+      - name: source_diff_id
+        type: uxsearch.promotion.SourceDiffId
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+      - name: path
+        type: String
+
   - name: uxsearch.promotion.PromotionProposed
     fields:
       - name: promotion_id
@@ -1100,6 +1194,27 @@ events:
         type: uxsearch.promotion.Disposition
 
 views:
+  # The change of one promotion, per source file: what the pull request carries.
+  - name: uxsearch.promotion.SourceDiffsOfPromotion
+    source: uxsearch.promotion.SourceDiff
+    consistency: read_your_writes
+    params:
+      - name: promotion_id
+        type: uxsearch.promotion.PromotionId
+    filter: promotion_id == param.promotion_id
+    fields:
+      - name: source_diff_id
+        type: uxsearch.promotion.SourceDiffId
+      - name: path
+        type: String
+      - name: unified_diff
+        type: String
+      - name: state
+        type: uxsearch.promotion.SourceDiff.State
+    naming:
+      wire: source-diffs-of-promotion
+      display: Source diffs of a promotion
+
   - name: uxsearch.promotion.Promotions
     source: uxsearch.promotion.Promotion
     consistency: read_your_writes

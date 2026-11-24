@@ -1,0 +1,303 @@
+type: ess-scenario/6
+domain: uxsearch.design
+scenario: browser-target-from-patch-to-promotion
+# Round 3 (story spec-round-3-target-adapter; docs/targets.md:9-30, 77-85): a target that is not
+# an ess-ui/1 document. The documentation site's landing page is a `browser` target with a base
+# URL and a build command; an axis value patches a named source file (a JSON pointer into
+# `website/product.json`, a CSS variable in the theme); a journey is scripted steps, not a model;
+# the evaluation is keyed by the browser renderer, never answered from the cell model; and the
+# promotion is recorded as one diff per source file.
+#
+# The landing target is arranged (as declared earlier) so that the promotion, which names the
+# campaign's target, names the same target; the declare acts show what DeclareTarget takes and
+# refuses for a browser target.
+summary: A browser target is patched per source file, walked by scripted steps, evaluated by its renderer and promoted per file
+arrange:
+  - instance: site
+    entity: uxsearch.design.BaseDocument
+    setup:
+      identity: 00000000-0000-4000-8000-000000000110
+      fields:
+        path: website
+        app: uxui-docs
+        document_digest: "sha256:site-0"
+        adapter: browser
+      state: Registered
+  - instance: landing
+    entity: uxsearch.design.Target
+    setup:
+      identity: 00000000-0000-4000-8000-000000000111
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000110
+        name: landing page
+        scope: page
+        members: []
+        host_slot: false
+        harness_widths_px: []
+        adapter: browser
+        browser: {base_url: "http://localhost:3000/uxui/", build_command: npm --prefix website run build}
+      state: Declared
+  - instance: renderer
+    entity: uxsearch.evaluation.LayoutModel
+    setup:
+      identity: browser/1
+      fields:
+        summary: headless browser, boxes, computed styles and accessibility tree in CSS px
+        geometry: css_px
+        adapter: browser
+      state: Available
+  - instance: promotion
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000170
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000150
+        target_id: 00000000-0000-4000-8000-000000000111
+        variant_digest: "sha256:variant-dark"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: the primary action is in view at every viewport
+        gate: pending
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: []
+        losses: []
+        gains: []
+      state: Proposed
+  - {instance: space, entity: uxsearch.design.DesignSpace}
+  - {instance: axis, entity: uxsearch.design.Axis}
+  - {instance: dark, entity: uxsearch.design.AxisValue}
+  - {instance: journey, entity: uxsearch.journeys.Journey}
+  - {instance: desktop, entity: uxsearch.evaluation.Environment}
+timeline:
+  # A browser target without its base URL and build command is refused.
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.design.DeclareTarget
+    actor: uxsearch.design.Designer
+    input:
+      base_document_id: {$instance: site}
+      name: status page
+      scope: page
+      members: []
+      harness_widths_px: []
+      adapter: browser
+    outcome: browser-site-missing
+    no_events: [uxsearch.design.TargetDeclared]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.design.DeclareTarget
+    actor: uxsearch.design.Designer
+    input:
+      base_document_id: {$instance: site}
+      name: status page
+      scope: page
+      members: []
+      harness_widths_px: []
+      adapter: browser
+      browser: {base_url: "http://localhost:3000/uxui/status", build_command: npm --prefix website run build}
+    outcome: declared
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.design.DeclareDesignSpace
+    actor: uxsearch.design.Designer
+    input:
+      target_id: {$instance: landing}
+      name: landing theme
+      component_treatment: fixed
+    outcome: declared
+    events: [{event: uxsearch.design.DesignSpaceDeclared}]
+    capture: {instance: space, event: uxsearch.design.DesignSpaceDeclared, field: design_space_id}
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.design.AddAxis
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: space}
+      name: theme
+      kind: theme
+    outcome: added
+    events: [{event: uxsearch.design.AxisAdded}]
+    capture: {instance: axis, event: uxsearch.design.AxisAdded, field: axis_id}
+  # The value is two patches to named source files, and no ess-ui/1 operator application.
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.design.AddAxisValue
+    actor: uxsearch.design.Designer
+    input:
+      axis_id: {$instance: axis}
+      name: dark
+      applications: []
+      patches:
+        - {file: website/product.json, kind: json_pointer, at: /theme/default, value: dark}
+        - {file: website/src/css/custom.css, kind: css_variable, at: --ifm-background-color, value: "#111318"}
+    outcome: added
+    events: [{event: uxsearch.design.AxisValueAdded}]
+    capture: {instance: dark, event: uxsearch.design.AxisValueAdded, field: axis_value_id}
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.design.FreezeDesignSpace
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: space}
+    outcome: frozen
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.design.MaterializeVariant
+    actor: uxsearch.design.Engine
+    input:
+      variant_digest: "sha256:variant-dark"
+      base_document_id: {$instance: site}
+      target_id: {$instance: landing}
+      design_space_id: {$instance: space}
+      route:
+        design_space_id: {$instance: space}
+        origin: search
+        choices: [{axis_id: {$instance: axis}, axis_value_id: {$instance: dark}}]
+        applications: []
+    outcome: new
+  # A journey of scripted steps: no ess-ui-test/1 test, so its states are the steps it walks.
+  - at: 2026-01-05T09:00:07Z
+    command: uxsearch.journeys.DeclareJourney
+    actor: uxsearch.journeys.JourneyAuthor
+    input:
+      target_id: {$instance: landing}
+      name: install the plugin
+      script:
+        steps:
+          - {action: visit, target: /uxui/}
+          - {action: click, target: "a[href$='install']"}
+      required_nodes: []
+      bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 0}
+    outcome: declared
+    events: [{event: uxsearch.journeys.JourneyDeclared}]
+    capture: {instance: journey, event: uxsearch.journeys.JourneyDeclared, field: journey_id}
+  - at: 2026-01-05T09:00:08Z
+    command: uxsearch.journeys.EnumerateStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: "sha256:space-install"
+      journey_id: {$instance: journey}
+      variant_digest: "sha256:variant-dark"
+      stage: journey_paths
+    outcome: started
+  - at: 2026-01-05T09:00:09Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: "sha256:space-install"
+      seq: 0
+      state_digest: "sha256:step-0"
+      page: /uxui/
+      selection: []
+      virtual_time_ms: 0
+      depth: 0
+      evaluable: true
+    outcome: recorded
+  - at: 2026-01-05T09:00:10Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: "sha256:space-install"
+      seq: 1
+      state_digest: "sha256:step-1"
+      page: /uxui/docs/install
+      selection: []
+      virtual_time_ms: 0
+      depth: 1
+      evaluable: true
+    outcome: recorded
+  - at: 2026-01-05T09:00:11Z
+    command: uxsearch.journeys.CompleteStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: "sha256:space-install"
+      states_count: 2
+    outcome: completed
+  - at: 2026-01-05T09:00:12Z
+    command: uxsearch.evaluation.DeclareEnvironment
+    actor: uxsearch.evaluation.EnvironmentAuthor
+    input:
+      target_id: {$instance: landing}
+      name: Desktop light
+      viewport_width_px: 1440
+      viewport_height_px: 900
+      theme_mode: light
+      input_mode: pointer
+      text_scale_percent: 100
+      reduced_motion: false
+    outcome: declared
+    events: [{event: uxsearch.evaluation.EnvironmentDeclared}]
+    capture: {instance: desktop, event: uxsearch.evaluation.EnvironmentDeclared, field: environment_id}
+  # The key names the browser renderer, which names its adapter and version.
+  - at: 2026-01-05T09:00:13Z
+    command: uxsearch.evaluation.RequestEvaluation
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: "sha256:eval-dark"
+      variant_digest: "sha256:variant-dark"
+      state_space_key: "sha256:space-install"
+      environment_id: {$instance: desktop}
+      layout_model_version: {$instance: renderer}
+      catalogue_digest: "sha256:catalogue-1"
+    outcome: requested
+  # The same key asked for with the cell model is a collision: a value measured in a browser is
+  # never answered for the cell model.
+  - at: 2026-01-05T09:00:14Z
+    command: uxsearch.evaluation.ReuseEvaluation
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: "sha256:eval-dark"
+      variant_digest: "sha256:variant-dark"
+      state_space_key: "sha256:space-install"
+      environment_id: {$instance: desktop}
+      layout_model_version: layout-model/0
+      catalogue_digest: "sha256:catalogue-1"
+    outcome: key-collision
+  - at: 2026-01-05T09:00:15Z
+    command: uxsearch.evaluation.RecordEvaluationResult
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: "sha256:eval-dark"
+      result_digest: "sha256:result-dark"
+      values: [{metric_key: effort.actions, at: journey, value: 2}]
+    outcome: computed
+  # The promotion's change, one diff per source file the variant patched.
+  - at: 2026-01-05T09:00:16Z
+    command: uxsearch.promotion.RecordSourceDiff
+    actor: uxsearch.design.Engine
+    input:
+      promotion_id: {$instance: promotion}
+      path: website/product.json
+      unified_diff: "-  \"default\": \"light\"\n+  \"default\": \"dark\"\n"
+    outcome: recorded
+  - at: 2026-01-05T09:00:17Z
+    command: uxsearch.promotion.RecordSourceDiff
+    actor: uxsearch.design.Engine
+    input:
+      promotion_id: {$instance: promotion}
+      path: website/src/css/custom.css
+      unified_diff: "+  --ifm-background-color: #111318;\n"
+    outcome: recorded
+assert:
+  - view: uxsearch.design.Targets
+    contains: {name: status page, adapter: browser, state: Declared}
+  - view: uxsearch.design.TargetById
+    params: {target_id: {$instance: landing}}
+    contains:
+      adapter: browser
+      browser: {base_url: "http://localhost:3000/uxui/", build_command: npm --prefix website run build}
+  - view: uxsearch.design.AxisValues
+    contains:
+      axis_value_id: {$instance: dark}
+      patches:
+        - {file: website/product.json, kind: json_pointer, at: /theme/default, value: dark}
+        - {file: website/src/css/custom.css, kind: css_variable, at: --ifm-background-color, value: "#111318"}
+  - view: uxsearch.journeys.Journeys
+    contains:
+      journey_id: {$instance: journey}
+      script:
+        steps:
+          - {action: visit, target: /uxui/}
+          - {action: click, target: "a[href$='install']"}
+  - view: uxsearch.evaluation.Evaluations
+    contains: {evaluation_key: "sha256:eval-dark", layout_model_version: browser/1, state: Computed}
+  - view: uxsearch.promotion.SourceDiffsOfPromotion
+    params: {promotion_id: {$instance: promotion}}
+    contains: {path: website/product.json}
+  - view: uxsearch.promotion.SourceDiffsOfPromotion
+    params: {promotion_id: {$instance: promotion}}
+    contains: {path: website/src/css/custom.css}

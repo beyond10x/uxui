@@ -77,6 +77,14 @@ canonical byte form). Marked UNMAPPED in `domains/design.yaml`.
 DesignSpace). `when_related` reads one hop. Marked UNMAPPED; the Frozen space is enforced at
 `AddAxis`, `BindComponent` and `StartCampaign` only.
 
+Round 3 (the target adapter) has two more checks that sit two or three relations away, each an
+`external` branch the engine answers:
+
+- `AddAxisValue/adapter-mismatch`: operator applications on a value of a `browser` target, or source
+  patches on an `ess-ui` target (AxisValue → Axis → DesignSpace → Target).
+- `RequestEvaluation/renderer-of-another-adapter`: the renderer (`LayoutModel.adapter`) is not the
+  adapter of the environment's target (Environment → Target).
+
 ### G9. Preconditions over the document
 
 Mutation operators have preconditions over the base document (a node exists, a node is not a host
@@ -123,11 +131,25 @@ No single domain causes it; removing the row-set guards of every refusal branch 
 59 s. The repository gate does not run synthesis. An ESS performance gap, not yet filed upstream;
 the authored scenarios in `scenarios/` run in under 2 s.
 
+Round 3 (the target adapter, 2026-11-24) adds no row-set guard. On one host synthesis went from
+11 s (135 scenarios, 286 refusals) to 16 s (161 scenarios, 291 refusals); the five new refusals sit
+behind routes that were refused before (`AddAxis/added`, `RequestEvaluation/requested`,
+`ProposePromotion/proposed`). A first draft guarded `RegisterBaseDocument` on an Optional lift
+input; synthesis then reached no `registered` branch, refused every route behind it and took 24 s.
+The lift registration became its own command (`RegisterLiftedDocument`), as the cache lookups did.
+
 ### G15. Fixtures are not typed against the model
 
 `ess ui check --model` and `ess ui test --model` pass fixtures whose rows contradict the view
 types (a digest where a list is declared, a missing struct field, a renamed field). The fixtures
 were corrected by hand (review R22); no check holds them.
+
+### G16. One child row per parent and key
+
+A promotion holds one `SourceDiff` per source file. Refusing a second diff of the same file for
+the same promotion needs a row-set guard over `SourceDiff` (`promotion_id` and `path` equal to the
+input), the construct G14 names as the cost of synthesis. `RecordSourceDiff` does not refuse it;
+the engine writes each file once.
 
 ## Studio document (ess/ui/studio.ui.yaml)
 
