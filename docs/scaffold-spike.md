@@ -42,9 +42,14 @@ What the model had to decide:
 1. The grain: six visible parts became the page title and five sections.
 2. A component for each part. `ess-ui/1` has no plain paragraph: the kicker, the lede and the meta
    line are each a `record` with one labelled field, and the labels ("About", "What it is", "Kind")
-   are invented. The figures are a `collection` table.
+   are invented. The figures are a `collection` table. Correction from the ESS maintainers
+   (2026-11-24, read in the source): `ess-ui/1` 0.98.0 has this; the `text` primitive shows a constant
+   or a row field with no label, inside a section's `children`, a record's `item` or a widget body (a
+   text-only section uses an empty `record`). The lift should have used it.
 3. The actions: an action navigates only to a page of the document, so each link target is a stub
-   page (5 invented pages); the secondary links carry `as: link`.
+   page (5 invented pages); the secondary links carry `as: link`. Correction: the `link` primitive
+   already takes `href` for an outside address; actions (buttons, header and row actions, menu entries)
+   do not, and that gap is filed with the ESS maintainers.
 4. The layout (it guessed wrong, above).
 5. What is data (fixtures: the texts and the figures) and what is structure.
 6. The binding: 16 selectors, each checked to match exactly one element.
