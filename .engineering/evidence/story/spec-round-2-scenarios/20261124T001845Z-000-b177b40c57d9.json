@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-24T00:18:45Z",
+  "actor": "human:operator",
+  "artifact": "story:spec-round-2-scenarios",
+  "kind": "story",
+  "revision": 3,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:acceptance-round-2",
+    "review": "review-result:acceptance-round-2",
+    "outcome": "escalated"
+  }
+}

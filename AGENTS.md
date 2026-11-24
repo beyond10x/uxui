@@ -22,6 +22,8 @@ what is specific to uxui.
 | `ess/` | ESS specification `uxsearch` of the UX search engine: domains, the studio `ess-ui/1` document and its tests, `GAPS.md`; gate `ess specify validate --path ess`, `ess compile --path ess`, `ess ui check --path ess/ui/studio.ui.yaml --model ess`, `ess ui test --path ess/ui/studio.ui.yaml --model ess ess/ui/tests/studio.yaml` |
 | `docs/` | design documents of the engine: `brief.md` (glossary), `concept.md`, `state-space.md`, `metrics.md` (the metric and KPI catalogue), `ratchet.md`, `roadmap.md` (state and next steps; read it first) |
 | `presets/` | `web-ux.ratchet.yaml`, a proposed ratchet preset family for the metric catalogue |
+| `.engineering/` | the AEP planning store and the backlog's one home (`aep plan artifact list`); it carries the work items of `docs/roadmap.md`, `docs/generator-round.md`, `docs/ess-gaps.md`, `docs/targets.md` and `docs/comparison.md`, which stay as design records |
+| `themes/` | themes: CSS over the variables the stock `ess-ui/1` generator writes, plus what they do not cover; every theme has a light and a dark mode, chosen by `theme-toggle.js` (system setting until a person picks one); `studio.css` is the studio's |
 
 ## Direction
 
@@ -29,6 +31,16 @@ The goal is to implement all of this repository's tooling on its own, moving tow
 dependencies. Not required at first; every new tool is chosen with that direction in mind. The owner,
 2026-11-23: "we really would like to implement all the tooling entirely on our own. So basically
 zero dependencies in some sense [...] Not a big deal at first".
+
+uxui owns themes and templates, and is where `ess-ui/1` itself may move. Styling is solved here, never by
+asking ESS to extend `ess-ui/1`. The owner, 2026-11-24: "you're also owning the domain of themes and
+templates. That means you can just locate this in your own repo. [...] we're not trying to extend ESS UI
+for styling and stuff."
+
+For every UI, reassess at any time whether the stock generator (`ess generate ui`) or a generator of our
+own serves it better, and record the reason. The owner, 2026-11-24: "anytime reassess whether you want to
+use a pre-built generator or if you want to own the generator for this specific case, which I observed to
+be the better path usually, but maybe things have changed".
 
 ## Rules
 
@@ -42,6 +54,10 @@ zero dependencies in some sense [...] Not a big deal at first".
 - Remote: `github.com/beyond10x/uxui`, public. Every commit is authored by the organization bot and
   reaches GitHub through `b10x-gates` (`bot -- commit`, `check`, `publish`), never plain `git push`
   or `gh`. No company, customer or person names, internal hosts or home paths in any file.
+- Every `aep` write runs with `AEP_ACTOR=human:operator`, so no login name enters `.engineering/`. The owner,
+  2026-11-24: "replace human Timo with human operator".
+- uxui does not use uilab: no dependency on it, no integration with it, no format taken from it. The
+  owner, 2026-11-24: "Don't use UILab, please."
 
 ## Gate
 

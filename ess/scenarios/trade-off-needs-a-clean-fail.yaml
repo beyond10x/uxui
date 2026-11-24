@@ -1,0 +1,121 @@
+type: ess-scenario/6
+domain: uxsearch.promotion
+scenario: trade-off-needs-a-clean-fail
+# Hardening target 2 (R2): a trade-off marked beside a verdict other than fail, or with no loss,
+# and a pass beside a failing requirement are refused; a plain fail is no trade-off to accept.
+summary: A trade-off is accepted only on a fail whose only failures are its losses
+arrange:
+  - instance: entry
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000a0
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-a"
+        evaluation_keys: ["sha256:ev-a"]
+        kpi_values: []
+      state: OnFrontier
+  - instance: failed
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000070
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-a"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: fewer actions
+        gate: fail
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: [{requirement_id: completion.miss, verdict: fail}]
+        losses: [{requirement_id: completion.miss, reference: 0, candidate: 1}]
+        gains: [{requirement_id: effort.actions, reference: 8, candidate: 5}]
+      state: Proposed
+  - instance: passed
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000071
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-a"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: fewer actions
+        gate: pass
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: []
+        losses: []
+        gains: [{requirement_id: effort.actions, reference: 8, candidate: 5}]
+      state: Proposed
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: failed}
+      variant_digest: "sha256:variant-a"
+      verdict: insufficient_evidence
+      policy_revision: web-ux@3
+      evidence_ids: []
+      requirement_verdicts: []
+      trade_off_only: true
+      losses: [{requirement_id: attention.glance_cost, reference: 2, candidate: 3}]
+      gains: [{requirement_id: effort.actions, reference: 8, candidate: 5}]
+    outcome: trade-off-inconsistent
+    no_events: [uxsearch.promotion.GateDecided]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: failed}
+      variant_digest: "sha256:variant-a"
+      verdict: fail
+      policy_revision: web-ux@3
+      evidence_ids: []
+      requirement_verdicts: []
+      trade_off_only: true
+      losses: []
+      gains: [{requirement_id: effort.actions, reference: 8, candidate: 5}]
+    outcome: trade-off-inconsistent
+    no_events: [uxsearch.promotion.GateDecided]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: failed}
+      variant_digest: "sha256:variant-a"
+      verdict: pass
+      policy_revision: web-ux@3
+      evidence_ids: []
+      requirement_verdicts: [{requirement_id: completion.miss, verdict: fail}]
+      trade_off_only: false
+      losses: []
+      gains: []
+    outcome: pass-inconsistent
+    no_events: [uxsearch.promotion.GateDecided]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.promotion.AcceptTradeOff
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: failed}
+      variant_digest: "sha256:variant-a"
+    outcome: gate-not-passed
+    no_events: [uxsearch.promotion.PromotionAccepted]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.promotion.AcceptTradeOff
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: passed}
+      variant_digest: "sha256:variant-a"
+    outcome: not-a-trade-off
+    no_events: [uxsearch.promotion.PromotionAccepted]
+assert:
+  - view: uxsearch.promotion.PromotionById
+    params: {promotion_id: {$instance: failed}}
+    contains: {gate: fail, gate_trade_off_only: false, state: Proposed}

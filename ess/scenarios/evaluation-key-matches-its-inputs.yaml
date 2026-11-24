@@ -1,0 +1,105 @@
+type: ess-scenario/6
+domain: uxsearch.evaluation
+scenario: evaluation-key-matches-its-inputs
+# Hardening target 4 (R12): an evaluation of variant A over the state space of variant B is
+# refused, and a stored key requested with other inputs is a collision, never a cache hit.
+summary: An evaluation is requested only over its own variant's state space and inputs
+arrange:
+  - instance: environment
+    entity: uxsearch.evaluation.Environment
+    setup:
+      identity: 00000000-0000-4000-8000-000000000040
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: Desktop light
+        viewport_width_px: 1280
+        viewport_height_px: 800
+        theme_mode: light
+        input_mode: pointer
+        text_scale_percent: 100
+        reduced_motion: false
+        environment_digest: "sha256:env"
+      state: Declared
+  - instance: layout
+    entity: uxsearch.evaluation.LayoutModel
+    setup:
+      identity: layout-model/0
+      fields:
+        summary: terminal renderer
+        geometry: cells
+      state: Available
+  - instance: space-a
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-a"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-a"
+        stage: full
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 2
+      state: Complete
+  - instance: space-b
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-b"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-b"
+        stage: full
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 2
+      state: Complete
+  - instance: stored
+    entity: uxsearch.evaluation.Evaluation
+    setup:
+      identity: "sha256:eval-a"
+      fields:
+        variant_digest: "sha256:variant-a"
+        state_space_key: "sha256:space-a"
+        journey_id: 00000000-0000-4000-8000-000000000030
+        state_space_state: Complete
+        stage: full
+        states_count: 2
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue-1"
+        values: []
+      state: Requested
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.evaluation.RequestEvaluation
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: "sha256:eval-new"
+      variant_digest: "sha256:variant-a"
+      state_space_key: {$instance: space-b}
+      environment_id: {$instance: environment}
+      layout_model_version: {$instance: layout}
+      catalogue_digest: "sha256:catalogue-1"
+    outcome: state-space-of-another-variant
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.evaluation.RequestEvaluation
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: {$instance: stored}
+      variant_digest: "sha256:variant-a"
+      state_space_key: {$instance: space-a}
+      environment_id: {$instance: environment}
+      layout_model_version: {$instance: layout}
+      catalogue_digest: "sha256:catalogue-2"
+    outcome: key-collision
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.evaluation.RequestEvaluation
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: {$instance: stored}
+      variant_digest: "sha256:variant-a"
+      state_space_key: {$instance: space-a}
+      environment_id: {$instance: environment}
+      layout_model_version: {$instance: layout}
+      catalogue_digest: "sha256:catalogue-1"
+    outcome: cached
+assert:
+  - view: uxsearch.evaluation.Evaluations
+    excludes: {evaluation_key: "sha256:eval-new"}

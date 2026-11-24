@@ -18,9 +18,22 @@ types:
     kind: newtype
     of: Uuid
 
+  - name: uxsearch.search.ClimbReadingId
+    kind: newtype
+    of: Uuid
+
   - name: uxsearch.search.FrontierEntryId
     kind: newtype
     of: Uuid
+
+  # The digest of everything a campaign is judged by, in canonical form: each KPI's terms,
+  # aggregation, direction and weight, the target's Active rules, the journeys' bounds, the metric
+  # catalogue and the layout model version. A campaign keeps the policy it was pinned with
+  # (docs/ratchet.md: a campaign cannot change its rules, weights, KPI set or bounds).
+  - name: uxsearch.search.PolicyDigest
+    kind: newtype
+    of: String
+    prefix: "sha256:"
 
   # `exhaustive` enumerates every variant of the space; `beam` keeps the best `beam_width`
   # variants per step; `hill_climb` moves to the best neighbour (one axis value changed);
@@ -86,6 +99,14 @@ entities:
         type: Integer
       - name: budget
         type: uxsearch.search.Budget
+      # Pinned by the engine before the first variant is evaluated (PinPolicy); nothing is
+      # recorded for the campaign while it is absent.
+      - name: policy_digest
+        type: Optional<uxsearch.search.PolicyDigest>
+      - name: layout_model_version
+        type: Optional<uxsearch.evaluation.LayoutModelVersion>
+      - name: catalogue_digest
+        type: Optional<uxsearch.evaluation.CatalogueDigest>
       - name: ended_because
         type: Optional<uxsearch.search.EndReason>
     relations:
@@ -102,9 +123,15 @@ entities:
       - {name: journeys, kind: references, target: uxsearch.journeys.Journey, cardinality: many, via: journeys}
       - {name: environments, kind: references, target: uxsearch.evaluation.Environment, cardinality: many, via: environments}
       - {name: kpis, kind: references, target: uxsearch.metrics.Kpi, cardinality: many, via: kpis}
+      - {name: layout_model, kind: references, target: uxsearch.evaluation.LayoutModel, cardinality: one, via: layout_model_version}
       - name: climb
         kind: owns
         target: uxsearch.search.ClimbPoint
+        cardinality: many
+        via: campaign_id
+      - name: readings
+        kind: owns
+        target: uxsearch.search.ClimbReading
         cardinality: many
         via: campaign_id
       - name: frontier
@@ -117,7 +144,7 @@ entities:
       states:
         - Running
         - {name: Stopped, summary: A person stopped the campaign.}
-        - {name: Ended, summary: The strategy ended it; `ended_because` says why.}
+        - {name: Ended, summary: "The strategy ended it; `ended_because` says why."}
       terminal: [Stopped, Ended]
       transitions:
         - name: stop
@@ -127,8 +154,8 @@ entities:
           from: [Running]
           to: Ended
 
-  # One point of the climb: what the campaign had done and the best KPI values it had found at
-  # one step. The studio draws the climb from these rows and the CampaignProgressed events.
+  # One point of the climb: what the campaign had done at one step. The best value of each KPI
+  # at that step is a ClimbReading, so the studio charts each KPI over `seq`.
   - name: uxsearch.search.ClimbPoint
     naming:
       summary: One step of a campaign's progress, as the studio draws it.
@@ -148,8 +175,6 @@ entities:
         type: Integer
       - name: frontier_size
         type: Integer
-      - name: best
-        type: List<uxsearch.search.KpiReading>
       - name: last_variant
         type: Optional<uxsearch.design.VariantDigest>
       - name: at
@@ -167,6 +192,32 @@ entities:
       states: [Recorded]
       terminal: [Recorded]
 
+  # The best value one KPI of the campaign had reached at one climb point: the hill a person
+  # watches the search climb, one line per KPI.
+  - name: uxsearch.search.ClimbReading
+    naming:
+      summary: The best value of one KPI at one step of a campaign.
+    identity:
+      name: climb_reading_id
+      type: uxsearch.search.ClimbReadingId
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: seq
+        type: Integer
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+      - name: best
+        type: Decimal
+    invariants:
+      - seq >= 0
+    relations:
+      - {name: kpi, kind: references, target: uxsearch.metrics.Kpi, cardinality: one, via: kpi_id}
+    lifecycle:
+      initial: Recorded
+      states: [Recorded]
+      terminal: [Recorded]
+
   - name: uxsearch.search.FrontierEntry
     naming:
       summary: A variant on a campaign's frontier, with its KPI values and the evaluations behind them.
@@ -178,12 +229,19 @@ entities:
         type: uxsearch.search.CampaignId
       - name: variant_digest
         type: uxsearch.design.VariantDigest
+      # One evaluation per journey and environment of the campaign, distinct, all Computed and of
+      # this variant.
       - name: evaluation_keys
         type: List<uxsearch.evaluation.EvaluationKey>
+      # UNMAPPED: each value should be the KPI's aggregation over the evaluations' metric values;
+      # ESS cannot compute an aggregation over a list of related rows (GAPS.md), so the engine
+      # supplies it. AdmitToFrontier checks one value per campaign KPI, by distinct `kpi_id`.
       - name: kpi_values
         type: List<uxsearch.search.KpiReading>
       - name: dominated_by
         type: Optional<uxsearch.design.VariantDigest>
+      - name: withdraw_reason
+        type: Optional<String>
     relations:
       - name: variant
         kind: references
@@ -197,11 +255,15 @@ entities:
       states:
         - OnFrontier
         - {name: Dominated, summary: A later variant is at least as good on every KPI and better on one.}
-      terminal: [Dominated]
+        - {name: Withdrawn, summary: "A hard rule failed on the variant after it was admitted (a later, fuller stage); it left the frontier."}
+      terminal: [Dominated, Withdrawn]
       transitions:
         - name: dominate
           from: [OnFrontier]
           to: Dominated
+        - name: withdraw
+          from: [OnFrontier]
+          to: Withdrawn
 
 actors:
   - name: uxsearch.search.Operator
@@ -212,15 +274,19 @@ actors:
       - uxsearch.search.StartCampaign
       - uxsearch.search.StopCampaign
 
+  # A caller of the engine's own process, not `system: true`: the engine awaits the commands it
+  # sends (uxsearch.design.Engine says why).
   - name: uxsearch.search.Searcher
     naming:
       display: Searcher
-      summary: The engine's search loop; it records progress, the frontier and the end.
-    system: true
+      summary: The engine's search loop; it pins the policy, records progress, the frontier and the end.
     may:
+      - uxsearch.search.PinPolicy
       - uxsearch.search.RecordProgress
+      - uxsearch.search.RecordClimbReading
       - uxsearch.search.AdmitToFrontier
       - uxsearch.search.MarkDominated
+      - uxsearch.search.WithdrawFromFrontier
       - uxsearch.search.EndCampaign
 
 errors:
@@ -266,6 +332,18 @@ errors:
       - name: target_id
         type: uxsearch.design.TargetId
 
+  - name: uxsearch.search.MemberRetired
+    summary: A journey or KPI the campaign names is retired, so no new campaign names it.
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+
+  - name: uxsearch.search.NoMembers
+    summary: A campaign needs at least one journey, one environment and one KPI.
+    fields:
+      - name: target_id
+        type: uxsearch.design.TargetId
+
   - name: uxsearch.search.BeamWidthMissing
     summary: A beam search needs a beam width of at least 1.
     fields:
@@ -290,6 +368,48 @@ errors:
       - name: state
         type: uxsearch.search.Campaign.State
 
+  - name: uxsearch.search.PolicyAlreadyPinned
+    summary: The campaign's policy is pinned once; a changed policy is a new campaign.
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+
+  - name: uxsearch.search.PolicyNotPinned
+    summary: The campaign's policy is not pinned yet, so nothing is recorded for it.
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+
+  - name: uxsearch.search.LayoutModelNotFound
+    summary: No layout model has this version.
+    fields:
+      - name: layout_model_version
+        type: uxsearch.evaluation.LayoutModelVersion
+
+  - name: uxsearch.search.KpiNotFound
+    summary: No KPI has this id.
+    fields:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+
+  - name: uxsearch.search.KpiNotOfCampaign
+    summary: The KPI is not one of the campaign's objectives.
+    fields:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+
+  - name: uxsearch.search.ClimbPointMissing
+    summary: No climb point of the campaign has this sequence number.
+    fields:
+      - name: seq
+        type: Integer
+
+  - name: uxsearch.search.ReadingExists
+    summary: The campaign already has a reading of this KPI at this step.
+    fields:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+
   - name: uxsearch.search.VariantPruned
     summary: The variant has a hard Violated verdict; it never enters a frontier.
     fields:
@@ -298,6 +418,18 @@ errors:
 
   - name: uxsearch.search.EvaluationMissing
     summary: An evaluation the entry names does not exist.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.search.EvidenceIncomplete
+    summary: The entry does not name one distinct evaluation per cell of the campaign (journey by environment).
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.search.KpiValuesMismatch
+    summary: The entry does not carry exactly one value per KPI of the campaign.
     fields:
       - name: variant_digest
         type: uxsearch.design.VariantDigest
@@ -326,8 +458,26 @@ errors:
       - name: variant_digest
         type: uxsearch.design.VariantDigest
 
+  - name: uxsearch.search.EntryMismatch
+    summary: The entry is not of this campaign or this variant, so nothing moved.
+    fields:
+      - name: frontier_entry_id
+        type: uxsearch.search.FrontierEntryId
+
+  - name: uxsearch.search.SelfDominated
+    summary: A variant does not dominate itself.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.search.NoHardFailure
+    summary: The variant has no Recorded hard Violated verdict, so its entry stays on the frontier.
+    fields:
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+
   - name: uxsearch.search.FrontierEntryStateConflict
-    summary: The entry is already dominated, so nothing moved.
+    summary: The entry has left the frontier, so nothing moved.
     fields:
       - name: state
         type: uxsearch.search.FrontierEntry.State
@@ -366,6 +516,18 @@ commands:
         payload:
           uxsearch.search.BeamWidthMissing:
             strategy: input.strategy
+        summary: Nothing was started.
+
+      - name: no-members
+        when:
+          any:
+            - journeys.count == 0
+            - environments.count == 0
+            - kpis.count == 0
+        error: uxsearch.search.NoMembers
+        payload:
+          uxsearch.search.NoMembers:
+            target_id: input.target_id
         summary: Nothing was started.
 
       - name: no-target
@@ -461,6 +623,34 @@ commands:
             target_id: input.target_id
         summary: Nothing was started.
 
+      - name: journey-retired
+        when_related:
+          entity: uxsearch.journeys.Journey
+          where:
+            all:
+              - exists: {in: input.journeys, as: j, that: journey_id == j}
+              - state == Retired
+          exists: true
+        error: uxsearch.search.MemberRetired
+        payload:
+          uxsearch.search.MemberRetired:
+            target_id: input.target_id
+        summary: Nothing was started.
+
+      - name: kpi-retired
+        when_related:
+          entity: uxsearch.metrics.Kpi
+          where:
+            all:
+              - exists: {in: input.kpis, as: k, that: kpi_id == k}
+              - state == Retired
+          exists: true
+        error: uxsearch.search.MemberRetired
+        payload:
+          uxsearch.search.MemberRetired:
+            target_id: input.target_id
+        summary: Nothing was started.
+
       # UNMAPPED: a missing journey, environment or KPI would be `when_related: {via:
       # input.journeys, exists: false}`; ESS 0.98.0 refuses a list-of-references guard beside
       # any other related guard on one command (GAPS.md), so it is an external cause here.
@@ -490,7 +680,74 @@ commands:
             campaign_id: {generated: true}
             target_id: input.target_id
             strategy: input.strategy
-        summary: The campaign is Running; the studio shows its climb.
+        summary: The campaign is Running; the engine pins its policy before the first evaluation.
+
+  # The engine pins what the campaign is judged by, once, before it evaluates anything. A later
+  # reweighed KPI, declared or retired rule, or new catalogue does not reach a pinned campaign.
+  - name: uxsearch.search.PinPolicy
+    naming:
+      wire: pin-policy
+      display: Pin a campaign's policy
+    input:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: policy_digest
+        type: uxsearch.search.PolicyDigest
+      - name: layout_model_version
+        type: uxsearch.evaluation.LayoutModelVersion
+      - name: catalogue_digest
+        type: uxsearch.evaluation.CatalogueDigest
+    outcomes:
+      - name: no-campaign
+        unknown_instance: true
+        error: uxsearch.search.CampaignNotFound
+        payload:
+          uxsearch.search.CampaignNotFound:
+            campaign_id: input.campaign_id
+        summary: Nothing was pinned.
+
+      - name: not-running
+        when_subject:
+          predicate: state != Running
+        error: uxsearch.search.CampaignNotRunning
+        payload:
+          uxsearch.search.CampaignNotRunning:
+            campaign_id: input.campaign_id
+        summary: Nothing was pinned.
+
+      - name: already-pinned
+        when_subject:
+          predicate: defined(policy_digest)
+        error: uxsearch.search.PolicyAlreadyPinned
+        payload:
+          uxsearch.search.PolicyAlreadyPinned:
+            campaign_id: input.campaign_id
+        summary: Nothing changed.
+
+      - name: no-layout-model
+        when_related:
+          via: input.layout_model_version
+          exists: false
+        error: uxsearch.search.LayoutModelNotFound
+        payload:
+          uxsearch.search.LayoutModelNotFound:
+            layout_model_version: input.layout_model_version
+        summary: Nothing was pinned.
+
+      - name: pinned
+        updates: uxsearch.search.Campaign
+        instance: campaign_id
+        sets:
+          policy_digest: input.policy_digest
+          layout_model_version: input.layout_model_version
+          catalogue_digest: input.catalogue_digest
+        emits:
+          - uxsearch.search.PolicyPinned
+        payload:
+          uxsearch.search.PolicyPinned:
+            campaign_id: input.campaign_id
+            policy_digest: input.policy_digest
+        summary: The campaign is judged by this policy until it stops or ends.
 
   - name: uxsearch.search.StopCampaign
     naming:
@@ -560,8 +817,6 @@ commands:
         type: Integer
       - name: frontier_size
         type: Integer
-      - name: best
-        type: List<uxsearch.search.KpiReading>
       - name: last_variant
         type: Optional<uxsearch.design.VariantDigest>
       - name: at
@@ -597,7 +852,6 @@ commands:
           pruned: input.pruned
           insufficient: input.insufficient
           frontier_size: input.frontier_size
-          best: input.best
           last_variant: input.last_variant
           at: input.at
         emits:
@@ -612,6 +866,112 @@ commands:
             frontier_size: input.frontier_size
         summary: One more point of the climb; the studio draws it live.
 
+  - name: uxsearch.search.RecordClimbReading
+    naming:
+      wire: record-climb-reading
+      display: Record a KPI's best value at a step
+    input:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: seq
+        type: Integer
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+      - name: best
+        type: Decimal
+    outcomes:
+      - name: no-campaign
+        when_related:
+          via: input.campaign_id
+          exists: false
+        error: uxsearch.search.CampaignNotFound
+        payload:
+          uxsearch.search.CampaignNotFound:
+            campaign_id: input.campaign_id
+        summary: Nothing was recorded.
+
+      - name: no-kpi
+        when_related:
+          via: input.kpi_id
+          exists: false
+        error: uxsearch.search.KpiNotFound
+        payload:
+          uxsearch.search.KpiNotFound:
+            kpi_id: input.kpi_id
+        summary: Nothing was recorded.
+
+      - name: not-running
+        when_related:
+          via: input.campaign_id
+          predicate: state != Running
+        error: uxsearch.search.CampaignNotRunning
+        payload:
+          uxsearch.search.CampaignNotRunning:
+            campaign_id: input.campaign_id
+        summary: Nothing was recorded.
+
+      - name: kpi-not-of-campaign
+        when_related:
+          via: input.campaign_id
+          predicate:
+            not:
+              exists: {in: kpis, as: k, that: k == input.kpi_id}
+        error: uxsearch.search.KpiNotOfCampaign
+        payload:
+          uxsearch.search.KpiNotOfCampaign:
+            kpi_id: input.kpi_id
+        summary: Nothing was recorded.
+
+      - name: no-climb-point
+        when_related:
+          entity: uxsearch.search.ClimbPoint
+          where:
+            all:
+              - campaign_id == input.campaign_id
+              - seq == input.seq
+          exists: false
+        error: uxsearch.search.ClimbPointMissing
+        payload:
+          uxsearch.search.ClimbPointMissing:
+            seq: input.seq
+        summary: Nothing was recorded.
+
+      - name: reading-exists
+        when_related:
+          entity: uxsearch.search.ClimbReading
+          where:
+            all:
+              - campaign_id == input.campaign_id
+              - seq == input.seq
+              - kpi_id == input.kpi_id
+          exists: true
+        error: uxsearch.search.ReadingExists
+        payload:
+          uxsearch.search.ReadingExists:
+            kpi_id: input.kpi_id
+        summary: Nothing changed.
+
+      - name: recorded
+        creates: uxsearch.search.ClimbReading
+        instance: climb_reading_id
+        sets:
+          campaign_id: input.campaign_id
+          seq: input.seq
+          kpi_id: input.kpi_id
+          best: input.best
+        emits:
+          - uxsearch.search.ClimbReadingRecorded
+        payload:
+          uxsearch.search.ClimbReadingRecorded:
+            climb_reading_id: {generated: true}
+            campaign_id: input.campaign_id
+            seq: input.seq
+            kpi_id: input.kpi_id
+            best: input.best
+        summary: The KPI's line in the climb chart gains one point.
+
+  # A variant enters the frontier on one distinct, Computed evaluation of its own per journey and
+  # environment of the campaign, with one value per campaign KPI.
   - name: uxsearch.search.AdmitToFrontier
     naming:
       wire: admit-to-frontier
@@ -626,6 +986,26 @@ commands:
       - name: kpi_values
         type: List<uxsearch.search.KpiReading>
     outcomes:
+      - name: no-evidence
+        when:
+          any:
+            - evaluation_keys.count == 0
+            - {not: {distinct: {in: evaluation_keys, as: k}}}
+        error: uxsearch.search.EvidenceIncomplete
+        payload:
+          uxsearch.search.EvidenceIncomplete:
+            variant_digest: input.variant_digest
+        summary: Nothing was admitted.
+
+      - name: kpi-values-repeat
+        when:
+          not: {distinct: {in: kpi_values, as: r, by: r.kpi_id}}
+        error: uxsearch.search.KpiValuesMismatch
+        payload:
+          uxsearch.search.KpiValuesMismatch:
+            variant_digest: input.variant_digest
+        summary: Nothing was admitted.
+
       - name: no-campaign
         when_related:
           via: input.campaign_id
@@ -646,6 +1026,26 @@ commands:
             campaign_id: input.campaign_id
         summary: Nothing was admitted.
 
+      - name: policy-not-pinned
+        when_related:
+          via: input.campaign_id
+          predicate: {not: defined(policy_digest)}
+        error: uxsearch.search.PolicyNotPinned
+        payload:
+          uxsearch.search.PolicyNotPinned:
+            campaign_id: input.campaign_id
+        summary: Nothing was admitted.
+
+      - name: kpi-values-mismatch
+        when_related:
+          via: input.campaign_id
+          predicate: kpis.count != input.kpi_values.count
+        error: uxsearch.search.KpiValuesMismatch
+        payload:
+          uxsearch.search.KpiValuesMismatch:
+            variant_digest: input.variant_digest
+        summary: Nothing was admitted.
+
       - name: variant-pruned
         when_related:
           entity: uxsearch.rules.RuleVerdict
@@ -654,6 +1054,7 @@ commands:
               - variant_digest == input.variant_digest
               - strength == hard
               - verdict == violated
+              - state == Recorded
           exists: true
         error: uxsearch.search.VariantPruned
         payload:
@@ -707,12 +1108,26 @@ commands:
         summary: Nothing changed.
 
       # UNMAPPED: as in StartCampaign, a missing evaluation key is an external cause, since a
-      # list-of-references guard does not stand beside other related guards (GAPS.md).
+      # list-of-references guard does not stand beside other related guards (GAPS.md). So is an
+      # evaluation of a journey or environment outside the campaign, and a KPI value of a KPI
+      # outside it: a guard comparing the campaign's lists with the evaluation rows is G1.
       - name: evaluation-missing
-        external: an evaluation key the input names has no evaluation
+        external: an evaluation key the input names has no evaluation, or its journey or environment is not the campaign's
         error: uxsearch.search.EvaluationMissing
         payload:
           uxsearch.search.EvaluationMissing:
+            variant_digest: input.variant_digest
+        summary: Nothing was admitted.
+
+      # UNMAPPED: coverage, one evaluation per journey and environment of the campaign, compares
+      # the campaign's two lists with the evaluation rows; ESS 0.98 neither computes the product of
+      # two list counts nor quantifies over two lists (GAPS.md G12), so it is an external cause. The
+      # empty and the repeated key are refused above.
+      - name: evidence-incomplete
+        external: the keys do not name one evaluation for every journey and environment of the campaign
+        error: uxsearch.search.EvidenceIncomplete
+        payload:
+          uxsearch.search.EvidenceIncomplete:
             variant_digest: input.variant_digest
         summary: Nothing was admitted.
 
@@ -759,6 +1174,51 @@ commands:
       - name: dominated_by
         type: uxsearch.design.VariantDigest
     outcomes:
+      - name: self-dominated
+        when: dominated_by == variant_digest
+        error: uxsearch.search.SelfDominated
+        payload:
+          uxsearch.search.SelfDominated:
+            variant_digest: input.variant_digest
+        summary: Nothing moved.
+
+      - name: no-campaign
+        when_related:
+          via: input.campaign_id
+          exists: false
+        error: uxsearch.search.CampaignNotFound
+        payload:
+          uxsearch.search.CampaignNotFound:
+            campaign_id: input.campaign_id
+        summary: Nothing moved.
+
+      - name: entry-mismatch
+        when_related:
+          entity: uxsearch.search.FrontierEntry
+          where:
+            all:
+              - frontier_entry_id == input.frontier_entry_id
+              - any:
+                  - campaign_id != input.campaign_id
+                  - variant_digest != input.variant_digest
+          exists: true
+        error: uxsearch.search.EntryMismatch
+        payload:
+          uxsearch.search.EntryMismatch:
+            frontier_entry_id: input.frontier_entry_id
+        summary: Nothing moved.
+
+      # The frontier of a stopped or ended campaign is final.
+      - name: not-running
+        when_related:
+          via: input.campaign_id
+          predicate: state != Running
+        error: uxsearch.search.CampaignNotRunning
+        payload:
+          uxsearch.search.CampaignNotRunning:
+            campaign_id: input.campaign_id
+        summary: Nothing moved.
+
       - name: dominator-not-on-frontier
         when_related:
           entity: uxsearch.search.FrontierEntry
@@ -792,7 +1252,55 @@ commands:
       - name: wrong-state
         wrong_state: true
         error: uxsearch.search.FrontierEntryStateConflict
-        summary: The entry was already dominated.
+        summary: The entry had already left the frontier.
+
+  # docs/state-space.md: a variant that fails a hard rule in a later, fuller stage leaves the
+  # frontier. The entry leaves only on a Recorded hard Violated verdict of its variant.
+  - name: uxsearch.search.WithdrawFromFrontier
+    naming:
+      wire: withdraw-from-frontier
+      display: Withdraw a frontier entry
+    input:
+      - name: frontier_entry_id
+        type: uxsearch.search.FrontierEntryId
+      - name: reason
+        type: String
+    outcomes:
+      - name: no-hard-failure
+        when_related:
+          entity: uxsearch.rules.RuleVerdict
+          where:
+            all:
+              - variant_digest == subject.variant_digest
+              - strength == hard
+              - verdict == violated
+              - state == Recorded
+          exists: false
+        error: uxsearch.search.NoHardFailure
+        payload:
+          uxsearch.search.NoHardFailure:
+            variant_digest: {related: {via: input.frontier_entry_id, field: variant_digest}}
+        summary: Nothing moved.
+
+      - name: withdrawn
+        moves: uxsearch.search.FrontierEntry.withdraw
+        instance: frontier_entry_id
+        sets:
+          withdraw_reason: input.reason
+        emits:
+          - uxsearch.search.FrontierChanged
+        payload:
+          uxsearch.search.FrontierChanged:
+            frontier_entry_id: input.frontier_entry_id
+            campaign_id: {related: {via: input.frontier_entry_id, field: campaign_id}}
+            variant_digest: {related: {via: input.frontier_entry_id, field: variant_digest}}
+            admitted: false
+        summary: The entry left the frontier; no promotion of it is accepted.
+
+      - name: wrong-state
+        wrong_state: true
+        error: uxsearch.search.FrontierEntryStateConflict
+        summary: The entry had already left the frontier.
 
 events:
   - name: uxsearch.search.CampaignStarted
@@ -803,6 +1311,13 @@ events:
         type: uxsearch.design.TargetId
       - name: strategy
         type: uxsearch.search.Strategy
+
+  - name: uxsearch.search.PolicyPinned
+    fields:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: policy_digest
+        type: uxsearch.search.PolicyDigest
 
   - name: uxsearch.search.CampaignStopped
     fields:
@@ -831,6 +1346,19 @@ events:
         type: Integer
       - name: frontier_size
         type: Integer
+
+  - name: uxsearch.search.ClimbReadingRecorded
+    fields:
+      - name: climb_reading_id
+        type: uxsearch.search.ClimbReadingId
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: seq
+        type: Integer
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+      - name: best
+        type: Decimal
 
   - name: uxsearch.search.FrontierChanged
     fields:
@@ -892,6 +1420,12 @@ views:
         type: uxsearch.search.Strategy
       - name: budget
         type: uxsearch.search.Budget
+      - name: policy_digest
+        type: Optional<uxsearch.search.PolicyDigest>
+      - name: layout_model_version
+        type: Optional<uxsearch.evaluation.LayoutModelVersion>
+      - name: catalogue_digest
+        type: Optional<uxsearch.evaluation.CatalogueDigest>
       - name: ended_because
         type: Optional<uxsearch.search.EndReason>
       - name: state
@@ -944,13 +1478,35 @@ views:
         type: Integer
       - name: frontier_size
         type: Integer
-      - name: best
-        type: List<uxsearch.search.KpiReading>
       - name: at
         type: Timestamp
     naming:
       wire: climb
       display: Climb
+
+  # One row per (climb point, KPI): the best value of one KPI over the steps of a campaign.
+  - name: uxsearch.search.ClimbOfKpi
+    source: uxsearch.search.ClimbReading
+    consistency: read_your_writes
+    params:
+      - name: campaign_id
+        type: uxsearch.search.CampaignId
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+    filter:
+      all:
+        - campaign_id == param.campaign_id
+        - kpi_id == param.kpi_id
+    fields:
+      - name: climb_reading_id
+        type: uxsearch.search.ClimbReadingId
+      - name: seq
+        type: Integer
+      - name: best
+        type: Decimal
+    naming:
+      wire: climb-of-kpi
+      display: Climb of a KPI
 
   - name: uxsearch.search.FrontierEntries
     source: uxsearch.search.FrontierEntry
@@ -964,6 +1520,8 @@ views:
         type: uxsearch.design.VariantDigest
       - name: dominated_by
         type: Optional<uxsearch.design.VariantDigest>
+      - name: withdraw_reason
+        type: Optional<String>
       - name: state
         type: uxsearch.search.FrontierEntry.State
     naming:

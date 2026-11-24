@@ -1,0 +1,58 @@
+type: ess-scenario/6
+domain: uxsearch.search
+scenario: frontier-needs-evidence
+# Hardening target 1 (R1): no evaluation, a repeated evaluation, or a missing KPI value is refused.
+summary: A variant enters the frontier only on distinct evidence and one value per KPI
+arrange:
+  - instance: campaign
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000050
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 1
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+      state: Running
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: []
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+    outcome: no-evidence
+    no_events: [uxsearch.search.FrontierChanged]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: ["sha256:ev-a", "sha256:ev-a"]
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+    outcome: no-evidence
+    no_events: [uxsearch.search.FrontierChanged]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: ["sha256:ev-a"]
+      kpi_values: []
+    outcome: kpi-values-mismatch
+    no_events: [uxsearch.search.FrontierChanged]
+assert:
+  - view: uxsearch.search.Frontier
+    params: {campaign_id: {$instance: campaign}}
+    excludes: {variant_digest: "sha256:variant-a"}

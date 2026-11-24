@@ -1,0 +1,67 @@
+type: ess-scenario/6
+domain: uxsearch.promotion
+scenario: latest-gate-decides
+# Hardening target 7 (R8): the gate is a field of the promotion that each decision overwrites,
+# so a fail recorded after a pass stops the accept; no earlier pass is read.
+summary: A fail recorded after a pass stops the accept
+arrange:
+  - instance: promotion
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000070
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-a"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: fewer actions
+        gate: pending
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: []
+        losses: []
+        gains: []
+      state: Proposed
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-a"
+      verdict: pass
+      policy_revision: web-ux@3
+      evidence_ids: []
+      requirement_verdicts: [{requirement_id: effort.actions, verdict: pass}]
+      trade_off_only: false
+      losses: []
+      gains: [{requirement_id: effort.actions, reference: 8, candidate: 5}]
+    outcome: recorded-pass
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-a"
+      verdict: fail
+      policy_revision: web-ux@4
+      evidence_ids: []
+      requirement_verdicts: [{requirement_id: completion.miss, verdict: fail}]
+      trade_off_only: false
+      losses: [{requirement_id: completion.miss, reference: 0, candidate: 1}]
+      gains: []
+    outcome: recorded-fail
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.promotion.AcceptPromotion
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-a"
+    outcome: gate-not-passed
+    no_events: [uxsearch.promotion.PromotionAccepted]
+assert:
+  - view: uxsearch.promotion.PromotionById
+    params: {promotion_id: {$instance: promotion}}
+    contains: {gate: fail, gate_policy_revision: web-ux@4, state: Proposed}

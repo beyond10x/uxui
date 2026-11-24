@@ -11,4 +11,14 @@ specification:
   - domains/search.yaml
   - domains/promotion.yaml
   - domains/ratchet.yaml
-scenarios: []
+scenarios:
+  - scenarios/complete-count-matches-its-states.yaml
+  - scenarios/evaluation-key-matches-its-inputs.yaml
+  - scenarios/evidence-copies-its-evaluation.yaml
+  - scenarios/frontier-needs-evidence.yaml
+  - scenarios/latest-gate-decides.yaml
+  - scenarios/only-the-owner-accepts-a-trade-off.yaml
+  - scenarios/trade-off-needs-a-clean-fail.yaml
+  - scenarios/unevaluable-state-is-insufficient.yaml
+  - scenarios/variant-keeps-every-route.yaml
+  - scenarios/verdicts-of-live-rules-only.yaml

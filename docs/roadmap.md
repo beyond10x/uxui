@@ -14,6 +14,9 @@ second; the first code is a thin vertical slice that measures the assumption the
   integration and sent it four gaps (trade-offs, result scope, exact vs sampled, finding identity).
 - Decisions: layout model v0 is ESS's terminal renderer; UX declarations live in a `uxui-declarations/1` file;
   only a person accepts a trade-off.
+- Contrast: APCA beside WCAG 2.x, in our own implementation of the published formula (no reference code
+  copied). The owner, 2026-11-24: "Just keep using the APCA contrast thing [...] it's just two colors [...] it's
+  super nice, it's working well".
 
 ## Next
 
@@ -35,6 +38,8 @@ second; the first code is a thin vertical slice that measures the assumption the
    Proves the evidence contract with ratchet.
 5. **First climb on a toy.** Two axes (theme x section order) on an ESS example page, exhaustive, layout model
    v0, a ranked frontier printed as text. Then the studio, generated from `ess/ui/studio.ui.yaml`.
+   **Then the first real target, this repository's documentation site,** on a browser adapter: the engine
+   with a headless browser as renderer, for any page with a URL (`docs/targets.md`).
 6. **Trial target.** One page or component of an admin console generated from an `ess-ui/1` document (a
    private repository; its fixtures make it I/O-free). Results stay in that repository; only generic findings
    come back here.
@@ -48,6 +53,11 @@ second; the first code is a thin vertical slice that measures the assumption the
 
 ## Risks
 
+- No study shows a computed metric orders close variants of one design as people do; model judges pick the
+  better of a close pair 51.58 % of the time, and KLM-style models get the direction wrong in 2 of 6 measured
+  differences (`research/2026-11-24-evidence-for-ui-metrics.md`, in worktree uxui-research). Picking the best
+  of thousands is best-of-n optimisation. Counter: tie bands, the Pareto frontier, prefer the smallest change,
+  and a small human calibration set per campaign before a ranking is trusted.
 - Layout model v0 has cells, not pixels: overflow, clipping and density are coarse until a pixel model exists.
 - Exhaustive search depends on step 2 (a) and on the cost measured in step 3.
 - The metrics rank what is declared; aesthetics and focus stay judgement. The original loop's own data shows

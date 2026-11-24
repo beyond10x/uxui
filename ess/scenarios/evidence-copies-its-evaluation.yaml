@@ -1,0 +1,92 @@
+type: ess-scenario/6
+domain: uxsearch.ratchet
+scenario: evidence-copies-its-evaluation
+# Hardening target 6 (R9): a value the evaluation did not compute is refused, and observed
+# evidence carries the evaluation's variant, stage, environment, layout model and state count and
+# the metric's version, unit, scope and kind, never values the assessor typed.
+summary: Metric evidence repeats a computed value and copies its context
+arrange:
+  - instance: metric
+    entity: uxsearch.metrics.MetricDefinition
+    setup:
+      identity: effort.actions
+      fields:
+        summary: actions to finish the journey
+        unit: actions
+        direction: lower_is_better
+        scope: journey
+        kind: exact
+        timing: static
+        role: kpi_candidate
+        target_scopes: [page]
+        preset_family: web-ux@1
+        version: 2
+      state: Active
+  - instance: requirement
+    entity: uxsearch.ratchet.RequirementBinding
+    setup:
+      identity: effort.actions
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        metric_key: effort.actions
+      state: Bound
+  - instance: evaluation
+    entity: uxsearch.evaluation.Evaluation
+    setup:
+      identity: "sha256:eval-a"
+      fields:
+        variant_digest: "sha256:variant-a"
+        state_space_key: "sha256:space-a"
+        journey_id: 00000000-0000-4000-8000-000000000030
+        state_space_state: Complete
+        stage: full
+        states_count: 4
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue-1"
+        values: [{metric_key: effort.actions, at: journey, value: 5}]
+        result_digest: "sha256:result-a"
+      state: Computed
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.ratchet.RecordMetricEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: requirement}
+      evaluation_key: {$instance: evaluation}
+      metric_key: {$instance: metric}
+      value: 4
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: value-mismatch
+    no_events: [uxsearch.ratchet.EvidenceRecorded]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.ratchet.RecordMetricEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: requirement}
+      evaluation_key: {$instance: evaluation}
+      metric_key: {$instance: metric}
+      value: 5
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: observed
+assert:
+  - view: uxsearch.ratchet.Evidence
+    contains:
+      requirement_id: effort.actions
+      metric_version: 2
+      unit: actions
+      scope: journey
+      kind: exact
+      variant_digest: "sha256:variant-a"
+      stage: full
+      environment_id: 00000000-0000-4000-8000-000000000040
+      layout_model_version: layout-model/0
+      states_count: 4
+      status: observed
+      observed: 5
+  - view: uxsearch.ratchet.Evidence
+    excludes: {observed: 4}

@@ -22,3 +22,18 @@ tests:
       - open: {page: variants.detail, params: {variant_digest: "sha256:v-a1"}}
       - act: pages/variants.detail/sections/axes/rows/av-04/row_actions/switch
       - expect_command: {command: uxsearch.design.RequestAxisSwitch, input: {from_variant: "sha256:v-a1", axis_id: ax-layout, axis_value_id: av-04}}
+
+  - name: the owner sees what gets worse and is offered only the accept that applies
+    steps:
+      - open: {page: promotions.detail, params: {promotion_id: pr-02}}
+      - expect: {at: pages/promotions.detail/sections/decision/rows/pr-02, text: attention.glance_cost}
+      - expect: {at: pages/promotions.detail/sections/decision/rows/pr-02/row_actions/trade_off, text: Accept trade-off}
+      - open: {page: promotions.detail, params: {promotion_id: pr-01}}
+      - expect: {at: pages/promotions.detail/sections/decision/rows/pr-01/row_actions/accept, text: Accept}
+      - expect: {at: pages/promotions.detail/sections/decision/rows/pr-01, not_text: Accept trade-off}
+
+  - name: starting a campaign from the catalog opens the form on that target
+    steps:
+      - open: targets.catalog
+      - act: pages/targets.catalog/sections/list/rows/tg-02/row_actions/start
+      - expect: {at: pages/campaigns.start/sections/target, text: Settings page}

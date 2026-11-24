@@ -2,6 +2,9 @@
 # A person picks a target from the catalog, starts and stops campaigns, watches the climb live,
 # reads the frontier, switches one axis of a variant by hand, compares two variants, records a
 # judgement and promotes a variant. Fixtures under fixtures/ are invented sample data.
+# Setting up a target (RegisterBaseDocument, DeclareTarget, DeclareDesignSpace, AddAxis,
+# AddAxisValue, FreezeDesignSpace, DeclareJourney, DeclareEnvironment, DeclareKpi) happens outside
+# the studio, through the engine's command line; the studio starts from declared targets.
 
 format: ess-ui/1
 app: studio
@@ -16,6 +19,8 @@ types:
   CampaignId: string
   PromotionId: string
   BaseDocumentId: string
+  TargetId: string
+  KpiId: string
 
 themes:
   light: {}
@@ -26,8 +31,8 @@ tone_maps:
   verdict: {pass: success, violated: danger, insufficient_evidence: warning}
   strength: {hard: danger, soft: info}
   evaluation_state: {Requested: neutral, Computed: success, Insufficient: warning}
-  promotion_state: {Proposed: info, Accepted: success, Rejected: danger}
-  gate_verdict: {pass: success, fail: danger, insufficient_evidence: warning}
+  promotion_state: {Proposed: info, Accepted: success, Applied: success, Rejected: danger, Superseded: neutral}
+  gate: {pending: neutral, pass: success, fail: danger, insufficient_evidence: warning}
 
 shells:
   app:
@@ -44,11 +49,13 @@ navigation:
     - {name: design, label: Design, pages: [targets.catalog]}
     - {name: search, label: Search, pages: [campaigns.list]}
     - {name: review, label: Review, pages: [promotions.list, judgements.list]}
-  hidden: [campaigns.climb, campaigns.frontier, variants.detail, variants.compare, promotions.detail]
+  hidden: [campaigns.start, campaigns.climb, campaigns.frontier, variants.detail, variants.compare, promotions.detail]
 
 channels:
   climb:
-    carries: {events: [uxsearch.search.CampaignProgressed, uxsearch.search.FrontierChanged, uxsearch.search.CampaignStopped, uxsearch.search.CampaignEnded]}
+    carries: {events: [uxsearch.search.CampaignProgressed, uxsearch.search.ClimbReadingRecorded, uxsearch.search.FrontierChanged, uxsearch.search.CampaignStopped, uxsearch.search.CampaignEnded]}
+    scope: param
+    session: {per: campaign_id}
     direction: server_to_client
     delivery: every_event
     resume: refetch
@@ -56,7 +63,7 @@ channels:
     reconnect: {backoff: {from: 1s, to: 30s}}
     stale_after: 30s
   switches:
-    carries: {events: [uxsearch.design.AxisSwitchRequested, uxsearch.design.AxisSwitchResolved]}
+    carries: {events: [uxsearch.design.AxisSwitchRequested, uxsearch.design.AxisSwitchResolved, uxsearch.design.AxisSwitchFailed]}
     direction: server_to_client
     delivery: every_event
     resume: refetch
@@ -71,9 +78,6 @@ pages:
     actor: uxsearch.search.Operator
     state:
       document: {type: {optional: BaseDocumentId}, class: page_state, store: url, pinned: true}
-    header:
-      actions:
-        - {name: start, opens: start, label: Start campaign}
     sections:
       - name: filters
         binds: [state.search, state.document]
@@ -84,24 +88,35 @@ pages:
         reads: {view: uxsearch.design.TargetCatalog, key: target_id, params: {base_document_id: state.document}, filter: name contains state.search, paging: client}
         columns: [name, {field: scope, as: badge}, node_path, {field: host_slot, as: toggle, label: Host slot}]
         row_actions:
-          - {name: start, opens: start, label: Start campaign, visible: not row.host_slot}
+          - {name: start, navigate: {to: campaigns.start, params: {target_id: row.target_id}}, label: Start campaign, visible: not row.host_slot}
         states: {empty: {message: Pick a base document to list its targets}}
-    overlays:
-      start:
-        kind: drawer
+
+  # A campaign starts on the target picked in the catalog: the choices are that target's frozen
+  # design spaces, journeys, environments and KPIs.
+  campaigns.start:
+    kind: detail_page
+    title: Start a campaign
+    params: {target_id: TargetId}
+    actor: uxsearch.search.Operator
+    sections:
+      - name: target
+        component: record
+        reads: {view: uxsearch.design.TargetById, key: target_id, params: {target_id: params.target_id}}
+        fields: [name, {field: scope, as: badge}, node_path]
+      - name: form
         component: form
-        title: Start a campaign on this target
         does: uxsearch.search.StartCampaign
+        loads: {view: uxsearch.design.TargetById, params: {target_id: params.target_id}}
         fields:
-          - {field: target_id, as: choice, choice: {component: choice, reads: {view: uxsearch.design.Targets, key: target_id}}}
-          - {field: design_space_id, as: choice, choice: {component: choice, reads: {view: uxsearch.design.DesignSpaces, key: design_space_id}}}
-          - {field: journeys, as: tags}
-          - {field: environments, as: tags}
-          - {field: kpis, as: tags}
+          - target_id
+          - {field: design_space_id, as: choice, choice: {component: choice, reads: {view: uxsearch.design.DesignSpacesOfTarget, key: design_space_id, params: {target_id: params.target_id}}}}
+          - {field: journeys, as: tags, suggests: {reads: {view: uxsearch.journeys.JourneysOfTarget, key: journey_id, params: {target_id: params.target_id}}, value: journey_id}}
+          - {field: environments, as: tags, suggests: {reads: {view: uxsearch.evaluation.EnvironmentsOfTarget, key: environment_id, params: {target_id: params.target_id}}, value: environment_id}}
+          - {field: kpis, as: tags, suggests: {reads: {view: uxsearch.metrics.KpisOfTarget, key: kpi_id, params: {target_id: params.target_id}}, value: kpi_id}}
           - {field: strategy, as: choice}
           - {field: beam_width, as: number}
           - {field: seed, as: number}
-          - {field: budget, as: json}
+          - {field: budget, as: map}
 
   campaigns.list:
     kind: list_page
@@ -110,7 +125,7 @@ pages:
     actor: uxsearch.search.Operator
     header:
       actions:
-        - {name: start, opens: start, label: Start campaign}
+        - {name: start, navigate: {to: targets.catalog}, label: Pick a target to start}
     sections:
       - name: list
         component: collection
@@ -125,12 +140,7 @@ pages:
             visible: row.state == Running
             confirm: {title: Stop this campaign}
             label: Stop
-        states: {empty: {message: No campaign yet, action: {name: start, opens: start, label: Start campaign}}}
-    overlays:
-      start:
-        kind: drawer
-        component: form
-        same_as: targets.catalog.start
+        states: {empty: {message: No campaign yet, action: {name: start, navigate: {to: targets.catalog}, label: Pick a target to start}}}
 
   campaigns.climb:
     kind: detail_page
@@ -138,6 +148,8 @@ pages:
     params: {campaign_id: CampaignId}
     actor: uxsearch.search.Operator
     switch_to: [campaigns.frontier]
+    state:
+      kpi: {type: {optional: KpiId}, class: page_state, store: url}
     header:
       live: [climb]
       actions:
@@ -145,32 +157,52 @@ pages:
     layout:
       columns:
         - {name: side, sections: [summary], width: narrow}
-        - {name: main, sections: [progress, points, frontier], width: wide}
+        - {name: main, sections: [hill_kpis, hill, progress, points, frontier], width: wide}
     sections:
       - name: summary
         component: record
         reads: {view: uxsearch.search.CampaignById, key: campaign_id, params: {campaign_id: params.campaign_id}}
-        fields: [target_id, design_space_id, {field: strategy, as: badge}, {field: state, as: badge, tone_by: campaign_state}, {field: budget, as: json}, ended_because]
+        fields: [target_id, design_space_id, {field: strategy, as: badge}, {field: state, as: badge, tone_by: campaign_state}, {field: budget, as: map}, policy_digest, layout_model_version, ended_because]
         live: {channel: climb, on: [uxsearch.search.CampaignStopped, uxsearch.search.CampaignEnded], effect: refetch}
+      - name: hill_kpis
+        component: collection
+        title: KPIs
+        reads: {view: uxsearch.metrics.Kpis, key: kpi_id}
+        columns: [name, {field: direction, as: badge}]
+        row_actions:
+          - {name: show, sets: {state.kpi: row.kpi_id}, label: Show its climb}
+        unmapped:
+          - "UNMAPPED: no view lists only the campaign's KPIs (a filter over a list field); the list shows every KPI"
+      # The hill: the best value of the picked KPI at each step.
+      - name: hill
+        component: chart
+        chart: line
+        title: Best value per step
+        reads: {view: uxsearch.search.ClimbOfKpi, key: climb_reading_id, params: {campaign_id: params.campaign_id, kpi_id: state.kpi}}
+        x: seq
+        series: [best]
+        live: {channel: climb, on: [uxsearch.search.ClimbReadingRecorded], effect: insert_or_patch, coalesce: 500ms}
+        degrades: {no_charts: table}
       - name: progress
         component: chart
         chart: line
         reads: {view: uxsearch.search.Climb, key: climb_point_id, params: {campaign_id: params.campaign_id}}
         x: seq
         series: [evaluated, pruned, insufficient, frontier_size]
-        live: {channel: climb, on: [uxsearch.search.CampaignProgressed], effect: insert_or_patch, only_if: matches(params), coalesce: 500ms}
+        live: {channel: climb, on: [uxsearch.search.CampaignProgressed], effect: insert_or_patch, coalesce: 500ms}
         degrades: {no_charts: table}
       - name: points
         component: collection
         title: Steps
         reads: {view: uxsearch.search.Climb, key: climb_point_id, params: {campaign_id: params.campaign_id}, paging: none}
-        columns: [seq, evaluated, pruned, insufficient, frontier_size, best, {field: at, as: timestamp}]
-        live: {channel: climb, on: [uxsearch.search.CampaignProgressed], effect: insert_top, only_if: matches(params), max_rows: 200}
+        sort: {by: seq, dir: asc}
+        columns: [seq, evaluated, pruned, insufficient, frontier_size, {field: at, as: timestamp}]
+        live: {channel: climb, on: [uxsearch.search.CampaignProgressed], effect: insert_top, max_rows: 200}
       - name: frontier
         component: collection
         title: Frontier now
         reads: {view: uxsearch.search.Frontier, key: frontier_entry_id, params: {campaign_id: params.campaign_id}}
-        columns: [variant_digest, {field: kpi_values, as: json}]
+        columns: [variant_digest, {field: kpi_values, as: list}]
         live: {channel: climb, on: [uxsearch.search.FrontierChanged], effect: refetch}
         row_actions:
           - {name: open, navigate: {to: variants.detail, params: {variant_digest: row.variant_digest}}, label: Open}
@@ -179,7 +211,7 @@ pages:
     kind: detail_page
     title: Frontier
     params: {campaign_id: CampaignId}
-    actor: uxsearch.promotion.Designer
+    actor: uxsearch.design.Designer
     switch_to: [campaigns.climb]
     state:
       left: {type: {optional: VariantDigest}, class: selection}
@@ -192,7 +224,7 @@ pages:
       - name: frontier
         component: collection
         reads: {view: uxsearch.search.Frontier, key: frontier_entry_id, params: {campaign_id: params.campaign_id}}
-        columns: [variant_digest, {field: kpi_values, as: json}, {field: evaluation_keys, as: list}]
+        columns: [variant_digest, {field: kpi_values, as: list}, {field: evaluation_keys, as: list}]
         live: {channel: climb, on: [uxsearch.search.FrontierChanged], effect: refetch}
         row_actions:
           - {name: open, navigate: {to: variants.detail, params: {variant_digest: row.variant_digest}}, label: Open}
@@ -207,7 +239,7 @@ pages:
         title: Propose this variant for promotion
         loads: {view: uxsearch.search.CampaignById, params: {campaign_id: params.campaign_id}}
         does: uxsearch.promotion.ProposePromotion
-        fields: [campaign_id, variant_digest, {field: rationale, as: rich_text}, trade_off_group, {field: worse, as: tags}]
+        fields: [campaign_id, variant_digest, {field: rationale, as: rich_text}]
 
   variants.detail:
     kind: detail_page
@@ -223,7 +255,7 @@ pages:
       - name: summary
         component: record
         reads: {view: uxsearch.design.VariantById, key: variant_digest, params: {variant_digest: params.variant_digest}}
-        fields: [variant_digest, target_id, {field: state, as: badge}, {field: routes, as: json}]
+        fields: [variant_digest, target_id, {field: state, as: badge}, {field: first_route, as: map}, {field: routes, as: list}]
       - name: axes
         component: collection
         title: Switch one axis
@@ -240,17 +272,17 @@ pages:
         component: collection
         title: Rule verdicts
         reads: {view: uxsearch.rules.VerdictsOfVariant, key: rule_verdict_id, params: {variant_digest: params.variant_digest}}
-        columns: [rule_id, {field: strength, as: badge, tone_by: strength}, {field: verdict, as: badge, tone_by: verdict}, score, {field: findings, as: json}]
+        columns: [rule_id, {field: strength, as: badge, tone_by: strength}, {field: verdict, as: badge, tone_by: verdict}, {field: stage, as: badge}, environment_id, score, {field: findings, as: list}, {field: state, as: badge}]
       - name: evaluations
         component: collection
         title: Evaluations
         reads: {view: uxsearch.evaluation.EvaluationsOfVariant, key: evaluation_key, params: {variant_digest: params.variant_digest}}
-        columns: [state_space_key, environment_id, {field: state, as: badge, tone_by: evaluation_state}, insufficient_because, {field: values, as: json}]
+        columns: [state_space_key, environment_id, {field: stage, as: badge}, {field: state, as: badge, tone_by: evaluation_state}, insufficient_because, {field: values, as: list}]
       - name: switches
         component: collection
         title: Axis switches
         reads: {view: uxsearch.design.AxisSwitches, key: axis_switch_id, filter: from_variant == params.variant_digest, paging: client}
-        columns: [axis_id, axis_value_id, {field: state, as: badge}, reached]
+        columns: [axis_id, axis_value_id, {field: state, as: badge}, reached, failure]
         live: {channel: switches, effect: refetch}
         row_actions:
           - {name: open, navigate: {to: variants.detail, params: {variant_digest: row.reached}}, visible: row.state == Resolved, label: Open reached variant}
@@ -259,7 +291,7 @@ pages:
     kind: detail_page
     title: Compare variants
     params: {left: VariantDigest, right: VariantDigest}
-    actor: uxsearch.promotion.Designer
+    actor: uxsearch.design.Designer
     header:
       actions:
         - {name: judge, opens: judge, label: Record judgement}
@@ -272,12 +304,14 @@ pages:
         component: record
         title: Left
         reads: {view: uxsearch.design.VariantById, key: variant_digest, params: {variant_digest: params.left}}
-        fields: [variant_digest, {field: state, as: badge}, {field: routes, as: json}]
+        fields: [variant_digest, {field: state, as: badge}, {field: first_route, as: map}]
+        unmapped:
+          - "UNMAPPED: no view holds a variant's rendered or laid-out result per UI state and environment, so the two variants are compared by their verdicts and evaluations, not side by side in one state"
       - name: right_summary
         component: record
         title: Right
         reads: {view: uxsearch.design.VariantById, key: variant_digest, params: {variant_digest: params.right}}
-        fields: [variant_digest, {field: state, as: badge}, {field: routes, as: json}]
+        fields: [variant_digest, {field: state, as: badge}, {field: first_route, as: map}]
       - name: left_verdicts
         component: collection
         title: Left rule verdicts
@@ -292,19 +326,19 @@ pages:
         component: collection
         title: Left evaluations
         reads: {view: uxsearch.evaluation.EvaluationsOfVariant, key: evaluation_key, params: {variant_digest: params.left}}
-        columns: [environment_id, {field: state, as: badge, tone_by: evaluation_state}, {field: values, as: json}]
+        columns: [environment_id, {field: state, as: badge, tone_by: evaluation_state}, {field: values, as: list}]
       - name: right_evaluations
         component: collection
         title: Right evaluations
         reads: {view: uxsearch.evaluation.EvaluationsOfVariant, key: evaluation_key, params: {variant_digest: params.right}}
-        columns: [environment_id, {field: state, as: badge, tone_by: evaluation_state}, {field: values, as: json}]
+        columns: [environment_id, {field: state, as: badge, tone_by: evaluation_state}, {field: values, as: list}]
     overlays:
       judge:
         kind: drawer
         component: form
         title: Record a judgement
         does: uxsearch.promotion.RecordJudgement
-        fields: [left_variant, right_variant, {field: kind, as: choice}, {field: author_kind, as: choice}, author, preferred, node_path, {field: note, as: rich_text}]
+        fields: [left_variant, right_variant, {field: kind, as: choice}, preferred, node_path, {field: note, as: rich_text}]
 
   promotions.list:
     kind: list_page
@@ -315,31 +349,32 @@ pages:
       - name: list
         component: collection
         reads: {view: uxsearch.promotion.Promotions, key: promotion_id, filter: variant_digest contains state.search, paging: client}
-        columns: [campaign_id, variant_digest, {field: state, as: badge, tone_by: promotion_state}, trade_off_group, accepted_by]
+        columns: [campaign_id, variant_digest, {field: gate, as: badge, tone_by: gate}, {field: gate_trade_off_only, as: toggle, label: Trade-off}, {field: state, as: badge, tone_by: promotion_state}, accepted_by]
         row_actions:
           - {name: open, navigate: {to: promotions.detail, params: {promotion_id: row.promotion_id}}, label: Open}
 
+  # The Owner sees the gate, what gets worse and what gets better before accepting, and only the
+  # accept action that applies: Accept when the gate passed, Accept trade-off when it failed only
+  # on the named losses.
   promotions.detail:
     kind: detail_page
     title: Promote
     params: {promotion_id: PromotionId}
     actor: uxsearch.promotion.Owner
-    header:
-      actions:
-        - {name: accept, opens: accept, label: Accept}
-        - {name: trade_off, opens: trade_off, label: Accept trade-off}
-        - {name: reject, opens: reject, label: Reject}
     sections:
       - name: summary
         component: record
         reads: {view: uxsearch.promotion.PromotionById, key: promotion_id, params: {promotion_id: params.promotion_id}}
-        fields: [variant_digest, {field: state, as: badge, tone_by: promotion_state}, rationale, {field: propagates_to, as: list}, {field: diff, as: json}]
-      - name: gate
+        fields: [variant_digest, {field: state, as: badge, tone_by: promotion_state}, rationale, {field: propagates_to, as: list}, {field: diff, as: map}, accepted_by]
+      - name: decision
         component: collection
-        title: Gate decisions from ratchet
-        reads: {view: uxsearch.ratchet.GateDecisions, key: gate_decision_id, filter: promotion_id == params.promotion_id, paging: client}
-        columns: [{field: gate_stage, as: badge}, {field: verdict, as: badge, tone_by: gate_verdict}, policy_revision, {field: trade_off_only, as: toggle}, {field: requirement_verdicts, as: json}]
-        states: {empty: {message: Ratchet has not decided the gate yet; acceptance is refused until it passes}}
+        title: Gate decision from ratchet
+        reads: {view: uxsearch.promotion.PromotionById, key: promotion_id, params: {promotion_id: params.promotion_id}}
+        columns: [{field: gate, as: badge, tone_by: gate}, {field: gate_trade_off_only, as: toggle, label: Trade-off}, gate_policy_revision, {field: losses, as: list, label: Gets worse}, {field: gains, as: list, label: Gets better}, {field: gate_requirement_verdicts, as: list}]
+        row_actions:
+          - {name: accept, opens: accept, visible: row.gate == pass, label: Accept}
+          - {name: trade_off, opens: trade_off, visible: row.gate_trade_off_only, label: Accept trade-off}
+          - {name: reject, opens: reject, visible: row.state == Proposed, label: Reject}
     overlays:
       accept:
         kind: dialog
@@ -347,14 +382,18 @@ pages:
         title: Accept the promotion
         loads: {view: uxsearch.promotion.PromotionById, params: {promotion_id: params.promotion_id}}
         does: uxsearch.promotion.AcceptPromotion
-        fields: [variant_digest, accepted_by]
+        fields: [variant_digest]
       trade_off:
         kind: dialog
         component: form
         title: Accept the trade-off as a new protected reference
         loads: {view: uxsearch.promotion.PromotionById, params: {promotion_id: params.promotion_id}}
         does: uxsearch.promotion.AcceptTradeOff
-        fields: [variant_digest, accepted_by]
+        record:
+          component: record
+          reads: {view: uxsearch.promotion.PromotionById, key: promotion_id, params: {promotion_id: params.promotion_id}}
+          fields: [{field: losses, as: list, label: Gets worse}, {field: gains, as: list, label: Gets better}]
+        fields: [variant_digest]
       reject:
         kind: dialog
         component: form
@@ -367,7 +406,7 @@ pages:
     kind: list_page
     title: Judgements
     nav: {label: Judgements, synonyms: [findings, preferences, review]}
-    actor: uxsearch.promotion.Designer
+    actor: uxsearch.design.Designer
     sections:
       - name: list
         component: collection

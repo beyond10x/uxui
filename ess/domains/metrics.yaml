@@ -143,8 +143,9 @@ entities:
         type: String
       - name: aggregation
         type: uxsearch.metrics.Aggregation
-      # UNMAPPED: each term's metric must be in the catalogue; a guard over the metric keys inside
-      # a list of structs is not expressible (GAPS.md), so DeclareKpi checks it as an external cause.
+      # UNMAPPED: each term's metric must be in the catalogue, not deprecated, not a diagnostic, and
+      # valid for the target's scope; a guard over the metric keys inside a list of structs is not
+      # expressible (GAPS.md), so DeclareKpi checks it as an external cause.
       - name: terms
         type: List<uxsearch.metrics.KpiTerm>
       - name: direction
@@ -222,6 +223,18 @@ errors:
     fields:
       - name: kpi_id
         type: uxsearch.metrics.KpiId
+
+  - name: uxsearch.metrics.KpiNotFound
+    summary: No KPI has this id, so nothing changed.
+    fields:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+
+  - name: uxsearch.metrics.NoDirection
+    summary: A KPI needs a better side; a metric with none is a diagnostic and has no Pareto order.
+    fields:
+      - name: direction
+        type: uxsearch.metrics.Direction
 
   - name: uxsearch.metrics.InvalidWeight
     summary: A weight is not positive.
@@ -343,6 +356,14 @@ commands:
             weight: input.weight
         summary: Nothing was declared.
 
+      - name: no-direction
+        when: direction == none
+        error: uxsearch.metrics.NoDirection
+        payload:
+          uxsearch.metrics.NoDirection:
+            direction: input.direction
+        summary: Nothing was declared.
+
       - name: no-target
         when_related:
           via: input.target_id
@@ -354,7 +375,7 @@ commands:
         summary: Nothing was declared.
 
       - name: unknown-metric
-        external: a term names a metric the catalogue does not hold, or a deprecated one
+        external: a term names a metric the catalogue does not hold, a deprecated one, a diagnostic one, or one whose target scopes leave out the target's scope
         error: uxsearch.metrics.UnknownMetric
         summary: Nothing was declared.
 
@@ -394,6 +415,14 @@ commands:
         payload:
           uxsearch.metrics.InvalidWeight:
             weight: input.weight
+        summary: The weight did not change.
+
+      - name: no-kpi
+        unknown_instance: true
+        error: uxsearch.metrics.KpiNotFound
+        payload:
+          uxsearch.metrics.KpiNotFound:
+            kpi_id: input.kpi_id
         summary: The weight did not change.
 
       - name: reweighed
@@ -526,3 +555,27 @@ views:
     naming:
       wire: kpis
       display: KPIs
+
+  # The Active KPIs of one target: the objectives a campaign of that target may name.
+  - name: uxsearch.metrics.KpisOfTarget
+    source: uxsearch.metrics.Kpi
+    consistency: read_your_writes
+    params:
+      - name: target_id
+        type: uxsearch.design.TargetId
+    filter:
+      all:
+        - target_id == param.target_id
+        - state == Active
+    fields:
+      - name: kpi_id
+        type: uxsearch.metrics.KpiId
+      - name: name
+        type: String
+      - name: direction
+        type: uxsearch.metrics.Direction
+      - name: weight
+        type: Decimal
+    naming:
+      wire: kpis-of-target
+      display: KPIs of a target
