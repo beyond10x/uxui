@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
 publish = false
-description = "ux-static@1: static UX metrics of an ess-ui/1 document as ratchet evidence records, without a browser or a layout model."
+description = "ux-static@1: static UX metrics of an ess-ui/1 document as one ratchet-evidence/1 document per run, without a browser or a layout model."
 
 [lib]
 name = "ux_static"

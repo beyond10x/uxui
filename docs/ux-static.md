@@ -6,17 +6,20 @@ document's node tree). No browser, no layout model, no third-party crate.
 
 ```sh
 ux-static --document ess/ui/studio.ui.yaml --journeys ess/ui/tests/studio.yaml \
-  --declarations ess/ui/studio.uxui.yaml [--out records.jsonl] [--class local]
+  --declarations ess/ui/studio.uxui.yaml --project uxui --assessment studio-static \
+  [--root .] [--out studio-static.evidence.json] [--class local]
 ```
 
-It writes one JSON line per record, the same bytes for the same inputs. Exit 0 when the records are
-written, whatever they hold: the gate decides, not the assessor. Exit 1 when an input is unreadable or
-the inputs do not belong together (a `document` key naming another file, a journey declared that the
-test file lacks, an unknown declaration key). Exit 2 on a usage error.
+It writes one `ratchet-evidence/1` document per run (ratchet `docs/evidence-format.md`), the same
+bytes for the same inputs. Exit 0 when the document is written, whatever it holds: the gate decides,
+not the assessor. Exit 1 when an input is unreadable or lies outside `--root`, the class is not one
+ratchet knows, or the inputs do not belong together (a `document` key naming another file, a journey
+declared that the test file lacks, an unknown declaration key). Exit 2 on a usage error, including a
+missing `--project` or `--assessment`.
 
 ## Metrics
 
-All three are exact counts, lower is better, one record per metric and scope.
+All three are exact counts, lower is better, one result per metric and scope item.
 
 | id | scope | value | catalogue (`docs/metrics.md`) |
 |---|---|---|---|
@@ -33,15 +36,17 @@ All three are exact counts, lower is better, one record per metric and scope.
 | a later `open` | 1: a navigation |
 | `expect`, `expect_command`, `expect_export`, `play`, `advance` | 0: a check, or the environment acting |
 
-Typed text counts as one action, not one per key. Any other keyword makes the record insufficient. So
-does a step naming a node path the document does not declare (`rows/<key>` dropped): ESS fails that step
-with `no node at <path>`, so the journey cannot be followed.
+Typed text counts as one action, not one per key. Any other keyword makes the result incomplete
+(`coverage_below_plan`; the step is `unsupported`). So does a step naming a node path the document does
+not declare (`rows/<key>` dropped): ESS fails that step with `no node at <path>`, so the journey cannot
+be followed (`incompatible_target`; the step is `not_run`). A step on a node where the document alone
+cannot say what is drawn is `unsupported`.
 
 ### Accessible names
 
 The rule follows the ACT Rules Format: per node, passed, failed or cantTell; a page with none of these
 nodes is inapplicable. The name is the document's text, else the default the `ess-ui/1` schema or ESS's
-renderers give; each node's entry in `items` says which (`declared`, `derived`, `default`).
+renderers give; each node's entry in `details.items` says which (`declared`, `derived`, `default`).
 
 | node | name | failed when |
 |---|---|---|
@@ -59,43 +64,44 @@ cantTell: a node whose drawn content the document alone does not give — a host
 kind neither built in nor declared. Not covered by version 1: the filter bar's built-in search input,
 navigation entries and the page switcher.
 
-## Records
+## Evidence
 
-Ratchet has no evidence schema yet. The record follows its design's "Assessment run" (ratchet
-`docs/design.md` § 6) and the field names of its § 3 example. Fields:
+One `ratchet-evidence/1` document per run, under ratchet's default answers E1 to E6 (option A) of its
+`docs/evidence-format.md`. The results are exact, so the document has no `run` member and the same
+inputs give the same bytes. JSON, compact, one result per line. Fields:
 
 | field | value |
 |---|---|
-| `format`, `record` | `ratchet-evidence/draft`, `assessment-run` |
-| `id` | `ux-static@1/<12 hex of the document digest>/<metric>/<scope kind>/<scope id>` |
-| `assessor` | `ux-static@1` |
-| `candidate` | `{kind: ui-document, digest}`: SHA-256 of the document's bytes |
-| `target` | `{kind: ui-variant, class}`; class from `--class`, default `local` |
-| `resolved_target` | `document`, `journeys`, `declarations` (each `{path, digest}`), `journey` (journey scope only), `tool`, `tool_version` |
-| `observation` | `{kind: snapshot, runs: 1, conditions: {}}`: deterministic, no conditions |
-| `measurement` | `{output, kind: exact, unit, direction: lower, scope, aggregation: count}` |
-| `scope` | `{kind: variant \| journey \| page, id}` |
-| `result`, `value` | `measured` and the count, or `insufficient` and `null` |
-| `value_at_least` | on an insufficient record that already counted failures |
-| `insufficient` | `{cause, detail}`; cause `coverage` (an item ux-static cannot evaluate), `input` (a step names no node), `declaration` (nothing declared to measure) |
-| `coverage` | `{executed, skipped, not_run, unsupported}` |
-| `outcomes` | structure and names: counts of passed, failed, cantTell (and inapplicable for names) |
-| `findings` | each node not passed: `{rule, node_path, outcome, reason}`; identity (rule, node path), no condition cell in a static run |
-| `items` | actions per journey: each step that took an action, `{step, keyword, at}`; accessible names: every applicable node, `{node_path, outcome, source, name}`, the ACT outcome per node |
+| `format` | `ratchet-evidence/1` |
+| `evidence.project`, `.assessment` | from `--project`, `--assessment` |
+| `evidence.assessor` | `ux-static@1` |
+| `evidence.candidate` | the document's digest: SHA-256 of its bytes |
+| `evidence.target` | `{kind: document, class, selection: candidate, identifiers: {path, digest, digest_form: bytes}}`; class from `--class`, default `local` |
+| `evidence.inputs` | `journeys`, `declarations`, each `{value: <path>, digest, digest_form: bytes}` |
+| `evidence.completion` | `completed`; a run that cannot complete is an error, not evidence |
+| `evidence.conditions` | `{tools: {ux-static: <crate version>}}` |
+| `evidence.coverage` | unit `check`: one rule on one declared node, one step or one node that needs a name. `executed`, `skipped` (always 0), `not_run`, `unsupported`, `passed`, `failed`; `not_executed` lists each check that is not executed, `{id, state, reason}` |
+| `evidence.results[]` | a `number` per metric and scope item, then a `findings` identity set per scope item of a rule (variant, journeys, pages) |
 
-A record that cannot be computed is insufficient evidence, never a pass.
+Paths are relative to `--root` (default the working directory), with `/`; an input outside it is
+refused. A node declared twice for one scope item (a signal that is also required) is one check.
 
-## What ratchet's draft could not express
+A result: `output`, `kind: exact`, `scope` (`variant`, `journey`, `page`), `item` (`document`, the
+journey's name, `pages/<page>`), `value_type`.
 
-- No evidence schema or format name: `ratchet-evidence/draft` and every field name above are ours.
-- A design variant or document as target (`docs/ratchet.md` § 8, gap 5): `target.kind: ui-variant`.
-- ACT outcomes: ratchet's coverage has passed and failed but no cantTell or inapplicable; cantTell
-  counts as `unsupported` and makes the record insufficient.
-- A list of findings with their identity: the plan declares `identity`, the evidence has no field for
-  the items; `findings` is ours.
-- Causes of insufficient evidence are prose in § 5, not a vocabulary; `insufficient.cause` is ours.
-- A partial count ("at least 2 failed, more unknown"): `value_at_least` is ours.
-- `direction` on a measurement.
-- Timestamps (§ 6 asks for them): omitted, so the same inputs give the same bytes; the digests
-  identify the run.
-- The document digest is of its bytes, not of a canonical form (ESS gap (b) of `docs/roadmap.md`).
+- `number`: `value` as text and `unit`. An incomplete result has `incomplete: {cause, detail}` and no
+  value, or a lower bound: `value` with `at_least: true` when failures were already counted.
+- `identity_set` (output `findings`): `key: [rule, node_path]`, `items` of `{identity: {rule,
+  node_path}, fields: {reason}}`, one per failed check; empty when nothing failed. Incomplete with the
+  same cause as the number of its scope item.
+- `details`: structure and names: `outcomes`, counts of passed, failed, cantTell (and inapplicable
+  for names); actions: `items`, each step that took an action, `{step, keyword, at}`; names: `items`,
+  every applicable node, `{node_path, outcome, source, name}`.
+
+ACT outcomes: passed and failed are executed checks; cantTell is `unsupported`, listed in
+`not_executed`, and makes its scope item's results incomplete (`coverage_below_plan`); inapplicable is
+no check. Nothing declared for a scope item: incomplete, `coverage_below_plan`, no value, no `details`.
+A result that cannot be computed is incomplete, never a pass.
+
+Not filled: `target.revision` (the assessor reads files, not a revision), `protocol_version`, `run`.
+The document digest is of its bytes, not of a canonical form (ESS gap (b) of `docs/roadmap.md`).
