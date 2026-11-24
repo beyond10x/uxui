@@ -1,0 +1,110 @@
+{
+  "schema": "uxui-space/1",
+  "document": "hero.ui.json",
+  "page": "landing",
+  "primary": "pages/landing/sections/actions/actions/install",
+  "required": [
+    "pages/landing/sections/lede",
+    "pages/landing/sections/actions",
+    "pages/landing/sections/kpis"
+  ],
+  "journeys": [
+    {
+      "name": "install the plugin",
+      "act": "pages/landing/sections/actions/actions/install",
+      "expect": {
+        "at": "pages/docs.getting_started",
+        "text": "Getting started"
+      }
+    },
+    {
+      "name": "what exists today",
+      "act": "pages/landing/sections/actions/actions/status",
+      "expect": {
+        "at": "pages/docs.status",
+        "text": "Status"
+      }
+    }
+  ],
+  "axes": {
+    "section_order": {
+      "original": [
+        "kicker",
+        "lede",
+        "actions",
+        "meta",
+        "kpis"
+      ],
+      "actions_before_lede": [
+        "kicker",
+        "actions",
+        "lede",
+        "meta",
+        "kpis"
+      ],
+      "lede_last": [
+        "kicker",
+        "actions",
+        "meta",
+        "lede",
+        "kpis"
+      ]
+    },
+    "actions": {
+      "all": [
+        "install",
+        "run_a_round",
+        "search_engine",
+        "studio",
+        "status"
+      ],
+      "primary_and_status": [
+        "install",
+        "status"
+      ],
+      "primary_only": [
+        "install"
+      ]
+    },
+    "kpis": {
+      "table": {
+        "component": "collection"
+      },
+      "none": {
+        "remove": true
+      }
+    },
+    "primary_label": {
+      "install_the_plugin": "Install the plugin",
+      "get_started": "Get started"
+    },
+    "layout": {
+      "stack": "stack",
+      "columns": {
+        "columns": [
+          {
+            "name": "copy",
+            "sections": [
+              "kicker",
+              "lede",
+              "actions",
+              "meta"
+            ],
+            "width": "wide"
+          },
+          {
+            "name": "figures",
+            "sections": [
+              "kpis"
+            ],
+            "width": "narrow"
+          }
+        ]
+      }
+    },
+    "density": {
+      "compact": 0.8,
+      "normal": 1
+    }
+  }
+}

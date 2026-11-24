@@ -1,0 +1,260 @@
+{
+  "format": "ess-ui/1",
+  "app": "site",
+  "title": "uxui documentation",
+  "model": "uxui.site",
+  "actor": "anonymous",
+  "placement_profile": "thin",
+  "shells": {
+    "app": {
+      "regions": {
+        "main": {
+          "kind": "page_outlet"
+        }
+      }
+    }
+  },
+  "navigation": {
+    "home": "landing",
+    "sections": [
+      {
+        "name": "site",
+        "label": "Site",
+        "pages": [
+          "landing"
+        ]
+      }
+    ],
+    "hidden": [
+      "docs.getting_started",
+      "docs.run_a_round",
+      "docs.search_engine",
+      "docs.studio",
+      "docs.status"
+    ]
+  },
+  "pages": {
+    "landing": {
+      "kind": "static_page",
+      "title": "Measure the UI. Never merge it worse.",
+      "sections": [
+        {
+          "name": "body",
+          "remove": true
+        },
+        {
+          "name": "kicker",
+          "component": "record",
+          "reads": {
+            "placeholder": "site.Hero",
+            "fixture": "fixtures/hero.json"
+          },
+          "fields": [
+            {
+              "field": "kicker",
+              "label": "About"
+            }
+          ]
+        },
+        {
+          "name": "lede",
+          "component": "record",
+          "reads": {
+            "placeholder": "site.Hero",
+            "fixture": "fixtures/hero.json"
+          },
+          "fields": [
+            {
+              "field": "lede",
+              "label": "What it is"
+            }
+          ]
+        },
+        {
+          "name": "actions",
+          "component": "record",
+          "actions": [
+            {
+              "name": "install",
+              "navigate": {
+                "to": "docs.getting_started"
+              },
+              "label": "Install the plugin"
+            },
+            {
+              "name": "run_a_round",
+              "navigate": {
+                "to": "docs.run_a_round"
+              },
+              "label": "Run one round",
+              "as": "link"
+            },
+            {
+              "name": "search_engine",
+              "navigate": {
+                "to": "docs.search_engine"
+              },
+              "label": "The search engine design",
+              "as": "link"
+            },
+            {
+              "name": "studio",
+              "navigate": {
+                "to": "docs.studio"
+              },
+              "label": "See the studio",
+              "as": "link"
+            },
+            {
+              "name": "status",
+              "navigate": {
+                "to": "docs.status"
+              },
+              "label": "What exists today",
+              "as": "link"
+            }
+          ]
+        },
+        {
+          "name": "meta",
+          "component": "record",
+          "reads": {
+            "placeholder": "site.Hero",
+            "fixture": "fixtures/hero.json"
+          },
+          "fields": [
+            {
+              "field": "meta",
+              "label": "Kind"
+            }
+          ]
+        },
+        {
+          "name": "kpis",
+          "title": "Key figures",
+          "component": "collection",
+          "reads": {
+            "placeholder": "site.Kpis",
+            "fixture": "fixtures/hero.json"
+          },
+          "columns": [
+            {
+              "field": "label",
+              "label": "Status"
+            },
+            {
+              "field": "value",
+              "label": "Count",
+              "as": "number"
+            }
+          ]
+        }
+      ]
+    },
+    "docs.getting_started": {
+      "kind": "static_page",
+      "title": "Getting started",
+      "sections": [
+        {
+          "name": "body",
+          "remove": true
+        },
+        {
+          "name": "text",
+          "component": "record",
+          "children": [
+            {
+              "name": "line",
+              "primitive": "text",
+              "text": "Install the plugin"
+            }
+          ]
+        }
+      ]
+    },
+    "docs.run_a_round": {
+      "kind": "static_page",
+      "title": "Run a round",
+      "sections": [
+        {
+          "name": "body",
+          "remove": true
+        },
+        {
+          "name": "text",
+          "component": "record",
+          "children": [
+            {
+              "name": "line",
+              "primitive": "text",
+              "text": "Run one round"
+            }
+          ]
+        }
+      ]
+    },
+    "docs.search_engine": {
+      "kind": "static_page",
+      "title": "The search engine",
+      "sections": [
+        {
+          "name": "body",
+          "remove": true
+        },
+        {
+          "name": "text",
+          "component": "record",
+          "children": [
+            {
+              "name": "line",
+              "primitive": "text",
+              "text": "The search engine design"
+            }
+          ]
+        }
+      ]
+    },
+    "docs.studio": {
+      "kind": "static_page",
+      "title": "The studio",
+      "sections": [
+        {
+          "name": "body",
+          "remove": true
+        },
+        {
+          "name": "text",
+          "component": "record",
+          "children": [
+            {
+              "name": "line",
+              "primitive": "text",
+              "text": "See the studio"
+            }
+          ]
+        }
+      ]
+    },
+    "docs.status": {
+      "kind": "static_page",
+      "title": "Status",
+      "sections": [
+        {
+          "name": "body",
+          "remove": true
+        },
+        {
+          "name": "text",
+          "component": "record",
+          "children": [
+            {
+              "name": "line",
+              "primitive": "text",
+              "text": "What exists today"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+format: ess-ui-test/1
+document: ../hero.ui.json
+tests:
+  - name: the hero shows its content
+    steps:
+      - open: landing
+      - expect: {at: pages/landing/sections/lede, text: uxui is two things}
+      - expect: {at: pages/landing/sections/kpis, rows: [shipped, decided, planned]}
+      - expect: {at: pages/landing/sections/actions, text: Install the plugin}
+
+  - name: install the plugin
+    steps:
+      - open: landing
+      - act: pages/landing/sections/actions/actions/install
+      - expect: {at: pages/docs.getting_started, text: Getting started}
+
+  - name: what exists today
+    steps:
+      - open: landing
+      - act: pages/landing/sections/actions/actions/status
+      - expect: {at: pages/docs.status, text: Status}
