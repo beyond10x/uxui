@@ -16,7 +16,7 @@ Search the design space of an ess-ui/1 document for the best compositions, measu
 
 | domains | entities | commands | views | events |
 |---|---|---|---|---|
-| 8 | 29 | 48 | 37 | 46 |
+| 8 | 29 | 54 | 42 | 51 |
 
 The repository gate for the specification:
 
@@ -27,7 +27,7 @@ ess ui check --path ess/ui/studio.ui.yaml --model ess
 ess ui test --path ess/ui/studio.ui.yaml --model ess ess/ui/tests/studio.yaml
 ```
 
-What ESS cannot express yet, and what the specification does instead, is listed in [`ess/GAPS.md`](https://github.com/beyond10x/uxui/blob/main/ess/GAPS.md). The studio, the live view of a search, is itself an `ess-ui/1` document: [`ess/ui/studio.ui.yaml`](https://github.com/beyond10x/uxui/blob/main/ess/ui/studio.ui.yaml), with the pages `targets.catalog`, `campaigns.list`, `campaigns.climb`, `campaigns.frontier`, `variants.detail`, `variants.compare`, `promotions.list`, `promotions.detail`, `judgements.list`.
+What ESS cannot express yet, and what the specification does instead, is listed in [`ess/GAPS.md`](https://github.com/beyond10x/uxui/blob/main/ess/GAPS.md). The studio, the live view of a search, is itself an `ess-ui/1` document: [`ess/ui/studio.ui.yaml`](https://github.com/beyond10x/uxui/blob/main/ess/ui/studio.ui.yaml), with the pages `targets.catalog`, `campaigns.start`, `campaigns.list`, `campaigns.climb`, `campaigns.frontier`, `variants.detail`, `variants.compare`, `promotions.list`, `promotions.detail`, `judgements.list`.
 
 ## `uxsearch.design`
 
@@ -48,9 +48,9 @@ Source: [`ess/domains/design.yaml`](https://github.com/beyond10x/uxui/blob/main/
 | `Variant` | A base document with a choice per axis, identified by its canonical digest. |
 | `AxisSwitch` | A by-hand switch of one axis value on one variant, and the variant it reached. |
 
-Commands: `RegisterBaseDocument`, `DeclareTarget`, `DeclareDesignSpace`, `RegisterUxDeclarations`, `BindComponent`, `AddAxis`, `AddAxisValue`, `FreezeDesignSpace`, `MaterializeVariant`, `RequestAxisSwitch`, `ResolveAxisSwitch`.
+Commands: `RegisterBaseDocument`, `DeclareTarget`, `DeclareDesignSpace`, `RegisterUxDeclarations`, `BindComponent`, `AddAxis`, `AddAxisValue`, `FreezeDesignSpace`, `MaterializeVariant`, `RequestAxisSwitch`, `ResolveAxisSwitch`, `FailAxisSwitch`.
 
-Views: `BaseDocuments`, `Targets`, `TargetCatalog`, `DesignSpaces`, `Axes`, `AxisValues`, `Operators`, `Variants`, `VariantById`, `AxisSwitches`, `ComponentBindings`, `UxDeclarationFiles`.
+Views: `BaseDocuments`, `Targets`, `TargetCatalog`, `TargetById`, `DesignSpacesOfTarget`, `DesignSpaces`, `Axes`, `AxisValues`, `Operators`, `Variants`, `VariantById`, `AxisSwitches`, `ComponentBindings`, `UxDeclarationFiles`.
 
 ## `uxsearch.journeys`
 
@@ -64,13 +64,13 @@ Source: [`ess/domains/journeys.yaml`](https://github.com/beyond10x/uxui/blob/mai
 | `StateSpace` | Every UI state one journey reaches on one variant within its bounds. |
 | `UiState` | One reachable configuration of a page in a state space. |
 
-Commands: `DeclareJourney`, `RetireJourney`, `EnumerateStateSpace`, `RecordUiState`, `CompleteStateSpace`, `TruncateStateSpace`.
+Commands: `DeclareJourney`, `RetireJourney`, `EnumerateStateSpace`, `RecordUiState`, `CompleteStateSpace`, `TruncateStateSpace`, `AbandonStateSpace`.
 
-Views: `Journeys`, `StateSpaces`, `UiStates`.
+Views: `Journeys`, `JourneysOfTarget`, `StateSpaces`, `UiStates`.
 
 ## `uxsearch.rules`
 
-Design rules: constraints on a variant. A hard rule prunes: a variant breaking one is never evaluated further, never enters a frontier and is never promoted. A soft rule scores.
+Design rules: constraints on a variant. A hard rule prunes: a variant breaking one is never evaluated further, never enters a frontier and is never promoted. A soft rule scores. Every rule publishes its result as one metric of the catalogue; a hard rule is also one ratchet requirement, whose condition is the rule's limit.
 
 Source: [`ess/domains/rules.yaml`](https://github.com/beyond10x/uxui/blob/main/ess/domains/rules.yaml).
 
@@ -79,7 +79,7 @@ Source: [`ess/domains/rules.yaml`](https://github.com/beyond10x/uxui/blob/main/e
 | `DesignRule` | A constraint on the variants of one target; hard rules prune, soft rules score. |
 | `RuleVerdict` | The outcome of one rule on one variant, with its findings. |
 
-Commands: `DeclareRule`, `RetireRule`, `RecordRuleVerdict`, `PruneVariant`.
+Commands: `DeclareRule`, `RetireRule`, `RecordRuleVerdict`.
 
 Views: `Rules`, `RuleVerdicts`, `VerdictsOfVariant`.
 
@@ -96,7 +96,7 @@ Source: [`ess/domains/metrics.yaml`](https://github.com/beyond10x/uxui/blob/main
 
 Commands: `DefineMetric`, `DeprecateMetric`, `DeclareKpi`, `ReweighKpi`, `RetireKpi`.
 
-Views: `Metrics`, `Kpis`.
+Views: `Metrics`, `Kpis`, `KpisOfTarget`.
 
 ## `uxsearch.evaluation`
 
@@ -112,7 +112,7 @@ Source: [`ess/domains/evaluation.yaml`](https://github.com/beyond10x/uxui/blob/m
 
 Commands: `DeclareEnvironment`, `RequestEvaluation`, `RecordEvaluationResult`.
 
-Views: `Environments`, `LayoutModels`, `Evaluations`, `EvaluationsOfVariant`.
+Views: `Environments`, `EnvironmentsOfTarget`, `LayoutModels`, `Evaluations`, `EvaluationsOfVariant`.
 
 ## `uxsearch.search`
 
@@ -124,11 +124,12 @@ Source: [`ess/domains/search.yaml`](https://github.com/beyond10x/uxui/blob/main/
 |---|---|
 | `Campaign` | A run of the engine over one target's design space, journeys, environments and KPIs. |
 | `ClimbPoint` | One step of a campaign's progress, as the studio draws it. |
+| `ClimbReading` | The best value of one KPI at one step of a campaign. |
 | `FrontierEntry` | A variant on a campaign's frontier, with its KPI values and the evaluations behind them. |
 
-Commands: `StartCampaign`, `StopCampaign`, `EndCampaign`, `RecordProgress`, `AdmitToFrontier`, `MarkDominated`.
+Commands: `StartCampaign`, `PinPolicy`, `StopCampaign`, `EndCampaign`, `RecordProgress`, `RecordClimbReading`, `AdmitToFrontier`, `MarkDominated`, `WithdrawFromFrontier`.
 
-Views: `Campaigns`, `CampaignById`, `ClimbPoints`, `Climb`, `FrontierEntries`, `Frontier`.
+Views: `Campaigns`, `CampaignById`, `ClimbPoints`, `Climb`, `ClimbOfKpi`, `FrontierEntries`, `Frontier`.
 
 ## `uxsearch.promotion`
 
@@ -138,26 +139,25 @@ Source: [`ess/domains/promotion.yaml`](https://github.com/beyond10x/uxui/blob/ma
 
 | entity | what it is |
 |---|---|
-| `Promotion` | A frontier variant proposed as the next base document, with its diff. |
+| `Promotion` | A frontier variant proposed as the next base document, with its diff and its gate. |
 | `JudgementRecord` | A pairwise preference or a finding on variants by a person or a review agent. |
 
-Commands: `ProposePromotion`, `AcceptPromotion`, `AcceptTradeOff`, `RejectPromotion`, `RecordJudgement`, `DispositionJudgement`.
+Commands: `ProposePromotion`, `RecordGateDecision`, `AcceptPromotion`, `AcceptTradeOff`, `RejectPromotion`, `ApplyPromotion`, `SupersedePromotion`, `RecordJudgement`, `DispositionJudgement`.
 
 Views: `Promotions`, `PromotionById`, `Judgements`.
 
 ## `uxsearch.ratchet`
 
-How the engine's records map to ratchet's terms. The engine keeps no baseline of its own: metrics are ratchet measurements, hard rules and gates are ratchet requirements, the engine is an assessor that returns evidence records carrying the resolved target, ratchet decides every gate, and a promoted variant's values reach ratchet only as a proposed protected reference.
+How the engine's records map to ratchet's terms. The engine keeps no baseline of its own: metrics are ratchet measurements, hard rules and gates are ratchet requirements, the engine is an assessor that returns evidence records carrying the resolved target, ratchet decides every gate, and a promoted variant's values reach ratchet only as a proposed reference change.
 
 Source: [`ess/domains/ratchet.yaml`](https://github.com/beyond10x/uxui/blob/main/ess/domains/ratchet.yaml).
 
 | entity | what it is |
 |---|---|
-| `RequirementBinding` | Which metric or rule a ratchet requirement measures, on which target, at which gate. |
+| `RequirementBinding` | Which metric of which target a ratchet requirement measures. |
 | `EvidenceRecord` | One observation the engine returns to ratchet as an assessor, with its resolved target. |
-| `GateDecision` | Ratchet's verdict on a promotion at one gate, imported as ratchet made it. |
-| `ReferenceProposal` | A proposed protected reference for one requirement, from an accepted promotion. |
+| `ReferenceProposal` | The reference change an accepted promotion offers ratchet. |
 
-Commands: `BindRequirement`, `UnbindRequirement`, `RecordMetricEvidence`, `RecordRuleEvidence`, `RecordGateDecision`, `ProposeReference`, `RecordReferenceDecision`.
+Commands: `BindRequirement`, `UnbindRequirement`, `RecordMetricEvidence`, `RecordRuleEvidence`, `ProposeReference`, `RecordReferenceDecision`.
 
-Views: `Requirements`, `Evidence`, `GateDecisions`, `ReferenceProposals`.
+Views: `Requirements`, `Evidence`, `ReferenceProposals`.
