@@ -71,6 +71,15 @@ Component states: failed 1, loading 1, 0 rows 5 (sort), 1 row 5 x 2 (selection),
 60 rows 5 x 3 pages x 4: 1 + 1 + 5 + 10 + 20 + 60 = 97. Layout calls: 144 x 8 geometric
 environments x 97 = 111,744, about 5.6 s at an assumed 50 µs per call.
 
+Measured 2026-11-24 (the scaffold spike, `docs/scaffold-spike.md` on branch `uxui-scaffold`, in process over
+the ESS 0.98.0 crates, host load average about 100, so the times are high): check a variant 2.6 ms, open a
+page 1.2 ms, draw one 80x24 state 0.4 ms. A layout call therefore costs about 400 µs, eight times the
+assumption, plus 3.8 ms per variant and page. The component example becomes about 45 s of drawing plus
+144 x 8 x 3.8 ms = 4.4 s; the call budget of § 6 shrinks from 2.4 million calls to about 300,000 per 120 s
+on one core. Through the `ess` CLI a variant costs about 190 ms (check and test as processes), so the engine
+calls ESS in process. Not yet measured: the cost of one step between states (it needs the UI state API, ESS
+gap P0 1) and the cost on an idle host.
+
 ### 2.4 Evaluation count
 
 E = |V| x |Env| x Σ_J |S_J|. The layout model runs fewer times: G = |V / ≡geo| x |Env / ≡geo| x |S|,
@@ -150,7 +159,7 @@ radius", `ess-ui.md:2599`), an accessibility tree, a Tab focus model (it is driv
 
 | strategy | use when | parameters |
 |---|---|---|
-| exhaustive | G ≤ the call budget (2.4 million calls = 120 s at 50 µs on one core) | none |
+| exhaustive | G ≤ the call budget (about 300,000 calls = 120 s at the measured 400 µs on one core; 2.4 million at the assumed 50 µs) | none |
 | beam | operators dominate: structural moves of unbounded depth | width w, depth d |
 | hill climbing with restarts | one scalar KPI (a declared weighting), a large axis product | restarts r, steps |
 | Pareto evolution | several KPIs, a large space, a frontier wanted [Inference: NSGA-II style; not in the sources] | population p, generations g |
