@@ -1,0 +1,32 @@
+format: ratchet-assessor/1
+name: ux-browser
+version: "1"
+command: ux-browser checks
+targets: [build]
+inputs:
+  config: {type: path, required: true}
+  build: {type: path, required: true}
+  pages: {type: string}
+  capture: {type: path, local: true}
+  profile: {type: path, local: true}
+  jobs: {type: integer, local: true}
+conditions: [viewports, modes, settle_ms, reduced_motion]
+coverage_unit: check
+coverage: [executed, skipped, not_run, unsupported, passed, failed]
+outputs:
+  layout.page_scroll@1:
+    {value_type: number, kind: exact, scopes: [page], unit: units}
+  layout.overflow@1:
+    {value_type: number, kind: exact, scopes: [page], unit: blocks}
+  always_visible.misses@1:
+    {value_type: number, kind: exact, scopes: [page], unit: items}
+  keyboard.misses@1:
+    {value_type: number, kind: exact, scopes: [page], unit: checks}
+  layout_shift.after_ready@1:
+    {value_type: number, kind: sampled, scopes: [page], unit: score}
+  findings:
+    value_type: identity_set
+    kind: exact
+    scopes: [page]
+    identity_key: [rule, node_path]
+    item_fields: [reason]

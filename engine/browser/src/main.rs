@@ -10,7 +10,8 @@ const USAGE: &str = "usage:
                     [--root <repository root, default .>] [--capture <file>] [--profile <dir>]
   ux-browser checks --config <ux-browser-checks/1 file> --build <built site> --project <project> --assessment <assessment>
                     [--root <repository root, default .>] [--out <file>] [--class <target class, default local>]
-                    [--pages <path,path,...>] [--capture <dir>] [--profile <dir>]";
+                    [--pages <path,path,...>] [--capture <dir>] [--profile <dir>]
+                    [--jobs <pages measured at a time, default: the CPUs, at most 4>]";
 
 /// The target classes ratchet knows (`evidence.target.class`).
 const CLASSES: &[&str] = &["local", "ci", "ephemeral", "staging", "production"];
@@ -193,10 +194,18 @@ fn checks_command(args: &[String]) -> ExitCode {
         "pages",
         "capture",
         "profile",
+        "jobs",
     ];
     let opts = match options(args, &known) {
         Ok(o) => o,
         Err(e) => return wrong(&e),
+    };
+    let jobs = match get(&opts, "jobs") {
+        None => ux_browser::pool::default_jobs(ux_browser::pool::cpus()),
+        Some(n) => match n.parse::<usize>() {
+            Ok(n) if n >= 1 => n,
+            _ => return wrong(&format!("`--jobs {n}` is not a whole number of at least 1")),
+        },
     };
     let (Some(config_path), Some(build), Some(project), Some(assessment)) = (
         get(&opts, "config"),
@@ -226,7 +235,7 @@ fn checks_command(args: &[String]) -> ExitCode {
         Err(e) => return fail(REFUSED, &format!("{config_path}: {e}")),
     };
     let build_dir = Path::new(build);
-    let build_digest = match evidence::tree_digest(build_dir) {
+    let build_digest = match evidence::build_digest(build_dir) {
         Ok(d) => d,
         Err(e) => return fail(REFUSED, &e),
     };
@@ -259,7 +268,7 @@ fn checks_command(args: &[String]) -> ExitCode {
         }
     };
     let (recorded, product) =
-        match measure::check_pages(&config, &server.origin, &paths, &profile, progress) {
+        match measure::check_pages(&config, &server.origin, &paths, &profile, jobs, progress) {
             Ok(r) => r,
             Err(e) => return fail(NOT_WRITTEN, &e),
         };
@@ -283,12 +292,20 @@ fn checks_command(args: &[String]) -> ExitCode {
         path: relative(&root, build_dir),
         digest: build_digest,
     };
+    let mut local_inputs = vec![("jobs", jobs.to_string())];
+    for name in ["capture", "profile"] {
+        if let Some(value) = get(&opts, name) {
+            local_inputs.push((name, value.to_string()));
+        }
+    }
     let header = Header {
         project,
         assessment,
         class,
         config: &config_file,
         build: &build_file,
+        pages: get(&opts, "pages"),
+        local_inputs,
         browser: &product,
         started_at,
         ended_at: evidence::now(),

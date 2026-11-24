@@ -2,8 +2,8 @@
 //! revision 2), in the shape `ux-static@1` writes: one number per check and page, then the failed
 //! checks of each page as an identity set. Field by field: `docs/browser-adapter.md`.
 //!
-//! Ratchet has no target kind for a URL. The target is `document`: the served build, identified by
-//! its tree digest (`digest_form: tree`, [`tree_digest`]).
+//! The target is of the kind `build`: the served build, identified by its artifact digest
+//! ([`build_digest`]), which is also the candidate.
 
 use crate::checks::{self, Config, PageResult};
 use crate::render::FileRef;
@@ -14,8 +14,8 @@ use uxui_doc::yaml::Value;
 pub const FORMAT: &str = "ratchet-evidence/1";
 pub const ASSESSOR: &str = "ux-browser@1";
 pub const FINDINGS: &str = "findings";
-/// The label of the tree digest in `digest_form`.
-pub const TREE: &str = "tree";
+/// The target kind: a served build.
+pub const TARGET_KIND: &str = "build";
 
 /// What the document says about the run beside its results.
 pub struct Header<'a> {
@@ -23,8 +23,13 @@ pub struct Header<'a> {
     pub assessment: &'a str,
     pub class: &'a str,
     pub config: &'a FileRef,
-    /// The served build: its tree digest, and its path when it lies under the root.
+    /// The served build: its digest ([`build_digest`]), and its path when it lies under the root.
     pub build: &'a FileRef,
+    /// The `--pages` value, when the run measured a list of pages and not the whole site.
+    pub pages: Option<&'a str>,
+    /// The local inputs of the run (`jobs`, `capture`, `profile`) with the values it used:
+    /// `run.local_inputs`, outside the evidence.
+    pub local_inputs: Vec<(&'a str, String)>,
     /// `Chrome/<version>`.
     pub browser: &'a str,
     pub started_at: String,
@@ -51,9 +56,11 @@ fn walk(dir: &Path, rel: &str, out: &mut Vec<(String, std::path::PathBuf)>) -> R
     Ok(())
 }
 
-/// The digest of a directory: SHA-256 over one line `<hex>  <path>\n` per file, sorted by path,
-/// as `sha256sum` prints them.
-pub fn tree_digest(dir: &Path) -> Result<String, String> {
+/// The digest of a served build, its artifact digest: SHA-256 over one line `<hex>  <path>\n` per
+/// file under `dir` (`<hex>` the SHA-256 of the file's bytes, `<path>` relative to `dir` with `/`),
+/// sorted by the bytes of the path, as `sha256sum` prints them. Directories, empty or not, add
+/// nothing; a symbolic link counts as what it points to.
+pub fn build_digest(dir: &Path) -> Result<String, String> {
     let mut files = Vec::new();
     walk(dir, "", &mut files)?;
     files.sort();
@@ -408,6 +415,27 @@ pub fn document(header: &Header, config: &Config, pages: &[PageResult]) -> Value
         counts.push(("not_executed", Value::List(c.not_executed)));
     }
     let viewports: Vec<&str> = config.viewports.iter().map(|v| v.name.as_str()).collect();
+    let mut inputs = vec![("config", file(header.config, "value", "bytes"))];
+    if let Some(path) = &header.build.path {
+        inputs.push(("build", map(vec![("value", s(path))])));
+    }
+    if let Some(pages) = header.pages {
+        inputs.push(("pages", map(vec![("value", s(pages))])));
+    }
+    let mut run = vec![
+        ("started_at", s(&header.started_at)),
+        ("ended_at", s(&header.ended_at)),
+    ];
+    if !header.local_inputs.is_empty() {
+        run.push((
+            "local_inputs",
+            map(header
+                .local_inputs
+                .iter()
+                .map(|(name, value)| (*name, s(value)))
+                .collect()),
+        ));
+    }
     let evidence = map(vec![
         ("project", s(header.project)),
         ("assessment", s(header.assessment)),
@@ -416,16 +444,16 @@ pub fn document(header: &Header, config: &Config, pages: &[PageResult]) -> Value
         (
             "target",
             map(vec![
-                ("kind", s("document")),
+                ("kind", s(TARGET_KIND)),
                 ("class", s(header.class)),
                 ("selection", s("candidate")),
-                ("identifiers", file(header.build, "path", TREE)),
+                (
+                    "identifiers",
+                    map(vec![("artifact_digest", s(&header.build.digest))]),
+                ),
             ]),
         ),
-        (
-            "inputs",
-            map(vec![("config", file(header.config, "value", "bytes"))]),
-        ),
+        ("inputs", map(inputs)),
         ("completion", s("completed")),
         (
             "conditions",
@@ -457,13 +485,7 @@ pub fn document(header: &Header, config: &Config, pages: &[PageResult]) -> Value
     map(vec![
         ("format", s(FORMAT)),
         ("evidence", evidence),
-        (
-            "run",
-            map(vec![
-                ("started_at", s(&header.started_at)),
-                ("ended_at", s(&header.ended_at)),
-            ]),
-        ),
+        ("run", map(run)),
     ])
 }
 

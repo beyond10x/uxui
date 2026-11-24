@@ -10,15 +10,15 @@ use ux_browser::evidence::{self, Header};
 use ux_browser::render::FileRef;
 use uxui_doc::yaml::Value;
 
-/// The tree digest of `fixtures/site`, computed outside the crate:
+/// The build digest of `fixtures/site`, computed outside the crate:
 /// `find . -type f | sort | xargs sha256sum` lines (`<hex>  <path>`), then `sha256sum` of them.
 const SITE_TREE_DIGEST: &str =
     "sha256:9fd557d3566c4f8cb267de5e6f70b77742657647666fe1484373bfa51df24147";
 
 #[test]
-fn the_tree_digest_is_the_digest_of_the_sorted_file_digest_lines() {
+fn the_build_digest_is_the_digest_of_the_sorted_file_digest_lines() {
     assert_eq!(
-        evidence::tree_digest(&crate::fixture("site")).unwrap(),
+        evidence::build_digest(&crate::fixture("site")).unwrap(),
         SITE_TREE_DIGEST
     );
 }
@@ -119,14 +119,24 @@ fn pages() -> Vec<PageResult> {
     vec![home, wide, gone]
 }
 
-fn document() -> Value {
+pub fn document() -> Value {
+    document_with(None, None, Vec::new())
+}
+
+/// The document of `pages()`, with the build at `build_path` under the root, a `--pages` list and
+/// local inputs.
+fn document_with(
+    build_path: Option<&str>,
+    only: Option<&str>,
+    local_inputs: Vec<(&str, String)>,
+) -> Value {
     let config = checks::config(LLM_LIKE).unwrap();
     let config_file = FileRef {
         path: Some("engine/browser/examples/llm.checks.yaml".to_string()),
         digest: "sha256:aa".to_string(),
     };
     let build = FileRef {
-        path: None,
+        path: build_path.map(str::to_string),
         digest: SITE_TREE_DIGEST.to_string(),
     };
     let header = Header {
@@ -135,6 +145,8 @@ fn document() -> Value {
         class: "local",
         config: &config_file,
         build: &build,
+        pages: only,
+        local_inputs,
         browser: "Chrome/150.0.0.0",
         started_at: "2026-11-24T10:00:00Z".to_string(),
         ended_at: "2026-11-24T10:01:00Z".to_string(),
@@ -161,21 +173,31 @@ fn the_document_names_the_assessor_the_build_and_the_conditions() {
     assert_eq!(e.get_str("assessor"), Some("ux-browser@1"));
     assert_eq!(e.get_str("candidate"), Some(SITE_TREE_DIGEST));
     let target = e.get("target").unwrap();
-    assert_eq!(target.get_str("kind"), Some("document"));
+    assert_eq!(target.get_str("kind"), Some("build"));
     assert_eq!(target.get_str("selection"), Some("candidate"));
+    assert_eq!(target.get("revision"), None, "the assessor reads files");
     let ids = target.get("identifiers").unwrap();
-    assert_eq!(ids.get_str("digest"), Some(SITE_TREE_DIGEST));
-    assert_eq!(ids.get_str("digest_form"), Some("tree"));
     assert_eq!(
-        ids.get("path"),
-        None,
-        "a build outside the root has no path"
+        ids.entries(),
+        &[(
+            "artifact_digest".to_string(),
+            Value::Str(SITE_TREE_DIGEST.to_string())
+        )],
+        "a build is named by its artifact digest alone"
     );
-    let config = e.get("inputs").unwrap().get("config").unwrap();
+    let inputs = e.get("inputs").unwrap();
+    let config = inputs.get("config").unwrap();
     assert_eq!(
         config.get_str("value"),
         Some("engine/browser/examples/llm.checks.yaml")
     );
+    assert_eq!(
+        inputs.get("build"),
+        None,
+        "a build outside the root has no path"
+    );
+    assert_eq!(inputs.get("pages"), None, "every page of the sitemap");
+    assert_eq!(doc.get("run").unwrap().get("local_inputs"), None);
     let conditions = e.get("conditions").unwrap();
     let tools = conditions.get("tools").unwrap();
     assert_eq!(tools.get_str("ux-browser"), Some(env!("CARGO_PKG_VERSION")));
@@ -187,6 +209,37 @@ fn the_document_names_the_assessor_the_build_and_the_conditions() {
     let run = doc.get("run").unwrap();
     assert_eq!(run.get_str("started_at"), Some("2026-11-24T10:00:00Z"));
     assert_eq!(run.get_str("ended_at"), Some("2026-11-24T10:01:00Z"));
+}
+
+#[test]
+fn a_build_under_the_root_a_page_list_and_the_local_inputs_are_written_as_inputs() {
+    let doc = document_with(
+        Some("website/build"),
+        Some("/llm/,/llm/docs/wide"),
+        vec![("jobs", "2".to_string())],
+    );
+    let e = doc.get("evidence").unwrap();
+    let inputs = e.get("inputs").unwrap();
+    let build = inputs.get("build").unwrap();
+    assert_eq!(
+        build.entries(),
+        &[("value".to_string(), Value::Str("website/build".to_string()))],
+        "the path only: the build's digest is the candidate"
+    );
+    assert_eq!(
+        inputs.get("pages").unwrap().get_str("value"),
+        Some("/llm/,/llm/docs/wide")
+    );
+    assert_eq!(
+        e.get("target")
+            .unwrap()
+            .get("identifiers")
+            .unwrap()
+            .get("path"),
+        None
+    );
+    let local = doc.get("run").unwrap().get("local_inputs").unwrap();
+    assert_eq!(local.get_str("jobs"), Some("2"));
 }
 
 #[test]

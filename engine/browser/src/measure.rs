@@ -2,11 +2,14 @@
 //! site. Everything they compute from what the browser returns lives in `render` and `checks`,
 //! where the tests reach it without a browser.
 
+use crate::cdp::Connection;
 use crate::checks::{self, AlwaysVisible, Candidate, Config, KeyboardConfig, NamedViewport, Pages};
 use crate::render::{self, Declarations, FileRef, NodeRender, Record, Shot};
 use crate::session::{Browser, Conn, Page, READY, Setup};
 use crate::value::{f64_of, map, s};
+use crate::ws::WebSocket;
 use std::path::Path;
+use std::time::Duration;
 use uxui_doc::yaml::Value;
 
 pub const NODE_PROBE: &str = include_str!("probes/node.js");
@@ -21,7 +24,8 @@ const PAST_PROBE: &str = "(function (href) { const t = href.startsWith('#') ? do
 const FOCUS_WITHIN: &str = "function () { const a = document.activeElement; return !!a && (this === a || this.contains(a)); }";
 /// How long a page may take to apply a mode it is switched to.
 const MODE_WAIT_MS: u64 = 5_000;
-
+/// Resolves once `<html>` has `attr` equal to `mode`, or after `ms`: the page is watched, not polled.
+const MODE_WAIT: &str = "(function (attr, mode, ms) { const el = document.documentElement; const done = () => el.getAttribute(attr) === mode; if (done()) return true; return new Promise((resolve) => { let timer; const watch = new MutationObserver(() => { if (done()) { watch.disconnect(); clearTimeout(timer); resolve(true); } }); watch.observe(el, { attributes: true, attributeFilter: [attr] }); timer = setTimeout(() => { watch.disconnect(); resolve(done()); }, ms); }); })";
 /// The pages a configuration names: its list, or its sitemap in the build.
 pub fn pages(config: &Config, build: &Path) -> Result<Vec<String>, String> {
     match &config.pages {
@@ -36,7 +40,8 @@ pub fn pages(config: &Config, build: &Path) -> Result<Vec<String>, String> {
 }
 
 /// A page that could not be measured, as opposed to a browser that failed.
-enum Failure {
+#[derive(Debug)]
+pub enum Failure {
     Page(String),
     Browser(String),
 }
@@ -47,50 +52,86 @@ impl From<String> for Failure {
     }
 }
 
-/// Runs the checks of `config` on every page of the site served at `origin`; returns one recorded
-/// page per path (what `checks::page_result` reads) and the browser's product.
+/// The recorded page of `path` from its viewports' results, in the configuration's viewport order:
+/// every viewport's record, or the first failure. A page failure makes the page an `error` entry; a
+/// browser failure fails the run.
+pub fn page_record(
+    path: &str,
+    viewports: Vec<(String, Result<Value, Failure>)>,
+) -> Result<Value, String> {
+    let mut records = Vec::new();
+    for (name, result) in viewports {
+        match result {
+            Ok(v) => records.push(v),
+            Err(Failure::Page(error)) => {
+                return Ok(map(vec![("path", s(path)), ("error", s(&error))]));
+            }
+            Err(Failure::Browser(e)) => return Err(format!("{path} {name}: {e}")),
+        }
+    }
+    Ok(map(vec![
+        ("path", s(path)),
+        ("viewports", Value::List(records)),
+    ]))
+}
+
+/// Runs the checks of `config` on every page of the site served at `origin` in one browser, up to
+/// `jobs` page and viewport pairs at a time, each worker on a DevTools connection of its own;
+/// returns one recorded page per path (what `checks::page_result` reads) and the browser's product.
 pub fn check_pages(
     config: &Config,
     origin: &str,
     paths: &[String],
     profile: &Path,
+    jobs: usize,
     mut progress: impl FnMut(&str, &Value),
 ) -> Result<(Vec<Value>, String), String> {
-    let mut browser = Browser::start(profile)?;
-    let mut out = Vec::new();
-    let mut failed = None;
-    'pages: for path in paths {
-        let mut viewports = Vec::new();
-        for vp in &config.viewports {
-            match measure_viewport(&mut browser.conn, config, origin, path, vp) {
-                Ok(v) => viewports.push(v),
-                Err(Failure::Page(error)) => {
-                    let page = map(vec![("path", s(path)), ("error", s(&error))]);
-                    progress(path, &page);
-                    out.push(page);
-                    continue 'pages;
-                }
-                Err(Failure::Browser(e)) => {
-                    failed = Some(format!("{path} {}: {e}", vp.name));
-                    break 'pages;
-                }
+    let browser = Browser::start(profile)?;
+    let ws_url = browser.process.ws_url.clone();
+    let viewports = config.viewports.len();
+    let measured = crate::pool::run(
+        jobs,
+        paths.len() * viewports,
+        || {
+            let socket = WebSocket::connect(&ws_url, Duration::from_secs(10))?;
+            Ok(Connection::new(socket))
+        },
+        |conn: &mut Conn, item| {
+            let (path, vp) = (
+                &paths[item / viewports],
+                &config.viewports[item % viewports],
+            );
+            // A browser failure stops every worker; a page failure is the page's result.
+            match measure_viewport(conn, config, origin, path, vp) {
+                Err(Failure::Browser(e)) => Err(format!("{path} {}: {e}", vp.name)),
+                other => Ok(other),
             }
-        }
-        let page = map(vec![
-            ("path", s(path)),
-            ("viewports", Value::List(viewports)),
-        ]);
+        },
+        |mut conn: Conn| conn.transport_mut().close(),
+    );
+    let product = browser.product.clone();
+    browser.close();
+    let mut measured = measured?.into_iter();
+    let mut out = Vec::new();
+    for path in paths {
+        let results = config
+            .viewports
+            .iter()
+            .map(|vp| {
+                let result = measured.next().expect("one result per page and viewport");
+                (vp.name.clone(), result)
+            })
+            .collect();
+        let page = page_record(path, results)?;
         progress(path, &page);
         out.push(page);
     }
-    let product = browser.product.clone();
-    browser.close();
-    match failed {
-        Some(e) => Err(e),
-        None => Ok((out, product)),
-    }
+    Ok((out, product))
 }
 
+/// Measures `path` at `vp` in a browser context of its own, as a fresh Playwright context: a page
+/// reused from one path to the next read a layout shift of the first consumer's site as 0 where a
+/// fresh one reads 0.0004 (`docs/browser-adapter.md`, Timings), and saved no time.
 fn measure_viewport(
     conn: &mut Conn,
     config: &Config,
@@ -137,13 +178,11 @@ fn measure_open(
         if i > 0 {
             page.set_mode(conn, mode, config.reduced_motion)?;
             if let Some(attr) = &config.mode_attribute {
-                let deadline =
-                    std::time::Instant::now() + std::time::Duration::from_millis(MODE_WAIT_MS);
-                while mode_of(conn, page, attr)?.as_deref() != Some(mode.as_str())
-                    && std::time::Instant::now() < deadline
-                {
-                    page.wait(conn, 50)?;
-                }
+                page.run(
+                    conn,
+                    MODE_WAIT,
+                    &[s(attr), s(mode), Value::Int(MODE_WAIT_MS as i64)],
+                )?;
             }
             page.wait(conn, config.mode_settle_ms)?;
         }

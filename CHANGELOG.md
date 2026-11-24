@@ -13,6 +13,10 @@
   items, keyboard reach and layout shift after ready, with viewports, modes and declared items as
   input. On the `llm` documentation site (27 pages) it equals that repository's own harness on 135 of
   135 values. axe is not covered.
+- `ux-browser checks` measures up to `--jobs` pages at a time in one Chromium (default: the CPUs, at
+  most 4): llm's 27 pages in 27 s with 4 where one at a time took 92 s, the same 1,234 values. Its
+  evidence names the served build as target kind `build` (candidate and `artifact_digest`: the build
+  digest), declared in `engine/browser/ux-browser.assessor.yaml`.
 - `research/2026-11-24-loop-copies-page-checks.md`: the page checks of the eight UI loop copies in
   seven repositories, and how they differ.
 
