@@ -1,0 +1,105 @@
+{
+  "asOf": "2026-11-24",
+  "format": "b10x-status/1",
+  "source": "website/data/status.json, written by hand from docs/roadmap.md",
+  "items": [
+    {
+      "area": "Plugin",
+      "label": "ui-iteration-loop skill",
+      "status": "shipped",
+      "detail": "Plugin 0.1.0 for Claude Code and Codex: rounds of trial, measure, triage, design decision, build and gate, with hard gates on every merge and ratchets against a baseline.json.",
+      "href": "/docs/reference/skill"
+    },
+    {
+      "area": "Plugin",
+      "label": "Marketplace for both hosts",
+      "status": "shipped",
+      "detail": "Install from a clone of the repository with claude plugin install uxui@uxui or codex plugin add uxui@uxui.",
+      "href": "/docs/getting-started"
+    },
+    {
+      "area": "Plugin",
+      "label": "Plugin check",
+      "status": "shipped",
+      "detail": "task check validates both manifests and marketplaces and proves the check fails on broken copies of the tree.",
+      "href": "/docs/getting-started"
+    },
+    {
+      "area": "Search engine design",
+      "label": "Concept and state spaces",
+      "status": "decided",
+      "detail": "The engine, target scopes from component to product, the two spaces, the layout-model contract, bounds and search strategies.",
+      "href": "/docs/concepts/search-engine"
+    },
+    {
+      "area": "Search engine design",
+      "label": "Metric catalogue",
+      "status": "decided",
+      "detail": "47 metrics: 16 hard rules, 17 KPI candidates, 14 diagnostics, each with a formula, unit, direction and counterweight.",
+      "href": "/docs/reference/metrics"
+    },
+    {
+      "area": "Search engine design",
+      "label": "ESS specification uxsearch v1",
+      "status": "decided",
+      "detail": "Eight domains, valid and compiled (216 declarations). No scenarios yet: 156 outcomes have none.",
+      "href": "/docs/reference/specification"
+    },
+    {
+      "area": "Search engine design",
+      "label": "Studio",
+      "status": "decided",
+      "detail": "The live view of a search, written as an ess-ui/1 document and generated into an application that runs on fixtures and scripted live events. No engine behind it.",
+      "href": "/docs/concepts/studio"
+    },
+    {
+      "area": "Search engine design",
+      "label": "Ratchet preset family web-ux@1",
+      "status": "decided",
+      "detail": "A draft preset family for the metric catalogue, waiting for ratchet's format to settle.",
+      "href": "/docs/concepts/search-engine"
+    },
+    {
+      "area": "Search engine",
+      "label": "Specification round 2",
+      "status": "planned",
+      "detail": "Scenarios for the 156 outcomes, the 13 UNMAPPED markers resolved or moved to the gaps, an independent review.",
+      "href": "/docs/roadmap"
+    },
+    {
+      "area": "Search engine",
+      "label": "Cost of one evaluation",
+      "status": "planned",
+      "detail": "A spike that measures the per-state cost of a layout call. The design assumes 50 µs; nothing has measured it.",
+      "href": "/docs/roadmap"
+    },
+    {
+      "area": "Search engine",
+      "label": "Static metrics slice ux-static@1",
+      "status": "planned",
+      "detail": "Static metrics from an ess-ui/1 document, its journeys and its declarations, written as ratchet evidence. No browser, no layout model.",
+      "href": "/docs/roadmap"
+    },
+    {
+      "area": "Search engine",
+      "label": "First climb on a toy",
+      "status": "planned",
+      "detail": "Two axes on one example page, searched exhaustively, a ranked frontier printed as text; then the studio.",
+      "href": "/docs/roadmap"
+    },
+    {
+      "area": "Search engine",
+      "label": "Ratchet integration",
+      "status": "planned",
+      "detail": "Presets, gates on merge and promote, and the first loop copy moved onto ratchet and uxui.",
+      "href": "/docs/roadmap"
+    },
+    {
+      "area": "Search engine",
+      "label": "The skill on the engine",
+      "status": "planned",
+      "detail": "ui-iteration-loop as a thin round on top of the engine: findings become ratchet requirements, taste stays with people.",
+      "href": "/docs/roadmap"
+    }
+  ]
+}
