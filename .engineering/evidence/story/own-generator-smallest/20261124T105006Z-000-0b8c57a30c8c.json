@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-24T10:50:06Z",
+  "actor": "human:operator",
+  "artifact": "story:own-generator-smallest",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "Acceptance read on main 97e1402: generators/own/ (crate uxui-gen) writes pages/campaigns.climb from ess/ui/studio.ui.yaml and its model with the command in docs/own-generator.md; that document's section 'What it had to re-implement' lists defaults and short forms, page resolution, model binding, live and channel semantics and fixture semantics, and its Verification paragraph records cargo test -p uxui-gen and a headless browser run of the page. Merged in PR #1",
+    "reference": "https://github.com/beyond10x/uxui/pull/1"
+  }
+}

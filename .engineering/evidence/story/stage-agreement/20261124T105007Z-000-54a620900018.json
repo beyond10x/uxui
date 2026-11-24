@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-24T10:50:07Z",
+  "actor": "human:operator",
+  "artifact": "story:stage-agreement",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "Acceptance read on main 97e1402: docs/campaign-2026-11-24-docs-landing.md section 'Stage agreement' records Kendall's tau-b between stage 1 (cell model) and stage 2 (browser) over the 31 variants both stages scored: 0.059 in run 2, 0.476 in run 1 (tau-a, concordant and discordant pairs, ties beside it), computed by tools/scaffold/campaign.mjs. Merged in PR #3",
+    "reference": "https://github.com/beyond10x/uxui/pull/3"
+  }
+}

@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:docs-site
 kind: story
-status: draft
+status: implemented
 title: The documentation website
 tags:
 - in-flight
@@ -17,7 +17,11 @@ scope:
   path: Taskfile.yml
 - confidence: cited
   path: website
-revision: 3
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-24T10:49:00Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"review_outcome":3,"verification":1}}}
+- {from: "proposed", to: "active", at: "2026-11-24T10:49:00Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"review_outcome":3,"verification":1}}}
+- {from: "active", to: "implemented", at: "2026-11-24T10:50:06Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1,"review_outcome":3}}}
 ---
 # Story: The documentation website
 

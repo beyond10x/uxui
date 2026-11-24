@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-24T10:50:06Z",
+  "actor": "human:operator",
+  "artifact": "story:check-tool-internals-research",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "Acceptance read on main 97e1402: research/2026-11-24-check-tool-internals.md has sections 1-8 (axe-core; Lighthouse accessibility and best-practices audits; Playwright layout assertions; pixel diff; rrweb recording and replay; the screen-only bot; WCAG 2.x and APCA contrast; tab order and focus), each with a mechanism part and an owning-it part. Merged in PR #1 with its checks green",
+    "reference": "https://github.com/beyond10x/uxui/pull/1"
+  }
+}

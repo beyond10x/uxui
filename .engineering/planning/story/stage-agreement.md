@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:stage-agreement
 kind: story
-status: draft
+status: implemented
 title: Stage agreement on the first funnel campaign
 relations:
 - decomposes: epic:engine-slices
@@ -11,7 +11,11 @@ relations:
 scope:
 - confidence: inferred
   path: Cargo.toml
-revision: 5
+revision: 8
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-24T10:50:07Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1,"review_outcome":5}}}
+- {from: "proposed", to: "active", at: "2026-11-24T10:50:07Z", actor: "human:operator", revision: 7, decided_on: {"recorded":{"test_result":1,"review_outcome":5}}}
+- {from: "active", to: "implemented", at: "2026-11-24T10:50:07Z", actor: "human:operator", revision: 8, decided_on: {"recorded":{"test_result":1,"review_outcome":5}}}
 ---
 # Story: Stage agreement on the first funnel campaign
 

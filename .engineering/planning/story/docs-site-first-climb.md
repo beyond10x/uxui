@@ -14,7 +14,7 @@ relations:
 scope:
 - confidence: cited
   path: website
-revision: 4
+revision: 5
 ---
 # Story: First real target: climb the documentation landing page
 
@@ -44,3 +44,16 @@ space, run on the browser adapter, is promoted as a pull request carrying a diff
 
 Migrated from `docs/roadmap.md` (lines 41-42, an uncommitted edit of 2026-11-24) and
 `docs/targets.md` (lines 58-75 and 89-93; untracked on 2026-11-24, `Status: design, 2026-11-24`).
+
+## State on 2026-11-24
+
+Exists: PR #3 applied the chosen variant of run 2 of the campaign over the landing page (288
+variants, six environments, three journeys, hard rules, a content rule and six ranked KPIs, stage 2
+in Chromium) as a diff to `website/product.json` and `website/src/css/landing.css` (new, loaded from
+`website/docusaurus.config.ts`), with screenshots and the record in
+`docs/campaign-2026-11-24-docs-landing.md`.
+
+Missing: ratchet evidence that names the campaign. The variant is the campaign's own pick by its
+tie rule (stage-2 rank 4, within 2 % of the frontier's best score, one source change fewer), one step
+off the frontier, not a person's choice among the frontier's entries. Stage 2 ran on spike code, not
+on the browser adapter of `story:browser-adapter`.

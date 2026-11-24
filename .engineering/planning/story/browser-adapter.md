@@ -13,7 +13,7 @@ relations:
 scope:
 - confidence: inferred
   path: Cargo.toml
-revision: 4
+revision: 5
 ---
 # Story: Browser adapter
 
@@ -44,3 +44,15 @@ accessibility-tree entry, plus a screenshot, and naming the adapter and its vers
 
 Migrated from `docs/roadmap.md` (lines 41-42, an uncommitted edit of 2026-11-24) and
 `docs/targets.md` (lines 23-30; untracked on 2026-11-24, `Status: design, 2026-11-24`).
+
+## State on 2026-11-24
+
+Exists: spike code in Node, `tools/scaffold/` (PR #1, PR #3). `cdp.mjs` drives Chromium over the
+DevTools protocol; `probe.mjs` writes a `uxui-scaffold/1` JSON of a page (regions, sections, boxes);
+stage 2 of `campaign.mjs` (and `stage2.mjs`, `sweep.mjs`) measures variants of the documentation
+landing page in six environments and takes screenshots (`docs/campaign-2026-11-24-docs-landing.md`,
+`docs/scaffold-spike.md`).
+
+Missing: the evidence record of the acceptance, holding per declared node its box, computed styles
+and accessibility-tree entry, a screenshot, and the adapter's name and version; and the adapter as
+engine code rather than spike code (`docs/scaffold-spike.md`, "Language of the spike code").

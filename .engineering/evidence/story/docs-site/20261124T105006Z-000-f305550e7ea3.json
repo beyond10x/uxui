@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-24T10:50:06Z",
+  "actor": "human:operator",
+  "artifact": "story:docs-site",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "Documentation validation run 45358746746 on main 97e1402 succeeded (npm run build of website/, tools/docs.sh provenance): website/ builds into a static site whose landing page is generated from website/product.json (b10x-product-landing/1). Site added in PR #1, landing content changed in PR #3",
+    "reference": "https://github.com/beyond10x/uxui/actions/runs/45358746746"
+  }
+}
