@@ -10,12 +10,23 @@ ux-static --document ess/ui/studio.ui.yaml --journeys ess/ui/tests/studio.yaml \
   [--root .] [--out studio-static.evidence.json] [--class local]
 ```
 
-It writes one `ratchet-evidence/1` document per run (ratchet `docs/evidence-format.md`), the same
-bytes for the same inputs. Exit 0 when the document is written, whatever it holds: the gate decides,
-not the assessor. Exit 1 when an input is unreadable or lies outside `--root`, the class is not one
-ratchet knows, or the inputs do not belong together (a `document` key naming another file, a journey
-declared that the test file lacks, an unknown declaration key). Exit 2 on a usage error, including a
-missing `--project` or `--assessment`.
+It writes one `ratchet-evidence/1` document per run (ratchet `docs/evidence-format.md`, revision 2),
+the same bytes for the same inputs. Exit status, as ratchet's assessor contract (§ 10) reads it:
+
+| exit | means | document |
+|---|---|---|
+| 0 | the run ended, whatever the document holds: the gate decides, not the assessor | written |
+| 1 | refused inputs: a file is unreadable or malformed, or the inputs do not belong together (a `document` key naming another file, a journey declared that the test file lacks, an unknown declaration key) | none |
+| 2 | wrong invocation: an unknown argument, a missing one (`--project`, `--assessment` and the three files are required), an argument given twice or without a value, a `--class` ratchet does not know, an empty `--project` or `--assessment`, a `--root` that is not a directory | none |
+| 3 | infrastructure: the document could not be written to `--out`; ratchet records `stopped_by_infrastructure` | none |
+
+Any of the three files may lie outside `--root`, as a generated variant in a scratch directory does.
+Such a file has no path in the evidence; its digest identifies it. The journeys and declarations must
+still name the document in their `document` key.
+
+The declaration of the assessor, `ratchet-assessor/1` (ratchet § 10), is
+`engine/static/ux-static.assessor.yaml`: its inputs, outputs, scopes, units, coverage unit and item
+fields. A test checks it against the CLI's arguments and the documents the assessor writes.
 
 ## Metrics
 
@@ -42,6 +53,11 @@ not declare (`rows/<key>` dropped): ESS fails that step with `no node at <path>`
 be followed (`incompatible_target`; the step is `not_run`). A step on a node where the document alone
 cannot say what is drawn is `unsupported`.
 
+An unsupported step can only keep or raise the count, so the actions of the known steps are a lower
+bound: `value` with `at_least: true` when that sum is above 0, no value when it is 0. A journey with a
+`not_run` step has no bound: it cannot be followed on this document, so it has no number of actions.
+When both apply, the cause is `coverage_below_plan`.
+
 ### Accessible names
 
 The rule follows the ACT Rules Format: per node, passed, failed or cantTell; a page with none of these
@@ -66,8 +82,8 @@ navigation entries and the page switcher.
 
 ## Evidence
 
-One `ratchet-evidence/1` document per run, under ratchet's default answers E1 to E6 (option A) of its
-`docs/evidence-format.md`. The results are exact, so the document has no `run` member and the same
+One `ratchet-evidence/1` document per run, under revision 2 of ratchet's `docs/evidence-format.md`:
+E1 to E6 decided A, E7 to E9 on their default A. The results are exact, so the document has no `run` member and the same
 inputs give the same bytes. JSON, compact, one result per line. Fields:
 
 | field | value |
@@ -76,21 +92,23 @@ inputs give the same bytes. JSON, compact, one result per line. Fields:
 | `evidence.project`, `.assessment` | from `--project`, `--assessment` |
 | `evidence.assessor` | `ux-static@1` |
 | `evidence.candidate` | the document's digest: SHA-256 of its bytes |
-| `evidence.target` | `{kind: document, class, selection: candidate, identifiers: {path, digest, digest_form: bytes}}`; class from `--class`, default `local` |
-| `evidence.inputs` | `journeys`, `declarations`, each `{value: <path>, digest, digest_form: bytes}` |
+| `evidence.target` | `{kind: document, class, selection: candidate, identifiers: {path, digest, digest_form: bytes}}`; class from `--class`, default `local`; no `path` for a document outside `--root`, which its digest identifies |
+| `evidence.inputs` | `journeys`, `declarations`, each `{value: <path>, digest, digest_form: bytes}`; no `value` for a file outside `--root` |
 | `evidence.completion` | `completed`; a run that cannot complete is an error, not evidence |
 | `evidence.conditions` | `{tools: {ux-static: <crate version>}}` |
 | `evidence.coverage` | unit `check`: one rule on one declared node, one step or one node that needs a name. `executed`, `skipped` (always 0), `not_run`, `unsupported`, `passed`, `failed`; `not_executed` lists each check that is not executed, `{id, state, reason}` |
 | `evidence.results[]` | a `number` per metric and scope item, then a `findings` identity set per scope item of a rule (variant, journeys, pages) |
 
-Paths are relative to `--root` (default the working directory), with `/`; an input outside it is
-refused. A node declared twice for one scope item (a signal that is also required) is one check.
+Paths are relative to `--root` (default the working directory), with `/`. A file outside it is read
+and has no path: `identifiers.path` or the input's `value` is left out, and the digest identifies the
+file. A node declared twice for one scope item (a signal that is also required) is one check.
 
 A result: `output`, `kind: exact`, `scope` (`variant`, `journey`, `page`), `item` (`document`, the
 journey's name, `pages/<page>`), `value_type`.
 
 - `number`: `value` as text and `unit`. An incomplete result has `incomplete: {cause, detail}` and no
-  value, or a lower bound: `value` with `at_least: true` when failures were already counted.
+  value, or a lower bound: `value` with `at_least: true` when failures or actions were already
+  counted.
 - `identity_set` (output `findings`): `key: [rule, node_path]`, `items` of `{identity: {rule,
   node_path}, fields: {reason}}`, one per failed check; empty when nothing failed. Incomplete with the
   same cause as the number of its scope item.

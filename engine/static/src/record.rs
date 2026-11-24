@@ -167,12 +167,16 @@ fn map(entries: Vec<(&str, Value)>) -> Value {
     )
 }
 
+/// A file the run read: its path under `key`, left out for a file outside the root, and the digest
+/// of its bytes, which identifies it either way.
 fn file(input: &Input, key: &str) -> Value {
-    map(vec![
-        (key, s(&input.path)),
-        ("digest", s(&input.digest)),
-        ("digest_form", s("bytes")),
-    ])
+    let mut entries = Vec::new();
+    if let Some(path) = &input.path {
+        entries.push((key, s(path)));
+    }
+    entries.push(("digest", s(&input.digest)));
+    entries.push(("digest_form", s("bytes")));
+    map(entries)
 }
 
 fn incomplete(why: &Incomplete) -> Value {

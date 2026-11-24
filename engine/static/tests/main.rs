@@ -3,7 +3,7 @@
 //!
 //! `fixtures/ratchet-example/` holds a fixed copy of the studio's three inputs (the ones ratchet's
 //! examples were written from) and the three JSON blocks of ratchet `docs/evidence-format.md` § 6,
-//! copied verbatim from branch `evidence-format` at c3cb020: `example.evidence.json`,
+//! revision 2, copied verbatim from branch `evidence-format-r2` at abde852: `example.evidence.json`,
 //! `example-incomplete.results.json` and `example-not-executed.json`. `golden.evidence.json` is
 //! ux-static's own output over those inputs; `UX_STATIC_BLESS=1` rewrites it.
 
@@ -23,7 +23,19 @@ const J_OWNER: &str = "the owner sees what gets worse and is offered only the ac
 const J_START: &str = "starting a campaign from the catalog opens the form on that target";
 const JOURNEYS: [&str; 5] = [J_STOP, J_PROGRESS, J_SWITCH, J_OWNER, J_START];
 
+/// The row action `stop` of the campaign list, as the studio document writes it.
+const STOP_ACTION: &str = "          - name: stop\n            does: uxsearch.search.StopCampaign\n            bind: {campaign_id: row.campaign_id}\n            visible: row.state == Running\n            confirm: {title: Stop this campaign}\n            label: Stop\n";
+/// The last `act` step of the journey that stops a campaign.
+const STOP_CONFIRM_STEP: &str =
+    "      - act: pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop/confirm/overlay\n";
+
+/// The assessor declaration `ratchet-assessor/1` of ux-static@1, beside its `Cargo.toml`.
+const DECLARATION: &str = "ux-static.assessor.yaml";
+/// The arguments ratchet passes to every assessor; no input takes one of these names.
+const RESERVED: [&str; 6] = ["project", "assessment", "root", "class", "out", "revision"];
+
 /// Three input files and the repository root they lie under.
+#[derive(Clone)]
 struct Files {
     document: PathBuf,
     journeys: PathBuf,
@@ -338,11 +350,7 @@ fn a_run_names_its_target_inputs_and_tool_by_digest_and_repository_relative_path
 #[test]
 fn a_required_node_removed_is_a_finding_and_its_journey_an_incompatible_target() {
     let files = copy("required-removed", |kind, text| match kind {
-        "document" => plant(
-            &text,
-            "          - name: stop\n            does: uxsearch.search.StopCampaign\n            bind: {campaign_id: row.campaign_id}\n            visible: row.state == Running\n            confirm: {title: Stop this campaign}\n            label: Stop\n",
-            "",
-        ),
+        "document" => plant(&text, STOP_ACTION, ""),
         _ => text,
     });
     let doc = run(&files).unwrap();
@@ -592,26 +600,10 @@ fn the_output_matches_ratchets_example_document() {
         let taken = std::mem::take(items);
         *items = taken.into_iter().map(without_name_items).collect();
     }
-    let mut example = read_json(&fixtures.join("example.evidence.json"));
-    // Ratchet's example counts a node declared twice for one journey as two checks; ux-static
-    // counts it once (`a_node_declared_twice_for_one_scope_item_is_one_check`): two journeys
-    // declare their signal among their required nodes.
-    let counts = get_mut(get_mut(&mut example, "evidence"), "coverage");
-    *get_mut(counts, "executed") = Value::Int(95);
-    *get_mut(counts, "passed") = Value::Int(73);
-    let results = get_mut(get_mut(&mut example, "evidence"), "results");
-    if let Value::List(items) = results {
-        for (journey, passed) in [(J_PROGRESS, 2), (J_START, 3)] {
-            let result = items
-                .iter_mut()
-                .find(|r| {
-                    r.get_str("output") == Some(STRUCTURE) && r.get_str("item") == Some(journey)
-                })
-                .unwrap();
-            *get_mut(get_mut(get_mut(result, "details"), "outcomes"), "passed") =
-                Value::Int(passed);
-        }
-    }
+    // Revision 2 counts a node declared twice for one journey once, as ux-static does: 95 and 73.
+    let example = read_json(&fixtures.join("example.evidence.json"));
+    assert_eq!(coverage(&example, "executed"), 95);
+    assert_eq!(coverage(&example, "passed"), 73);
     assert_eq!(doc, example);
 }
 
@@ -620,7 +612,11 @@ fn incomplete_results_and_not_executed_match_ratchets_examples() {
     let fixtures = fixtures();
     let doc = run(&insufficient_copy("ratchet-incomplete", true)).unwrap();
     let expected = read_json(&fixtures.join("example-incomplete.results.json"));
-    assert_eq!(expected.list().len(), 4);
+    assert_eq!(
+        expected.list().len(),
+        5,
+        "revision 2 adds the journey with nothing declared: an empty set, incomplete"
+    );
     for want in expected.list() {
         let got = find(
             &doc,
@@ -648,7 +644,7 @@ fn the_output_over_fixed_inputs_is_the_golden_file_byte_for_byte() {
 }
 
 #[test]
-fn no_absolute_path_is_in_the_output_and_an_input_outside_the_root_is_refused() {
+fn no_absolute_path_is_in_the_output_and_a_file_outside_the_root_has_no_path() {
     let files = copy("relative-paths", |_, text| text);
     let doc = run(&files).unwrap();
     let root = files.root.canonicalize().unwrap();
@@ -682,8 +678,33 @@ fn no_absolute_path_is_in_the_output_and_an_input_outside_the_root_is_refused() 
         declarations: files.declarations.clone(),
         root: files.root.join("ess/ui/tests"),
     };
-    let error = run(&narrow).unwrap_err();
-    assert!(error.contains("not under the repository root"), "{error}");
+    // ratchet § 10: a file outside the root is identified by its digest; its path is left out.
+    let doc = run(&narrow).unwrap();
+    let mut all = Vec::new();
+    strings(&doc, &mut all);
+    for s in &all {
+        assert!(!s.starts_with('/'), "absolute: {s}");
+        assert!(!s.contains(root.to_str().unwrap()), "holds the root: {s}");
+    }
+    let e = evidence(&doc);
+    let ids = e.get("target").unwrap().get("identifiers").unwrap();
+    assert!(ids.get("path").is_none(), "the document is outside");
+    assert!(ids.get("digest").is_some());
+    let inputs = e.get("inputs").unwrap();
+    assert_eq!(
+        inputs.get("journeys").unwrap().get_str("value"),
+        Some("studio.yaml"),
+        "inside the narrow root"
+    );
+    let declarations = inputs.get("declarations").unwrap();
+    assert!(
+        declarations.get("value").is_none(),
+        "outside the narrow root"
+    );
+    assert_eq!(
+        declarations.get_str("digest"),
+        Some(uxui_doc::sha256::hex(&std::fs::read(&files.declarations).unwrap()).as_str())
+    );
 }
 
 #[test]
@@ -756,4 +777,329 @@ fn the_binary_writes_one_document_and_the_same_bytes_every_time() {
         Some(2),
         "project and assessment are required"
     );
+}
+
+#[test]
+fn an_unknown_step_keeps_the_actions_of_the_known_steps_as_a_lower_bound() {
+    let hover = format!("{STOP_CONFIRM_STEP}      - hover: pages/campaigns.list/sections/list\n");
+    let files = copy("bound-unknown-step", |kind, text| match kind {
+        "journeys" => plant(&text, STOP_CONFIRM_STEP, &hover),
+        _ => text,
+    });
+    let doc = run(&files).unwrap();
+    let stop = find(&doc, ACTIONS, J_STOP);
+    assert_eq!(cause(stop), Some("coverage_below_plan"));
+    assert_eq!(
+        stop.get("value"),
+        Some(&Value::Str("2".into())),
+        "the two known `act` steps"
+    );
+    assert_eq!(stop.get("at_least"), Some(&Value::Bool(true)));
+    let lost = copy("bound-lost-node", |kind, text| match kind {
+        "journeys" => plant(&text, STOP_CONFIRM_STEP, &hover),
+        "document" => plant(&text, STOP_ACTION, ""),
+        _ => text,
+    });
+    let doc = run(&lost).unwrap();
+    let stop = find(&doc, ACTIONS, J_STOP);
+    assert_eq!(
+        cause(stop),
+        Some("coverage_below_plan"),
+        "the unknown step's cause comes before the missing node's"
+    );
+    assert!(
+        stop.get("value").is_none(),
+        "a journey that cannot be followed has no number of actions, so no bound"
+    );
+    assert!(stop.get("at_least").is_none());
+}
+
+/// A copy of the studio whose document lies outside the repository root, as a generated variant in
+/// a scratch directory does: `<name>/variant/studio.ui.yaml`, and the root `<name>/tree` holding the
+/// journeys and the declarations, which name the variant.
+fn outside_document(name: &str) -> Files {
+    let base = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
+    let inside = under(base.join("tree"));
+    let document = base.join("variant/studio.ui.yaml");
+    std::fs::create_dir_all(inside.journeys.parent().unwrap()).unwrap();
+    std::fs::create_dir_all(document.parent().unwrap()).unwrap();
+    let from = studio();
+    std::fs::copy(&from.document, &document).unwrap();
+    let read = |p: &Path| std::fs::read_to_string(p).unwrap();
+    let journeys = plant(
+        &read(&from.journeys),
+        "document: ../studio.ui.yaml",
+        "document: ../../../../variant/studio.ui.yaml",
+    );
+    std::fs::write(&inside.journeys, journeys).unwrap();
+    let declarations = plant(
+        &read(&from.declarations),
+        "document: studio.ui.yaml",
+        "document: ../../../variant/studio.ui.yaml",
+    );
+    std::fs::write(&inside.declarations, declarations).unwrap();
+    Files { document, ..inside }
+}
+
+#[test]
+fn a_document_outside_the_root_is_identified_by_its_digest_alone() {
+    let files = outside_document("outside-document");
+    let doc = run(&files).unwrap();
+    let digest = uxui_doc::sha256::hex(&std::fs::read(&files.document).unwrap());
+    let e = evidence(&doc);
+    assert_eq!(e.get_str("candidate"), Some(digest.as_str()));
+    let ids = e.get("target").unwrap().get("identifiers").unwrap();
+    let keys: Vec<_> = ids.entries().iter().map(|(k, _)| k.as_str()).collect();
+    assert_eq!(
+        keys,
+        ["digest", "digest_form"],
+        "no `path` for a file outside the tree"
+    );
+    assert_eq!(ids.get_str("digest"), Some(digest.as_str()));
+    assert_eq!(
+        e.get("inputs")
+            .and_then(|i| i.get("journeys"))
+            .and_then(|j| j.get_str("value")),
+        Some("ess/ui/tests/studio.yaml")
+    );
+    let scratch = files.document.parent().unwrap().parent().unwrap();
+    let mut all = Vec::new();
+    strings(&doc, &mut all);
+    for s in &all {
+        assert!(!s.starts_with('/'), "absolute: {s}");
+        assert!(!s.contains(scratch.to_str().unwrap()), "{s}");
+    }
+    assert_eq!(
+        results(&doc),
+        results(&run(&studio()).unwrap()),
+        "the same document gives the same results wherever it lies"
+    );
+    let narrow = Files {
+        root: files.root.join("ess/ui/tests"),
+        ..files
+    };
+    let doc = run(&narrow).expect("another input outside the root is read too");
+    let declarations = evidence(&doc)
+        .get("inputs")
+        .and_then(|i| i.get("declarations"))
+        .unwrap();
+    let keys: Vec<_> = declarations
+        .entries()
+        .iter()
+        .map(|(k, _)| k.as_str())
+        .collect();
+    assert_eq!(
+        keys,
+        ["digest", "digest_form"],
+        "no `value` outside the tree"
+    );
+}
+
+#[test]
+fn the_binary_exits_2_on_a_wrong_invocation_1_on_refused_inputs_and_3_on_a_failed_write() {
+    use std::ffi::OsString;
+    let exe = env!("CARGO_BIN_EXE_ux-static");
+    let tmp = Path::new(env!("CARGO_TARGET_TMPDIR"));
+    let out = tmp.join("exit-status.evidence.json");
+    // Every argument once, with `set` replacing or adding values.
+    let args = |files: &Files, set: &[(&str, &str)]| {
+        let mut pairs: Vec<(String, OsString)> = vec![
+            ("--document".into(), files.document.clone().into()),
+            ("--journeys".into(), files.journeys.clone().into()),
+            ("--declarations".into(), files.declarations.clone().into()),
+            ("--root".into(), files.root.clone().into()),
+            ("--project".into(), "uxui".into()),
+            ("--assessment".into(), "studio-static".into()),
+            ("--out".into(), out.clone().into()),
+        ];
+        for (flag, value) in set {
+            match pairs.iter_mut().find(|(f, _)| f == flag) {
+                Some(pair) => pair.1 = value.into(),
+                None => pairs.push((flag.to_string(), value.into())),
+            }
+        }
+        pairs
+            .into_iter()
+            .flat_map(|(f, v)| [OsString::from(f), v])
+            .collect::<Vec<_>>()
+    };
+    let raw = |args: Vec<OsString>| {
+        let _ = std::fs::remove_file(&out);
+        let output = std::process::Command::new(exe).args(args).output().unwrap();
+        (output.status.code(), out.exists(), output)
+    };
+    let call = |files: &Files, set: &[(&str, &str)]| raw(args(files, set));
+    let studio = under(fixtures());
+    let no_root = tmp.join("no-such-root");
+    let wrong = |what: &str, (code, written, output): (Option<i32>, bool, std::process::Output)| {
+        assert_eq!(code, Some(2), "{what}: a wrong invocation");
+        assert!(!written, "{what}: no document");
+        assert!(output.stdout.is_empty(), "{what}");
+        assert!(!output.stderr.is_empty(), "{what}: one line on stderr");
+    };
+    for set in [
+        &[("--class", "laptop")][..],
+        &[("--project", "")],
+        &[("--project", " ")],
+        &[("--assessment", "")],
+        &[("--root", no_root.to_str().unwrap())],
+    ] {
+        wrong(&format!("{set:?}"), call(&studio, set));
+    }
+    let mut no_value = args(&studio, &[]);
+    no_value.push("--class".into());
+    wrong("a flag with no value", raw(no_value));
+    let mut twice = args(&studio, &[]);
+    twice.extend(["--project".into(), "uxui".into()]);
+    wrong("a repeated argument", raw(twice));
+
+    let missing = Files {
+        document: studio.root.join("ess/ui/missing.ui.yaml"),
+        ..studio.clone()
+    };
+    let (code, written, _) = call(&missing, &[]);
+    assert_eq!(code, Some(1), "an unreadable input is refused");
+    assert!(!written, "no document");
+
+    let unwritable = tmp.join("no-such-dir/x.evidence.json");
+    let (code, _, output) = call(&studio, &[("--out", unwritable.to_str().unwrap())]);
+    assert_eq!(
+        code,
+        Some(3),
+        "a failed write is the assessor's infrastructure"
+    );
+    assert!(!unwritable.exists());
+    assert!(output.stdout.is_empty());
+    assert!(!output.stderr.is_empty());
+
+    let (code, written, _) = call(&outside_document("exit-outside"), &[("--class", "ci")]);
+    assert_eq!(code, Some(0), "a document outside the root is accepted");
+    assert!(written);
+    let (code, written, _) = call(&studio, &[]);
+    assert_eq!((code, written), (Some(0), true));
+}
+
+#[test]
+fn the_assessor_declaration_parses_and_agrees_with_the_cli_and_the_documents() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(DECLARATION);
+    let decl = yaml::parse(&std::fs::read_to_string(&path).unwrap())
+        .unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    assert_eq!(decl.get_str("format"), Some("ratchet-assessor/1"));
+    assert_eq!(
+        format!(
+            "{}@{}",
+            decl.get_str("name").unwrap(),
+            decl.get_str("version").unwrap()
+        ),
+        ux_static::ASSESSOR
+    );
+    assert_eq!(decl.get_str("command"), Some("ux-static"));
+    let text =
+        |items: &[&str]| Value::List(items.iter().map(|s| Value::Str(s.to_string())).collect());
+    assert_eq!(decl.get("targets"), Some(&text(&["document"])));
+    assert_eq!(
+        decl.get("conditions"),
+        Some(&text(&[])),
+        "declares no condition"
+    );
+    assert_eq!(
+        decl.get("coverage"),
+        Some(&text(&[
+            "executed",
+            "skipped",
+            "not_run",
+            "unsupported",
+            "passed",
+            "failed"
+        ]))
+    );
+
+    // The inputs are the CLI's arguments beside the reserved ones, required where the usage line
+    // does not bracket them.
+    let help = std::process::Command::new(env!("CARGO_BIN_EXE_ux-static"))
+        .arg("--help")
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    let usage = String::from_utf8(help.stdout).unwrap();
+    let mut cli: Vec<(String, bool)> = Vec::new();
+    for token in usage.split_whitespace() {
+        let required = !token.starts_with('[');
+        if let Some(name) = token.trim_start_matches('[').strip_prefix("--") {
+            cli.push((name.to_string(), required));
+        }
+    }
+    for (name, required) in cli.iter().filter(|(n, _)| RESERVED.contains(&n.as_str())) {
+        let optional_by_default = ["root", "out", "class"].contains(&name.as_str());
+        assert_eq!(*required, !optional_by_default, "--{name}");
+    }
+    cli.retain(|(n, _)| !RESERVED.contains(&n.as_str()));
+    let inputs = decl.get("inputs").expect("inputs");
+    let mut declared: Vec<(String, bool)> = inputs
+        .entries()
+        .iter()
+        .map(|(name, input)| {
+            assert!(!RESERVED.contains(&name.as_str()), "{name} is reserved");
+            assert_eq!(input.get_str("type"), Some("path"), "{name}");
+            (
+                name.clone(),
+                input.get("required") == Some(&Value::Bool(true)),
+            )
+        })
+        .collect();
+    cli.sort();
+    declared.sort();
+    assert_eq!(declared, cli, "the declared inputs are the CLI's");
+    let target = decl.get_str("target_input").unwrap();
+    assert!(inputs.get(target).is_some(), "{target} is an input");
+
+    // Every result of a document is one the declaration allows, and every output is written.
+    let outputs = decl.get("outputs").expect("outputs");
+    let golden = read_json(&fixtures().join("golden.evidence.json"));
+    let found = run(&insufficient_copy("declared-outputs", true)).unwrap();
+    for doc in [&golden, &found] {
+        assert_eq!(
+            evidence(doc).get("coverage").unwrap().get_str("unit"),
+            decl.get_str("coverage_unit")
+        );
+        for result in results(doc) {
+            let name = result.get_str("output").unwrap();
+            let output = outputs
+                .get(name)
+                .unwrap_or_else(|| panic!("output {name} is not declared"));
+            for key in ["value_type", "kind", "unit"] {
+                assert_eq!(result.get(key), output.get(key), "{name}: {key}");
+            }
+            let scope = Value::Str(result.get_str("scope").unwrap().to_string());
+            assert!(
+                output.get("scopes").unwrap().list().contains(&scope),
+                "{name}: {scope:?}"
+            );
+            assert_eq!(result.get("key"), output.get("identity_key"), "{name}");
+            for item in result.get("items").map(Value::list).unwrap_or(&[]) {
+                let fields = item.get("fields").map(Value::entries).unwrap_or(&[]);
+                for (field, _) in fields {
+                    let allowed = output.get("item_fields").map(Value::list).unwrap_or(&[]);
+                    assert!(
+                        allowed.contains(&Value::Str(field.clone())),
+                        "{name}: {field}"
+                    );
+                }
+            }
+        }
+    }
+    assert!(
+        !results(&found)
+            .iter()
+            .all(|r| r.get("items").map(Value::list).unwrap_or(&[]).is_empty()),
+        "the check above saw an item's fields"
+    );
+    for (name, _) in outputs.entries() {
+        assert!(
+            results(&golden)
+                .iter()
+                .any(|r| r.get_str("output") == Some(name.as_str())),
+            "{name} is declared and never written"
+        );
+    }
 }

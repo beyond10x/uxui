@@ -39,17 +39,37 @@ pub struct Inputs<'a> {
     pub class: &'a str,
 }
 
-/// The evidence document for `inputs`. An input that is unreadable or outside the root, or inputs
-/// that do not belong together, are an error, not evidence.
-pub fn assess(inputs: &Inputs) -> Result<Value, String> {
-    let document = assess::read(inputs.document, inputs.root)?;
-    let journeys = assess::read(inputs.journeys, inputs.root)?;
-    let declarations = assess::read(inputs.declarations, inputs.root)?;
-    let plan = assess::Plan {
+/// Fails when a reserved argument has a value it cannot have: a target class ratchet does not know,
+/// an empty project or assessment, a root that is not a directory. The binary exits 2 on it, a
+/// wrong invocation.
+pub fn invocation(inputs: &Inputs) -> Result<(), String> {
+    assess::invocation(&plan(inputs))?;
+    if !inputs.root.is_dir() {
+        return Err(format!(
+            "the root {} is not a directory",
+            inputs.root.display()
+        ));
+    }
+    Ok(())
+}
+
+fn plan<'a>(inputs: &Inputs<'a>) -> assess::Plan<'a> {
+    assess::Plan {
         project: inputs.project,
         assessment: inputs.assessment,
         class: inputs.class,
-    };
+    }
+}
+
+/// The evidence document for `inputs`. A wrong invocation (`invocation`), an unreadable input, or
+/// inputs that do not belong together are an error, not evidence. A file outside the root is read
+/// and has no path in the evidence: its digest identifies it (ratchet § 10).
+pub fn assess(inputs: &Inputs) -> Result<Value, String> {
+    invocation(inputs)?;
+    let document = assess::read(inputs.document, inputs.root)?;
+    let journeys = assess::read(inputs.journeys, inputs.root)?;
+    let declarations = assess::read(inputs.declarations, inputs.root)?;
+    let plan = plan(inputs);
     let files = [&document, &journeys, &declarations];
     let paths = [inputs.document, inputs.journeys, inputs.declarations];
     assess::run(plan, files, paths)?.document()

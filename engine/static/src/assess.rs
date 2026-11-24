@@ -28,38 +28,48 @@ pub const NAMES: Metric = Metric {
 /// One input file, read once: its path relative to the repository root, with `/`, its bytes'
 /// digest and its parsed form.
 pub struct Input {
-    pub path: String,
+    /// Relative to the root, with `/`; `None` for a file outside the root, which the evidence
+    /// identifies by its digest alone.
+    pub path: Option<String>,
+    /// The path as the caller gave it, for messages only: never written into the evidence.
+    pub given: String,
     pub digest: String,
     pub value: Value,
 }
 
-/// `path` relative to `root`, with `/`. A file outside the root is an error: the evidence holds no
-/// absolute path.
-fn relative(path: &Path, root: &Path) -> Result<String, String> {
+impl Input {
+    /// The name of the file in a message: its path in the tree, else the path as given.
+    pub fn name(&self) -> &str {
+        self.path.as_deref().unwrap_or(&self.given)
+    }
+}
+
+/// `path` relative to `root`, with `/`; `None` when the file lies outside the root, since the
+/// evidence holds no absolute path.
+fn relative(path: &Path, root: &Path) -> Result<Option<String>, String> {
     let canon = |p: &Path| {
         p.canonicalize()
             .map_err(|e| format!("{}: {e}", p.display()))
     };
     let (file, root_canon) = (canon(path)?, canon(root)?);
-    let rest = file.strip_prefix(&root_canon).map_err(|_| {
-        format!(
-            "{}: not under the repository root {}",
-            path.display(),
-            root.display()
-        )
-    })?;
+    let Ok(rest) = file.strip_prefix(&root_canon) else {
+        return Ok(None);
+    };
     let parts: Option<Vec<&str>> = rest.components().map(|c| c.as_os_str().to_str()).collect();
     parts
-        .map(|p| p.join("/"))
+        .map(|p| Some(p.join("/")))
         .ok_or_else(|| format!("{}: the path is not UTF-8", path.display()))
 }
 
+/// One input file. A file outside the root (a generated variant in a scratch directory) is read
+/// and has no path: its digest identifies it (ratchet § 10).
 pub fn read(path: &Path, root: &Path) -> Result<Input, String> {
     let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let text = String::from_utf8(bytes.clone()).map_err(|e| format!("{}: {e}", path.display()))?;
     let value = yaml::parse(&text).map_err(|e| format!("{}: {e}", path.display()))?;
     Ok(Input {
         path: relative(path, root)?,
+        given: path.display().to_string(),
         digest: uxui_doc::sha256::hex(&bytes),
         value,
     })
@@ -113,7 +123,9 @@ impl Run<'_> {
             if !self.journeys.iter().any(|j| j.name == declared.name) {
                 return Err(format!(
                     "{}: declares journey `{}`, which {} does not have",
-                    self.header.declarations.path, declared.name, self.header.journeys.path
+                    self.header.declarations.name(),
+                    declared.name,
+                    self.header.journeys.name()
                 ));
             }
         }
@@ -330,12 +342,14 @@ impl Run<'_> {
             } else {
                 Cause::IncompatibleTarget
             };
+            // An unknown step can only keep or raise the known steps' sum: that sum is a lower
+            // bound. A journey with a step on a missing node cannot be followed and has no bound.
             Reading::Incomplete {
                 why: Incomplete {
                     cause,
                     detail: problems.join("; "),
                 },
-                at_least: 0,
+                at_least: if not_run == 0 { total } else { 0 },
             }
         };
         let details = if items.is_empty() {
@@ -457,14 +471,9 @@ pub struct Plan<'a> {
     pub class: &'a str,
 }
 
-/// Checks the inputs belong together and builds the run.
-pub fn run<'a>(
-    plan: Plan<'a>,
-    files: [&'a Input; 3],
-    paths: [&Path; 3],
-) -> Result<Run<'a>, String> {
-    let [document, journeys_file, declarations_file] = files;
-    let [document_path, journeys_path, declarations_path] = paths;
+/// Fails on a value of a reserved argument that it cannot have: a target class ratchet does not
+/// know, an empty project or assessment. A wrong invocation, not a refused input.
+pub fn invocation(plan: &Plan) -> Result<(), String> {
     if !CLASSES.contains(&plan.class) {
         return Err(format!(
             "target class `{}` is not one of {}",
@@ -477,14 +486,26 @@ pub fn run<'a>(
             return Err(format!("the {what} is empty"));
         }
     }
+    Ok(())
+}
+
+/// Checks the inputs belong together and builds the run.
+pub fn run<'a>(
+    plan: Plan<'a>,
+    files: [&'a Input; 3],
+    paths: [&Path; 3],
+) -> Result<Run<'a>, String> {
+    let [document, journeys_file, declarations_file] = files;
+    let [document_path, journeys_path, declarations_path] = paths;
+    invocation(&plan)?;
     if document.value.get_str("format") != Some("ess-ui/1") {
-        return Err(format!("{}: not an ess-ui/1 document", document.path));
+        return Err(format!("{}: not an ess-ui/1 document", document.name()));
     }
     let (named, journeys) = journeys::parse(&journeys_file.value)
-        .map_err(|e| format!("{}: {e}", journeys_file.path))?;
+        .map_err(|e| format!("{}: {e}", journeys_file.name()))?;
     same_document(journeys_path, &named, document_path)?;
     let declarations = declarations::parse(&declarations_file.value)
-        .map_err(|e| format!("{}: {e}", declarations_file.path))?;
+        .map_err(|e| format!("{}: {e}", declarations_file.name()))?;
     same_document(declarations_path, &declarations.document, document_path)?;
     Ok(Run {
         header: Header {

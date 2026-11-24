@@ -1,0 +1,26 @@
+format: ratchet-assessor/1
+name: ux-static
+version: "1"
+command: ux-static
+targets: [document]
+target_input: document
+inputs:
+  document: {type: path, required: true}
+  journeys: {type: path, required: true}
+  declarations: {type: path, required: true}
+conditions: []
+coverage_unit: check
+coverage: [executed, skipped, not_run, unsupported, passed, failed]
+outputs:
+  structure.required_present@1:
+    {value_type: number, kind: exact, scopes: [variant, journey], unit: nodes}
+  effort.actions_per_journey@1:
+    {value_type: number, kind: exact, scopes: [journey], unit: actions}
+  a11y.accessible_names@1:
+    {value_type: number, kind: exact, scopes: [page], unit: nodes}
+  findings:
+    value_type: identity_set
+    kind: exact
+    scopes: [variant, journey, page]
+    identity_key: [rule, node_path]
+    item_fields: [reason]
