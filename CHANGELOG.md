@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- `ux-browser values --config <checks> --evidence <document> --out <file>` writes a consumer's values
+  file `ux-browser-values/1` from a checks document: per page scenario the numbers its ratchet
+  compares, per page, viewport and mode the hard-gate failures in the key form
+  `gate<N>|<page>|<viewport>|<mode>|<detail>`, each with the open finding record that waives it, the
+  incomplete results and the pages without a scenario. It exits 1 on an incomplete result, a page
+  without a scenario or a failure no open finding waives, after writing. `ux-browser checks --values
+  <file>` does the same in one run. The scenario files, the finding records, the gate of each output
+  and the gating viewports are declared in the configuration's new `values` section; on llm's
+  fixture document it writes the bytes llm's `ux/page-checks.sh` wrote, which it replaces.
+- The opt-in check `layout_shift.load` (`opt_in: [layout_shift.load]`): every layout shift since the
+  navigation started, as llm's round mode read it. `keyboard.viewports` limits the keyboard walk to
+  some viewports. Every number of a checks document has its per-viewport values in
+  `details.viewports`. `engine/browser/examples/llm-round.checks.yaml` is llm's round mode: five
+  viewports, two of them gating, settle 750 ms, the load-time layout shift.
+
 ## 0.2.0 — 2026-11-24
 
 - Specification round 3: browser targets (base URL, build command), source patches as axis values,

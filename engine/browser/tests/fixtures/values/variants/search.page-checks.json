@@ -1,0 +1,41 @@
+{
+  "incomplete": [],
+  "units": [
+    {
+      "failures": [
+        {
+          "detail": "keyboard:skip-link-first",
+          "gate": 5,
+          "key": "gate5|/llm/search|1440x900|dark|keyboard:skip-link-first",
+          "waivedBy": "UXF-005"
+        }
+      ],
+      "path": "/llm/search",
+      "theme": "dark",
+      "viewport": "1440x900"
+    },
+    {
+      "failures": [
+        {
+          "detail": "keyboard:skip-link-first",
+          "gate": 5,
+          "key": "gate5|/llm/search|390x844|dark|keyboard:skip-link-first",
+          "waivedBy": "UXF-005"
+        }
+      ],
+      "path": "/llm/search",
+      "theme": "dark",
+      "viewport": "390x844"
+    }
+  ],
+  "unmapped": [],
+  "values": {
+    "page-search": {
+      "always_visible.misses": 0,
+      "keyboard.misses": 4,
+      "layout.overflow": 0,
+      "layout.page_scroll": 0,
+      "layout_shift.after_ready": 0
+    }
+  }
+}

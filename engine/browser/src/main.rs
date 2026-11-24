@@ -3,6 +3,7 @@ use std::process::ExitCode;
 use ux_browser::evidence::{self, Header};
 use ux_browser::measure::{self, RenderInputs};
 use ux_browser::render::{self, FileRef};
+use ux_browser::values;
 
 const USAGE: &str = "usage:
   ux-browser render --declarations <ux-browser-render/1 file> --url <url, or a path with --serve> --out <record file>
@@ -11,13 +12,16 @@ const USAGE: &str = "usage:
   ux-browser checks --config <ux-browser-checks/1 file> --build <built site> --project <project> --assessment <assessment>
                     [--root <repository root, default .>] [--out <file>] [--class <target class, default local>]
                     [--pages <path,path,...>] [--capture <dir>] [--profile <dir>]
-                    [--jobs <pages measured at a time, default: the CPUs, at most 4>]";
+                    [--jobs <pages measured at a time, default: the CPUs, at most 4>] [--values <values file>]
+  ux-browser values --config <ux-browser-checks/1 file with a values section> --evidence <ratchet-evidence/1 file> --out <values file>
+                    [--root <repository root, default .>]";
 
 /// The target classes ratchet knows (`evidence.target.class`).
 const CLASSES: &[&str] = &["local", "ci", "ephemeral", "staging", "production"];
 
 /// 0: the record or document is written.
 /// 1: the inputs are refused (unreadable or malformed files, a page that is not served); nothing written.
+/// For `values` and `checks --values` also: the values file is written and reports a problem.
 const REFUSED: u8 = 1;
 /// 2: the invocation is wrong; nothing written.
 const WRONG_INVOCATION: u8 = 2;
@@ -195,6 +199,7 @@ fn checks_command(args: &[String]) -> ExitCode {
         "capture",
         "profile",
         "jobs",
+        "values",
     ];
     let opts = match options(args, &known) {
         Ok(o) => o,
@@ -233,6 +238,14 @@ fn checks_command(args: &[String]) -> ExitCode {
     let config = match ux_browser::checks::config(&String::from_utf8_lossy(&bytes)) {
         Ok(c) => c,
         Err(e) => return fail(REFUSED, &format!("{config_path}: {e}")),
+    };
+    let values_out = get(&opts, "values");
+    let values_inputs = match values_out {
+        None => None,
+        Some(out) => match values_inputs(&config, config_path, &root, out) {
+            Ok(i) => Some(i),
+            Err(code) => return code,
+        },
     };
     let build_dir = Path::new(build);
     let build_digest = match evidence::build_digest(build_dir) {
@@ -293,7 +306,7 @@ fn checks_command(args: &[String]) -> ExitCode {
         digest: build_digest,
     };
     let mut local_inputs = vec![("jobs", jobs.to_string())];
-    for name in ["capture", "profile"] {
+    for name in ["capture", "profile", "values"] {
         if let Some(value) = get(&opts, name) {
             local_inputs.push((name, value.to_string()));
         }
@@ -310,7 +323,8 @@ fn checks_command(args: &[String]) -> ExitCode {
         started_at,
         ended_at: evidence::now(),
     };
-    let text = evidence::text(&evidence::document(&header, &config, &pages));
+    let document = evidence::document(&header, &config, &pages);
+    let text = evidence::text(&document);
     match get(&opts, "out") {
         Some(out) => {
             if let Err(e) = std::fs::write(out, text) {
@@ -320,7 +334,109 @@ fn checks_command(args: &[String]) -> ExitCode {
         }
         None => print!("{text}"),
     }
-    ExitCode::SUCCESS
+    match (values_out, values_inputs, &config.values) {
+        (Some(out), Some(inputs), Some(section)) => write_values(section, &inputs, &document, out),
+        _ => ExitCode::SUCCESS,
+    }
+}
+
+/// For a run that writes a values file to `out`: the configuration's `values` section, and the
+/// scenario files and finding records it names, read under `root`. A stale `out` is removed first.
+fn values_inputs(
+    config: &ux_browser::checks::Config,
+    config_path: &str,
+    root: &Path,
+    out: &str,
+) -> Result<values::Inputs, ExitCode> {
+    if let Err(e) = std::fs::remove_file(out)
+        && e.kind() != std::io::ErrorKind::NotFound
+    {
+        return Err(fail(NOT_WRITTEN, &format!("{out}: {e}")));
+    }
+    let Some(section) = &config.values else {
+        return Err(fail(
+            REFUSED,
+            &format!("{config_path}: the configuration declares no `values` section"),
+        ));
+    };
+    values::inputs(section, root).map_err(|e| fail(REFUSED, &e))
+}
+
+/// Writes the values file of `document`: 0, or 1 when it reports a problem, 3 when not written.
+fn write_values(
+    section: &values::ValuesConfig,
+    inputs: &values::Inputs,
+    document: &uxui_doc::yaml::Value,
+    out: &str,
+) -> ExitCode {
+    let v = match values::values(section, inputs, document) {
+        Ok(v) => v,
+        Err(e) => return fail(REFUSED, &e),
+    };
+    if let Err(e) = std::fs::write(out, &v.text) {
+        return fail(NOT_WRITTEN, &format!("{out}: {e}"));
+    }
+    for w in &v.waived {
+        eprintln!("ux-browser: waived: {w}");
+    }
+    for p in &v.problems {
+        eprintln!("ux-browser: {p}");
+    }
+    eprintln!("values written to {out}");
+    if v.problems.is_empty() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(REFUSED)
+    }
+}
+
+fn values_command(args: &[String]) -> ExitCode {
+    let opts = match options(args, &["config", "evidence", "out", "root"]) {
+        Ok(o) => o,
+        Err(e) => return wrong(&e),
+    };
+    let (Some(config_path), Some(evidence_path), Some(out)) = (
+        get(&opts, "config"),
+        get(&opts, "evidence"),
+        get(&opts, "out"),
+    ) else {
+        return wrong("`--config`, `--evidence` and `--out` are required");
+    };
+    let root = PathBuf::from(get(&opts, "root").unwrap_or("."));
+    if !root.is_dir() {
+        return wrong("`--root` is not a directory");
+    }
+    if let Err(e) = std::fs::remove_file(out)
+        && e.kind() != std::io::ErrorKind::NotFound
+    {
+        return fail(NOT_WRITTEN, &format!("{out}: {e}"));
+    }
+    let config = match std::fs::read_to_string(config_path)
+        .map_err(|e| e.to_string())
+        .and_then(|t| ux_browser::checks::config(&t))
+    {
+        Ok(c) => c,
+        Err(e) => return fail(REFUSED, &format!("{config_path}: {e}")),
+    };
+    let inputs = match values_inputs(&config, config_path, &root, out) {
+        Ok(i) => i,
+        Err(code) => return code,
+    };
+    let document = match std::fs::read_to_string(evidence_path)
+        .map_err(|e| e.to_string())
+        .and_then(|t| ux_browser::json::parse(&t))
+    {
+        Ok(d) => d,
+        Err(e) => return fail(REFUSED, &format!("{evidence_path}: {e}")),
+    };
+    if document.get_str("format") != Some(evidence::FORMAT) {
+        return fail(
+            REFUSED,
+            &format!("{evidence_path}: `format` is not `{}`", evidence::FORMAT),
+        );
+    }
+    let section = config.values.as_ref().expect("values_inputs checked it");
+    write_values(section, &inputs, &document, out)
 }
 
 fn main() -> ExitCode {
@@ -328,6 +444,7 @@ fn main() -> ExitCode {
     match args.first().map(String::as_str) {
         Some("render") => render_command(&args[1..]),
         Some("checks") => checks_command(&args[1..]),
+        Some("values") => values_command(&args[1..]),
         Some("-h" | "--help") => {
             println!("{USAGE}");
             ExitCode::SUCCESS

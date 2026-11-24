@@ -8,7 +8,8 @@
 //! - [`chrome`]: finding and starting Chromium; [`session`]: one page driven through a session;
 //! - [`serve`]: a static server for a built site;
 //! - [`render`]: the render record `ux-browser-render/1`;
-//! - [`pool`]: the worker threads a checks run measures its pages with.
+//! - [`pool`]: the worker threads a checks run measures its pages with;
+//! - [`values`]: the values file a consumer's ratchet and hard gates read, from a checks document.
 
 pub mod base64;
 pub mod cdp;
@@ -23,4 +24,5 @@ pub mod serve;
 pub mod session;
 pub mod sha1;
 pub mod value;
+pub mod values;
 pub mod ws;

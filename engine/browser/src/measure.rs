@@ -208,6 +208,7 @@ fn measure_open(
         ]));
         if let Some(k) = &config.keyboard
             && k.modes.contains(mode)
+            && k.viewports.as_ref().is_none_or(|v| v.contains(&vp.name))
         {
             let walk = keyboard_walk(conn, page, config, k, &url)?;
             walks.push(map(vec![("mode", s(mode)), ("walk", walk)]));

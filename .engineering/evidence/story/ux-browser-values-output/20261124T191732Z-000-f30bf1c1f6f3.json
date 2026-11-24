@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-24T19:17:32Z",
+  "actor": "human:operator",
+  "artifact": "story:ux-browser-values-output",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check:pool exit 0: ux-browser 89 passed (70 before), live values 135/135 equal to page-checks.sh"
+  }
+}

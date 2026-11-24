@@ -12,6 +12,7 @@ mod evidence;
 mod json;
 mod pool;
 mod render;
+mod values;
 mod ws;
 
 use std::path::{Path, PathBuf};
