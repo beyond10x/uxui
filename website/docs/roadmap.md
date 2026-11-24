@@ -12,6 +12,32 @@ custom_edit_url: null
 
 Generated from [`docs/roadmap.md`](https://github.com/beyond10x/uxui/blob/main/docs/roadmap.md). Paths name files in the [repository](https://github.com/beyond10x/uxui/tree/main).
 
+## Trajectory (2026-11-24)
+
+Vision:
+
+- One measured UI loop for every repository of the organization: the checks, the ratchet evidence and
+  the round live in uxui; a repository keeps only its pages, journeys and baseline.
+- Checks are computed by our own code from a declared UI (`ess-ui/1`) or from the real page in a
+  browser, deterministic, with no third-party scanner; evidence goes to ratchet.
+- Search proposes the smallest measured change; people decide taste and trade-offs.
+
+First consumer: the documentation-site loop of the `llm` repository (`ux/`). Its first gap: uxui ships
+nothing it can call. The plugin is text, so `llm` keeps its own harness (`ux/core`, 1,447 lines), one of
+eight different copies in seven repositories.
+
+Waves:
+
+1. `story:spec-round-3-target-adapter`: the specification describes browser targets, the lift and the
+   binding table, and clears `specification-blocker:funnel-nouns`.
+2. `story:browser-adapter`: uxui measures any page with a URL and writes `ratchet-evidence/1` for the
+   page checks the loop copies share (overflow, page scroll, layout shift, contrast, target size,
+   keyboard reach), checked against `llm`'s own numbers on its site.
+3. `story:migrate-smallest-ui-loop-copy` (first `llm`) and `story:point-old-skill-copies-here`: the
+   `llm` ratchet reads uxui's evidence for those checks, and its copies of them leave `ux/core`.
+
+Release 0.1.0 holds what is merged on 2026-11-24 (`CHANGELOG.md`). The next release follows wave 2.
+
 State on 2026-11-24 and the next steps, in order. Each step names what it unblocks. Specification first, code
 second; the first code is a thin vertical slice that measures the assumption the whole design rests on.
 
