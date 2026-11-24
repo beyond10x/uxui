@@ -11,7 +11,7 @@ uxui has two parts in two different states, and the engine's studio already runs
 
 | part | what it does | state |
 |---|---|---|
-| The `ui-iteration-loop` plugin for Claude Code and Codex | Drives a measured improvement loop on a web UI: rounds of trial, measure, triage, design decision, build and gate, with hard gates on every merge and lower-is-better ratchets against a committed `baseline.json` | Shipped, plugin version `0.2.0` |
+| The `ui-iteration-loop` plugin for Claude Code and Codex | Drives a measured improvement loop on a web UI: rounds of trial, measure, triage, design decision, build and gate, with hard gates on every merge and lower-is-better ratchets against a committed `baseline.json` | Shipped, plugin version `0.3.0` |
 | The UX search engine | Would generate the design variants of an `ess-ui/1` document, evaluate each against every reachable UI state with no I/O, search the design space, show the climb in a studio and gate the promoted variant through ratchet | Specification only: design documents and an ESS specification, no code |
 | The studio | The engine's live UI, itself an `ess-ui/1` document, generated into an application | Runs today on fixtures and scripted live events, with no engine behind it |
 

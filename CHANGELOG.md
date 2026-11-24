@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0 — 2026-11-24
+
 - `ux-browser values --config <checks> --evidence <document> --out <file>` writes a consumer's values
   file `ux-browser-values/1` from a checks document: per page scenario the numbers its ratchet
   compares, per page, viewport and mode the hard-gate failures in the key form
