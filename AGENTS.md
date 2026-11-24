@@ -91,7 +91,7 @@ fails on a page that names it.
 `task check` must pass before every commit: `claude plugin validate --strict` on `plugin` and on
 the marketplace, `tools/check-plugin.sh` (manifests and marketplaces agree; every skill directory
 has a `SKILL.md` with `name` equal to the directory and a `description`; every `references/` path
-a skill names exists), `tools/docs.sh check`, `tools/check-plugin.test.sh` and `tools/docs.test.sh`,
+a skill names exists), `tools/docs.sh check`, `tools/check-plugin.test.sh`, `tools/release.test.sh` and `tools/docs.test.sh`,
 which prove the checks fail on broken copies of the tree (written under `target/`), `cargo test -p uxui-gen`,
 `cargo test -p ux-static` and `cargo test -p ux-browser` (no browser starts in it; the real runs are measurements, `docs/browser-adapter.md`). The whole gate takes a few seconds once the crates are compiled. Building the
 site (`task docs-site`) is not part of the gate.
@@ -105,3 +105,26 @@ On a host with a shared build pool the gate runs in two parts:
   tests.
 
 `task check` runs both parts in one process, for a checkout without a pool.
+
+## Release
+
+Bare SemVer tags (`0.2.0`). On a green `main` with entries under `## Unreleased`, the session cuts the
+release without asking (the operator's order of 2026-11-24) and reports the facts.
+
+1. One pull request: `version` of every crate under `engine/` and `generators/`, of
+   `plugin/.claude-plugin/plugin.json` and the marketplaces; `CHANGELOG.md` entries move under
+   `## <version> — <YYYY-MM-DD>`. `sh tools/release-versions.sh <version>` exits 0 on that commit.
+2. After the merge: an annotated tag on the merge commit as the bot,
+   `b10x-gates bot -- tag -a <version> -m "uxui <version>" <sha>`, pushed with
+   `b10x-gates bot --repository beyond10x/uxui -- push origin refs/tags/<version>`
+   (`b10x-gates publish` takes branch refs only).
+3. The tag push runs `.github/workflows/release.yml`: the gate without `claude`, the versions check,
+   `ux-browser` and `ux-static` built for x86_64-unknown-linux-gnu with their assessor declarations,
+   `SHA256SUMS` and `notes.md` (the changelog section) in the artifact `uxui-<version>-release`.
+4. `gh run download <run> -n uxui-<version>-release -D target/release-assets`, then
+   `sha256sum -c SHA256SUMS` there.
+5. `b10x-gates gh --repo . --repository beyond10x/uxui -- release create <version> -R beyond10x/uxui
+   --verify-tag --title "uxui <version>" --notes-file target/release-assets/notes.md
+   target/release-assets/*.tar.gz target/release-assets/SHA256SUMS` (paths relative to the checkout).
+6. Released means: the release author is `b10x-bot[bot]` and the downloaded assets pass
+   `sha256sum -c`.
