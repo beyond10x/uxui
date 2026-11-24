@@ -1,0 +1,23 @@
+[package]
+name = "uxui-gen"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+description = "The smallest own generator: one page of an ess-ui/1 document as static HTML and plain JS."
+
+[lib]
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[[bin]]
+name = "uxui-gen"
+path = "src/main.rs"
+test = false
+
+[[test]]
+name = "main"
+path = "tests/main.rs"
+
+[dependencies]

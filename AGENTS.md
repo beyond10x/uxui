@@ -22,6 +22,7 @@ what is specific to uxui.
 | `ess/` | ESS specification `uxsearch` of the UX search engine: domains, the studio `ess-ui/1` document and its tests, `GAPS.md`; gate `ess specify validate --path ess`, `ess compile --path ess`, `ess ui check --path ess/ui/studio.ui.yaml --model ess`, `ess ui test --path ess/ui/studio.ui.yaml --model ess ess/ui/tests/studio.yaml` |
 | `docs/` | design documents of the engine: `brief.md` (glossary), `concept.md`, `state-space.md`, `metrics.md` (the metric and KPI catalogue), `ratchet.md`, `roadmap.md` (state and next steps; read it first) |
 | `presets/` | `web-ux.ratchet.yaml`, a proposed ratchet preset family for the metric catalogue |
+| `generators/own/` | `uxui-gen`, the smallest own generator: one page of the studio document as static HTML and plain JS (`docs/own-generator.md`); Rust, no third-party crates; workspace `Cargo.toml` and `rust-toolchain.toml` at the root |
 
 ## Direction
 
@@ -49,4 +50,5 @@ zero dependencies in some sense [...] Not a big deal at first".
 the marketplace, `tools/check-plugin.sh` (manifests and marketplaces agree; every skill directory
 has a `SKILL.md` with `name` equal to the directory and a `description`; every `references/` path
 a skill names exists), and `tools/check-plugin.test.sh`, which proves the check fails on broken
-copies of the tree (written under `target/`). The whole gate takes a few seconds.
+copies of the tree (written under `target/`), and `cargo test -p uxui-gen`. The whole gate takes a few
+seconds once the crate is compiled.

@@ -7,6 +7,7 @@ tasks:
       - task: validate
       - task: check:plugin
       - task: test
+      - task: test:own-gen
 
   validate:
     desc: Validate the Claude Code plugin and marketplace manifests.
@@ -23,3 +24,13 @@ tasks:
     desc: Prove that the plugin check fails on broken trees.
     cmds:
       - timeout 60 sh tools/check-plugin.test.sh
+
+  test:own-gen:
+    desc: Test the own generator (generators/own).
+    cmds:
+      - timeout 120 cargo test -p uxui-gen
+
+  gen:climb:
+    desc: Generate the live climb with the own generator into target/climb.
+    cmds:
+      - cargo run -q -p uxui-gen -- --path ess/ui/studio.ui.yaml --model ess --page campaigns.climb --out target/climb
