@@ -12,11 +12,11 @@ custom_edit_url: null
 
 Generated from [`ess/`](https://github.com/beyond10x/uxui/tree/main/ess): `system.yaml` and one file per domain under `ess/domains/`. The engine is specified as an [Executable System Specification](https://beyond10x.github.io/ess/) (format `ess/37`, specification version `v1`) before any of it is built. Its pure functions (mutation operators, the layout model, metric computation, search strategies) are specified by their contracts only.
 
-Search the design space of an ess-ui/1 document for the best compositions, measured by declared UX metrics over every reachable UI state, and promote one through ratchet.
+Search the design space of a UI, an ess-ui/1 document or a built web page, for the best compositions, measured by declared UX metrics over every reachable UI state, and promote one through ratchet.
 
 | domains | entities | commands | views | events |
 |---|---|---|---|---|
-| 8 | 29 | 56 | 42 | 51 |
+| 8 | 31 | 60 | 44 | 55 |
 
 The repository gate for the specification:
 
@@ -31,13 +31,14 @@ What ESS cannot express yet, and what the specification does instead, is listed 
 
 ## `uxsearch.design`
 
-The base document, the target a campaign optimises inside it, the design space declared on that target as axes of finite values, the mutation operators that realise an axis value, and the variants they produce, each identified by the digest of its canonical document.
+The base document, the target a campaign optimises inside it and the adapter it is evaluated through, the design space declared on that target as axes of finite values, the mutation operators and source patches that realise an axis value, the variants they produce, each identified by the digest of its canonical document, and the components lifted from a browser page with their binding tables.
 
 Source: [`ess/domains/design.yaml`](https://github.com/beyond10x/uxui/blob/main/ess/domains/design.yaml).
 
 | entity | what it is |
 |---|---|
-| `BaseDocument` | The ess-ui/1 document being improved, at one revision. |
+| `LiftedComponent` | One component of a browser page lifted into an ess-ui/1 document, with its fixtures and binding table. |
+| `BaseDocument` | The ess-ui/1 document, or a browser target's source tree, being improved, at one revision. |
 | `UxDeclarations` | A uxui-declarations/1 file beside the base document, at one digest. |
 | `Target` | What a campaign optimises, from one component to the whole product. |
 | `DesignSpace` | The variants a target admits, declared as axes; frozen before a campaign searches it. |
@@ -48,19 +49,19 @@ Source: [`ess/domains/design.yaml`](https://github.com/beyond10x/uxui/blob/main/
 | `Variant` | A base document with a choice per axis, identified by its canonical digest. |
 | `AxisSwitch` | A by-hand switch of one axis value on one variant, and the variant it reached. |
 
-Commands: `RegisterBaseDocument`, `DeclareTarget`, `DeclareDesignSpace`, `RegisterUxDeclarations`, `BindComponent`, `AddAxis`, `AddAxisValue`, `FreezeDesignSpace`, `MaterializeVariant`, `RequestAxisSwitch`, `ResolveAxisSwitch`, `FailAxisSwitch`.
+Commands: `RegisterBaseDocument`, `ProposeLift`, `RecordLiftFidelity`, `RegisterLiftedDocument`, `DeclareTarget`, `DeclareDesignSpace`, `RegisterUxDeclarations`, `BindComponent`, `AddAxis`, `AddAxisValue`, `FreezeDesignSpace`, `MaterializeVariant`, `RequestAxisSwitch`, `ResolveAxisSwitch`, `FailAxisSwitch`.
 
-Views: `BaseDocuments`, `Targets`, `TargetCatalog`, `TargetById`, `DesignSpacesOfTarget`, `DesignSpaces`, `Axes`, `AxisValues`, `Operators`, `Variants`, `VariantById`, `AxisSwitches`, `ComponentBindings`, `UxDeclarationFiles`.
+Views: `LiftedComponents`, `BaseDocuments`, `Targets`, `TargetCatalog`, `TargetById`, `DesignSpacesOfTarget`, `DesignSpaces`, `Axes`, `AxisValues`, `Operators`, `Variants`, `VariantById`, `AxisSwitches`, `ComponentBindings`, `UxDeclarationFiles`.
 
 ## `uxsearch.journeys`
 
-Journeys a target is evaluated on, taken from ess-ui-test/1 tests, and the state space each journey reaches on one variant within declared bounds: every UI state the engine enumerates from fixtures, scripted live events and a virtual clock.
+Journeys a target is evaluated on, taken from ess-ui-test/1 tests or, on a browser target, from scripted steps, and the state space each journey reaches on one variant within declared bounds: every UI state the engine enumerates from fixtures, scripted live events and a virtual clock, or the pages the scripted steps reach.
 
 Source: [`ess/domains/journeys.yaml`](https://github.com/beyond10x/uxui/blob/main/ess/domains/journeys.yaml).
 
 | entity | what it is |
 |---|---|
-| `Journey` | A task through the UI, from one ess-ui-test/1 test, bound to one target. |
+| `Journey` | A task through the UI, from one ess-ui-test/1 test or one script of steps, bound to one target. |
 | `StateSpace` | Every UI state one journey reaches on one variant within its bounds. |
 | `UiState` | One reachable configuration of a page in a state space. |
 
@@ -100,14 +101,14 @@ Views: `Metrics`, `Kpis`, `KpisOfTarget`.
 
 ## `uxsearch.evaluation`
 
-Environments a target is evaluated in, the layout model's contract, and evaluations: every metric for one variant on one state space in one environment. An evaluation is a pure function of its input digests, so it is keyed by them and computed once.
+Environments a target is evaluated in, the contract of each adapter's renderer (the layout model for ess-ui, a headless browser for browser), and evaluations: every metric for one variant on one state space in one environment. An evaluation is a pure function of its input digests, so it is keyed by them and computed once.
 
 Source: [`ess/domains/evaluation.yaml`](https://github.com/beyond10x/uxui/blob/main/ess/domains/evaluation.yaml).
 
 | entity | what it is |
 |---|---|
 | `Environment` | Viewport, theme mode, input mode, text scale and motion for one target's evaluations. |
-| `LayoutModel` | One version of the deterministic layout model, known by its contract. |
+| `LayoutModel` | One version of one adapter's renderer, known by its contract; the deterministic layout model for ess-ui. |
 | `Evaluation` | Every metric for one variant on one state space in one environment, keyed by its input digests. |
 
 Commands: `DeclareEnvironment`, `RequestEvaluation`, `ReuseEvaluation`, `RecordEvaluationResult`.
@@ -133,18 +134,19 @@ Views: `Campaigns`, `CampaignById`, `ClimbPoints`, `Climb`, `ClimbOfKpi`, `Front
 
 ## `uxsearch.promotion`
 
-Promotion of a frontier variant: the ess-ui/1 diff it makes to the base document, gated by ratchet, accepted by a person or an authorized policy. Judgement records: a person's or a review agent's pairwise preference or finding on variants, never an input to a gate.
+Promotion of a frontier variant: the diff it makes to the base, per source file, gated by ratchet, accepted by a person or an authorized policy. Judgement records: a person's or a review agent's pairwise preference or finding on variants, never an input to a gate.
 
 Source: [`ess/domains/promotion.yaml`](https://github.com/beyond10x/uxui/blob/main/ess/domains/promotion.yaml).
 
 | entity | what it is |
 |---|---|
 | `Promotion` | A frontier variant proposed as the next base document, with its diff and its gate. |
+| `SourceDiff` | A promotion's change to one source file, as a unified diff. |
 | `JudgementRecord` | A pairwise preference or a finding on variants by a person or a review agent. |
 
-Commands: `ProposePromotion`, `RecordGateDecision`, `AcceptPromotion`, `AcceptTradeOff`, `RejectPromotion`, `ApplyPromotion`, `SupersedePromotion`, `RecordJudgement`, `DispositionJudgement`.
+Commands: `ProposePromotion`, `RecordSourceDiff`, `RecordGateDecision`, `AcceptPromotion`, `AcceptTradeOff`, `RejectPromotion`, `ApplyPromotion`, `SupersedePromotion`, `RecordJudgement`, `DispositionJudgement`.
 
-Views: `Promotions`, `PromotionById`, `Judgements`.
+Views: `SourceDiffsOfPromotion`, `Promotions`, `PromotionById`, `Judgements`.
 
 ## `uxsearch.ratchet`
 

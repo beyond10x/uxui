@@ -1,0 +1,137 @@
+type: ess-scenario/6
+domain: uxsearch.design
+scenario: lift-must-reproduce-the-component
+# Funnel stage 0 (specification-blocker funnel-nouns; docs/targets.md:40-56): a model lifts a
+# component of a browser page into an ess-ui/1 document with fixtures and a binding table (node
+# path to CSS selector). The engine renders the lift and compares it with the page: a faithful
+# lift is Verified and becomes the base document of an ess-ui target; a lift whose render does not
+# reproduce the component's structure is Refused, and its document is never registered, so never
+# searched.
+summary: A lifted component carries its binding table, and a lift that does not reproduce the component is refused
+arrange:
+  - instance: site
+    entity: uxsearch.design.BaseDocument
+    setup:
+      identity: 00000000-0000-4000-8000-000000000110
+      fields:
+        path: website
+        app: uxui-docs
+        document_digest: "sha256:site-0"
+        adapter: browser
+      state: Registered
+  - instance: landing
+    entity: uxsearch.design.Target
+    setup:
+      identity: 00000000-0000-4000-8000-000000000111
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000110
+        name: landing page
+        scope: page
+        members: []
+        host_slot: false
+        harness_widths_px: []
+        adapter: browser
+        browser: {base_url: "http://localhost:3000/uxui/", build_command: npm --prefix website run build}
+      state: Declared
+  - {instance: hero, entity: uxsearch.design.LiftedComponent}
+  - {instance: nav, entity: uxsearch.design.LiftedComponent}
+timeline:
+  # A lift with no binding cannot be projected back to the page.
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.design.ProposeLift
+    actor: uxsearch.design.Lifter
+    input:
+      target_id: {$instance: landing}
+      component: hero
+      document_path: lifts/hero.ui.yaml
+      document_digest: "sha256:lift-hero"
+      fixtures_path: lifts/hero.fixtures.yaml
+      fixtures_digest: "sha256:fixtures-hero"
+      binding_table: {bindings: []}
+    outcome: bindings-empty
+    no_events: [uxsearch.design.LiftProposed]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.design.ProposeLift
+    actor: uxsearch.design.Lifter
+    input:
+      target_id: {$instance: landing}
+      component: hero
+      document_path: lifts/hero.ui.yaml
+      document_digest: "sha256:lift-hero"
+      fixtures_path: lifts/hero.fixtures.yaml
+      fixtures_digest: "sha256:fixtures-hero"
+      binding_table:
+        bindings:
+          - {node_path: pages/landing/sections/hero, selector: header.hero}
+          - {node_path: pages/landing/sections/hero/actions/install, selector: "header.hero a.button--primary"}
+    outcome: proposed
+    events: [{event: uxsearch.design.LiftProposed}]
+    capture: {instance: hero, event: uxsearch.design.LiftProposed, field: lift_id}
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.design.RecordLiftFidelity
+    actor: uxsearch.design.Engine
+    input:
+      lift_id: {$instance: hero}
+      reproduces: true
+      mismatches: []
+    outcome: faithful
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.design.ProposeLift
+    actor: uxsearch.design.Lifter
+    input:
+      target_id: {$instance: landing}
+      component: navigation
+      document_path: lifts/nav.ui.yaml
+      document_digest: "sha256:lift-nav"
+      fixtures_path: lifts/nav.fixtures.yaml
+      fixtures_digest: "sha256:fixtures-nav"
+      binding_table:
+        bindings:
+          - {node_path: pages/landing/sections/nav, selector: nav.navbar}
+    outcome: proposed
+    events: [{event: uxsearch.design.LiftProposed}]
+    capture: {instance: nav, event: uxsearch.design.LiftProposed, field: lift_id}
+  # The render puts the navigation's links in another order than the page shows them.
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.design.RecordLiftFidelity
+    actor: uxsearch.design.Engine
+    input:
+      lift_id: {$instance: nav}
+      reproduces: false
+      mismatches: [{aspect: order, node_path: pages/landing/sections/nav, detail: "links render as Docs, Blog; the page shows Blog, Docs"}]
+    outcome: unfaithful
+  # The refused lift is never registered, so no target and no campaign can search it.
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.design.RegisterLiftedDocument
+    actor: uxsearch.design.Designer
+    input:
+      lift_id: {$instance: nav}
+      app: uxui-docs
+    outcome: lift-not-verified
+    no_events: [uxsearch.design.BaseDocumentRegistered]
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.design.RegisterLiftedDocument
+    actor: uxsearch.design.Designer
+    input:
+      lift_id: {$instance: hero}
+      app: uxui-docs
+    outcome: registered
+assert:
+  - view: uxsearch.design.LiftedComponents
+    contains:
+      lift_id: {$instance: hero}
+      binding_table:
+        bindings:
+          - {node_path: pages/landing/sections/hero, selector: header.hero}
+          - {node_path: pages/landing/sections/hero/actions/install, selector: "header.hero a.button--primary"}
+      mismatches: []
+      state: Verified
+  - view: uxsearch.design.LiftedComponents
+    contains:
+      lift_id: {$instance: nav}
+      mismatches: [{aspect: order, node_path: pages/landing/sections/nav, detail: "links render as Docs, Blog; the page shows Blog, Docs"}]
+      state: Refused
+  - view: uxsearch.design.BaseDocuments
+    contains: {path: lifts/hero.ui.yaml, adapter: ess-ui, lifted_from: {$instance: hero}}
+  - view: uxsearch.design.BaseDocuments
+    excludes: {path: lifts/nav.ui.yaml}

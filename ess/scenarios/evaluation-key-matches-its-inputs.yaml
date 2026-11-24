@@ -27,6 +27,7 @@ arrange:
       identity: layout-model/0
       fields:
         summary: terminal renderer
+        adapter: ess-ui
         geometry: cells
       state: Available
   - instance: space-a
