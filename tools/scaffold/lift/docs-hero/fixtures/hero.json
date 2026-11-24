@@ -1,0 +1,33 @@
+{
+  "views": {
+    "site.Hero": {
+      "rows": [
+        {
+          "id": "hero",
+          "kicker": "Measured UI improvement · plugin 0.1.0",
+          "lede": "uxui is two things. The ui-iteration-loop plugin for Claude Code and Codex, usable today: it improves a web UI in measured rounds, gates every merge and ratchets every measured value. And the specification of a UX search engine that does not exist yet: it would generate the design variants of an ess-ui/1 document, evaluate them with no I/O and search for the best one.",
+          "meta": "Agent plugin for Claude Code and Codex · ESS specification · Apache-2.0"
+        }
+      ]
+    },
+    "site.Kpis": {
+      "rows": [
+        {
+          "id": "shipped",
+          "label": "shipped, runs today",
+          "value": 3
+        },
+        {
+          "id": "decided",
+          "label": "decided, not built",
+          "value": 5
+        },
+        {
+          "id": "planned",
+          "label": "planned",
+          "value": 6
+        }
+      ]
+    }
+  }
+}

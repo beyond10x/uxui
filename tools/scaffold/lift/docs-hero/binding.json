@@ -1,0 +1,31 @@
+{
+  "schema": "uxui-binding/1",
+  "document": "hero.ui.json",
+  "page": "/uxui/",
+  "note": "Node path of hero.ui.json -> CSS selector of the element it stands for on the rendered page. Written by the lift together with the document.",
+  "root": ".b10x-hero",
+  "nodes": {
+    "pages/landing": "#b10x-hero-title",
+    "pages/landing/sections/kicker": ".b10x-hero__copy > .b10x-kicker",
+    "pages/landing/sections/lede": ".b10x-hero__lede",
+    "pages/landing/sections/actions": ".b10x-hero__actions",
+    "pages/landing/sections/actions/actions/install": ".b10x-hero__actions > a.b10x-button",
+    "pages/landing/sections/actions/actions/run_a_round": ".b10x-hero__actions > a[href$='/guides/run-a-round']",
+    "pages/landing/sections/actions/actions/search_engine": ".b10x-hero__actions > a[href$='/concepts/search-engine']",
+    "pages/landing/sections/actions/actions/studio": ".b10x-hero__actions > a[href$='/concepts/studio']",
+    "pages/landing/sections/actions/actions/status": ".b10x-hero__actions > a[href$='/docs/status']",
+    "pages/landing/sections/meta": ".b10x-hero__meta",
+    "pages/landing/sections/kpis": ".b10x-hero > .b10x-kpis",
+    "pages/landing/sections/kpis/rows/shipped": ".b10x-kpi--shipped",
+    "pages/landing/sections/kpis/rows/decided": ".b10x-kpi--decided",
+    "pages/landing/sections/kpis/rows/planned": ".b10x-kpi--planned",
+    "pages/landing/layout/columns/copy": ".b10x-hero__copy",
+    "pages/landing/layout/columns/figures": ".b10x-hero > .b10x-kpis"
+  },
+  "unmapped": [
+    "the second line of the title is emphasised (<em>); a page title is one plain string",
+    "the kicker's dot and the figures' index numbers and status glyphs are decoration with no node",
+    "the actions link to documentation pages outside the hero; the document holds a stub page for each",
+    "colour, type scale and spacing: the terminal renderer draws no tokens, so density is a projection-only axis"
+  ]
+}
