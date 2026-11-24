@@ -14,6 +14,7 @@ pub const OVERFLOW: &str = "layout.overflow@1";
 pub const ALWAYS_VISIBLE: &str = "always_visible.misses@1";
 pub const KEYBOARD: &str = "keyboard.misses@1";
 pub const LAYOUT_SHIFT: &str = "layout_shift.after_ready@1";
+pub const LAYOUT_SHIFT_LOAD: &str = "layout_shift.load@1";
 
 /// The slack, in CSS pixels, an edge may pass its limit by before it overflows.
 const OVERFLOW_SLACK: f64 = 1.0;
@@ -500,6 +501,8 @@ pub struct KeyboardConfig {
     pub skip_link: Name,
     pub must_reach: Vec<String>,
     pub max_tabs: usize,
+    /// The viewports (names) the walk runs at; `None`: every viewport.
+    pub viewports: Option<Vec<String>>,
     pub modes: Vec<String>,
     /// The wait after Enter on the skip link.
     pub focus_settle_ms: u64,
@@ -526,6 +529,10 @@ pub struct Config {
     pub mode_settle_ms: u64,
     pub always_visible: Vec<AlwaysVisible>,
     pub keyboard: Option<KeyboardConfig>,
+    /// The opt-in check `layout_shift.load`.
+    pub layout_shift_load: bool,
+    /// How the values file is made from the document (`ux-browser values`).
+    pub values: Option<crate::values::ValuesConfig>,
 }
 
 const TOP_KEYS: &[&str] = &[
@@ -541,7 +548,12 @@ const TOP_KEYS: &[&str] = &[
     "mode_settle_ms",
     "always_visible",
     "keyboard",
+    "opt_in",
+    "values",
 ];
+
+/// The checks that run only when `opt_in` names them.
+pub const OPT_IN: &[&str] = &["layout_shift.load"];
 
 fn only(v: &Value, keys: &[&str], what: &str) -> Result<(), String> {
     for (k, _) in v.entries() {
@@ -681,6 +693,7 @@ pub fn config(text: &str) -> Result<Config, String> {
                     "must_reach",
                     "max_tabs",
                     "modes",
+                    "viewports",
                     "focus_settle_ms",
                 ],
                 "keyboard",
@@ -713,14 +726,39 @@ pub fn config(text: &str) -> Result<Config, String> {
                     return Err(format!("keyboard: mode `{m}` is not in `modes`"));
                 }
             }
+            let walk_viewports = match k.get("viewports") {
+                None => None,
+                Some(_) => {
+                    let names = get_strs(k, "viewports")?;
+                    for n in &names {
+                        if !viewports.iter().any(|v| &v.name == n) {
+                            return Err(format!("keyboard: viewport `{n}` is not declared"));
+                        }
+                    }
+                    Some(names)
+                }
+            };
             Some(KeyboardConfig {
                 skip_link,
                 must_reach,
                 max_tabs,
                 modes: walk_modes,
+                viewports: walk_viewports,
                 focus_settle_ms: ms(k, "focus_settle_ms", 100)?,
             })
         }
+    };
+    let opt_in = get_strs(&v, "opt_in")?;
+    for check in &opt_in {
+        if !OPT_IN.contains(&check.as_str()) {
+            return Err(format!("opt_in: `{check}` is not one of {OPT_IN:?}"));
+        }
+    }
+    let layout_shift_load = opt_in.iter().any(|c| c == "layout_shift.load");
+    let names: Vec<String> = viewports.iter().map(|v| v.name.clone()).collect();
+    let values = match v.get("values") {
+        None => None,
+        Some(section) => Some(crate::values::config(section, &names)?),
     };
     let reduced_motion = match v.get("reduced_motion") {
         None => true,
@@ -739,6 +777,8 @@ pub fn config(text: &str) -> Result<Config, String> {
         mode_settle_ms: ms(&v, "mode_settle_ms", 100)?,
         always_visible,
         keyboard,
+        layout_shift_load,
+        values,
     })
 }
 
@@ -800,6 +840,13 @@ impl PageResult {
     }
     pub fn keyboard_misses(&self) -> i64 {
         self.keyboard.iter().map(|k| k.result.misses()).sum()
+    }
+    /// The largest load-time shift over the viewports; `None` when one has no value.
+    pub fn shift_load(&self) -> Option<f64> {
+        self.shifts
+            .iter()
+            .map(|s| s.load)
+            .try_fold(0.0f64, |m, v| v.map(|v| m.max(v)))
     }
     /// The largest over the viewports; `None` when one has no value.
     pub fn shift_after_ready(&self) -> Option<f64> {

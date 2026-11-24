@@ -33,3 +33,15 @@ keyboard:
   max_tabs: 40
   modes: [dark]
   focus_settle_ms: 100
+values:
+  scenarios:
+    files: ux/scenarios/page-*/page.json
+    path_key: path
+  waivers:
+    files: ux/findings/UXF-*.md
+    closed: [closed]
+  gates:
+    layout.page_scroll@1: 1
+    layout.overflow@1: 1
+    always_visible.misses@1: 2
+    keyboard.misses@1: 5

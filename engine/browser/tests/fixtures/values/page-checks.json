@@ -1,0 +1,115 @@
+{
+  "incomplete": [
+    "/llm/docs/status layout.page_scroll@1: incompatible_target",
+    "/llm/docs/status findings: incompatible_target"
+  ],
+  "units": [
+    {
+      "failures": [
+        {
+          "detail": "keyboard:tab-reaches-navbar",
+          "gate": 5,
+          "key": "gate5|/llm/docs/status/roadmap|1440x900|dark|keyboard:tab-reaches-navbar",
+          "waivedBy": null
+        }
+      ],
+      "path": "/llm/docs/status/roadmap",
+      "theme": "dark",
+      "viewport": "1440x900"
+    },
+    {
+      "failures": [
+        {
+          "detail": "search:missing",
+          "gate": 2,
+          "key": "gate2|/llm/docs/status/roadmap|1440x900|light|search:missing",
+          "waivedBy": null
+        },
+        {
+          "detail": "theme toggle:clipped@bottom",
+          "gate": 2,
+          "key": "gate2|/llm/docs/status/roadmap|1440x900|light|theme toggle:clipped@bottom",
+          "waivedBy": null
+        }
+      ],
+      "path": "/llm/docs/status/roadmap",
+      "theme": "light",
+      "viewport": "1440x900"
+    },
+    {
+      "failures": [
+        {
+          "detail": "overflow:div.wide/x",
+          "gate": 1,
+          "key": "gate1|/llm/docs/status/roadmap|390x844|dark|overflow:div.wide/x",
+          "waivedBy": null
+        }
+      ],
+      "path": "/llm/docs/status/roadmap",
+      "theme": "dark",
+      "viewport": "390x844"
+    },
+    {
+      "failures": [
+        {
+          "detail": "overflow:p \"a, b | c\"",
+          "gate": 1,
+          "key": "gate1|/llm/docs/status/roadmap|390x844|light|overflow:p \"a  b   c\"",
+          "waivedBy": null
+        },
+        {
+          "detail": "page-scroll",
+          "gate": 1,
+          "key": "gate1|/llm/docs/status/roadmap|390x844|light|page-scroll",
+          "waivedBy": null
+        }
+      ],
+      "path": "/llm/docs/status/roadmap",
+      "theme": "light",
+      "viewport": "390x844"
+    },
+    {
+      "failures": [
+        {
+          "detail": "keyboard:skip-link-first",
+          "gate": 5,
+          "key": "gate5|/llm/search|1440x900|dark|keyboard:skip-link-first",
+          "waivedBy": "UXF-005"
+        }
+      ],
+      "path": "/llm/search",
+      "theme": "dark",
+      "viewport": "1440x900"
+    },
+    {
+      "failures": [
+        {
+          "detail": "keyboard:skip-link-first",
+          "gate": 5,
+          "key": "gate5|/llm/search|390x844|dark|keyboard:skip-link-first",
+          "waivedBy": "UXF-005"
+        }
+      ],
+      "path": "/llm/search",
+      "theme": "dark",
+      "viewport": "390x844"
+    }
+  ],
+  "unmapped": [],
+  "values": {
+    "page-docs-status-roadmap": {
+      "always_visible.misses": 3,
+      "keyboard.misses": 1,
+      "layout.overflow": 2,
+      "layout.page_scroll": 1,
+      "layout_shift.after_ready": 0.0123
+    },
+    "page-search": {
+      "always_visible.misses": 0,
+      "keyboard.misses": 4,
+      "layout.overflow": 0,
+      "layout.page_scroll": 0,
+      "layout_shift.after_ready": 0
+    }
+  }
+}

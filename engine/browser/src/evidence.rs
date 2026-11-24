@@ -179,12 +179,13 @@ fn number(output: &str, item: &str, value: i64, unit: &str, details: Option<Valu
     map(e)
 }
 
-const UNITS: [(&str, &str); 5] = [
+const UNITS: [(&str, &str); 6] = [
     (checks::PAGE_SCROLL, "units"),
     (checks::OVERFLOW, "blocks"),
     (checks::ALWAYS_VISIBLE, "items"),
     (checks::KEYBOARD, "checks"),
     (checks::LAYOUT_SHIFT, "score"),
+    (checks::LAYOUT_SHIFT_LOAD, "score"),
 ];
 
 fn unit_of(output: &str) -> &'static str {
@@ -195,15 +196,75 @@ fn unit_of(output: &str) -> &'static str {
         .unwrap_or("count")
 }
 
+/// `details.viewports` of a count: per viewport, in the order first seen, the sum of its parts.
+fn per_viewport<'a>(parts: impl Iterator<Item = (&'a str, i64)>) -> Value {
+    let mut sums: Vec<(String, i64)> = Vec::new();
+    for (vp, n) in parts {
+        match sums.iter_mut().find(|(v, _)| v == vp) {
+            Some((_, sum)) => *sum += n,
+            None => sums.push((vp.to_string(), n)),
+        }
+    }
+    Value::Map(
+        sums.into_iter()
+            .map(|(vp, n)| (vp, s(&n.to_string())))
+            .collect(),
+    )
+}
+
+/// A layout-shift number: the largest of the viewports' readings `of`, each in `details.viewports`;
+/// incomplete when a viewport has no reading.
+fn shift_number(
+    output: &str,
+    item: &str,
+    p: &PageResult,
+    of: impl Fn(&checks::ShiftUnit) -> Option<f64>,
+) -> Value {
+    let mut details = Vec::new();
+    let mut missing = Vec::new();
+    let mut largest = 0.0f64;
+    for sh in &p.shifts {
+        match of(sh) {
+            Some(v) => {
+                largest = largest.max(v);
+                details.push((sh.viewport.clone(), s(&decimal(v, 4))));
+            }
+            None => missing.push(sh.viewport.clone()),
+        }
+    }
+    let mut e = head(output, "sampled", item, "number");
+    if missing.is_empty() {
+        e.push(("value", s(&decimal(largest, 4))));
+    }
+    e.push(("unit", s(unit_of(output))));
+    e.push(("samples", Value::Int(details.len() as i64)));
+    if !missing.is_empty() {
+        e.push((
+            "incomplete",
+            incomplete(
+                "coverage_below_plan",
+                &format!("no layout-shift observer at {}", missing.join(", ")),
+            ),
+        ));
+    }
+    if !details.is_empty() {
+        e.push(("details", map(vec![("viewports", Value::Map(details))])));
+    }
+    map(e)
+}
+
 /// The numbers and the findings of one page, and its checks counted into `coverage`.
-fn page(p: &PageResult, coverage: &mut Coverage) -> (Vec<Value>, Value) {
+fn page(p: &PageResult, coverage: &mut Coverage, load: bool) -> (Vec<Value>, Value) {
     let item = p.path.as_str();
     if let Some(error) = &p.error {
         coverage.skipped(item, "not_run", error);
         let why = incomplete("incompatible_target", error);
         let mut numbers = Vec::new();
         for (output, unit) in UNITS {
-            let kind = if output == checks::LAYOUT_SHIFT {
+            if output == checks::LAYOUT_SHIFT_LOAD && !load {
+                continue;
+            }
+            let kind = if output == checks::LAYOUT_SHIFT || output == checks::LAYOUT_SHIFT_LOAD {
                 "sampled"
             } else {
                 "exact"
@@ -298,80 +359,78 @@ fn page(p: &PageResult, coverage: &mut Coverage) -> (Vec<Value>, Value) {
             ),
         ]));
     }
-    let mut shift_details = Vec::new();
-    let mut shift_missing = Vec::new();
     for sh in &p.shifts {
-        match sh.after_ready {
-            Some(v) => {
-                coverage.executed += 1;
-                shift_details.push((sh.viewport.clone(), s(&decimal(v, 4))));
-            }
-            None => {
-                let id = format!("{item}/{}/layout-shift", sh.viewport);
-                coverage.skipped(
-                    &id,
-                    "unsupported",
-                    "the browser has no layout-shift observer",
-                );
-                shift_missing.push(sh.viewport.clone());
-            }
+        if sh.after_ready.is_some() {
+            coverage.executed += 1;
+        } else {
+            let id = format!("{item}/{}/layout-shift", sh.viewport);
+            coverage.skipped(
+                &id,
+                "unsupported",
+                "the browser has no layout-shift observer",
+            );
         }
     }
-    let numbers = vec![
+    let scroll_by = per_viewport(
+        p.units
+            .iter()
+            .map(|u| (u.viewport.as_str(), i64::from(u.page_scroll_px > 0.0))),
+    );
+    let overflow_by = per_viewport(
+        p.units
+            .iter()
+            .map(|u| (u.viewport.as_str(), u.overflow.len() as i64)),
+    );
+    let visible_by = per_viewport(p.units.iter().map(|u| {
+        (
+            u.viewport.as_str(),
+            u.visible.iter().filter(|v| v.status.is_miss()).count() as i64,
+        )
+    }));
+    let keyboard_by = per_viewport(
+        p.keyboard
+            .iter()
+            .map(|k| (k.viewport.as_str(), k.result.misses())),
+    );
+    let mut keyboard_details = Vec::new();
+    if !walks.is_empty() {
+        keyboard_details.push(("walks", Value::List(walks)));
+    }
+    keyboard_details.push(("viewports", keyboard_by));
+    let mut numbers = vec![
         number(
             checks::PAGE_SCROLL,
             item,
             p.page_scroll(),
             unit_of(checks::PAGE_SCROLL),
-            None,
+            Some(map(vec![("viewports", scroll_by)])),
         ),
         number(
             checks::OVERFLOW,
             item,
             p.overflow(),
             unit_of(checks::OVERFLOW),
-            None,
+            Some(map(vec![("viewports", overflow_by)])),
         ),
         number(
             checks::ALWAYS_VISIBLE,
             item,
             p.always_visible_misses(),
             unit_of(checks::ALWAYS_VISIBLE),
-            None,
+            Some(map(vec![("viewports", visible_by)])),
         ),
         number(
             checks::KEYBOARD,
             item,
             p.keyboard_misses(),
             unit_of(checks::KEYBOARD),
-            (!walks.is_empty()).then(|| map(vec![("walks", Value::List(walks))])),
+            Some(map(keyboard_details)),
         ),
-        {
-            let mut e = head(checks::LAYOUT_SHIFT, "sampled", item, "number");
-            match p.shift_after_ready() {
-                Some(v) if shift_missing.is_empty() => e.push(("value", s(&decimal(v, 4)))),
-                _ => {}
-            }
-            e.push(("unit", s(unit_of(checks::LAYOUT_SHIFT))));
-            e.push(("samples", Value::Int(shift_details.len() as i64)));
-            if !shift_missing.is_empty() {
-                e.push((
-                    "incomplete",
-                    incomplete(
-                        "coverage_below_plan",
-                        &format!("no layout-shift observer at {}", shift_missing.join(", ")),
-                    ),
-                ));
-            }
-            if !shift_details.is_empty() {
-                e.push((
-                    "details",
-                    map(vec![("viewports", Value::Map(shift_details))]),
-                ));
-            }
-            map(e)
-        },
+        shift_number(checks::LAYOUT_SHIFT, item, p, |s| s.after_ready),
     ];
+    if load {
+        numbers.push(shift_number(checks::LAYOUT_SHIFT_LOAD, item, p, |s| s.load));
+    }
     let mut seen = std::collections::HashSet::new();
     let items = findings
         .into_iter()
@@ -397,7 +456,7 @@ pub fn document(header: &Header, config: &Config, pages: &[PageResult]) -> Value
     let mut numbers = Vec::new();
     let mut sets = Vec::new();
     for p in pages {
-        let (n, set) = page(p, &mut coverage);
+        let (n, set) = page(p, &mut coverage, config.layout_shift_load);
         numbers.extend(n);
         sets.push(set);
     }

@@ -1,0 +1,38 @@
+{
+  "format": "ratchet-evidence/1",
+  "evidence": {
+    "project": "llm-docs",
+    "assessment": "page-checks",
+    "assessor": "ux-browser@1",
+    "completion": "completed",
+    "results": [
+      {"output": "layout.page_scroll@1", "kind": "exact", "scope": "page", "item": "/llm/search", "value_type": "number", "value": "0", "unit": "units"},
+      {"output": "layout.overflow@1", "kind": "exact", "scope": "page", "item": "/llm/search", "value_type": "number", "value": "0", "unit": "blocks"},
+      {"output": "always_visible.misses@1", "kind": "exact", "scope": "page", "item": "/llm/search", "value_type": "number", "value": "0", "unit": "items"},
+      {"output": "keyboard.misses@1", "kind": "exact", "scope": "page", "item": "/llm/search", "value_type": "number", "value": "4", "unit": "checks"},
+      {"output": "layout_shift.after_ready@1", "kind": "sampled", "scope": "page", "item": "/llm/search", "value_type": "number", "value": "0", "unit": "score", "samples": 2},
+      {"output": "findings", "kind": "exact", "scope": "page", "item": "/llm/search", "value_type": "identity_set", "key": ["rule", "node_path"], "items": [
+        {"identity": {"rule": "keyboard.misses@1", "node_path": "1440x900/dark/skip-link-first"}, "fields": {"reason": "missed"}},
+        {"identity": {"rule": "keyboard.misses@1", "node_path": "1440x900/dark/skip-link-moves-focus"}, "fields": {"reason": "missed"}},
+        {"identity": {"rule": "keyboard.misses@1", "node_path": "390x844/dark/skip-link-first"}, "fields": {"reason": "missed"}},
+        {"identity": {"rule": "keyboard.misses@1", "node_path": "390x844/dark/skip-link-moves-focus"}, "fields": {"reason": "missed"}}
+      ]},
+      {"output": "layout.page_scroll@1", "kind": "exact", "scope": "page", "item": "/llm/docs/status/roadmap", "value_type": "number", "value": "1", "unit": "units"},
+      {"output": "layout.overflow@1", "kind": "exact", "scope": "page", "item": "/llm/docs/status/roadmap", "value_type": "number", "value": "2", "unit": "blocks"},
+      {"output": "always_visible.misses@1", "kind": "exact", "scope": "page", "item": "/llm/docs/status/roadmap", "value_type": "number", "value": "3", "unit": "items"},
+      {"output": "keyboard.misses@1", "kind": "exact", "scope": "page", "item": "/llm/docs/status/roadmap", "value_type": "number", "value": "1", "unit": "checks"},
+      {"output": "layout_shift.after_ready@1", "kind": "sampled", "scope": "page", "item": "/llm/docs/status/roadmap", "value_type": "number", "value": "0.0123", "unit": "score", "samples": 2},
+      {"output": "findings", "kind": "exact", "scope": "page", "item": "/llm/docs/status/roadmap", "value_type": "identity_set", "key": ["rule", "node_path"], "items": [
+        {"identity": {"rule": "layout.page_scroll@1", "node_path": "390x844/light/page"}, "fields": {"reason": "the page scrolls 12 px sideways"}},
+        {"identity": {"rule": "layout.overflow@1", "node_path": "390x844/light/p \"a, b | c\""}, "fields": {"reason": "right edge 402 past its viewport at 390"}},
+        {"identity": {"rule": "layout.overflow@1", "node_path": "390x844/dark/div.wide/x"}, "fields": {"reason": "right edge 300 past its parent at 200"}},
+        {"identity": {"rule": "always_visible.misses@1", "node_path": "1440x900/light/search@top"}, "fields": {"reason": "missing"}},
+        {"identity": {"rule": "always_visible.misses@1", "node_path": "1440x900/light/search@bottom"}, "fields": {"reason": "missing"}},
+        {"identity": {"rule": "always_visible.misses@1", "node_path": "1440x900/light/theme toggle@bottom"}, "fields": {"reason": "clipped"}},
+        {"identity": {"rule": "keyboard.misses@1", "node_path": "1440x900/dark/tab-reaches-navbar"}, "fields": {"reason": "missed"}}
+      ]},
+      {"output": "layout.page_scroll@1", "kind": "exact", "scope": "page", "item": "/llm/docs/status", "value_type": "number", "unit": "units", "incomplete": {"cause": "incompatible_target", "detail": "status 404"}},
+      {"output": "findings", "kind": "exact", "scope": "page", "item": "/llm/docs/status", "value_type": "identity_set", "key": ["rule", "node_path"], "items": [], "incomplete": {"cause": "incompatible_target", "detail": "status 404"}}
+    ]
+  }
+}

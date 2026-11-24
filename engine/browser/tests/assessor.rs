@@ -117,6 +117,11 @@ fn the_declared_inputs_are_the_arguments_of_the_checks_command() {
     assert_eq!(kind("capture"), ("path".to_string(), true));
     assert_eq!(kind("profile"), ("path".to_string(), true));
     assert_eq!(kind("jobs"), ("integer".to_string(), true));
+    assert_eq!(
+        kind("values"),
+        ("path".to_string(), true),
+        "a file the run writes, as capture"
+    );
 }
 
 /// Every result of `doc` is one the declaration allows; returns the outputs it wrote.
@@ -185,6 +190,7 @@ fn the_documents_write_every_declared_output_and_nothing_else() {
     let example = crate::fixture_json("../../examples/llm-docs.evidence.json");
     let mut written = agrees(&decl, &example);
     written.extend(agrees(&decl, &crate::evidence::document()));
+    written.extend(agrees(&decl, &crate::values::round_document()));
     for (name, _) in decl.get("outputs").unwrap().entries() {
         assert!(
             written.contains(name),
