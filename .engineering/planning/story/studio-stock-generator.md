@@ -12,7 +12,7 @@ scope:
   path: ess/ui/studio.ui.yaml
 - confidence: cited
   path: ess/ui/tests/studio.yaml
-revision: 3
+revision: 4
 ---
 # Story: Studio on the stock generator: fix what the studio document causes
 
@@ -46,3 +46,12 @@ The friction ledger (held, `specification-blocker:generator-round-nouns`).
 
 Migrated from `docs/generator-round.md`, story 2 (lines 25-26) and findings F1-F2 (lines 43-50). Not
 in Git yet (untracked on 2026-11-24); dates itself `Status: plan, 2026-11-24` (line 3).
+
+## State on 2026-11-24
+
+Exists: `ess/ui/studio.ui.yaml` declares the budget and the KPI values `as: map` and `as: list` (F2)
+and the step table (`pages/campaigns.climb/sections/points`) `sort: {by: seq, dir: asc}` (F1, second
+half). PR #1.
+
+Missing: `ess/ui/tests/studio.yaml` has five tests and no step that reads the budget or the KPI
+values as a map or list, or the step table's rows in their declared order.

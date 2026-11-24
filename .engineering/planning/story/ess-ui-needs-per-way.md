@@ -10,7 +10,7 @@ relations:
 scope:
 - confidence: cited
   path: docs/ess-gaps.md
-revision: 4
+revision: 5
 ---
 # Story: What `ess-ui/1` needs, per way
 
@@ -38,3 +38,15 @@ is filed with the ESS maintainers as a story and listed in `docs/ess-gaps.md`.
 
 Migrated from `docs/generator-round.md`, story 7, lines 36-39. Not in Git yet (untracked on
 2026-11-24); dates itself `Status: plan, 2026-11-24` (line 3).
+
+## State on 2026-11-24
+
+Exists: `docs/ess-gaps.md` lists the resolved document (P0 3, F3) and chart order (P1 6, F1), both
+filed with the ESS maintainers as draft stories on 2026-11-24, and states that styling is not an ESS
+gap: themes and templates belong to uxui. `docs/generator-round.md` ("slot case study") sorts slot's
+gap stories into format or model gaps and value-rendering gaps for ESS. PR #1.
+
+Missing: a conformance suite every generator can be held to (from `ess-ui-test/1`) is neither in
+`docs/ess-gaps.md` nor recorded as filed; the slot gaps that `docs/generator-round.md` assigns to ESS
+are not in `docs/ess-gaps.md`; the stock way's extension points and per-node overrides are neither
+listed nor recorded as declined.

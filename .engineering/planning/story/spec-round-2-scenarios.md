@@ -14,7 +14,7 @@ scope:
   path: ess/GAPS.md
 - confidence: cited
   path: ess/domains
-revision: 3
+revision: 4
 ---
 # Story: Specification round 2: a scenario for every outcome
 
@@ -45,3 +45,15 @@ marker left in `ess/` is listed in `ess/GAPS.md`.
 Migrated from `docs/roadmap.md`, step 1, lines 23-25 ("Scenarios for the 156 outcomes; resolve the 13
 UNMAPPED markers or move each to `ess/GAPS.md`"). First written 2026-11-24 · last touched 2026-11-24
 · 1 git revision.
+
+## State on 2026-11-24
+
+Exists: ten authored scenarios in `ess/scenarios/` (PR #1, `story:spec-hardening-pass`). The
+hardening report (`reviews/2026-11-24-uxsearch-hardening.md`, "Completeness") counts, after the
+hardening, 258 unscenarioed constructs (156 before) and 160 of 264 outcomes without a synthesized
+scenario. 14 UNMAPPED markers remain in `ess/domains/` (design 4, search 5, metrics 2, promotion 1,
+ratchet 1, rules 1); `ess/GAPS.md` mentions UNMAPPED at 5 places.
+
+Missing: 0 unscenarioed outcomes in `ess specify validate --path ess --format json`, and each of the
+14 markers listed in `ess/GAPS.md`. Not run for this note: the validate run was stopped after 5
+minutes in the build pool; the counts above are the report's.

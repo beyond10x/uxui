@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:scaffold-spike
 kind: story
-status: draft
+status: implemented
 title: 'Scaffold spike: lift a page section into an `ess-ui/1` document'
 tags:
 - in-flight
@@ -12,7 +12,11 @@ relations:
 scope:
 - confidence: cited
   path: tools/scaffold
-revision: 3
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-24T10:50:06Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"test_result":1,"review_outcome":2}}}
+- {from: "proposed", to: "active", at: "2026-11-24T10:50:06Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"test_result":1,"review_outcome":2}}}
+- {from: "active", to: "implemented", at: "2026-11-24T10:50:06Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1,"review_outcome":2}}}
 ---
 # Story: Scaffold spike: lift a page section into an `ess-ui/1` document
 

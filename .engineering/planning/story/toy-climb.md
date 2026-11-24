@@ -12,7 +12,7 @@ relations:
 scope:
 - confidence: inferred
   path: Cargo.toml
-revision: 4
+revision: 5
 ---
 # Story: First climb on a toy page
 
@@ -38,3 +38,15 @@ layout model v0, prints a ranked frontier as text.
 
 Migrated from `docs/roadmap.md`, step 5, lines 39-40. First written 2026-11-24 · last touched
 2026-11-24 · 1 git revision.
+
+## State on 2026-11-24
+
+Exists: no engine. The scaffold spike searched exhaustively on layout model v0 and printed a
+ranking: stage 1 (`tools/scaffold/stage1.mjs`, `tools/scaffold/campaign.mjs`, the Rust cell reader
+`tools/scaffold/cells/` over the ESS crates) over 144 variants of the lifted docs hero and over 288
+variants of the docs landing page (`docs/scaffold-spike.md`,
+`docs/campaign-2026-11-24-docs-landing.md`; PR #1, PR #3). Neither is theme x section order on an
+ESS example page.
+
+Missing: the engine doing the search; the spike drivers are Node (`docs/scaffold-spike.md`, "Language
+of the spike code"). `story:cost-spike`, which this story depends on, is partly met.
