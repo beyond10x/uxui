@@ -2,7 +2,8 @@ type: ess-scenario/6
 domain: uxsearch.evaluation
 scenario: evaluation-key-matches-its-inputs
 # Hardening target 4 (R12): an evaluation of variant A over the state space of variant B is
-# refused, and a stored key requested with other inputs is a collision, never a cache hit.
+# refused, and a stored key asked for with other inputs is a collision, never a cache hit. A
+# stored key is never requested again.
 summary: An evaluation is requested only over its own variant's state space and inputs
 arrange:
   - instance: environment
@@ -79,7 +80,7 @@ timeline:
       catalogue_digest: "sha256:catalogue-1"
     outcome: state-space-of-another-variant
   - at: 2026-01-05T09:00:01Z
-    command: uxsearch.evaluation.RequestEvaluation
+    command: uxsearch.evaluation.ReuseEvaluation
     actor: uxsearch.evaluation.Evaluator
     input:
       evaluation_key: {$instance: stored}
@@ -90,7 +91,7 @@ timeline:
       catalogue_digest: "sha256:catalogue-2"
     outcome: key-collision
   - at: 2026-01-05T09:00:02Z
-    command: uxsearch.evaluation.RequestEvaluation
+    command: uxsearch.evaluation.ReuseEvaluation
     actor: uxsearch.evaluation.Evaluator
     input:
       evaluation_key: {$instance: stored}
@@ -100,6 +101,17 @@ timeline:
       layout_model_version: {$instance: layout}
       catalogue_digest: "sha256:catalogue-1"
     outcome: cached
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.evaluation.RequestEvaluation
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: {$instance: stored}
+      variant_digest: "sha256:variant-a"
+      state_space_key: {$instance: space-a}
+      environment_id: {$instance: environment}
+      layout_model_version: {$instance: layout}
+      catalogue_digest: "sha256:catalogue-2"
+    outcome: already-requested
 assert:
   - view: uxsearch.evaluation.Evaluations
     excludes: {evaluation_key: "sha256:eval-new"}

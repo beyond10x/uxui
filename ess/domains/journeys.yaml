@@ -228,6 +228,7 @@ actors:
       summary: The engine's state-space enumerator.
     may:
       - uxsearch.journeys.EnumerateStateSpace
+      - uxsearch.journeys.ReuseStateSpace
       - uxsearch.journeys.RecordUiState
       - uxsearch.journeys.CompleteStateSpace
       - uxsearch.journeys.TruncateStateSpace
@@ -281,6 +282,12 @@ errors:
     fields:
       - name: variant_digest
         type: uxsearch.design.VariantDigest
+
+  - name: uxsearch.journeys.StateSpaceExists
+    summary: A state space of this key was enumerated before; ReuseStateSpace answers from it.
+    fields:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
 
   - name: uxsearch.journeys.KeyCollision
     summary: A state space of this key was enumerated for another journey, variant or stage, so the cache does not answer.
@@ -421,6 +428,16 @@ commands:
       - name: stage
         type: uxsearch.evaluation.Stage
     outcomes:
+      # A stored key is never enumerated again: ReuseStateSpace answers from it or refuses a
+      # collision.
+      - name: already-enumerated
+        existing_instance: true
+        error: uxsearch.journeys.StateSpaceExists
+        payload:
+          uxsearch.journeys.StateSpaceExists:
+            state_space_key: input.state_space_key
+        summary: Nothing was enumerated; ReuseStateSpace answers for this key.
+
       - name: no-journey
         when_related:
           via: input.journey_id
@@ -451,23 +468,6 @@ commands:
             journey_id: input.journey_id
         summary: Nothing was enumerated.
 
-      - name: key-collision
-        when_related:
-          entity: uxsearch.journeys.StateSpace
-          where:
-            all:
-              - state_space_key == input.state_space_key
-              - any:
-                  - journey_id != input.journey_id
-                  - variant_digest != input.variant_digest
-                  - stage != input.stage
-          exists: true
-        error: uxsearch.journeys.KeyCollision
-        payload:
-          uxsearch.journeys.KeyCollision:
-            state_space_key: input.state_space_key
-        summary: Nothing was enumerated or answered.
-
       # A variant with a Recorded hard Violated verdict is never evaluated further.
       - name: variant-pruned
         when_related:
@@ -486,7 +486,6 @@ commands:
         summary: Nothing was enumerated.
 
       - name: started
-        unknown_instance: true
         creates: uxsearch.journeys.StateSpace
         instance: state_space_key
         sets:
@@ -502,10 +501,49 @@ commands:
             state_space_key: input.state_space_key
         summary: Enumeration of a new state space started within the journey's bounds.
 
+  # The cache lookup, split from EnumerateStateSpace so that the collision check reads the stored
+  # row alone (`when_subject`). As a row-set guard on the creating command it multiplied synthesis
+  # time (GAPS.md G14). The enumerator asks here first and enumerates on `no-state-space`.
+  - name: uxsearch.journeys.ReuseStateSpace
+    naming:
+      wire: reuse-state-space
+      display: Reuse a state space
+    input:
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: journey_id
+        type: uxsearch.journeys.JourneyId
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: stage
+        type: uxsearch.evaluation.Stage
+    outcomes:
+      - name: no-state-space
+        unknown_instance: true
+        error: uxsearch.journeys.StateSpaceNotFound
+        payload:
+          uxsearch.journeys.StateSpaceNotFound:
+            state_space_key: input.state_space_key
+        summary: Nothing is cached under this key; the enumerator enumerates it.
+
+      - name: key-collision
+        when_subject:
+          predicate:
+            any:
+              - journey_id != input.journey_id
+              - variant_digest != input.variant_digest
+              - stage != input.stage
+        error: uxsearch.journeys.KeyCollision
+        payload:
+          uxsearch.journeys.KeyCollision:
+            state_space_key: input.state_space_key
+        summary: Nothing was answered.
+
       - name: cached
         preserves: uxsearch.journeys.StateSpace
         instance: state_space_key
         summary: The state space was enumerated before, or is being enumerated; nothing is enumerated again.
+
 
   - name: uxsearch.journeys.RecordUiState
     naming:
