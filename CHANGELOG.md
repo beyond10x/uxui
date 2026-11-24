@@ -15,7 +15,7 @@ The first tagged release. It holds the plugin as first published and the work me
   `.agents/plugins/marketplace.json`.
 - Specification `uxsearch` of the UX search engine (`ess/`), reviewed and hardened: 10 authored
   scenarios catch 24 of 24 planted defects (#1). Reuse commands replace the row-set collision
-  guards; conformance synthesis 11 s, from about 1000 s (#5).
+  guards; conformance synthesis 11 s, from 325 s on the same build node (#5).
 - `ux-static@1` (`engine/static`, crate `ux-static`): reads an `ess-ui/1` document, its journeys and
   a `uxui-declarations/1` file, computes the static checks and writes one `ratchet-evidence/1`
   document per run, following revision 2 of the format and its assessor contract, with the
