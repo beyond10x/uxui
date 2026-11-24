@@ -47,6 +47,9 @@ const config: Config = {
           editUrl: 'https://github.com/beyond10x/uxui/tree/main/website/',
         },
         blog: false,
+        theme: {
+          customCss: './src/css/landing.css',
+        },
       } satisfies Preset.Options,
     ],
   ],

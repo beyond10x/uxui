@@ -1,0 +1,50 @@
+/* The landing page's density and heading scale (docs/campaign-2026-11-24-docs-landing.md). With
+   both custom properties at 1 every rule below reproduces the docs-system theme's own value. */
+:root {
+  --uxui-density: 1;
+  --uxui-heading-scale: 0.85;
+}
+
+.b10x-product .b10x-hero {
+  gap: calc(3.5rem * var(--uxui-density));
+  padding-block: calc(6rem * var(--uxui-density)) calc(5.5rem * var(--uxui-density));
+}
+.b10x-product .b10x-hero h1 {
+  margin: 0 0 calc(1.6rem * var(--uxui-density));
+  font-size: calc(clamp(2.6rem, 4.5vw, 4rem) * var(--uxui-heading-scale));
+}
+.b10x-product .b10x-hero__actions {
+  margin-block: calc(2rem * var(--uxui-density)) calc(1.25rem * var(--uxui-density));
+}
+.b10x-product .b10x-product-section {
+  padding-block: calc(4.4rem * var(--uxui-density));
+}
+.b10x-product > .b10x-product-section.b10x-product-section:last-child {
+  padding-bottom: calc(5.5rem * var(--uxui-density));
+}
+.b10x-product .b10x-product-section__header {
+  margin-bottom: calc(2.2rem * var(--uxui-density));
+}
+.b10x-product .b10x-product-section h2 {
+  margin: 0 0 calc(1.1rem * var(--uxui-density));
+  font-size: calc(clamp(1.9rem, 3vw, 2.6rem) * var(--uxui-heading-scale));
+}
+
+@media (max-width: 996px) {
+  .b10x-product .b10x-hero {
+    gap: calc(2.5rem * var(--uxui-density));
+    padding-block: calc(4rem * var(--uxui-density));
+  }
+}
+
+@media (max-width: 720px) {
+  .b10x-product .b10x-hero {
+    padding-block: calc(3rem * var(--uxui-density));
+  }
+  .b10x-product .b10x-hero h1 {
+    font-size: calc(2.6rem * var(--uxui-heading-scale));
+  }
+  .b10x-product .b10x-product-section {
+    padding-block: calc(2.8rem * var(--uxui-density));
+  }
+}

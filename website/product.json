@@ -8,24 +8,12 @@
       "Measure the UI.",
       "Never merge it worse."
     ],
-    "lede": "uxui is two things. The ui-iteration-loop plugin for Claude Code and Codex, usable today: it improves a web UI in measured rounds, gates every merge and ratchets every measured value. And the specification of a UX search engine that does not exist yet: it would generate the design variants of an ess-ui/1 document, evaluate them with no I/O and search for the best one.",
+    "lede": "A plugin for Claude Code and Codex that improves a web UI in measured rounds and never merges it worse, usable today. And the specification of a UX search engine, not built yet.",
     "actions": [
       {
         "label": "Install the plugin",
         "href": "/docs/getting-started",
         "kind": "primary"
-      },
-      {
-        "label": "Run one round",
-        "href": "/docs/guides/run-a-round"
-      },
-      {
-        "label": "The search engine design",
-        "href": "/docs/concepts/search-engine"
-      },
-      {
-        "label": "See the studio",
-        "href": "/docs/concepts/studio"
       },
       {
         "label": "What exists today",
