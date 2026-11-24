@@ -23,6 +23,7 @@ what is specific to uxui.
 | `docs/` | design documents of the engine: `brief.md` (glossary), `concept.md`, `state-space.md`, `metrics.md` (the metric and KPI catalogue), `ratchet.md`, `roadmap.md` (state and next steps; read it first) |
 | `presets/` | `web-ux.ratchet.yaml`, a proposed ratchet preset family for the metric catalogue |
 | `generators/own/` | `uxui-gen`, the smallest own generator: one page of the studio document as static HTML and plain JS (`docs/own-generator.md`); Rust, no third-party crates; workspace `Cargo.toml` and `rust-toolchain.toml` at the root |
+| `engine/` | the engine, Rust, no third-party crates: `doc` (`uxui-doc`: the YAML subset reader, the JSON writer, SHA-256 and the node tree of an `ess-ui/1` document, shared with `uxui-gen`) and `static` (`ux-static@1`: static metrics as ratchet evidence records, `docs/ux-static.md`; its declarations file `docs/uxui-declarations.md`, the studio's `ess/ui/studio.uxui.yaml`) |
 
 ## Direction
 
@@ -50,5 +51,5 @@ zero dependencies in some sense [...] Not a big deal at first".
 the marketplace, `tools/check-plugin.sh` (manifests and marketplaces agree; every skill directory
 has a `SKILL.md` with `name` equal to the directory and a `description`; every `references/` path
 a skill names exists), and `tools/check-plugin.test.sh`, which proves the check fails on broken
-copies of the tree (written under `target/`), and `cargo test -p uxui-gen`. The whole gate takes a few
+copies of the tree (written under `target/`), `cargo test -p uxui-gen` and `cargo test -p ux-static`. The whole gate takes a few
 seconds once the crate is compiled.

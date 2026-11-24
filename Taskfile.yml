@@ -8,6 +8,7 @@ tasks:
       - task: check:plugin
       - task: test
       - task: test:own-gen
+      - task: test:ux-static
 
   validate:
     desc: Validate the Claude Code plugin and marketplace manifests.
@@ -29,6 +30,16 @@ tasks:
     desc: Test the own generator (generators/own).
     cmds:
       - timeout 120 cargo test -p uxui-gen
+
+  test:ux-static:
+    desc: Test ux-static@1 (engine/static) on the studio and on planted broken copies.
+    cmds:
+      - timeout 120 cargo test -p ux-static
+
+  ux:static:
+    desc: Write the studio's ux-static@1 evidence records to target/ux-static.jsonl.
+    cmds:
+      - cargo run -q -p ux-static -- --document ess/ui/studio.ui.yaml --journeys ess/ui/tests/studio.yaml --declarations ess/ui/studio.uxui.yaml --out target/ux-static.jsonl
 
   gen:climb:
     desc: Generate the live climb with the own generator into target/climb.

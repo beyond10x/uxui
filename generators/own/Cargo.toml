@@ -21,3 +21,4 @@ name = "main"
 path = "tests/main.rs"
 
 [dependencies]
+uxui-doc = { path = "../../engine/doc" }
