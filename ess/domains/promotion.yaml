@@ -466,7 +466,9 @@ commands:
         summary: Nothing was recorded; a pass has no failing requirement and no loss.
 
       - name: no-promotion
-        unknown_instance: true
+        when_related:
+          via: input.promotion_id
+          exists: false
         error: uxsearch.promotion.PromotionNotFound
         payload:
           uxsearch.promotion.PromotionNotFound:
@@ -475,12 +477,8 @@ commands:
 
       - name: variant-mismatch
         when_related:
-          entity: uxsearch.promotion.Promotion
-          where:
-            all:
-              - promotion_id == input.promotion_id
-              - variant_digest != input.variant_digest
-          exists: true
+          via: input.promotion_id
+          predicate: variant_digest != input.variant_digest
         error: uxsearch.promotion.VariantMismatch
         payload:
           uxsearch.promotion.VariantMismatch:
@@ -597,7 +595,9 @@ commands:
         type: uxsearch.design.VariantDigest
     outcomes:
       - name: no-promotion
-        unknown_instance: true
+        when_related:
+          via: input.promotion_id
+          exists: false
         error: uxsearch.promotion.PromotionNotFound
         payload:
           uxsearch.promotion.PromotionNotFound:
@@ -606,12 +606,8 @@ commands:
 
       - name: variant-mismatch
         when_related:
-          entity: uxsearch.promotion.Promotion
-          where:
-            all:
-              - promotion_id == input.promotion_id
-              - variant_digest != input.variant_digest
-          exists: true
+          via: input.promotion_id
+          predicate: variant_digest != input.variant_digest
         error: uxsearch.promotion.VariantMismatch
         payload:
           uxsearch.promotion.VariantMismatch:
@@ -621,12 +617,8 @@ commands:
       # D3: a trade-off is accepted only by a person, through AcceptTradeOff; no policy may.
       - name: trade-off
         when_related:
-          entity: uxsearch.promotion.Promotion
-          where:
-            all:
-              - promotion_id == input.promotion_id
-              - gate_trade_off_only == true
-          exists: true
+          via: input.promotion_id
+          predicate: gate_trade_off_only == true
         error: uxsearch.promotion.TradeOffNeedsPerson
         payload:
           uxsearch.promotion.TradeOffNeedsPerson:
@@ -635,12 +627,8 @@ commands:
 
       - name: gate-not-passed
         when_related:
-          entity: uxsearch.promotion.Promotion
-          where:
-            all:
-              - promotion_id == input.promotion_id
-              - gate != pass
-          exists: true
+          via: input.promotion_id
+          predicate: gate != pass
         error: uxsearch.promotion.GateNotPassed
         payload:
           uxsearch.promotion.GateNotPassed:
@@ -738,7 +726,9 @@ commands:
         type: uxsearch.design.VariantDigest
     outcomes:
       - name: no-promotion
-        unknown_instance: true
+        when_related:
+          via: input.promotion_id
+          exists: false
         error: uxsearch.promotion.PromotionNotFound
         payload:
           uxsearch.promotion.PromotionNotFound:
@@ -747,12 +737,8 @@ commands:
 
       - name: variant-mismatch
         when_related:
-          entity: uxsearch.promotion.Promotion
-          where:
-            all:
-              - promotion_id == input.promotion_id
-              - variant_digest != input.variant_digest
-          exists: true
+          via: input.promotion_id
+          predicate: variant_digest != input.variant_digest
         error: uxsearch.promotion.VariantMismatch
         payload:
           uxsearch.promotion.VariantMismatch:
@@ -761,12 +747,8 @@ commands:
 
       - name: not-a-trade-off
         when_related:
-          entity: uxsearch.promotion.Promotion
-          where:
-            all:
-              - promotion_id == input.promotion_id
-              - gate == pass
-          exists: true
+          via: input.promotion_id
+          predicate: gate == pass
         error: uxsearch.promotion.NotATradeOff
         payload:
           uxsearch.promotion.NotATradeOff:
@@ -777,14 +759,11 @@ commands:
       # or a fail on anything but the named losses never does.
       - name: gate-not-passed
         when_related:
-          entity: uxsearch.promotion.Promotion
-          where:
-            all:
-              - promotion_id == input.promotion_id
-              - any:
-                  - gate != fail
-                  - gate_trade_off_only == false
-          exists: true
+          via: input.promotion_id
+          predicate:
+            any:
+              - gate != fail
+              - gate_trade_off_only == false
         error: uxsearch.promotion.GateNotPassed
         payload:
           uxsearch.promotion.GateNotPassed:
@@ -793,12 +772,8 @@ commands:
 
       - name: no-gains
         when_related:
-          entity: uxsearch.promotion.Promotion
-          where:
-            all:
-              - promotion_id == input.promotion_id
-              - gains.count == 0
-          exists: true
+          via: input.promotion_id
+          predicate: gains.count == 0
         error: uxsearch.promotion.NoGains
         payload:
           uxsearch.promotion.NoGains:

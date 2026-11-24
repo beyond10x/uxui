@@ -30,6 +30,7 @@ components:
         - uxsearch.journeys.DeclareJourney
         - uxsearch.journeys.RetireJourney
         - uxsearch.journeys.EnumerateStateSpace
+        - uxsearch.journeys.ReuseStateSpace
         - uxsearch.journeys.RecordUiState
         - uxsearch.journeys.CompleteStateSpace
         - uxsearch.journeys.TruncateStateSpace
@@ -44,6 +45,7 @@ components:
         - uxsearch.metrics.RetireKpi
         - uxsearch.evaluation.DeclareEnvironment
         - uxsearch.evaluation.RequestEvaluation
+        - uxsearch.evaluation.ReuseEvaluation
         - uxsearch.evaluation.RecordEvaluationResult
         - uxsearch.search.StartCampaign
         - uxsearch.search.StopCampaign

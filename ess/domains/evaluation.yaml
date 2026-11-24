@@ -240,6 +240,7 @@ actors:
       summary: The engine's evaluation worker; it runs the layout model and the metric functions. Not a person.
     may:
       - uxsearch.evaluation.RequestEvaluation
+      - uxsearch.evaluation.ReuseEvaluation
       - uxsearch.evaluation.RecordEvaluationResult
 
 errors:
@@ -292,6 +293,12 @@ errors:
         type: uxsearch.evaluation.LayoutModelVersion
 
   # The key names its inputs: the same key with other inputs is a collision, never a cache hit.
+  - name: uxsearch.evaluation.EvaluationExists
+    summary: An evaluation of this key was requested before; ReuseEvaluation answers from it.
+    fields:
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+
   - name: uxsearch.evaluation.KeyCollision
     summary: An evaluation of this key exists with other inputs; nothing is answered from it.
     fields:
@@ -413,6 +420,16 @@ commands:
       - name: declarations_digest
         type: Optional<uxsearch.design.DocumentDigest>
     outcomes:
+      # A stored key is never requested again: ReuseEvaluation answers from it or refuses a
+      # collision.
+      - name: already-requested
+        existing_instance: true
+        error: uxsearch.evaluation.EvaluationExists
+        payload:
+          uxsearch.evaluation.EvaluationExists:
+            evaluation_key: input.evaluation_key
+        summary: Nothing was requested; ReuseEvaluation answers for this key.
+
       - name: no-state-space
         when_related:
           via: input.state_space_key
@@ -464,27 +481,6 @@ commands:
             state_space_key: input.state_space_key
         summary: Nothing was requested.
 
-      # A stored evaluation of this key with other inputs: the key collided, and the cache never
-      # answers for inputs it was not computed from.
-      - name: key-collision
-        when_related:
-          entity: uxsearch.evaluation.Evaluation
-          where:
-            all:
-              - evaluation_key == input.evaluation_key
-              - any:
-                  - variant_digest != input.variant_digest
-                  - state_space_key != input.state_space_key
-                  - environment_id != input.environment_id
-                  - layout_model_version != input.layout_model_version
-                  - catalogue_digest != input.catalogue_digest
-          exists: true
-        error: uxsearch.evaluation.KeyCollision
-        payload:
-          uxsearch.evaluation.KeyCollision:
-            evaluation_key: input.evaluation_key
-        summary: Nothing was requested or answered.
-
       # A variant with a Recorded hard Violated verdict is never evaluated further.
       - name: variant-pruned
         when_related:
@@ -503,7 +499,6 @@ commands:
         summary: Nothing was requested.
 
       - name: requested
-        unknown_instance: true
         creates: uxsearch.evaluation.Evaluation
         instance: evaluation_key
         sets:
@@ -526,6 +521,52 @@ commands:
             evaluation_key: input.evaluation_key
             variant_digest: input.variant_digest
         summary: The evaluation is queued.
+
+  # The cache lookup, split from RequestEvaluation so that the collision check reads the stored
+  # row alone (`when_subject`). As a row-set guard on the creating command it multiplied synthesis
+  # time (GAPS.md G14). The evaluator asks here first and requests on `no-evaluation`.
+  - name: uxsearch.evaluation.ReuseEvaluation
+    naming:
+      wire: reuse-evaluation
+      display: Reuse an evaluation
+    input:
+      - name: evaluation_key
+        type: uxsearch.evaluation.EvaluationKey
+      - name: variant_digest
+        type: uxsearch.design.VariantDigest
+      - name: state_space_key
+        type: uxsearch.journeys.StateSpaceKey
+      - name: environment_id
+        type: uxsearch.evaluation.EnvironmentId
+      - name: layout_model_version
+        type: uxsearch.evaluation.LayoutModelVersion
+      - name: catalogue_digest
+        type: uxsearch.evaluation.CatalogueDigest
+    outcomes:
+      - name: no-evaluation
+        unknown_instance: true
+        error: uxsearch.evaluation.EvaluationNotFound
+        payload:
+          uxsearch.evaluation.EvaluationNotFound:
+            evaluation_key: input.evaluation_key
+        summary: Nothing is cached under this key; the evaluator requests it.
+
+      # A stored evaluation of this key with other inputs: the key collided, and the cache never
+      # answers for inputs it was not computed from.
+      - name: key-collision
+        when_subject:
+          predicate:
+            any:
+              - variant_digest != input.variant_digest
+              - state_space_key != input.state_space_key
+              - environment_id != input.environment_id
+              - layout_model_version != input.layout_model_version
+              - catalogue_digest != input.catalogue_digest
+        error: uxsearch.evaluation.KeyCollision
+        payload:
+          uxsearch.evaluation.KeyCollision:
+            evaluation_key: input.evaluation_key
+        summary: Nothing was answered.
 
       - name: cached
         preserves: uxsearch.evaluation.Evaluation
