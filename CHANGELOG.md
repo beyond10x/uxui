@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.8.0 — 2026-11-25
+
 - The Chrome build of a run is pinned in its `ux-browser-checks/1` file: `chrome: {build: <n>}` takes
   the Playwright build `chromium-<n>`, `chrome: {version: <major>}` the newest build whose Chrome has
   that major version (read with the binary's `--version`, which starts no browser). A pin no build
