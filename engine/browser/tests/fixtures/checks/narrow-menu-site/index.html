@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A menu button for narrow viewports</title>
+<style>
+html, body { margin: 0; padding: 0; font: 16px sans-serif; }
+header { display: flex; gap: 8px; padding: 8px; }
+.wide { display: none; }
+@media (min-width: 1024px) {
+  .narrow { display: none; }
+  .wide { display: inline-block; }
+}
+</style>
+</head>
+<body>
+<header>
+  <button type="button" class="narrow" aria-label="Open menu">=</button>
+  <button type="button" class="wide" aria-label="Toggle navigation">&lt;</button>
+</header>
+<main><h1>Narrow menu</h1></main>
+</body>
+</html>
