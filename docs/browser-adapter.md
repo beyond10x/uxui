@@ -23,7 +23,7 @@ It does three things for any page with a URL:
 | WebSocket | `src/ws.rs`, `src/base64.rs`, `src/sha1.rs` | RFC 6455 client: the opening handshake with its accept check, masked client frames, server frames of any length, fragments, ping and close |
 | JSON | `src/json.rs` | a reader into `uxui_doc::yaml::Value`; writing is `uxui_doc::json` |
 | protocol | `src/cdp.rs` | commands with ids, responses matched by id, events queued until asked for, flat sessions; a guard that answers every paused request: requests to the measured server with a declared method (`GET` and `HEAD` unless `request_methods` names more) go on, every other one fails (`BlockedByClient`) |
-| Chromium | `src/chrome.rs` | `UXUI_CHROME`, else the newest `chromium-<n>/chrome-linux*/chrome` under the Playwright cache (`PLAYWRIGHT_BROWSERS_PATH`, else `~/.cache/ms-playwright`); started headless with its own profile, `--remote-debugging-port=0`, the switches of Playwright's headless Chromium that change what a page measures (`--hide-scrollbars`, the hover and pointer media of a headless device, sRGB), no GPU process (`--disable-gpu`, `--in-process-gpu`), then a consumer's own switches (Chromium switches); ended with `Browser.close`, then by its PID |
+| Chromium | `src/chrome.rs` | `UXUI_CHROME`, else the newest `chromium-<n>/chrome-linux*/chrome` under the Playwright cache (`PLAYWRIGHT_BROWSERS_PATH`, else `~/.cache/ms-playwright`), or the build a checks file pins (The Chrome build); started headless with its own profile, `--remote-debugging-port=0`, the switches of Playwright's headless Chromium that change what a page measures (`--hide-scrollbars`, the hover and pointer media of a headless device, sRGB), no GPU process (`--disable-gpu`, `--in-process-gpu`), then a consumer's own switches (Chromium switches); ended with `Browser.close`, then by its PID |
 | pages | `src/session.rs` | one browser context per page and viewport (as a fresh Playwright context): viewport, `prefers-color-scheme`, `prefers-reduced-motion`, focus emulation, scripts before the page's own, navigation to the `load` event, keys, the accessibility tree, screenshots |
 | workers | `src/pool.rs`, `src/measure.rs` | a checks run starts one Chromium and measures up to `--jobs` page and viewport pairs at a time in it, each worker on a DevTools connection of its own; pairs are taken in order, results are put back in order, and the first browser failure stops the run |
 | server | `src/serve.rs`, `src/target.rs` | a static server for a built site under its base path on a free loopback port (file, file plus `.html`, `index.html`; else `404.html` with status 404); or, with `--url`, a running server: its origin and the URL of each page and of the sitemap on it |
@@ -89,7 +89,7 @@ in the one Chromium of the run: by default the CPUs the process may use, at most
 values do not depend on it (Timings). `--capture` writes each page's recorded geometry as
 `<page>.capture.json`, the input `checks::page_result` reads. Exit statuses as `ux-static`
 (`docs/ux-static.md`): 0 written; 1 refused inputs (a configuration or build that does not read, a sitemap the server does not answer); 2
-wrong invocation; 3 infrastructure (Chromium did not start or answer, the document was not written). A
+wrong invocation; 3 infrastructure (the pinned Chrome build is not on the host, Chromium did not start or answer, the document was not written). A
 page the server does not answer with 200 is no failure of the run: its results are incomplete.
 
 With `--values`: the configuration must declare `values` (Configuration), and the scenario files and
@@ -151,6 +151,7 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `values` | how `ux-browser values` and `checks --values` turn the document into the consumer's values file (`ux-browser values`); optional |
 | `clock` | the page's clock: `{at: <RFC 3339 instant>, advance: true \| false}`; every load starts its `Date` at `at`, running on from there (`advance`, default true) or standing still. Default: none, the host's clock (A fixed page clock) |
 | `chrome_args` | switches Chromium starts with after the defaults, a list: `[--enable-gpu]`; a switch the defaults set with another value is refused. Default: none (Chromium switches) |
+| `chrome` | the Chrome build the run uses: `{build: <n>}`, the Playwright build `chromium-<n>`, or `{version: <major>}`, the newest build whose Chrome has that major version; exactly one key, a whole number above 0. Default: none, the newest build (The Chrome build) |
 
 The `layout` section; the defaults are llm's rule, the one of 0.4.0 and before (The checks):
 
@@ -382,6 +383,49 @@ renderers; on the second consumer's snapshot it was the busiest process, and the
 a third of the run's CPU off. `--jobs 1` takes the peak from about 5 CPUs to under 2, for over three
 times the wall time.
 
+### The Chrome build: `chrome`
+
+Without a pin a run takes the newest `chromium-<n>` build under the Playwright cache, so a build
+removed from the cache moves the next run to another Chrome without a word (the second consumer's
+0.4.0 and 0.5.0 runs went from Chrome 158 to Chrome 149). A checks file pins one:
+
+```yaml
+chrome: {build: 1228}
+chrome: {version: 149}
+```
+
+- `build: <n>` takes `chromium-<n>/chrome-linux*/chrome` under the cache.
+- `version: <major>` takes the newest build whose Chrome has that major version. The cache holds no
+  file that names the version (`chrome-linux64/` has an `ABOUT` without one), so each build's binary
+  is asked with `--version` (`Google Chrome for Testing 149.0.7827.55`); it prints the line and
+  exits, no browser starts.
+- A pin no build meets ends the run before the site is read or served, before a browser starts,
+  with exit 3 and nothing written. The message names the pin, the cache and the builds found,
+  newest first; for a version pin with the version of each:
+
+  ```
+  chrome: the configuration pins chromium-1254, which is not under <cache>; found: chromium-1228
+  chrome: the configuration pins Chrome 158, which is not under <cache>; found: chromium-1228 (149.0.7827.55)
+  ```
+
+- `UXUI_CHROME` wins over the cache, as before, and the pin is checked against it: a `build` pin
+  by the `chromium-<n>` directory the binary lies in, a `version` pin by its `--version`. A binary
+  that is not the pinned build ends the run in the same way (exit 3), naming both. A binary outside
+  any `chromium-<n>` directory (a wrapper script, a system Chrome) cannot be checked against a
+  `build` pin and is refused; pin `version` for it.
+- Without `chrome` the run takes the newest build, or `UXUI_CHROME`, as before.
+- A value that is not a map of exactly one of `build` and `version` with a whole number above 0
+  (`{build: '1228'}`, `{build: 1228, version: 149}`, `{revision: 1228}`, `chrome: 1228`) is refused
+  with the configuration, exit 1.
+
+The Chrome that ran is in every document, `evidence.conditions.tools.chromium`
+(`Chrome/149.0.7827.55`, from `Browser.getVersion`), as before. The pin itself is not a condition
+and not a local input: it is how the binary was found, not what the pages were measured under, so a
+pinned run and an unpinned run (or one through `UXUI_CHROME`) on the same Chrome give the same
+conditions, and a run on another Chrome differs in `tools.chromium` whether a pin chose it or not.
+A pin is part of the configuration's bytes, so its digest under `evidence.inputs.config` changes
+with it, as for any edit of the file. `ux-browser render` takes the newest build, or `UXUI_CHROME`.
+
 ### The checks
 
 Per page and viewport, as llm's L2 spec does it: a fresh context in the first mode, the page loaded to
@@ -579,6 +623,8 @@ digests and the same 1,234 values.
 A test (`tests/assessor.rs`) reads it and compares its inputs with the arguments of the `checks` usage
 (required where the usage neither brackets them nor puts them in a choice `( | )`), its conditions with a document's, and its outputs with
 every result and the target kind of the example document and of the test documents (a build's and a running server's).
+The Chrome pin (`chrome`) adds no input and no condition: it is read from the configuration, which
+is an input already, and the Chrome it chose is `conditions.tools.chromium` (The Chrome build).
 
 ## `ux-browser values`
 

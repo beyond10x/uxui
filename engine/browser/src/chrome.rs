@@ -1,6 +1,7 @@
 //! Finding and starting Chromium. The binary is `UXUI_CHROME`, else the newest
 //! `chromium-<n>/chrome-linux*/chrome` under the Playwright cache (`PLAYWRIGHT_BROWSERS_PATH`, else
-//! `~/.cache/ms-playwright`). It runs headless with a profile of its own, and is ended by its PID.
+//! `~/.cache/ms-playwright`), or the build a checks file pins ([`Pin`]; `UXUI_CHROME` is then
+//! checked against the pin). It runs headless with a profile of its own, and is ended by its PID.
 //! It starts with [`SWITCHES`], then the switches a consumer adds ([`switches`]).
 
 use std::io::{BufRead, BufReader};
@@ -113,51 +114,215 @@ pub fn local_input(added: &[String]) -> Option<String> {
     })
 }
 
-/// The newest `chromium-<n>` build under `cache` that has a `chrome-linux*/chrome`.
-pub fn newest_in(cache: &Path) -> Option<PathBuf> {
-    let mut builds: Vec<(u64, PathBuf)> = std::fs::read_dir(cache)
-        .ok()?
+/// The `chromium-<n>` builds under `cache` that have a `chrome-linux*/chrome`, newest first: the
+/// build number and the binary.
+pub fn builds_in(cache: &Path) -> Vec<(u64, PathBuf)> {
+    let Ok(entries) = std::fs::read_dir(cache) else {
+        return Vec::new();
+    };
+    let mut builds: Vec<(u64, PathBuf)> = entries
         .filter_map(Result::ok)
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().to_string();
             let n = name.strip_prefix("chromium-")?.parse::<u64>().ok()?;
-            Some((n, e.path()))
+            let mut subs: Vec<PathBuf> = std::fs::read_dir(e.path())
+                .ok()?
+                .filter_map(Result::ok)
+                .filter(|s| s.file_name().to_string_lossy().starts_with("chrome-linux"))
+                .map(|s| s.path().join("chrome"))
+                .filter(|p| p.is_file())
+                .collect();
+            subs.sort();
+            Some((n, subs.pop()?))
         })
         .collect();
     builds.sort_by_key(|b| std::cmp::Reverse(b.0));
-    for (_, dir) in builds {
-        let mut subs: Vec<PathBuf> = std::fs::read_dir(&dir)
-            .ok()?
-            .filter_map(Result::ok)
-            .filter(|e| e.file_name().to_string_lossy().starts_with("chrome-linux"))
-            .map(|e| e.path().join("chrome"))
-            .filter(|p| p.is_file())
-            .collect();
-        subs.sort();
-        if let Some(p) = subs.pop() {
-            return Some(p);
-        }
-    }
-    None
+    builds
 }
 
-pub fn find() -> Result<PathBuf, String> {
-    if let Some(p) = std::env::var_os("UXUI_CHROME") {
-        return Ok(PathBuf::from(p));
+/// The newest `chromium-<n>` build under `cache` that has a `chrome-linux*/chrome`.
+pub fn newest_in(cache: &Path) -> Option<PathBuf> {
+    builds_in(cache).into_iter().next().map(|(_, p)| p)
+}
+
+/// The Chrome build a checks file pins (`chrome`): a Playwright build, `chromium-<n>`, or the
+/// major version of Chrome.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pin {
+    /// `chrome: {build: <n>}`: the build `chromium-<n>`.
+    Build(u64),
+    /// `chrome: {version: <major>}`: the newest build whose Chrome has that major version.
+    Version(u64),
+}
+
+impl std::fmt::Display for Pin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Pin::Build(n) => write!(f, "chromium-{n}"),
+            Pin::Version(major) => write!(f, "Chrome {major}"),
+        }
     }
+}
+
+/// `chrome`: a map of exactly one of `build` and `version`, a whole number above 0.
+pub fn pin(value: &Value) -> Result<Pin, String> {
+    let entries = match value {
+        Value::Map(entries) if entries.len() == 1 => entries,
+        _ => return Err("`chrome` is `{build: <n>}` or `{version: <major>}`".to_string()),
+    };
+    let (key, n) = &entries[0];
+    let n = match n {
+        Value::Int(n) if *n > 0 => *n as u64,
+        _ => return Err(format!("chrome: `{key}` is a whole number above 0")),
+    };
+    match key.as_str() {
+        "build" => Ok(Pin::Build(n)),
+        "version" => Ok(Pin::Version(n)),
+        _ => Err(format!("chrome: unknown key `{key}`; `build` or `version`")),
+    }
+}
+
+/// The version Chrome prints for `--version` (`Google Chrome for Testing 149.0.7827.55`):
+/// `149.0.7827.55`. The binary prints it and exits; no browser starts.
+pub fn version_of(binary: &Path) -> Result<String, String> {
+    let o = Command::new(binary)
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .map_err(|e| format!("{} --version: {e}", binary.display()))?;
+    let text = String::from_utf8_lossy(&o.stdout);
+    text.split_whitespace()
+        .find(|t| major(t).is_some() && t.contains('.'))
+        .map(str::to_string)
+        .ok_or_else(|| {
+            format!(
+                "{} --version printed no version: `{}`",
+                binary.display(),
+                text.trim()
+            )
+        })
+}
+
+/// The major version of `149.0.7827.55`: 149.
+fn major(version: &str) -> Option<u64> {
+    if !version.chars().all(|c| c.is_ascii_digit() || c == '.') {
+        return None;
+    }
+    version.split('.').next()?.parse().ok()
+}
+
+/// Whether the binary is the pinned build: by its `chromium-<n>` directory for a build, by
+/// `--version` for a version.
+fn is_pinned(binary: &Path, pin: Pin) -> Result<bool, String> {
+    match pin {
+        Pin::Build(n) => Ok(build_of(binary) == Some(n)),
+        Pin::Version(want) => Ok(major(&version_of(binary)?) == Some(want)),
+    }
+}
+
+/// The build of a binary that lies in a `chromium-<n>` directory, read from its path.
+fn build_of(binary: &Path) -> Option<u64> {
+    let real = binary
+        .canonicalize()
+        .unwrap_or_else(|_| binary.to_path_buf());
+    [binary, real.as_path()].into_iter().find_map(|p| {
+        p.ancestors().find_map(|a| {
+            a.file_name()?
+                .to_str()?
+                .strip_prefix("chromium-")?
+                .parse()
+                .ok()
+        })
+    })
+}
+
+/// The binary under `cache` for `pin`: the pinned build, or the newest without a pin. A pin no
+/// build meets is refused, naming it and the builds found (a version pin: with their versions).
+pub fn select(cache: &Path, pin: Option<Pin>) -> Result<PathBuf, String> {
+    let builds = builds_in(cache);
+    let Some(pin) = pin else {
+        return builds.into_iter().next().map(|(_, p)| p).ok_or_else(|| {
+            format!(
+                "no chromium-*/chrome-linux*/chrome under {}; set UXUI_CHROME",
+                cache.display()
+            )
+        });
+    };
+    let mut found = Vec::new();
+    for (n, binary) in &builds {
+        let hit = match pin {
+            Pin::Build(want) => {
+                found.push(format!("chromium-{n}"));
+                *n == want
+            }
+            Pin::Version(want) => {
+                let version = version_of(binary).unwrap_or_else(|_| "no version".to_string());
+                found.push(format!("chromium-{n} ({version})"));
+                major(&version) == Some(want)
+            }
+        };
+        if hit {
+            return Ok(binary.clone());
+        }
+    }
+    let found = if found.is_empty() {
+        "none".to_string()
+    } else {
+        found.join(", ")
+    };
+    Err(format!(
+        "chrome: the configuration pins {pin}, which is not under {}; found: {found}",
+        cache.display()
+    ))
+}
+
+/// The binary: `uxui_chrome` (`UXUI_CHROME`) when set, which must then be the pinned build; else
+/// [`select`] under `cache`.
+pub fn find_in(
+    uxui_chrome: Option<&Path>,
+    cache: &Path,
+    pin: Option<Pin>,
+) -> Result<PathBuf, String> {
+    let Some(binary) = uxui_chrome else {
+        return select(cache, pin);
+    };
+    let Some(pin) = pin else {
+        return Ok(binary.to_path_buf());
+    };
+    if is_pinned(binary, pin)? {
+        return Ok(binary.to_path_buf());
+    }
+    Err(match (pin, build_of(binary)) {
+        (Pin::Build(_), Some(n)) => format!(
+            "chrome: UXUI_CHROME {} is chromium-{n}; the configuration pins {pin}",
+            binary.display()
+        ),
+        (Pin::Build(_), None) => format!(
+            "chrome: UXUI_CHROME {} lies in no chromium-<n> directory, so the pin {pin} cannot be checked; pin `version` or unset UXUI_CHROME",
+            binary.display()
+        ),
+        (Pin::Version(_), _) => format!(
+            "chrome: UXUI_CHROME {} is Chrome {}; the configuration pins {pin}",
+            binary.display(),
+            version_of(binary)?
+        ),
+    })
+}
+
+/// The binary for `pin` from the environment: `UXUI_CHROME`, else the Playwright cache
+/// (`PLAYWRIGHT_BROWSERS_PATH`, else `~/.cache/ms-playwright`); [`find_in`].
+pub fn find(pin: Option<Pin>) -> Result<PathBuf, String> {
+    let uxui_chrome = std::env::var_os("UXUI_CHROME").map(PathBuf::from);
     let cache = match std::env::var_os("PLAYWRIGHT_BROWSERS_PATH") {
         Some(p) => PathBuf::from(p),
-        None => {
-            let home = std::env::var_os("HOME").ok_or("no HOME and no UXUI_CHROME")?;
-            PathBuf::from(home).join(".cache/ms-playwright")
-        }
+        None => match std::env::var_os("HOME") {
+            Some(home) => PathBuf::from(home).join(".cache/ms-playwright"),
+            None if uxui_chrome.is_some() => PathBuf::new(),
+            None => return Err("no HOME and no UXUI_CHROME".to_string()),
+        },
     };
-    newest_in(&cache).ok_or_else(|| {
-        format!(
-            "no chromium-*/chrome-linux*/chrome under {}; set UXUI_CHROME",
-            cache.display()
-        )
-    })
+    find_in(uxui_chrome.as_deref(), &cache, pin)
 }
 
 /// The DevTools endpoint from the line Chromium prints on start.

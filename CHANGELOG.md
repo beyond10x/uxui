@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- The Chrome build of a run is pinned in its `ux-browser-checks/1` file: `chrome: {build: <n>}` takes
+  the Playwright build `chromium-<n>`, `chrome: {version: <major>}` the newest build whose Chrome has
+  that major version (read with the binary's `--version`, which starts no browser). A pin no build
+  meets ends `ux-browser checks` with exit 3 before the site is read or a browser starts, naming the
+  pin, the cache and the builds found (`found: chromium-1228 (149.0.7827.55)`). `UXUI_CHROME` still
+  wins and is checked against the pin: a `build` pin by the binary's `chromium-<n>` directory, a
+  `version` pin by its `--version`; a mismatch, or a `build` pin on a binary outside any build
+  directory, is refused the same way. Without the key the newest build is taken, as before. The
+  Chrome that ran stays `evidence.conditions.tools.chromium`; the pin is neither a condition nor a
+  local input, so runs on the same Chrome have the same conditions however it was found. A value
+  that is not exactly one of `build` and `version` with a whole number above 0 is refused with the
+  configuration (exit 1).
 - `layout.overflow@1` counts only content the page draws. The overflow probe skips an element for
   which `checkVisibility({visibilityProperty: true})` is false, and a text run whose `visibility` is
   not `visible` or whose nearest element with a box fails `checkVisibility()`, has

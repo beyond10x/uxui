@@ -2,12 +2,14 @@
 //! `chrome_args` and `--chrome-arg` after them, the refusal of one that changes a default, and the
 //! local input that names them outside the evidence. The one process started here is a shell
 //! script standing in for Chromium: it prints the line Chromium prints and records its arguments.
+//! The Chrome build (`chrome`): a fake Playwright cache of two builds whose binaries are shell
+//! scripts that answer `--version` and nothing else.
 
 use crate::checks::LLM_LIKE;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use ux_browser::checks;
-use ux_browser::chrome::{self, SWITCHES};
+use ux_browser::chrome::{self, Pin, SWITCHES};
 use ux_browser::evidence::{self, Header, Target};
 use ux_browser::render::FileRef;
 
@@ -287,4 +289,213 @@ fn chromium_starts_with_the_defaults_then_the_added_switches() {
     want.push(format!("--user-data-dir={}", profile.display()));
     want.push("about:blank".to_string());
     assert_eq!(args, want);
+}
+
+// ---------------------------------------------------------------- the Chrome build: `chrome`
+
+/// A stand-in Chrome binary at `dir/chrome`: `--version` prints `version` as Chrome for Testing
+/// prints it; anything else fails, so no test starts a browser by mistake.
+fn fake_binary(dir: &Path, version: &str) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::create_dir_all(dir).unwrap();
+    let script = dir.join("chrome");
+    std::fs::write(
+        &script,
+        format!(
+            "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'Google Chrome for Testing {version} '; exit 0; fi\nexit 9\n"
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    script
+}
+
+/// A fake Playwright cache with two builds, `chromium-1228` (Chrome 149) and `chromium-1254`
+/// (Chrome 158), beside what is not a build: a headless shell, a build directory without a binary.
+fn two_builds(name: &str) -> (PathBuf, PathBuf, PathBuf) {
+    let cache = scratch(name).join("cache");
+    let old = fake_binary(&cache.join("chromium-1228/chrome-linux64"), "149.0.7827.55");
+    let new = fake_binary(&cache.join("chromium-1254/chrome-linux64"), "158.0.8127.18");
+    fake_binary(
+        &cache.join("chromium_headless_shell-1300/chrome-linux64"),
+        "160.0.1.1",
+    );
+    std::fs::create_dir_all(cache.join("chromium-1400/chrome-linux64")).unwrap();
+    (cache, old, new)
+}
+
+#[test]
+fn without_a_pin_the_newest_build_is_taken() {
+    let (cache, _, new) = two_builds("default");
+    assert_eq!(chrome::select(&cache, None).unwrap(), new);
+    assert_eq!(chrome::newest_in(&cache), Some(new));
+}
+
+#[test]
+fn a_build_pin_selects_that_build() {
+    let (cache, old, new) = two_builds("pick-build");
+    assert_eq!(chrome::select(&cache, Some(Pin::Build(1228))).unwrap(), old);
+    assert_eq!(chrome::select(&cache, Some(Pin::Build(1254))).unwrap(), new);
+}
+
+#[test]
+fn a_version_pin_selects_the_newest_build_of_that_major() {
+    let (cache, old, new) = two_builds("pick-version");
+    assert_eq!(
+        chrome::select(&cache, Some(Pin::Version(149))).unwrap(),
+        old
+    );
+    assert_eq!(
+        chrome::select(&cache, Some(Pin::Version(158))).unwrap(),
+        new
+    );
+    let newer_149 = fake_binary(&cache.join("chromium-1230/chrome-linux64"), "149.0.7900.2");
+    assert_eq!(
+        chrome::select(&cache, Some(Pin::Version(149))).unwrap(),
+        newer_149
+    );
+}
+
+#[test]
+fn a_missing_build_is_refused_naming_the_wanted_and_the_found_builds() {
+    let (cache, _, _) = two_builds("miss");
+    let e = chrome::select(&cache, Some(Pin::Build(1300))).unwrap_err();
+    for part in ["chromium-1300", "chromium-1254, chromium-1228"] {
+        assert!(e.contains(part), "{part}: {e}");
+    }
+    let e = chrome::select(&cache, Some(Pin::Version(150))).unwrap_err();
+    for part in [
+        "Chrome 150",
+        "chromium-1254 (158.0.8127.18), chromium-1228 (149.0.7827.55)",
+    ] {
+        assert!(e.contains(part), "{part}: {e}");
+    }
+    let empty = scratch("miss-empty");
+    let e = chrome::select(&empty, Some(Pin::Build(1228))).unwrap_err();
+    assert!(
+        e.contains("chromium-1228") && e.contains("found: none"),
+        "{e}"
+    );
+    assert!(chrome::select(&empty, None).is_err());
+}
+
+#[test]
+fn the_version_is_read_from_the_binary_without_starting_a_browser() {
+    let (_, old, _) = two_builds("version");
+    assert_eq!(chrome::version_of(&old).unwrap(), "149.0.7827.55");
+    let dir = scratch("version-bad");
+    let bad = fake_binary(&dir, "unknown");
+    assert!(chrome::version_of(&bad).is_err());
+    assert!(chrome::version_of(&dir.join("no-such-chrome")).is_err());
+}
+
+#[test]
+fn uxui_chrome_wins_and_is_checked_against_the_pin() {
+    let (cache, old, _) = two_builds("env");
+    let find = |pin| chrome::find_in(Some(&old), &cache, pin);
+    assert_eq!(find(None).unwrap(), old, "not the newest build");
+    assert_eq!(find(Some(Pin::Build(1228))).unwrap(), old);
+    assert_eq!(find(Some(Pin::Version(149))).unwrap(), old);
+    let e = find(Some(Pin::Build(1254))).unwrap_err();
+    assert!(
+        e.contains("UXUI_CHROME") && e.contains("chromium-1228") && e.contains("chromium-1254"),
+        "{e}"
+    );
+    let e = find(Some(Pin::Version(158))).unwrap_err();
+    assert!(
+        e.contains("UXUI_CHROME") && e.contains("149.0.7827.55") && e.contains("Chrome 158"),
+        "{e}"
+    );
+    let outside = fake_binary(&scratch("env-outside").join("bin"), "149.0.7827.55");
+    let find = |pin| chrome::find_in(Some(&outside), &cache, pin);
+    assert_eq!(find(Some(Pin::Version(149))).unwrap(), outside);
+    let e = find(Some(Pin::Build(1228))).unwrap_err();
+    assert!(
+        e.contains("UXUI_CHROME") && e.contains("chromium-1228") && e.contains("`version`"),
+        "a build pin cannot be checked on a binary outside a build: {e}"
+    );
+    assert_eq!(
+        chrome::find_in(None, &cache, Some(Pin::Build(1228))).unwrap(),
+        old
+    );
+}
+
+#[test]
+fn the_configuration_pins_a_build_or_a_version() {
+    assert_eq!(checks::config(LLM_LIKE).unwrap().chrome, None);
+    let pinned = |key: &str| checks::config(&format!("{LLM_LIKE}chrome: {key}\n"));
+    assert_eq!(
+        pinned("{build: 1228}").unwrap().chrome,
+        Some(Pin::Build(1228))
+    );
+    assert_eq!(
+        pinned("{version: 149}").unwrap().chrome,
+        Some(Pin::Version(149))
+    );
+    for bad in [
+        "{build: '1228'}",
+        "{build: 12.5}",
+        "{build: 0}",
+        "{version: -1}",
+        "{version: '149'}",
+        "{build: 1228, version: 149}",
+        "{revision: 1228}",
+        "{build: 1228, channel: stable}",
+        "{}",
+        "1228",
+        "[1228]",
+    ] {
+        let e = pinned(bad)
+            .err()
+            .unwrap_or_else(|| panic!("{bad} is refused"));
+        assert!(e.contains("chrome"), "{bad}: {e}");
+    }
+}
+
+/// `checks` on a configuration that pins `pin`, with the fake cache and no `UXUI_CHROME`, and a
+/// built site that does not exist: a run that gets past the choice of the browser stops at the site.
+fn pinned_call(name: &str, pin: &str) -> (Option<i32>, String) {
+    let (cache, _, _) = two_builds(name);
+    let config = cache.parent().unwrap().join("checks.yaml");
+    std::fs::write(&config, format!("{LLM_LIKE}chrome: {pin}\n")).unwrap();
+    let out = cache.parent().unwrap().join("out.json");
+    let o = Command::new(env!("CARGO_BIN_EXE_ux-browser"))
+        .env_remove("UXUI_CHROME")
+        .env("PLAYWRIGHT_BROWSERS_PATH", &cache)
+        .args(["checks", "--config"])
+        .arg(&config)
+        .args([
+            "--build",
+            "no-such-build",
+            "--project",
+            "p",
+            "--assessment",
+            "a",
+            "--out",
+        ])
+        .arg(&out)
+        .output()
+        .unwrap();
+    assert!(!out.exists(), "nothing is written");
+    (
+        o.status.code(),
+        String::from_utf8_lossy(&o.stderr).to_string(),
+    )
+}
+
+#[test]
+fn a_missing_pinned_build_fails_the_run_before_anything_is_measured() {
+    let (code, stderr) = pinned_call("run-miss", "{build: 1300}");
+    assert_eq!(code, Some(3), "{stderr}");
+    assert!(
+        stderr.contains("chromium-1300") && stderr.contains("chromium-1254, chromium-1228"),
+        "{stderr}"
+    );
+    assert!(
+        !stderr.contains("no-such-build"),
+        "before the site: {stderr}"
+    );
+    let (code, stderr) = pinned_call("run-hit", "{build: 1228}");
+    assert_eq!(code, Some(1), "the pinned build is found: {stderr}");
+    assert!(stderr.contains("no-such-build"), "{stderr}");
 }
