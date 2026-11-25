@@ -43,6 +43,7 @@ fn unit(
         mode: mode.to_string(),
         mode_applied: true,
         page_scroll_px: scroll,
+        page_slack_px: 0.0,
         overflow: (0..overflow)
             .map(|i| Overflow {
                 desc: format!("p.wide{i}"),

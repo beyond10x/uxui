@@ -128,7 +128,7 @@ host's load moved the wall times more than the flag did.
 
 ### Configuration `ux-browser-checks/1`
 
-Viewports, modes, settle times and the declared items are inputs, never constants of the tool. llm's,
+Viewports, modes, settle times, the declared items and the layout rule are inputs, never constants of the tool. llm's,
 from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 
 | key | value |
@@ -144,7 +144,48 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `keyboard` | `{skip_link_is \| skip_link_contains, must_reach, max_tabs, modes, viewports, focus_settle_ms}`; `modes` defaults to the last mode, `viewports` (names) to every viewport; each target is an always-visible item |
 | `opt_in` | checks that run only when named here: `layout_shift.load` (The checks); default none |
 | `request_methods` | the HTTP methods a page may send to the measured server, in capitals, each once, `GET` among them; default `[GET, HEAD]`. A request with another method fails as one to another origin does (A running server) |
+| `layout` | the page-scroll slack and the overflow rule (below); optional, each key left out keeps its default |
 | `values` | how `ux-browser values` and `checks --values` turn the document into the consumer's values file (`ux-browser values`); optional |
+
+The `layout` section; the defaults are llm's rule, 0.3.0's (The checks):
+
+| key | value |
+|---|---|
+| `page_slack_px` | how far, in CSS pixels, the page may scroll sideways before a unit counts for `layout.page_scroll`; a number, 0 or more; default 0. A rule "scroll width above client width + 1" is `1` |
+| `overflow.tolerance_px` | how far, in CSS pixels, a right edge may pass the viewport or its block before it overflows; a number, 0 or more; default 1 |
+| `overflow.elements` | the CSS selectors of the elements measured besides the text runs; a list, none empty, each once; default `[img, svg, video, canvas, iframe, input, select, textarea, table, pre]` |
+| `overflow.exclude` | CSS selectors: a text run or element inside a match of one (or the match itself) is not overflow; a list, none empty, each once; default none |
+
+The elements and the exclusions are inputs of the in-page probe (`src/probes/overflow.js`): it
+measures the elements they name and reports, per item, the first exclusion it lies inside; it returns
+them with the geometry, and `checks::page_result` refuses a recording made with other ones (a capture
+of 0.3.0 reads as the defaults). The slack, the tolerance, the exclusion and the count are applied in
+Rust (`checks.rs`). A selector the browser does not parse makes the probe throw, and the run exits 3.
+With a slack above 0 a page-scroll finding names it: `the page scrolls 3 px sideways, past the slack
+of 1 px`. The document's conditions name every value used (Evidence).
+
+Measured 2026-11-25, Chrome/158.0.8127.18:
+
+| site | layout keys | units | page scroll / overflow | against |
+|---|---|---|---|---|
+| llm's documentation build (`examples/llm.checks.yaml`) | none | 27 pages x 2 viewports x 2 modes | 0 / 0 | the run of the probe before this change on the same build: its 135 values and its results, findings and details byte for byte; its values file byte for byte |
+| the second consumer's snapshot (a control plane web application, its configuration) | none | 11 pages x 5 viewports | 0 / 0 | its own gate: 0 / 0 on its 22 gating units |
+| the same | `page_slack_px: 1` (its rule: scroll width above client width + 1) | 11 x 5 | 0 / 0 | every unit's raw page scroll is 0 px, so the slack changes nothing there |
+| the same | `page_slack_px: 1`, `overflow.elements: ['body *']` (every element, as its rule takes) | 11 x 5 | 0 / 0 | 16,890 items measured where the default elements give 7,070 |
+
+The consumer's own overflow rule is not the same rule with other values: it takes any element
+whose content is wider than its box (`overflow-x: visible`) or that ends past the page edge, the
+innermost only; this rule takes text runs and elements past their block or the viewport. Both give
+0 on its pages.
+
+```yaml
+layout:
+  page_slack_px: 1
+  overflow:
+    tolerance_px: 1
+    elements: [img, svg, video, canvas, iframe, input, select, textarea, table, pre, span]
+    exclude: ['.code-sample']
+```
 
 The `values` section (every path is under `--root`):
 
@@ -179,8 +220,8 @@ only fixed waits are the declared settle times.
 
 | result (`scope: page`) | per page | definition (llm's) |
 |---|---|---|
-| `layout.page_scroll@1` (units) | sum over viewport x mode | 1 when `scrollingElement.scrollWidth - documentElement.clientWidth > 0` |
-| `layout.overflow@1` (blocks) | sum | every non-blank text run (Range box) and every `img, svg, video, canvas, iframe, input, select, textarea, table, pre`: overflow when its right edge passes the viewport + 1 px or its nearest non-inline block + 1 px; none under `position: fixed`, `overflow-x: auto \| scroll` or a clipping box; at most one per block |
+| `layout.page_scroll@1` (units) | sum over viewport x mode | 1 when `scrollingElement.scrollWidth - documentElement.clientWidth > layout.page_slack_px` (default 0) |
+| `layout.overflow@1` (blocks) | sum | every non-blank text run (Range box) and every element of `layout.overflow.elements` (default `img, svg, video, canvas, iframe, input, select, textarea, table, pre`): overflow when its right edge passes the viewport or its nearest non-inline block by more than `layout.overflow.tolerance_px` (default 1); none under `position: fixed`, `overflow-x: auto \| scroll` or a clipping box, none inside a match of `layout.overflow.exclude` (default none); at most one per block |
 | `always_visible.misses@1` (items) | sum over viewport x mode x top and bottom | the first visible candidate in scope (role and name from the accessibility tree first, then CSS): missing, clipped (not wholly inside the viewport +-0.5 px) or covered (`elementFromPoint` of its centre is not it or inside it); an item outside its `min_width` or `path_prefix` is not checked |
 | `keyboard.misses@1` (checks) | sum over the walks | on a fresh load the first Tab is on the skip link; Enter (or one more Tab) puts focus into its target; on another fresh load up to `max_tabs` Tabs reach each target. A skip link that is not first misses both of its checks |
 | `layout_shift.after_ready@1` (score) | largest over the viewports | `layout-shift` entries without recent input after the ready time, summed, rounded to 4 places; read once per viewport, before the first mode switch |
@@ -211,7 +252,7 @@ As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
 | `evidence.inputs.config` | the configuration file, `{value: <path>, digest, digest_form: bytes}` |
 | `evidence.inputs.build` | `{value: <path>}` for a build under `--root`, absent for one outside it; no digest beside it, the candidate is its digest |
 | `evidence.inputs.pages` | `{value: <the --pages list>}` when the run measured a list and not the whole sitemap |
-| `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, settle_ms, reduced_motion}` |
+| `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude}`: the rule values the run used, defaults included (`"0"`, `"1"`, the elements joined by `, `, the exclusions joined by `, ` or `""`) |
 | `run.local_inputs` | `jobs` (the value used), and `capture` and `profile` when given: they differ per machine and change no value, so they stay outside the evidence |
 | `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk (skip link first, its target, each target), and one counted layout-shift reading per viewport. A page that did not load is one `not_run` entry, id the page path |
 | `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks` |
@@ -353,8 +394,11 @@ ms). Chromium 158.0.8127.18 (Playwright revision 1254) for both: ux-browser star
 --headless=new`, llm's Playwright 1.65.0 its headless shell of the same version.
 
 ux-browser: 27 pages, 1,234 checks, 107 s at PR #11 (one pair at a time; now: Timings). Document:
-`engine/browser/examples/llm-docs.evidence.json`, rewritten by this version's run on a rebuild of the
-same commit: the same 1,234 values, the new target kind, another build digest.
+`engine/browser/examples/llm-docs.evidence.json`, rewritten by 0.3.0's run on a rebuild of the
+same commit: the same 1,234 values, the new target kind, another build digest. Rewritten again when
+the layout rule became configuration (Configuration, `layout`), by that change's run on the build of
+llm `6df5102cc`: the same 135 numbers and 1,234 checks (1,176 passed, 4 failed), another build
+digest, and the rule values in its conditions.
 
 Each cell: ux-browser / llm's `ux/baseline.json` / llm's own harness (`ux/tests/l2-layout.spec.ts`)
 run on the same build the same day.

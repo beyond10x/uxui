@@ -474,6 +474,7 @@ fn unit(viewport: &str, mode: &str, scroll: f64) -> UnitResult {
         mode: mode.to_string(),
         mode_applied: true,
         page_scroll_px: scroll,
+        page_slack_px: 0.0,
         overflow: Vec::new(),
         visible: Vec::new(),
     }

@@ -1,11 +1,13 @@
 // The geometry the overflow and page-scroll checks read (`checks.rs`): the viewport's client width,
-// the page's scroll width, every non-blank text run and every replaced or wide element with the
-// context it sits in and its block, and each block's right edge. What counts as overflow is decided
-// in Rust, not here.
+// the page's scroll width, every non-blank text run and every element `elements` matches (CSS
+// selectors, `layout.overflow.elements`) with the context it sits in, its block and the first
+// `exclude` selector it is inside, and each block's right edge. The inputs are returned with the
+// geometry. What counts as overflow is decided in Rust, not here.
 //
-// items: [right, width, height, context, block]; context 0 flow, 1 fixed, 2 horizontal scroll
-// container, 3 clipping box; block indexes `blocks` ([desc, right]), -1 outside the flow.
-(function () {
+// items: [right, width, height, context, block, excluded]; context 0 flow, 1 fixed, 2 horizontal
+// scroll container, 3 clipping box; block indexes `blocks` ([desc, right]), -1 outside the flow;
+// excluded indexes `exclude`, -1 none.
+(function (elements, exclude) {
   const vw = document.documentElement.clientWidth;
   const se = document.scrollingElement || document.documentElement;
   const cache = new Map();
@@ -52,10 +54,11 @@
     }
     return i;
   };
+  const excludedBy = (e) => exclude.findIndex((sel) => e.closest(sel) !== null);
   const items = [];
-  const add = (rect, from) => {
+  const add = (rect, from, self) => {
     const c = context(from);
-    items.push([rect.right, rect.width, rect.height, c, c === 0 ? blockIndex(blockOf(from)) : -1]);
+    items.push([rect.right, rect.width, rect.height, c, c === 0 ? blockIndex(blockOf(from)) : -1, excludedBy(self)]);
   };
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   const range = document.createRange();
@@ -64,12 +67,12 @@
     if (!p || !(n.textContent || '').trim() || st(p).visibility === 'hidden') continue;
     if (p.closest('svg, script, style, noscript, template')) continue;
     range.selectNodeContents(n);
-    add(range.getBoundingClientRect(), p);
+    add(range.getBoundingClientRect(), p, p);
   }
-  for (const el of document.body.querySelectorAll('img, svg, video, canvas, iframe, input, select, textarea, table, pre')) {
+  for (const el of document.body.querySelectorAll(elements.join(', '))) {
     if (el.parentElement && el.parentElement.closest('svg')) continue;
     if (st(el).visibility === 'hidden') continue;
-    add(el.getBoundingClientRect(), el.parentElement || el);
+    add(el.getBoundingClientRect(), el.parentElement || el, el);
   }
-  return { vw, scroll_width: se.scrollWidth, blocks, items };
+  return { vw, scroll_width: se.scrollWidth, elements, exclude, blocks, items };
 })

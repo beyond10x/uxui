@@ -16,12 +16,45 @@ pub const KEYBOARD: &str = "keyboard.misses@1";
 pub const LAYOUT_SHIFT: &str = "layout_shift.after_ready@1";
 pub const LAYOUT_SHIFT_LOAD: &str = "layout_shift.load@1";
 
-/// The slack, in CSS pixels, an edge may pass its limit by before it overflows.
-const OVERFLOW_SLACK: f64 = 1.0;
 /// The slack, in CSS pixels, an always-visible item may pass the viewport by.
 const VIEWPORT_SLACK: f64 = 0.5;
 
 // ---------------------------------------------------------------- page scroll and overflow
+
+/// The elements the overflow check measures besides the text runs unless `layout.overflow.elements`
+/// names others: 0.3.0's, llm's.
+pub const OVERFLOW_ELEMENTS: &[&str] = &[
+    "img", "svg", "video", "canvas", "iframe", "input", "select", "textarea", "table", "pre",
+];
+
+/// The overflow rule (`layout.overflow`): how far an edge may pass its limit, the elements measured
+/// besides the text runs, and the CSS selectors under which nothing is measured. The elements and
+/// the exclusions are inputs of the probe; the tolerance is applied here.
+#[derive(Clone, Debug, PartialEq)]
+pub struct OverflowRule {
+    pub tolerance_px: f64,
+    pub elements: Vec<String>,
+    pub exclude: Vec<String>,
+}
+
+impl Default for OverflowRule {
+    fn default() -> Self {
+        OverflowRule {
+            tolerance_px: 1.0,
+            elements: OVERFLOW_ELEMENTS.iter().map(|e| e.to_string()).collect(),
+            exclude: Vec::new(),
+        }
+    }
+}
+
+/// The rules of page scroll and overflow (`layout`); the default is 0.3.0's: a unit counts when the
+/// page scrolls sideways at all, an edge overflows when it passes its limit by more than 1 px.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct LayoutRule {
+    /// How far, in CSS pixels, the page may scroll sideways before the unit counts.
+    pub page_slack_px: f64,
+    pub overflow: OverflowRule,
+}
 
 /// Where an item sits: in the flow (0), under `position: fixed` (1), in a horizontal scroll
 /// container (2), or under `overflow-x: hidden | clip` (3).
@@ -40,6 +73,8 @@ pub struct Item {
     pub context: Context,
     /// Index into `blocks`: the nearest ancestor (or self) whose display is not inline.
     pub block: Option<usize>,
+    /// Index into the recorded `exclude`: the first selector the item's element is inside.
+    pub excluded: Option<usize>,
 }
 
 pub struct Block {
@@ -47,11 +82,14 @@ pub struct Block {
     pub right: f64,
 }
 
-/// `probes/overflow.js`: the viewport's client width, the page's scroll width, and every text run
-/// and every `img, svg, video, canvas, iframe, input, select, textarea, table, pre` with its block.
+/// `probes/overflow.js`: the viewport's client width, the page's scroll width, the probe inputs
+/// it was called with (`elements`, `exclude`; absent in a 0.3.0 capture: the defaults), and every
+/// text run and every element `elements` matches, with its block and its first exclusion.
 pub struct OverflowRaw {
     pub vw: f64,
     pub scroll_width: f64,
+    pub elements: Vec<String>,
+    pub exclude: Vec<String>,
     pub blocks: Vec<Block>,
     pub items: Vec<Item>,
 }
@@ -93,32 +131,53 @@ impl OverflowRaw {
                     _ => return None,
                 };
                 let block = num_at(l, 4)?;
+                let excluded = match l.len() {
+                    5 => -1.0,
+                    6 => num_at(l, 5)?,
+                    _ => return None,
+                };
                 Some(Item {
                     right: num_at(l, 0)?,
                     width: num_at(l, 1)?,
                     height: num_at(l, 2)?,
                     context,
                     block: (block >= 0.0).then_some(block as usize),
+                    excluded: (excluded >= 0.0).then_some(excluded as usize),
                 })
             })
             .collect::<Option<Vec<_>>>()
-            .ok_or("overflow: an item is not [right, width, height, context, block]")?;
+            .ok_or("overflow: an item is not [right, width, height, context, block, excluded]")?;
         if items
             .iter()
             .any(|i| i.block.is_some_and(|b| b >= blocks.len()))
         {
             return Err("overflow: an item names a block that is not listed".to_string());
         }
+        let defaults = OverflowRule::default();
+        let elements = match v.get("elements") {
+            None => defaults.elements,
+            Some(_) => get_strs(v, "elements").map_err(|e| format!("overflow: {e}"))?,
+        };
+        let exclude = get_strs(v, "exclude").map_err(|e| format!("overflow: {e}"))?;
+        if items
+            .iter()
+            .any(|i| i.excluded.is_some_and(|x| x >= exclude.len()))
+        {
+            return Err("overflow: an item names an exclusion that is not listed".to_string());
+        }
         Ok(OverflowRaw {
             vw,
             scroll_width,
+            elements,
+            exclude,
             blocks,
             items,
         })
     }
 }
 
-/// How far the page scrolls sideways, in CSS pixels; a unit counts when it is above 0.
+/// How far the page scrolls sideways, in CSS pixels; a unit counts when it is above the slack
+/// ([`UnitResult::scrolls`]).
 pub fn page_scroll(raw: &OverflowRaw) -> f64 {
     (raw.scroll_width - raw.vw).max(0.0)
 }
@@ -137,20 +196,32 @@ fn js_round(x: f64) -> i64 {
     (x + 0.5).floor() as i64
 }
 
-/// Items whose right edge passes the viewport or their block by more than the slack, at most one
-/// per block; items in a fixed layer, a scroll container or a clipping box are not overflow.
+/// [`overflow_with`] the default rule, 0.3.0's.
 pub fn overflow(raw: &OverflowRaw) -> Vec<Overflow> {
+    overflow_with(raw, &OverflowRule::default())
+}
+
+/// Items whose right edge passes the viewport or their block by more than the tolerance, at most
+/// one per block; items in a fixed layer, a scroll container or a clipping box, and items the probe
+/// found inside an excluded selector, are not overflow. The elements and exclusions of `rule` are
+/// the probe's inputs; [`page_result`] refuses a recording made with others.
+pub fn overflow_with(raw: &OverflowRaw, rule: &OverflowRule) -> Vec<Overflow> {
+    let tolerance = rule.tolerance_px;
     let mut failed = vec![false; raw.blocks.len()];
     let mut out = Vec::new();
     for item in &raw.items {
-        if item.width < 1.0 || item.height < 1.0 || item.context != Context::Flow {
+        if item.width < 1.0
+            || item.height < 1.0
+            || item.context != Context::Flow
+            || item.excluded.is_some()
+        {
             continue;
         }
         let Some(b) = item.block else { continue };
         let block = &raw.blocks[b];
-        let (against, limit) = if item.right > raw.vw + OVERFLOW_SLACK {
+        let (against, limit) = if item.right > raw.vw + tolerance {
             ("viewport", raw.vw)
-        } else if item.right > block.right + OVERFLOW_SLACK {
+        } else if item.right > block.right + tolerance {
             ("parent", block.right)
         } else {
             continue;
@@ -536,6 +607,8 @@ pub struct Config {
     /// The HTTP methods a page may send to the measured server (`request_methods`); default
     /// [`READ_METHODS`]. A request with another method fails, as one to another origin does.
     pub request_methods: Vec<String>,
+    /// The page-scroll slack and the overflow rule (`layout`).
+    pub layout: LayoutRule,
 }
 
 /// The methods a page may send to the measured server unless the configuration names more: reads,
@@ -583,6 +656,7 @@ const TOP_KEYS: &[&str] = &[
     "opt_in",
     "values",
     "request_methods",
+    "layout",
 ];
 
 /// The checks that run only when `opt_in` names them.
@@ -813,7 +887,87 @@ pub fn config(text: &str) -> Result<Config, String> {
         layout_shift_load,
         values,
         request_methods: request_methods(&v)?,
+        layout: layout_rule(&v)?,
     })
+}
+
+// ---------------------------------------------------------------- configuration: layout
+
+/// `layout`: `page_slack_px` and `overflow: {tolerance_px, elements, exclude}`; a key left out keeps
+/// its default ([`LayoutRule::default`], 0.3.0's rule).
+fn layout_rule(v: &Value) -> Result<LayoutRule, String> {
+    let mut rule = LayoutRule::default();
+    let Some(section) = v.get("layout") else {
+        return Ok(rule);
+    };
+    if !matches!(section, Value::Map(_)) {
+        return Err("`layout` is a section: `page_slack_px`, `overflow`".to_string());
+    }
+    only(section, &["page_slack_px", "overflow"], "layout")?;
+    if let Some(px) = pixels(section, "page_slack_px")? {
+        rule.page_slack_px = px;
+    }
+    let Some(o) = section.get("overflow") else {
+        return Ok(rule);
+    };
+    if !matches!(o, Value::Map(_)) {
+        return Err(
+            "`layout.overflow` is a section: `tolerance_px`, `elements`, `exclude`".to_string(),
+        );
+    }
+    only(
+        o,
+        &["tolerance_px", "elements", "exclude"],
+        "layout.overflow",
+    )?;
+    if let Some(px) = pixels(o, "tolerance_px")? {
+        rule.overflow.tolerance_px = px;
+    }
+    if let Some(elements) = selectors(o, "elements")? {
+        if elements.is_empty() {
+            return Err("`layout.overflow.elements` names none".to_string());
+        }
+        rule.overflow.elements = elements;
+    }
+    if let Some(exclude) = selectors(o, "exclude")? {
+        rule.overflow.exclude = exclude;
+    }
+    Ok(rule)
+}
+
+/// A length in CSS pixels, 0 or more.
+fn pixels(v: &Value, key: &str) -> Result<Option<f64>, String> {
+    match v.get(key) {
+        None => Ok(None),
+        Some(n) => match crate::value::f64_of(n) {
+            Some(px) if px.is_finite() && px >= 0.0 => Ok(Some(px)),
+            _ => Err(format!(
+                "`layout`: `{key}` is a number of pixels, 0 or more"
+            )),
+        },
+    }
+}
+
+/// A list of CSS selectors, each text and named once.
+fn selectors(v: &Value, key: &str) -> Result<Option<Vec<String>>, String> {
+    match v.get(key) {
+        None => Ok(None),
+        Some(Value::List(_)) => {
+            let list = get_strs(v, key).map_err(|e| format!("`layout.overflow`: {e}"))?;
+            for (i, sel) in list.iter().enumerate() {
+                if sel.trim().is_empty() {
+                    return Err(format!("`layout.overflow.{key}`: a selector is empty"));
+                }
+                if list[..i].contains(sel) {
+                    return Err(format!("`layout.overflow.{key}`: `{sel}` is named twice"));
+                }
+            }
+            Ok(Some(list))
+        }
+        Some(_) => Err(format!(
+            "`layout.overflow.{key}` is a list of CSS selectors"
+        )),
+    }
 }
 
 // ---------------------------------------------------------------- results of a page
@@ -832,8 +986,16 @@ pub struct UnitResult {
     pub mode: String,
     pub mode_applied: bool,
     pub page_scroll_px: f64,
+    pub page_slack_px: f64,
     pub overflow: Vec<Overflow>,
     pub visible: Vec<Visible>,
+}
+
+impl UnitResult {
+    /// The unit counts for `layout.page_scroll`: the page scrolls sideways by more than the slack.
+    pub fn scrolls(&self) -> bool {
+        self.page_scroll_px > self.page_slack_px
+    }
 }
 
 pub struct KeyboardUnit {
@@ -860,7 +1022,7 @@ pub struct PageResult {
 
 impl PageResult {
     pub fn page_scroll(&self) -> i64 {
-        self.units.iter().filter(|u| u.page_scroll_px > 0.0).count() as i64
+        self.units.iter().filter(|u| u.scrolls()).count() as i64
     }
     pub fn overflow(&self) -> i64 {
         self.units.iter().map(|u| u.overflow.len() as i64).sum()
@@ -974,6 +1136,13 @@ pub fn page_result(config: &Config, page: &Value) -> Result<PageResult, String> 
                 ));
             }
             let raw = OverflowRaw::from_value(unit.get("overflow").ok_or("page: no `overflow`")?)?;
+            let rule = &config.layout.overflow;
+            if raw.elements != rule.elements || raw.exclude != rule.exclude {
+                return Err(format!(
+                    "{path} {} {mode}: the overflow was recorded with other `elements` or `exclude` than the configuration's",
+                    vp.name
+                ));
+            }
             let visible = unit.get("visible");
             let mut seen =
                 visible_of(config, &path, vp, "top", visible.and_then(|v| v.get("top")))?;
@@ -989,7 +1158,8 @@ pub fn page_result(config: &Config, page: &Value) -> Result<PageResult, String> 
                 mode,
                 mode_applied,
                 page_scroll_px: page_scroll(&raw),
-                overflow: overflow(&raw),
+                page_slack_px: config.layout.page_slack_px,
+                overflow: overflow_with(&raw, rule),
                 visible: seen,
             });
         }

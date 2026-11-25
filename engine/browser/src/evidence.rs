@@ -293,13 +293,18 @@ fn page(p: &PageResult, coverage: &mut Coverage, load: bool) -> (Vec<Value>, Val
     let mut findings: Vec<Finding> = Vec::new();
     for u in &p.units {
         let at = format!("{}/{}", u.viewport, u.mode);
-        coverage.judged(u.page_scroll_px <= 0.0);
-        if u.page_scroll_px > 0.0 {
+        coverage.judged(!u.scrolls());
+        if u.scrolls() {
+            let slack = if u.page_slack_px > 0.0 {
+                format!(", past the slack of {} px", decimal(u.page_slack_px, 2))
+            } else {
+                String::new()
+            };
             findings.push(Finding {
                 rule: checks::PAGE_SCROLL,
                 node_path: format!("{at}/page"),
                 reason: format!(
-                    "the page scrolls {} px sideways",
+                    "the page scrolls {} px sideways{slack}",
                     decimal(u.page_scroll_px, 2)
                 ),
             });
@@ -384,7 +389,7 @@ fn page(p: &PageResult, coverage: &mut Coverage, load: bool) -> (Vec<Value>, Val
     let scroll_by = per_viewport(
         p.units
             .iter()
-            .map(|u| (u.viewport.as_str(), i64::from(u.page_scroll_px > 0.0))),
+            .map(|u| (u.viewport.as_str(), i64::from(u.scrolls()))),
     );
     let overflow_by = per_viewport(
         p.units
@@ -462,6 +467,7 @@ fn page(p: &PageResult, coverage: &mut Coverage, load: bool) -> (Vec<Value>, Val
 }
 
 pub fn document(header: &Header, config: &Config, pages: &[PageResult]) -> Value {
+    let layout = &config.layout;
     let mut coverage = Coverage::default();
     let mut numbers = Vec::new();
     let mut sets = Vec::new();
@@ -563,6 +569,13 @@ pub fn document(header: &Header, config: &Config, pages: &[PageResult]) -> Value
                             ("modes", s(&config.modes.join(" "))),
                             ("settle_ms", s(&config.settle_ms.to_string())),
                             ("reduced_motion", s(&config.reduced_motion.to_string())),
+                            ("page_slack_px", s(&decimal(layout.page_slack_px, 2))),
+                            (
+                                "overflow_tolerance_px",
+                                s(&decimal(layout.overflow.tolerance_px, 2)),
+                            ),
+                            ("overflow_elements", s(&layout.overflow.elements.join(", "))),
+                            ("overflow_exclude", s(&layout.overflow.exclude.join(", "))),
                         ]),
                     ),
                 ]),
