@@ -1,0 +1,168 @@
+#!/bin/sh
+# Proves the pieces of the forge gate:
+# - tools/prose-only.sh says "prose only" for a change of planning and prose files alone and
+#   "run the gate" for every other change, and no prose file it lets skip is read by a tool;
+# - tools/check-workflows.sh passes on this tree and fails on each broken copy of its workflows.
+# Copies go under target/gate-test/ in the repository. Exit 0 when every case holds.
+set -u
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+work=$root/target/gate-test
+classify=$root/tools/prose-only.sh
+fails=0
+rm -rf "$work"
+mkdir -p "$work"
+
+ok() { printf 'ok   %s\n' "$1"; }
+bad() {
+	printf 'FAIL %s\n' "$1"
+	fails=$((fails + 1))
+}
+
+# paths <prose|gate> <label> <paths, one per line>
+paths() {
+	want=$1
+	label=$2
+	printf '%s' "$3" | sh "$classify" >"$work/out" 2>&1
+	got=$?
+	if [ "$want" = prose ] && [ "$got" -eq 0 ]; then
+		ok "prose only: $label"
+	elif [ "$want" = gate ] && [ "$got" -eq 1 ]; then
+		ok "runs the gate: $label ($(tail -1 "$work/out"))"
+	else
+		bad "$label: expected $want, exit $got"
+		cat "$work/out"
+	fi
+}
+
+paths prose "a planning file" '.engineering/planning/story/forge-gate-parity.md
+'
+paths prose "planning files that are not Markdown" '.engineering/planning/epic/engine-slices.md
+.engineering/aep.yaml
+'
+paths prose "the agents' and the readers' files" 'AGENTS.md
+CLAUDE.md
+README.md
+'
+paths prose "research, reviews and a design document" 'research/README.md
+reviews/2026-11-24-uxsearch-spec-review.md
+docs/concept.md
+'
+paths prose "a last line without a newline" '.engineering/planning/story/a.md
+docs/ratchet.md'
+
+paths gate "no path at all" ''
+paths gate "a tool" 'tools/gate.sh
+'
+paths gate "a planning file and a source file" '.engineering/planning/story/a.md
+engine/browser/src/chrome.rs
+'
+paths gate "a page of the built documentation site" 'website/docs/index.md
+'
+paths gate "the documentation site's own README" 'website/README.md
+'
+paths gate "the skill" 'plugin/skills/ui-iteration-loop/SKILL.md
+'
+paths gate "a reference of the skill" 'plugin/skills/ui-iteration-loop/references/heuristics.md
+'
+paths gate "the changelog, which tools/check-plugin.sh reads" 'CHANGELOG.md
+'
+paths gate "docs/metrics.md, a source of a generated page" 'docs/metrics.md
+'
+paths gate "docs/brief.md, a source of a generated page" 'docs/brief.md
+'
+paths gate "docs/roadmap.md, a source of a generated page" 'docs/roadmap.md
+'
+paths gate "a Markdown test fixture" 'engine/browser/tests/fixtures/values/findings/UXF-005.md
+'
+paths gate "an image beside the design documents" 'docs/campaign-2026-11-24/chosen-dark-390.png
+'
+paths gate "a research file that is not Markdown" 'research/notes.txt
+'
+paths gate "the specification's gaps" 'ess/GAPS.md
+'
+paths gate "a workflow" '.github/workflows/ci.yml
+'
+
+# unread <tools directory>: prints each Markdown file of the tree that the classifier lets skip and
+# a tool of the directory names outside its comments (a file a check reads is not prose), and
+# last the number of prose Markdown files it checked.
+unread() {
+	checked=0
+	for md in $(cd "$root" && find . -name '*.md' -not -path './target/*' -not -path './.git/*' \
+		-not -path '*/node_modules/*' -not -path './.engineering/*' | sed 's|^\./||' | LC_ALL=C sort); do
+		printf '%s\n' "$md" | sh "$classify" >/dev/null 2>&1 || continue
+		checked=$((checked + 1))
+		pattern=$(printf '%s' "$md" | sed 's/[.]/[.]/g')
+		for tool in "$1"/*.sh; do
+			case $tool in */prose-only.sh | *.test.sh) continue ;; esac
+			if grep -v '^[[:space:]]*#' "$tool" | grep -qE "(^|[^A-Za-z0-9_./-])$pattern([^A-Za-z0-9_-]|\$)"; then
+				printf '%s is classified prose and %s names it\n' "$md" "$(basename "$tool")"
+			fi
+		done
+	done
+	printf '%s\n' "$checked"
+}
+
+found=$(unread "$root/tools")
+checked=$(printf '%s\n' "$found" | tail -1)
+named=$(printf '%s\n' "$found" | sed '$d')
+if [ -n "$named" ]; then
+	bad "$named"
+elif [ "$checked" -gt 0 ]; then
+	ok "none of the $checked prose Markdown files of the tree is named by a tool"
+else
+	bad "no Markdown file of the tree is classified prose; the case above checked nothing"
+fi
+
+mkdir -p "$work/tools"
+cp "$root"/tools/*.sh "$work/tools/"
+printf '#!/bin/sh\n# docs/ratchet.md in a comment is no read.\nawk 1 docs/concept.md\n' >"$work/tools/reads-prose.sh"
+named=$(unread "$work/tools" | sed '$d')
+if [ "$named" = "docs/concept.md is classified prose and reads-prose.sh names it" ]; then
+	ok "a tool that reads a prose file is found ($named)"
+else
+	bad "a tool that reads docs/concept.md and names docs/ratchet.md in a comment: found '$named'"
+fi
+
+# workflows <pass|fail> <label> <mutation>: the mutation runs in a fresh copy of the workflows,
+# the toolchain file and tools/gate.sh ($w) before tools/check-workflows.sh reads it.
+workflows() {
+	want=$1
+	label=$2
+	w=$work/workflows
+	rm -rf "$w"
+	mkdir -p "$w/.github" "$w/tools"
+	cp -r "$root/.github/workflows" "$w/.github/"
+	cp "$root/rust-toolchain.toml" "$w/"
+	cp "$root/tools/gate.sh" "$w/tools/"
+	(cd "$w" && eval "$3")
+	sh "$root/tools/check-workflows.sh" "$w" >"$work/out" 2>&1
+	got=$?
+	if [ "$want" = pass ] && [ "$got" -eq 0 ]; then
+		ok "workflows: $label"
+	elif [ "$want" = fail ] && [ "$got" -eq 1 ]; then
+		ok "workflows: $label ($(grep -m 1 '^FAIL' "$work/out"))"
+	else
+		bad "workflows: $label: expected $want, exit $got"
+		cat "$work/out"
+	fi
+}
+
+workflows pass "this tree" ':'
+workflows fail "no pull-request workflow" 'rm .github/workflows/ci.yml'
+workflows fail "the release gate runs cargo test itself" \
+	'sed "s|^\(  *\)run: sh tools/gate.sh\$|\1run: cargo test --workspace|" .github/workflows/release.yml >x && mv x .github/workflows/release.yml'
+workflows fail "the pull-request gate runs on another image" \
+	'sed "s|runs-on: ubuntu-latest|runs-on: ubuntu-22.04|" .github/workflows/ci.yml >x && mv x .github/workflows/ci.yml'
+workflows fail "a workflow names its own toolchain" \
+	'sed "s|toolchain: \${{ steps.toolchain.outputs.channel }}|toolchain: 1.99.1|" .github/workflows/release.yml >x && mv x .github/workflows/release.yml'
+workflows fail "an action pinned by a tag" \
+	'sed "s|actions/checkout@[0-9a-f]*|actions/checkout@v4|" .github/workflows/ci.yml >x && mv x .github/workflows/ci.yml'
+workflows fail "the pull-request gate does not ask which files changed" \
+	'sed "s|sh tools/prose-only.sh|cat|" .github/workflows/ci.yml >x && mv x .github/workflows/ci.yml'
+workflows fail "the pull-request workflow does not run on a push to main" \
+	'sed "/^  push:\$/,/^    branches: \[main\]\$/d" .github/workflows/ci.yml >x && mv x .github/workflows/ci.yml'
+
+rm -rf "$work"
+[ "$fails" -eq 0 ]

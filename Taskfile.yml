@@ -8,14 +8,14 @@ tasks:
       - task: check:pool
 
   check:pool:
-    desc: The gate without validate, for a build pool whose nodes have no claude executable.
+    desc: The gate without validate, for a build pool whose nodes have no claude executable; the same script the forge's Gate runs.
     cmds:
-      - task: check:plugin
-      - task: docs-check
-      - task: test
-      - task: test:own-gen
-      - task: test:ux-static
-      - task: test:ux-browser
+      - sh tools/gate.sh
+
+  release:ready:
+    desc: '`task release:ready -- <sha>` exits 0 only when Gate, Documentation validation and Documentation site ended success on that commit; run it before the release tag.'
+    cmds:
+      - sh tools/release-ready.sh {{.CLI_ARGS}}
 
   validate:
     desc: Validate the Claude Code plugin and marketplace manifests.
@@ -29,11 +29,13 @@ tasks:
       - sh tools/check-plugin.sh
 
   test:
-    desc: Prove that the plugin check and the docs check fail on broken trees.
+    desc: Prove that the plugin, docs, workflow and release checks fail on broken trees and that the path list and the tag guard decide both ways.
     cmds:
       - timeout 60 sh tools/check-plugin.test.sh
       - timeout 60 sh tools/release.test.sh
       - timeout 60 sh tools/docs.test.sh
+      - timeout 60 sh tools/gate.test.sh
+      - timeout 60 sh tools/release-ready.test.sh
 
   docs-generate:
     desc: Regenerate the derived documentation pages (website/docs/reference/skill.md, metrics.md, glossary.md, specification.md, website/docs/roadmap.md, status.md)
