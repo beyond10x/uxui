@@ -108,8 +108,8 @@ ESS maps items 9 to 17 to stories in its wave page named in the status above, se
 Story 7 of the generator round (`docs/generator-round.md`): what `ess-ui/1` needs for the stock generator
 and for an own generator, drawn from stories 4 to 6 (the own generator, `docs/own-generator.md`; the change
 list, `docs/change-list.md`; slot's case study). Each requirement names where it stands: an ESS story (file
-and status, 2026-11-25), a draft story uxui sends to the ESS maintainers through the host operator (D1 to
-D5, title given here), uxui's own work, or no request, with the reason. The letters G1 to G13 and F18 in
+and status, 2026-11-25), a story ESS filed from uxui's drafts D1 to D5 (2026-11-25 15:33 CET, ESS branch `plan/gap-reports-2026-11-24` at 44848bca2b, not on ESS main; none
+accepted or scheduled, a new `ess-ui/1` key waits for the owner's read), uxui's own work, or no request, with the reason. The letters G1 to G13 and F18 in
 this section are slot's (its `docs/design/ess-ui-gaps.md`), not those of `ess/GAPS.md`.
 
 ### Stock way: extension points
@@ -148,13 +148,14 @@ this section are slot's (its `docs/design/ess-ui-gaps.md`), not those of `ess/GA
 - **A list of records as text** (C3, slot G4 and G5). The KPI readings print as JSON. ESS ends the JSON:
   `a-structured-value-reads-as-one-line-of-its-members-in-every-renderer.md` and
   `a-list-field-names-the-text-that-joins-its-items-in-every-renderer.md` (both `active`). The words the
-  request asks for (`effort.actions 6`) need text composed from chosen members: draft D5, "A column shows
-  an expression over its row, and a list field one over each item".
+  request asks for (`effort.actions 6`) need text composed from chosen members: D5, filed as a need of
+  `a-ui-expression-joins-texts.md` (`draft`, its fit review owed).
 - **A cell that opens a page** (C4). `as: link` takes the value as an external address and `act` on a cell
-  is refused. Draft D3, "A column or record field opens a page of the document, and a test acts on that
-  cell".
-- **Time since an instant** (C10). Draft D4, "A field shows the time from a row's instant to the clock,
-  without a second row field", the plain case of slot G10's story below.
+  is refused. D3, filed as `a-column-or-record-field-opens-a-page-of-the-document-and-a-test-acts-on-that-cell.md`
+  (`draft`, accepted in its fit review; the key would be `navigate`).
+- **Time since an instant** (C10). D4, filed as a need of
+  `a-duration-field-shows-the-time-between-two-instants-of-its-row-the-clock-standing-in-for-an-absent-end.md`
+  (`draft`), slot G10's story below; "20 s ago" wording is held by ESS as looks.
 - **An explanation in a confirm** (C6). No request: the inline `confirm:` has no `body`, and a named
   confirm overlay with `body` already expresses it.
 - **An integer id drawn with grouping** (slot G3). ESS:
@@ -202,8 +203,9 @@ this section are slot's (its `docs/design/ess-ui-gaps.md`), not those of `ess/GA
   1,296 re-implementing lines). P0 3 above, with the model bindings.
 - **A conformance suite every generator is held to, from `ess-ui-test/1`** (the studio's own-generator
   decision rests on it). `ess ui test --playwright` writes a spec for the generated React project only, on
-  names no contract publishes. Draft D1, "A page another generator writes is held to an `ess-ui-test/1`
-  file in the browser, by a published page contract and a conformance corpus each release ships".
+  names no contract publishes. D1, filed as
+  `a-page-contract-and-a-release-corpus-hold-a-page-another-generator-writes-to-the-ess-ui-test-1-files.md`
+  (`draft`, fit review: defer; the parts that need a new execution surface are the owner's).
 - **Behaviour the renderers left open** (`docs/own-generator.md`, "Decisions ESS left open"), which that
   suite has to pin:
   - the loop period of a fixture script (own-generator gap 3). ESS:
@@ -218,9 +220,10 @@ this section are slot's (its `docs/design/ess-ui-gaps.md`), not those of `ess/GA
     label is the name with `_` as a space):
     `the-loader-fills-the-defaults-a-renderer-reads-differently-today-and-both-renderers-then-show-what-the-schema.md`;
   - `resume: refetch` in fixture mode, a `by_id_from` view with no matching row, where `insert_or_patch`
-    puts a new key. Draft D2, "The reference states what `resume: refetch` keeps in fixture mode, what a
-    `by_id_from` view answers without a match, and where `insert_or_patch` puts a new key, and both
-    renderers follow it".
+    puts a new key. D2: the first two filed as
+    `the-reference-states-what-a-refetching-resume-keeps-in-fixture-mode-and-what-a-by-id-from-view-answers-without-a-match.md`
+    (`draft`, accepted in its fit review); the `insert_or_patch` position is covered by
+    `a-chart-draws-its-rows-in-the-order-its-sort-declares-and-a-live-insert-keeps-that-order.md` (`active`).
 - **A check that a live event can fill the rows it inserts** (own-generator gap 2). ESS:
   `ess-ui-check-model-warns-when-a-live-event-lacks-a-field-the-section-it-feeds-shows-or-the-field-that-matches.md`
   (`draft`).
