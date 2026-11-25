@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- The page-scroll slack and the overflow rule are configuration: `layout: {page_slack_px,
+  overflow: {tolerance_px, elements, exclude}}` in a `ux-browser-checks/1` file. A unit counts for
+  `layout.page_scroll` when the page scrolls sideways by more than `page_slack_px` (default 0); an
+  edge overflows when it passes the viewport or its block by more than `tolerance_px` (default 1);
+  `elements` are the CSS selectors measured besides the text runs (default 0.3.0's ten) and nothing
+  inside a match of an `exclude` selector is overflow (default none). The defaults are 0.4.0's rule:
+  the recorded pages give the same values, and on llm's documentation build the 135 numbers, results
+  and values file are byte for byte those of the probe before; on the second consumer's snapshot
+  page scroll and overflow are 0 / 0 on 55 units with its own slack of 1 px, as its own gate has
+  them. `examples/llm-docs.evidence.json` is rewritten by such a run. The overflow probe takes the
+  elements and exclusions as inputs, returns them with its geometry and reports per item the
+  exclusion it lies in; the rule is applied in Rust, and a capture made with other inputs does not
+  read back. The document's `conditions.other` names the values used (`page_slack_px`,
+  `overflow_tolerance_px`, `overflow_elements`, `overflow_exclude`), and the assessor declaration
+  lists them.
 - An always-visible item (and so a keyboard target) may be located without a role: by `css` alone,
   the first visible match in its `scope` with no accessible name checked, or by the new `current:
   true`, the element whose `aria-current` is not `false` in its `scope` (with `role` or `css`, only

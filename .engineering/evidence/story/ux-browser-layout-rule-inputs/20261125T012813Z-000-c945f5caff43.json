@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-25T01:28:13Z",
+  "actor": "human:operator",
+  "artifact": "story:ux-browser-layout-rule-inputs",
+  "kind": "story",
+  "revision": 2,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check:pool exit 0: ux-browser 117 passed (106 before); llm 135/135 equal; control plane snapshot 0/0 equal to its gate"
+  }
+}

@@ -289,7 +289,13 @@ fn measure_open(
             None => true,
         };
         page.eval(conn, "window.scrollTo(0, 0)")?;
-        let overflow = page.run(conn, OVERFLOW_PROBE, &[])?;
+        let strs = |l: &[String]| Value::List(l.iter().map(|e| s(e)).collect());
+        let rule = &config.layout.overflow;
+        let overflow = page.run(
+            conn,
+            OVERFLOW_PROBE,
+            &[strs(&rule.elements), strs(&rule.exclude)],
+        )?;
         let top = visible_items(conn, page, config, path, vp)?;
         page.eval(
             conn,
