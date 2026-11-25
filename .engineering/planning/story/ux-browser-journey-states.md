@@ -7,7 +7,7 @@ title: Checks at each state of a scripted journey
 relations:
 - decomposes: epic:engine-slices
 - depends_on: story:ux-browser-values-output
-revision: 2
+revision: 3
 ---
 # Story: Checks at each state of a scripted journey
 
@@ -26,3 +26,5 @@ Order 8 of 8: ordered by what lets a consumer drop an own check (a running page 
 ## Acceptance
 
 A config declares journeys: steps (click, type, key, wait for a selector) named by CSS selector, and the states after which the checks run; results carry the journey and state in their identity; spec scenario `browser-journey-names-nodes-by-selector` (ess) is the contract.
+
+Added 2026-11-25 from the second consumer on 0.8.1: a journey state can open a closed `details` (a click on its `summary`), and the overflow check in that state measures the content the closed state skips; a fixture page with a long line in a closed `details` counts 0 overflow after load and 1 in the state after the click.
