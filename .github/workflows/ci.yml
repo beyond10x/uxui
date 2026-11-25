@@ -42,6 +42,7 @@ jobs:
         if: steps.scope.outputs.prose != 'true'
         with:
           toolchain: ${{ steps.toolchain.outputs.channel }}
+          components: clippy, rustfmt
       - name: Run the checks that need no local login
         if: steps.scope.outputs.prose != 'true'
         run: sh tools/gate.sh

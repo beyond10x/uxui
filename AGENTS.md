@@ -95,7 +95,9 @@ directory and a `description`; every `references/` path a skill names exists),
 `tools/check-workflows.sh` (the pull-request gate and the release gate are the same), `tools/docs.sh
 check`, the test scripts `tools/check-plugin.test.sh`, `tools/release.test.sh`, `tools/docs.test.sh`,
 `tools/gate.test.sh` and `tools/release-ready.test.sh`, which prove the checks fail on broken copies
-of the tree (written under `target/`), and `cargo test --workspace --locked` (no browser starts in
+of the tree (written under `target/`), `cargo fmt --all --check`, `cargo clippy --workspace --all-targets
+--locked -- -D warnings` (the forge installs both components in each gate job), and `cargo test
+--workspace --locked` (no browser starts in
 it; the real runs are measurements, `docs/browser-adapter.md`). The whole gate takes a few seconds
 once the crates are compiled. Building the site (`task docs-site`) is not part of the gate.
 

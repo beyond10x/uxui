@@ -32,7 +32,13 @@ fn main() -> ExitCode {
         eprintln!("{USAGE}");
         return ExitCode::from(2);
     };
-    match uxui_gen::generate(&PathBuf::from(path), &PathBuf::from(model), &page, &PathBuf::from(&out), &themes.iter().map(PathBuf::as_path).collect::<Vec<_>>()) {
+    match uxui_gen::generate(
+        &PathBuf::from(path),
+        &PathBuf::from(model),
+        &page,
+        &PathBuf::from(&out),
+        &themes.iter().map(PathBuf::as_path).collect::<Vec<_>>(),
+    ) {
         Ok(report) => {
             for warning in &report.warnings {
                 eprintln!("warning {warning}");
