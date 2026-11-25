@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-25T07:22:01Z",
+  "actor": "human:operator",
+  "artifact": "story:ux-browser-version-flag",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check:pool exit 0 on the build node: ux-browser 188 (185 before), ux-static 23 (20), release.test.sh 13 ok (5); release-versions.sh 0.8.1 target/debug exit 0, 0.8.2 exit 1 naming the answer"
+  }
+}

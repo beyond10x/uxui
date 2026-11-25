@@ -34,8 +34,17 @@ The test step (`task test:ux-browser`, `cargo test -p ux-browser`) starts no bro
 socket: framing runs over an in-memory stream, the protocol client over a scripted transport, each
 check over geometry recorded from real runs (`tests/fixtures/`, written with `--capture`), the worker
 pool over plain functions, the start of Chromium over a shell script that stands in for it (it records
-its arguments), and the binary only with `--help`, `values` (which starts no browser) or an
+its arguments), and the binary only with `--help`, `--version`, `values` (which starts no browser) or an
 invocation it refuses before it starts a browser. Real browser runs are measurements, run by hand on a host with Chromium.
+
+## `ux-browser --version`
+
+`ux-browser --version` (or `-V`) prints `ux-browser <version>` and a newline on stdout, the crate
+version, and exits 0; it starts no browser and reads no file. It is the version a run records as
+`evidence.conditions.tools.ux-browser`, so a consumer that pins ux-browser starts a stored or `PATH`
+binary only when this answer equals the pin. `ux-browser --help` (or `-h`) prints the usage of every
+command. The release checks the answer of the binaries it packages against the tag
+(`sh tools/release-versions.sh <version> <directory of the built binaries>`).
 
 ## `ux-browser render`
 

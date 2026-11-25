@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- `ux-browser --version` (and `-V`) prints `ux-browser <version>` and a newline and exits 0; it starts
+  no browser and reads no file, and the version is the crate's, the one a run records as
+  `evidence.conditions.tools.ux-browser`. A consumer that pins ux-browser can now prove a stored or
+  `PATH` binary before it runs it. `ux-static --version` (and `-V`) answers the same way for
+  ux-static. Both usages list the flag.
+- `tools/release-versions.sh <version> <binary directory>` also checks that the built `ux-browser`
+  and `ux-static` in that directory answer `--version` with exactly the release; the release
+  workflow's package job runs it on the binaries it builds. Without the directory it checks the
+  manifests, crates and changelog as before.
+
 ## 0.8.1 — 2026-11-25
 
 - `ux-browser checks` refuses its inputs (exit 1) before it looks for a browser (exit 3): the

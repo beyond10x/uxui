@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-const USAGE: &str = "usage: ux-static --document <ess-ui/1 file> --journeys <ess-ui-test/1 file> --declarations <uxui-declarations/1 file> --project <project> --assessment <assessment> [--root <repository root, default .>] [--out <file>] [--class <target class, default local>]";
+const USAGE: &str = "usage: ux-static --document <ess-ui/1 file> --journeys <ess-ui-test/1 file> --declarations <uxui-declarations/1 file> --project <project> --assessment <assessment> [--root <repository root, default .>] [--out <file>] [--class <target class, default local>]
+       ux-static -V | --version
+       ux-static -h | --help";
 
 /// Exit statuses, as ratchet's assessor contract (`docs/evidence-format.md` § 10) reads them.
 /// 0: the document is written.
@@ -35,6 +37,10 @@ fn main() -> ExitCode {
             "--class" => &mut class,
             "-h" | "--help" => {
                 println!("{USAGE}");
+                return ExitCode::SUCCESS;
+            }
+            "-V" | "--version" => {
+                println!("ux-static {}", env!("CARGO_PKG_VERSION"));
                 return ExitCode::SUCCESS;
             }
             other => return wrong(&format!("unknown argument `{other}`")),

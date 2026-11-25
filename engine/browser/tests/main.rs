@@ -21,6 +21,7 @@ mod ready;
 mod render;
 mod target;
 mod values;
+mod version;
 mod ws;
 
 use std::path::{Path, PathBuf};
