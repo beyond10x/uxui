@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- ux-browser's cover test samples five points of an always-visible item, not its centre only: the
+  centre and the four corners, each 1 px inside the box and further in along the corner's diagonal
+  by r (1 - 1/sqrt(2)) for its used `border-radius` r, so a point stays inside a rounded corner. The
+  item is covered when `elementFromPoint` at any of them is another element. An item under a sticky
+  bar at one corner, or under a dialog short of its centre, now counts as covered; 0.9.1 counted it
+  visible. The probe records the points that missed (`missed`) in a capture; the evidence is
+  unchanged. `docs/browser-adapter.md`, The cover test, lists the points and the fixture's counts.
 - The workspace is formatted (`cargo fmt --all`) and clippy-clean with `-D warnings` on every target;
   two lints in `uxui-gen` are fixed. `tools/gate.sh` runs both checks, so `task check:pool`, `Gate`
   and the release gate fail on a format diff or a lint; both gate jobs install `clippy` and

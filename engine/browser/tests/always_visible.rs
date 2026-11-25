@@ -430,3 +430,99 @@ fn refuses_a_max_width_below_min_width_zero_or_not_a_whole_number() {
         );
     }
 }
+
+// ---------------------------------------------------------------- the points of the cover test
+//
+// `fixtures/checks/cover-site/` measured with `cover.checks.yaml` (400 x 300, one mode; each page
+// holds one item, `button#item`, declared only on its page): `cover/` holds the captures of this
+// probe, `cover-0.9.1/` those ux-browser 0.9.1 recorded of the same pages. The pages do not scroll,
+// so an item is checked twice, at the top and at the bottom, at the same place.
+
+/// The statuses of the one item of `page` as recorded in `dir`, top then bottom, and the page's
+/// `always_visible.misses@1`.
+fn cover(dir: &str, page: &str) -> (Vec<&'static str>, i64) {
+    let config = checks::config(
+        &std::fs::read_to_string(crate::fixture("checks/cover.checks.yaml")).unwrap(),
+    )
+    .unwrap();
+    let capture = crate::fixture_json(&format!("checks/{dir}/{page}.capture.json"));
+    let result = checks::page_result(&config, &capture).unwrap();
+    assert_eq!(result.error, None, "{dir}/{page}");
+    let statuses = result
+        .units
+        .iter()
+        .flat_map(|u| &u.visible)
+        .filter(|v| v.item == page)
+        .map(|v| v.status.word())
+        .collect();
+    (statuses, result.always_visible_misses())
+}
+
+/// The sample points of the item of `page` that hit another element, at the top, as this probe
+/// recorded them (`missed`).
+fn missed(page: &str) -> Vec<String> {
+    let capture = crate::fixture_json(&format!("checks/cover/{page}.capture.json"));
+    let top = capture.get("viewports").unwrap().list()[0]
+        .get("units")
+        .unwrap()
+        .list()[0]
+        .get("visible")
+        .unwrap()
+        .get("top")
+        .unwrap()
+        .list();
+    let candidate = &top[0].get("candidates").unwrap().list()[0];
+    candidate
+        .get("missed")
+        .expect("the probe records the points that missed")
+        .list()
+        .iter()
+        .map(|p| p.str().unwrap().to_string())
+        .collect()
+}
+
+const COVERED: [&str; 2] = ["covered", "covered"];
+const OK: [&str; 2] = ["ok", "ok"];
+
+#[test]
+fn an_item_under_a_sticky_bar_at_one_corner_is_covered() {
+    // `button#item` at 20,10 160 x 60 under a sticky bar from x 170, 30 px high: its top right
+    // corner lies under the bar, its centre does not.
+    assert_eq!(cover("cover-0.9.1", "corner"), (OK.to_vec(), 0), "0.9.1");
+    assert_eq!(
+        cover("cover", "corner"),
+        (COVERED.to_vec(), 2),
+        "one item, top and bottom"
+    );
+    assert_eq!(missed("corner"), ["top-right"]);
+}
+
+#[test]
+fn an_item_under_a_dialog_short_of_its_centre_is_covered() {
+    // A dialog from x 110 over the right side of the item (20 to 180): both right corners.
+    assert_eq!(cover("cover-0.9.1", "dialog"), (OK.to_vec(), 0), "0.9.1");
+    assert_eq!(cover("cover", "dialog"), (COVERED.to_vec(), 2));
+    assert_eq!(missed("dialog"), ["top-right", "bottom-right"]);
+}
+
+#[test]
+fn an_item_covered_at_its_centre_is_covered_as_before() {
+    assert_eq!(
+        cover("cover-0.9.1", "centre"),
+        (COVERED.to_vec(), 2),
+        "0.9.1"
+    );
+    assert_eq!(cover("cover", "centre"), (COVERED.to_vec(), 2));
+    assert_eq!(missed("centre"), ["centre"]);
+}
+
+#[test]
+fn a_free_item_and_a_free_pill_are_not_covered() {
+    // The pill (160 x 40, `border-radius: 999px`) has corners outside its curve: a point 1 px
+    // inside its box there is no part of it.
+    for page in ["free", "pill"] {
+        assert_eq!(cover("cover-0.9.1", page), (OK.to_vec(), 0), "0.9.1 {page}");
+        assert_eq!(cover("cover", page), (OK.to_vec(), 0), "{page}");
+        assert!(missed(page).is_empty(), "{page}");
+    }
+}
