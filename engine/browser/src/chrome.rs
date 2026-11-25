@@ -332,6 +332,43 @@ pub fn devtools_url(line: &str) -> Option<String> {
     url.starts_with("ws://").then(|| url.to_string())
 }
 
+/// What the reader of Chromium's stderr passes on: a line before the endpoint, the endpoint, or
+/// the end of the stream.
+enum Said {
+    Line(String),
+    Url(String),
+    End,
+}
+
+/// Chromium's last lines on stderr before it listened, for the error when it does not: the cause
+/// (a sandbox it cannot set up on a hosted runner, a missing library) is in them, not in the status.
+#[derive(Default)]
+struct Last(std::collections::VecDeque<String>);
+
+impl Last {
+    const KEPT: usize = 20;
+
+    fn push(&mut self, line: String) {
+        if self.0.len() == Last::KEPT {
+            self.0.pop_front();
+        }
+        self.0.push_back(line);
+    }
+
+    /// `first`, then the lines one per line and indented, or that there were none.
+    fn told(&self, first: &str) -> String {
+        if self.0.is_empty() {
+            return format!("{first}; it printed nothing on stderr");
+        }
+        let mut text = format!("{first}; its last {} lines on stderr:", self.0.len());
+        for line in &self.0 {
+            text.push_str("\n  ");
+            text.push_str(line);
+        }
+        text
+    }
+}
+
 /// A running Chromium. Dropping it ends the process by its PID and removes its profile.
 pub struct Process {
     child: Child,
@@ -343,6 +380,16 @@ pub struct Process {
 impl Process {
     /// Starts `binary` with [`switches`] of `added`, the profile and a blank page.
     pub fn start(binary: &Path, profile: &Path, added: &[String]) -> Result<Process, String> {
+        Process::start_within(binary, profile, added, Duration::from_secs(30))
+    }
+
+    /// [`Process::start`] with the time Chromium has to print its DevTools endpoint.
+    pub fn start_within(
+        binary: &Path,
+        profile: &Path,
+        added: &[String],
+        within: Duration,
+    ) -> Result<Process, String> {
         let line = switches(added)?;
         std::fs::create_dir_all(profile).map_err(|e| format!("{}: {e}", profile.display()))?;
         let mut child = Command::new(binary)
@@ -359,11 +406,16 @@ impl Process {
         std::thread::spawn(move || {
             let mut sent = false;
             for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-                if !sent && let Some(url) = devtools_url(&line) {
-                    let _ = tx.send(url);
-                    sent = true;
+                if sent {
+                    continue;
+                }
+                let url = devtools_url(&line);
+                sent = url.is_some();
+                if tx.send(url.map_or(Said::Line(line), Said::Url)).is_err() {
+                    return;
                 }
             }
+            let _ = tx.send(Said::End);
         });
         let mut process = Process {
             child,
@@ -371,17 +423,35 @@ impl Process {
             binary: binary.to_path_buf(),
             profile: profile.to_path_buf(),
         };
-        let deadline = Instant::now() + Duration::from_secs(30);
+        let mut last = Last::default();
+        let deadline = Instant::now() + within;
         loop {
-            if let Ok(url) = rx.recv_timeout(Duration::from_millis(100)) {
-                process.ws_url = url;
-                return Ok(process);
+            match rx.recv_timeout(Duration::from_millis(100)) {
+                Ok(Said::Url(url)) => {
+                    process.ws_url = url;
+                    return Ok(process);
+                }
+                Ok(Said::Line(line)) => last.push(line),
+                Ok(Said::End) | Err(_) => {}
             }
             if let Ok(Some(status)) = process.child.try_wait() {
-                return Err(format!("Chromium exited before it listened: {status}"));
+                // What Chromium printed before it ended is still in the pipe: read up to its end.
+                let until = Instant::now() + Duration::from_secs(1);
+                while let Ok(Said::Line(line)) =
+                    rx.recv_timeout(until.saturating_duration_since(Instant::now()))
+                {
+                    last.push(line);
+                }
+                return Err(last.told(&format!("Chromium exited before it listened: {status}")));
             }
             if Instant::now() >= deadline {
-                return Err("Chromium printed no DevTools endpoint within 30 s".to_string());
+                while let Ok(Said::Line(line)) = rx.try_recv() {
+                    last.push(line);
+                }
+                return Err(last.told(&format!(
+                    "Chromium printed no DevTools endpoint within {} s",
+                    within.as_secs_f64()
+                )));
             }
         }
     }
