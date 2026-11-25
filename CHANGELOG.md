@@ -37,6 +37,19 @@
   without it. Every document names its clock in `evidence.conditions.other.clock` (`real` without
   the key, `from <instant>` or `frozen at <instant>` in UTC) and the assessor declaration lists
   `clock`; `examples/llm-docs.evidence.json` is rewritten by such a run with the same values.
+- No GPU process by default: Chromium starts with `--disable-gpu` and `--in-process-gpu`
+  (`--disable-gpu` alone keeps a `--type=gpu-process` for compositing). A consumer adds its own
+  switches after the defaults with `chrome_args: [...]` in a `ux-browser-checks/1` file and the
+  repeatable `--chrome-arg <switch>` (or a JSON list of switches, as ratchet passes a list input). A
+  switch the defaults set with another value (`--headless=old`, `--remote-debugging-port=9222`) and
+  `--user-data-dir` are refused by name before a browser starts (exit 1 from the file, 2 from the
+  flag); `--enable-gpu` undoes the default, starting Chromium with the earlier switches. The added
+  switches are `run.local_inputs.chrome-arg`, a JSON list outside the evidence, and the assessor
+  declaration lists the local input `chrome-arg`. On the second consumer's snapshot the default took
+  the run from 86.8 to 56.3 CPU seconds (its GPU process had peaked at 178 %), with the same 55 exact
+  results. On llm's documentation build 3 of 5 runs gave `examples/llm-docs.evidence.json`'s evidence
+  byte for byte, which stands; 2 read `layout_shift.after_ready` of `/llm/docs/concepts/protocols` at
+  1440 x 900 as 0 instead of 0.0004 (a web font's swap; 0 of 6 runs with the earlier switches).
 
 ## 0.5.0 — 2026-11-25
 

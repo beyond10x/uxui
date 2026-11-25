@@ -2,12 +2,14 @@
 //! WebSocket framing runs over an in-memory stream, the DevTools-protocol client over a scripted
 //! transport, and every check's computation over geometry recorded from a real run
 //! (`fixtures/`, written by `ux-browser checks --capture` and `ux-browser render --capture`). The
-//! command-line cases run the binary only on invocations it refuses before it starts a browser.
+//! command-line cases run the binary only on invocations it refuses before it starts a browser, and
+//! the start of Chromium runs a shell script that stands in for it (`chrome`).
 
 mod always_visible;
 mod assessor;
 mod cdp;
 mod checks;
+mod chrome;
 mod clock;
 mod codec;
 mod evidence;
