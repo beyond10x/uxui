@@ -604,7 +604,10 @@ fn the_output_matches_ratchets_example_document() {
     let mut example = read_json(&fixtures.join("example.evidence.json"));
     // The example is ratchet's, copied verbatim; it names the tool version it was written with.
     // Every other byte must match, so only that one field takes this build's version.
-    let tools = get_mut(get_mut(get_mut(&mut example, "evidence"), "conditions"), "tools");
+    let tools = get_mut(
+        get_mut(get_mut(&mut example, "evidence"), "conditions"),
+        "tools",
+    );
     *get_mut(tools, "ux-static") = Value::Str(env!("CARGO_PKG_VERSION").into());
     assert_eq!(coverage(&example, "executed"), 95);
     assert_eq!(coverage(&example, "passed"), 73);

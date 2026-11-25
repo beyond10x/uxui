@@ -163,6 +163,43 @@ workflows fail "the pull-request gate does not ask which files changed" \
 	'sed "s|sh tools/prose-only.sh|cat|" .github/workflows/ci.yml >x && mv x .github/workflows/ci.yml'
 workflows fail "the pull-request workflow does not run on a push to main" \
 	'sed "/^  push:\$/,/^    branches: \[main\]\$/d" .github/workflows/ci.yml >x && mv x .github/workflows/ci.yml'
+workflows fail "the release gate installs no clippy and rustfmt" \
+	'sed "/^ *components: clippy, rustfmt\$/d" .github/workflows/release.yml >x && mv x .github/workflows/release.yml'
+
+# The gate holds the workspace's format and lints: tools/gate.sh runs both commands, and the format
+# check fails on a copy of the sources with one planted format diff (rustfmt compiles nothing).
+for want in 'cargo fmt --all --check' 'cargo clippy --workspace --all-targets --locked -- -D warnings'; do
+	if grep -qxF "step $want" "$root/tools/gate.sh"; then
+		ok "the gate runs $want"
+	else
+		bad "tools/gate.sh does not run: step $want"
+	fi
+done
+l=$work/lint
+rm -rf "$l"
+mkdir -p "$l"
+cp "$root/Cargo.toml" "$root/Cargo.lock" "$root/rust-toolchain.toml" "$l/"
+for d in engine generators; do
+	(cd "$root" && find "$d" -path '*/target' -prune -o \( -name '*.rs' -o -name Cargo.toml \) -print) |
+		while IFS= read -r p; do
+			mkdir -p "$l/$(dirname "$p")"
+			cp "$root/$p" "$l/$p"
+		done
+done
+if (cd "$l" && cargo fmt --all --check >"$work/out" 2>&1); then
+	ok "format: the workspace copy is formatted"
+else
+	bad "format: the workspace copy is not formatted"
+	tail -5 "$work/out"
+fi
+printf 'pub fn planted ( )   {}\n' >>"$l/generators/own/src/lib.rs"
+(cd "$l" && cargo fmt --all --check >"$work/out" 2>&1)
+if [ $? -eq 1 ]; then
+	ok "format: a planted format diff fails the check"
+else
+	bad "format: a planted format diff passed the check"
+	tail -5 "$work/out"
+fi
 
 rm -rf "$work"
 [ "$fails" -eq 0 ]

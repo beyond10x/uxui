@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- The workspace is formatted (`cargo fmt --all`) and clippy-clean with `-D warnings` on every target;
+  two lints in `uxui-gen` are fixed. `tools/gate.sh` runs both checks, so `task check:pool`, `Gate`
+  and the release gate fail on a format diff or a lint; both gate jobs install `clippy` and
+  `rustfmt`, and `tools/check-workflows.sh` fails a gate job that does not.
+
 ## 0.9.1 — 2026-11-25
 
 - ux-static's two `--version` tests each run in a directory of their own. Both used

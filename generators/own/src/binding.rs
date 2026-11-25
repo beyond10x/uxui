@@ -16,15 +16,23 @@ pub fn check(page: &Value, doc: &Value, model: &Model) -> Findings {
     let mut out = Findings::default();
     for section in page.get("sections").map(Value::list).unwrap_or(&[]) {
         let path = section.get_str("path").unwrap_or("");
-        let Some(reads) = section.get("reads").filter(|r| !r.is_null()) else { continue };
-        let Some(view_name) = reads.get_str("view") else { continue };
+        let Some(reads) = section.get("reads").filter(|r| !r.is_null()) else {
+            continue;
+        };
+        let Some(view_name) = reads.get_str("view") else {
+            continue;
+        };
         let Some(view) = model.views.get(view_name) else {
-            out.errors.push(format!("{path}/reads: view `{view_name}` is not in the model"));
+            out.errors.push(format!(
+                "{path}/reads: view `{view_name}` is not in the model"
+            ));
             continue;
         };
         for (param, _) in reads.get("params").map(Value::entries).unwrap_or(&[]) {
             if !view.params.iter().any(|p| p == param) {
-                out.errors.push(format!("{path}/reads: `{param}` is not a param of `{view_name}`"));
+                out.errors.push(format!(
+                    "{path}/reads: `{param}` is not a param of `{view_name}`"
+                ));
             }
         }
         let mut shown: Vec<&str> = Vec::new();
@@ -32,18 +40,27 @@ pub fn check(page: &Value, doc: &Value, model: &Model) -> Findings {
             let name = field.get_str("field").unwrap_or("");
             shown.push(name);
             if view.field(name).is_none() {
-                out.errors.push(format!("{}: `{name}` is not a field of `{view_name}`", field.get_str("path").unwrap_or(path)));
+                out.errors.push(format!(
+                    "{}: `{name}` is not a field of `{view_name}`",
+                    field.get_str("path").unwrap_or(path)
+                ));
             }
         }
-        for key in ["x"] {
-            if let Some(name) = section.get_str(key) {
-                shown.push(name);
-            }
+        if let Some(name) = section.get_str("x") {
+            shown.push(name);
         }
-        for name in section.get("series").map(Value::list).unwrap_or(&[]).iter().filter_map(Value::str) {
+        for name in section
+            .get("series")
+            .map(Value::list)
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(Value::str)
+        {
             shown.push(name);
             if view.field(name).is_none() {
-                out.errors.push(format!("{path}: series `{name}` is not a field of `{view_name}`"));
+                out.errors.push(format!(
+                    "{path}: series `{name}` is not a field of `{view_name}`"
+                ));
             }
         }
         if let Some(live) = section.get("live").filter(|l| !l.is_null()) {
@@ -62,18 +79,27 @@ pub fn check(page: &Value, doc: &Value, model: &Model) -> Findings {
                 Some(Value::List(list)) => list.iter().filter_map(Value::str).collect(),
                 _ => carried.clone(),
             };
-            let inserts = matches!(live.get_str("effect"), Some("insert_or_patch" | "insert_top" | "patch_row" | "replace"));
+            let inserts = matches!(
+                live.get_str("effect"),
+                Some("insert_or_patch" | "insert_top" | "patch_row" | "replace")
+            );
             for event in on {
                 if !carried.contains(&event) {
-                    out.errors.push(format!("{path}/live: channel `{channel}` does not carry `{event}`"));
+                    out.errors.push(format!(
+                        "{path}/live: channel `{channel}` does not carry `{event}`"
+                    ));
                 }
                 let Some(fields) = model.events.get(event) else {
-                    out.errors.push(format!("{path}/live: event `{event}` is not in the model"));
+                    out.errors
+                        .push(format!("{path}/live: event `{event}` is not in the model"));
                     continue;
                 };
                 if inserts {
-                    let missing: Vec<&str> =
-                        shown.iter().copied().filter(|f| !fields.iter().any(|e| e.name == *f)).collect();
+                    let missing: Vec<&str> = shown
+                        .iter()
+                        .copied()
+                        .filter(|f| !fields.iter().any(|e| e.name == *f))
+                        .collect();
                     if !missing.is_empty() {
                         out.warnings.push(format!(
                             "{path}/live: `{event}` carries no {} of `{view_name}`; rows it inserts show them empty",
@@ -85,7 +111,12 @@ pub fn check(page: &Value, doc: &Value, model: &Model) -> Findings {
         }
         actions(section.get("row_actions"), model, doc, &mut out);
     }
-    actions(page.get("header").and_then(|h| h.get("actions")), model, doc, &mut out);
+    actions(
+        page.get("header").and_then(|h| h.get("actions")),
+        model,
+        doc,
+        &mut out,
+    );
     out
 }
 
@@ -94,20 +125,24 @@ fn actions(list: Option<&Value>, model: &Model, doc: &Value, out: &mut Findings)
         let path = action.get_str("path").unwrap_or("");
         if let Some(command) = action.get_str("does") {
             match model.commands.get(command) {
-                None => out.errors.push(format!("{path}: command `{command}` is not in the model")),
+                None => out
+                    .errors
+                    .push(format!("{path}: command `{command}` is not in the model")),
                 Some(input) => {
                     for (name, _) in action.get("bind").map(Value::entries).unwrap_or(&[]) {
                         if !input.iter().any(|f| f.name == *name) {
-                            out.errors.push(format!("{path}: `{name}` is not an input of `{command}`"));
+                            out.errors
+                                .push(format!("{path}: `{name}` is not an input of `{command}`"));
                         }
                     }
                 }
             }
         }
-        if let Some(to) = action.get("navigate").and_then(|n| n.get_str("to")) {
-            if doc.get("pages").and_then(|p| p.get(to)).is_none() {
-                out.errors.push(format!("{path}: page `{to}` is not in the document"));
-            }
+        if let Some(to) = action.get("navigate").and_then(|n| n.get_str("to"))
+            && doc.get("pages").and_then(|p| p.get(to)).is_none()
+        {
+            out.errors
+                .push(format!("{path}: page `{to}` is not in the document"));
         }
     }
 }

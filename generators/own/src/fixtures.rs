@@ -8,7 +8,11 @@ use std::path::Path;
 
 pub fn load(doc: &Value, doc_dir: &Path) -> Result<Value, String> {
     let Some(index) = doc.get("fixtures") else {
-        return Ok(obj(vec![("views", Value::Map(vec![])), ("derived", Value::Map(vec![])), ("scripts", Value::Map(vec![]))]));
+        return Ok(obj(vec![
+            ("views", Value::Map(vec![])),
+            ("derived", Value::Map(vec![])),
+            ("scripts", Value::Map(vec![])),
+        ]));
     };
     let dir = doc_dir.join(index.get_str("dir").unwrap_or("."));
     // `index` holds views, derived and scripts; keys written on the document itself add to it.
@@ -24,7 +28,9 @@ pub fn load(doc: &Value, doc_dir: &Path) -> Result<Value, String> {
     let mut views: Vec<(String, Value)> = Vec::new();
     let mut files: Vec<(String, Value)> = Vec::new();
     for (view, file) in table.get("views").map(Value::entries).unwrap_or(&[]) {
-        let file = file.str().ok_or(format!("fixture of `{view}` is not a file name"))?;
+        let file = file
+            .str()
+            .ok_or(format!("fixture of `{view}` is not a file name"))?;
         if !files.iter().any(|(f, _)| f == file) {
             files.push((file.to_string(), read(&dir.join(file))?));
         }
@@ -36,26 +42,63 @@ pub fn load(doc: &Value, doc_dir: &Path) -> Result<Value, String> {
             None => None,
         }
         .ok_or(format!("fixture file `{file}` holds no rows for `{view}`"))?;
-        views.push((view.clone(), obj(vec![("rows", answer.get("rows").cloned().unwrap_or(Value::List(vec![]))), ("by_params", answer.get("by_params").cloned().unwrap_or(Value::Null))])));
+        views.push((
+            view.clone(),
+            obj(vec![
+                (
+                    "rows",
+                    answer.get("rows").cloned().unwrap_or(Value::List(vec![])),
+                ),
+                (
+                    "by_params",
+                    answer.get("by_params").cloned().unwrap_or(Value::Null),
+                ),
+            ]),
+        ));
     }
     let mut scripts: Vec<(String, Value)> = Vec::new();
     for (channel, file) in table.get("scripts").map(Value::entries).unwrap_or(&[]) {
-        let file = file.str().ok_or(format!("script of `{channel}` is not a file name"))?;
+        let file = file
+            .str()
+            .ok_or(format!("script of `{channel}` is not a file name"))?;
         let script = read(&dir.join(file))?;
         let mut events = Vec::new();
         for entry in script.get("events").map(Value::list).unwrap_or(&[]) {
-            let at = entry.get_str("at").and_then(millis).ok_or(format!("{file}: an entry without a valid `at`"))?;
+            let at = entry
+                .get_str("at")
+                .and_then(millis)
+                .ok_or(format!("{file}: an entry without a valid `at`"))?;
             events.push(obj(vec![
                 ("at", Value::Int(at)),
                 ("event", entry.get("event").cloned().unwrap_or(Value::Null)),
-                ("lifecycle", entry.get("lifecycle").cloned().unwrap_or(Value::Null)),
-                ("payload", entry.get("payload").cloned().unwrap_or(Value::Null)),
+                (
+                    "lifecycle",
+                    entry.get("lifecycle").cloned().unwrap_or(Value::Null),
+                ),
+                (
+                    "payload",
+                    entry.get("payload").cloned().unwrap_or(Value::Null),
+                ),
             ]));
         }
-        scripts.push((channel.clone(), obj(vec![("loop", Value::Bool(script.get("loop") == Some(&Value::Bool(true)))), ("events", Value::List(events))])));
+        scripts.push((
+            channel.clone(),
+            obj(vec![
+                (
+                    "loop",
+                    Value::Bool(script.get("loop") == Some(&Value::Bool(true))),
+                ),
+                ("events", Value::List(events)),
+            ]),
+        ));
     }
     let derived = table.get("derived").cloned().unwrap_or(Value::Map(vec![]));
-    Ok(obj(vec![("views", Value::Map(views)), ("derived", derived), ("scripts", Value::Map(scripts)), ("source", s("fixtures"))]))
+    Ok(obj(vec![
+        ("views", Value::Map(views)),
+        ("derived", derived),
+        ("scripts", Value::Map(scripts)),
+        ("source", s("fixtures")),
+    ]))
 }
 
 fn read(path: &Path) -> Result<Value, String> {

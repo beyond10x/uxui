@@ -8,7 +8,10 @@ pub const RUNTIME: &str = include_str!("../assets/runtime.js");
 pub const STYLE: &str = include_str!("../assets/style.css");
 
 pub fn esc(text: &str) -> String {
-    text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
 pub fn page_js(page: &Value, channels: &Value, fixtures: &Value) -> String {
@@ -36,23 +39,45 @@ pub fn index_html(doc: &Value, page: &Value, themes: &[String]) -> String {
         if href.ends_with(".js") {
             h.push_str(&format!("<script src=\"{}\"></script>\n", esc(href)));
         } else {
-            h.push_str(&format!("<link rel=\"stylesheet\" href=\"{}\">\n", esc(href)));
+            h.push_str(&format!(
+                "<link rel=\"stylesheet\" href=\"{}\">\n",
+                esc(href)
+            ));
         }
     }
     h.push_str("</head>\n<body>\n");
-    h.push_str(&format!("<main class=\"page ui-region-page_outlet\" data-ui-path=\"{}\">\n", esc(&get(page, "path"))));
-    h.push_str(&format!("<header class=\"header\" data-ui-path=\"{}\">\n", esc(&get(&header, "path"))));
+    h.push_str(&format!(
+        "<main class=\"page ui-region-page_outlet\" data-ui-path=\"{}\">\n",
+        esc(&get(page, "path"))
+    ));
+    h.push_str(&format!(
+        "<header class=\"header\" data-ui-path=\"{}\">\n",
+        esc(&get(&header, "path"))
+    ));
     h.push_str(&format!("  <h1>{}</h1>\n", esc(&get(&header, "title"))));
     h.push_str("  <nav class=\"switch\">");
     for entry in header.get("switch").map(Value::list).unwrap_or(&[]) {
         if entry.get("current") == Some(&Value::Bool(true)) {
-            h.push_str(&format!("<span aria-current=\"page\">{}</span>", esc(&get(entry, "label"))));
+            h.push_str(&format!(
+                "<span aria-current=\"page\">{}</span>",
+                esc(&get(entry, "label"))
+            ));
         } else {
-            h.push_str(&format!("<a data-page=\"{}\">{}</a>", esc(&get(entry, "page")), esc(&get(entry, "label"))));
+            h.push_str(&format!(
+                "<a data-page=\"{}\">{}</a>",
+                esc(&get(entry, "page")),
+                esc(&get(entry, "label"))
+            ));
         }
     }
     h.push_str("</nav>\n");
-    for channel in header.get("live").map(Value::list).unwrap_or(&[]).iter().filter_map(Value::str) {
+    for channel in header
+        .get("live")
+        .map(Value::list)
+        .unwrap_or(&[])
+        .iter()
+        .filter_map(Value::str)
+    {
         h.push_str(&format!("  <span class=\"ui-live\" data-channel=\"{}\" data-lifecycle=\"connecting\">Connecting</span>\n", esc(channel)));
     }
     h.push_str("  <span class=\"actions\">");
@@ -70,10 +95,19 @@ pub fn index_html(doc: &Value, page: &Value, themes: &[String]) -> String {
         h.push_str(&format!(
             "<div class=\"column {}\"{}>\n",
             esc(&get(column, "width")),
-            path.map(|p| format!(" data-ui-path=\"{}\"", esc(p))).unwrap_or_default()
+            path.map(|p| format!(" data-ui-path=\"{}\"", esc(p)))
+                .unwrap_or_default()
         ));
-        for name in column.get("sections").map(Value::list).unwrap_or(&[]).iter().filter_map(Value::str) {
-            let Some(section) = sections.iter().find(|s| s.get_str("name") == Some(name)) else { continue };
+        for name in column
+            .get("sections")
+            .map(Value::list)
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(Value::str)
+        {
+            let Some(section) = sections.iter().find(|s| s.get_str("name") == Some(name)) else {
+                continue;
+            };
             h.push_str(&format!(
                 "  <section class=\"ui-section {}\" data-ui-path=\"{}\" data-status=\"loading\">\n",
                 esc(&get(section, "component")),
@@ -95,14 +129,36 @@ pub fn index_html(doc: &Value, page: &Value, themes: &[String]) -> String {
 /// The built-in token table of `ess-ui/1` (reference, Tokens), merged under the document's
 /// `tokens:` and the default theme's overrides, written as CSS custom properties.
 const BUILTIN_COLORS: &[(&str, &str)] = &[
-    ("bg", "#f7f7f8"), ("surface", "#ffffff"), ("text", "#1c1d21"), ("muted", "#676a73"),
-    ("line", "#dcdde1"), ("accent", "#2f5bd3"), ("info", "#2f7fd3"), ("success", "#2e8a4f"),
-    ("warning", "#b7791f"), ("danger", "#c0392b"), ("danger_fill", "#f6d5d1"),
-    ("success_fill", "#d7f0df"), ("warning_fill", "#f7e7c6"), ("info_fill", "#d9e4fb"),
-    ("focus", "#eef2fd"), ("on_accent", "#fff"), ("backdrop", "rgb(0 0 0 / 0.3)"),
+    ("bg", "#f7f7f8"),
+    ("surface", "#ffffff"),
+    ("text", "#1c1d21"),
+    ("muted", "#676a73"),
+    ("line", "#dcdde1"),
+    ("accent", "#2f5bd3"),
+    ("info", "#2f7fd3"),
+    ("success", "#2e8a4f"),
+    ("warning", "#b7791f"),
+    ("danger", "#c0392b"),
+    ("danger_fill", "#f6d5d1"),
+    ("success_fill", "#d7f0df"),
+    ("warning_fill", "#f7e7c6"),
+    ("info_fill", "#d9e4fb"),
+    ("focus", "#eef2fd"),
+    ("on_accent", "#fff"),
+    ("backdrop", "rgb(0 0 0 / 0.3)"),
 ];
-const BUILTIN_SPACE: &[(&str, &str)] = &[("xs", "0.25rem"), ("sm", "0.5rem"), ("md", "1rem"), ("lg", "1.5rem")];
-const BUILTIN_RADIUS: &[(&str, &str)] = &[("sm", "4px"), ("md", "6px"), ("lg", "8px"), ("pill", "999px")];
+const BUILTIN_SPACE: &[(&str, &str)] = &[
+    ("xs", "0.25rem"),
+    ("sm", "0.5rem"),
+    ("md", "1rem"),
+    ("lg", "1.5rem"),
+];
+const BUILTIN_RADIUS: &[(&str, &str)] = &[
+    ("sm", "4px"),
+    ("md", "6px"),
+    ("lg", "8px"),
+    ("pill", "999px"),
+];
 const BUILTIN_TYPE: &[(&str, &str, &str, &str)] = &[
     ("body", "system-ui, sans-serif", "1rem", "400"),
     ("caption", "", "0.8rem", ""),
@@ -110,8 +166,11 @@ const BUILTIN_TYPE: &[(&str, &str, &str, &str)] = &[
     ("mono", "ui-monospace, monospace", "", ""),
 ];
 const BUILTIN_TONE: &[(&str, &str, &str)] = &[
-    ("neutral", "text", "line"), ("info", "info", "line"), ("success", "success", "line"),
-    ("warning", "warning", "line"), ("danger", "danger", "danger_fill"),
+    ("neutral", "text", "line"),
+    ("info", "info", "line"),
+    ("success", "success", "line"),
+    ("warning", "warning", "line"),
+    ("danger", "danger", "danger_fill"),
 ];
 
 pub fn tokens_css(doc: &Value) -> String {
@@ -125,13 +184,20 @@ pub fn tokens_css(doc: &Value) -> String {
     let pick = |group: &str, name: &str, base: &str| -> String {
         let mut value = base.to_string();
         for layer in &layers {
-            if let Some(v) = layer.get(group).and_then(|g| g.get(name)).and_then(Value::str) {
+            if let Some(v) = layer
+                .get(group)
+                .and_then(|g| g.get(name))
+                .and_then(Value::str)
+            {
                 value = v.to_string();
             }
         }
         value
     };
-    let mut names: Vec<(String, String)> = BUILTIN_COLORS.iter().map(|(n, v)| (n.to_string(), v.to_string())).collect();
+    let mut names: Vec<(String, String)> = BUILTIN_COLORS
+        .iter()
+        .map(|(n, v)| (n.to_string(), v.to_string()))
+        .collect();
     for layer in &layers {
         for (n, v) in layer.get("color").map(Value::entries).unwrap_or(&[]) {
             if !names.iter().any(|(k, _)| k == n) {
@@ -141,19 +207,32 @@ pub fn tokens_css(doc: &Value) -> String {
     }
     let mut css = String::from(":root {\n");
     for (name, base) in &names {
-        css.push_str(&format!("  --ui-color-{name}: {};\n", pick("color", name, base)));
+        css.push_str(&format!(
+            "  --ui-color-{name}: {};\n",
+            pick("color", name, base)
+        ));
     }
     for (name, base) in BUILTIN_SPACE {
-        css.push_str(&format!("  --ui-space-{name}: {};\n", pick("space", name, base)));
+        css.push_str(&format!(
+            "  --ui-space-{name}: {};\n",
+            pick("space", name, base)
+        ));
     }
     for (name, base) in BUILTIN_RADIUS {
-        css.push_str(&format!("  --ui-radius-{name}: {};\n", pick("radius", name, base)));
+        css.push_str(&format!(
+            "  --ui-radius-{name}: {};\n",
+            pick("radius", name, base)
+        ));
     }
     for (style, family, size, weight) in BUILTIN_TYPE {
         let field = |key: &str, base: &str| {
             let mut value = base.to_string();
             for layer in &layers {
-                match layer.get("type").and_then(|t| t.get(style)).and_then(|t| t.get(key)) {
+                match layer
+                    .get("type")
+                    .and_then(|t| t.get(style))
+                    .and_then(|t| t.get(key))
+                {
                     Some(Value::Str(v)) => value = v.clone(),
                     Some(Value::Int(n)) => value = n.to_string(),
                     _ => {}
@@ -162,24 +241,51 @@ pub fn tokens_css(doc: &Value) -> String {
             value
         };
         // A field a style leaves out falls back to `body`.
-        let (f, z, w) = (field("family", family), field("size", size), field("weight", weight));
-        let body = |i: usize| match i { 0 => "var(--ui-type-body-family)", 1 => "var(--ui-type-body-size)", _ => "var(--ui-type-body-weight)" };
-        css.push_str(&format!("  --ui-type-{style}-family: {};\n", if f.is_empty() { body(0).into() } else { f }));
-        css.push_str(&format!("  --ui-type-{style}-size: {};\n", if z.is_empty() { body(1).into() } else { z }));
-        css.push_str(&format!("  --ui-type-{style}-weight: {};\n", if w.is_empty() { body(2).into() } else { w }));
+        let (f, z, w) = (
+            field("family", family),
+            field("size", size),
+            field("weight", weight),
+        );
+        let body = |i: usize| match i {
+            0 => "var(--ui-type-body-family)",
+            1 => "var(--ui-type-body-size)",
+            _ => "var(--ui-type-body-weight)",
+        };
+        css.push_str(&format!(
+            "  --ui-type-{style}-family: {};\n",
+            if f.is_empty() { body(0).into() } else { f }
+        ));
+        css.push_str(&format!(
+            "  --ui-type-{style}-size: {};\n",
+            if z.is_empty() { body(1).into() } else { z }
+        ));
+        css.push_str(&format!(
+            "  --ui-type-{style}-weight: {};\n",
+            if w.is_empty() { body(2).into() } else { w }
+        ));
     }
     for (tone, text, fill) in BUILTIN_TONE {
         let part = |key: &str, base: &str| {
             let mut value = base.to_string();
             for layer in &layers {
-                if let Some(v) = layer.get("tone").and_then(|t| t.get(tone)).and_then(|t| t.get_str(key)) {
+                if let Some(v) = layer
+                    .get("tone")
+                    .and_then(|t| t.get(tone))
+                    .and_then(|t| t.get_str(key))
+                {
                     value = v.to_string();
                 }
             }
             value
         };
-        css.push_str(&format!("  --ui-tone-{tone}-text: var(--ui-color-{});\n", part("text", text)));
-        css.push_str(&format!("  --ui-tone-{tone}-fill: var(--ui-color-{});\n", part("fill", fill)));
+        css.push_str(&format!(
+            "  --ui-tone-{tone}-text: var(--ui-color-{});\n",
+            part("text", text)
+        ));
+        css.push_str(&format!(
+            "  --ui-tone-{tone}-fill: var(--ui-color-{});\n",
+            part("fill", fill)
+        ));
     }
     css.push_str("}\n");
     css
