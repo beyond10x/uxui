@@ -6,7 +6,7 @@ use ux_browser::checks::{
     self, KeyboardResult, KeyboardUnit, Overflow, PageResult, ShiftUnit, Status, UnitResult,
     Visible,
 };
-use ux_browser::evidence::{self, Header};
+use ux_browser::evidence::{self, Header, Target};
 use ux_browser::render::FileRef;
 use uxui_doc::yaml::Value;
 
@@ -130,21 +130,26 @@ fn document_with(
     only: Option<&str>,
     local_inputs: Vec<(&str, String)>,
 ) -> Value {
+    let build = FileRef {
+        path: build_path.map(str::to_string),
+        digest: SITE_TREE_DIGEST.to_string(),
+    };
+    document_of(Target::Build(&build), only, local_inputs)
+}
+
+/// The document of `pages()` measured at `target`.
+fn document_of(target: Target, only: Option<&str>, local_inputs: Vec<(&str, String)>) -> Value {
     let config = checks::config(LLM_LIKE).unwrap();
     let config_file = FileRef {
         path: Some("engine/browser/examples/llm.checks.yaml".to_string()),
         digest: "sha256:aa".to_string(),
-    };
-    let build = FileRef {
-        path: build_path.map(str::to_string),
-        digest: SITE_TREE_DIGEST.to_string(),
     };
     let header = Header {
         project: "llm-docs",
         assessment: "page-checks",
         class: "local",
         config: &config_file,
-        build: &build,
+        target,
         pages: only,
         local_inputs,
         browser: "Chrome/150.0.0.0",
@@ -240,6 +245,55 @@ fn a_build_under_the_root_a_page_list_and_the_local_inputs_are_written_as_inputs
     );
     let local = doc.get("run").unwrap().get("local_inputs").unwrap();
     assert_eq!(local.get_str("jobs"), Some("2"));
+}
+
+const SERVER: &str = "http://127.0.0.1:4000/preview/";
+
+/// The document of `pages()` measured on a running server.
+pub fn server_document() -> Value {
+    document_of(Target::Server(SERVER), None, Vec::new())
+}
+
+#[test]
+fn a_running_server_is_a_deployment_named_by_its_url_and_no_candidate() {
+    let doc = document_of(Target::Server(SERVER), None, Vec::new());
+    let e = doc.get("evidence").unwrap();
+    assert_eq!(e.get("candidate"), None, "no digest of what a server sends");
+    let target = e.get("target").unwrap();
+    assert_eq!(target.get_str("kind"), Some(evidence::TARGET_SERVER));
+    assert_eq!(evidence::TARGET_SERVER, "deployment");
+    assert_eq!(target.get_str("class"), Some("local"));
+    assert_eq!(
+        target.get("selection"),
+        None,
+        "present exactly when a candidate is"
+    );
+    assert_eq!(
+        target.get("identifiers").unwrap().entries(),
+        &[("environment_id".to_string(), Value::Str(SERVER.to_string()))],
+        "the document says what it measured"
+    );
+    let inputs = e.get("inputs").unwrap();
+    assert!(inputs.get("config").is_some());
+    assert_eq!(inputs.get("build"), None);
+    assert_eq!(
+        inputs.get("url"),
+        None,
+        "the target, as a document target, is not repeated under inputs"
+    );
+}
+
+#[test]
+fn the_same_pages_give_the_same_results_on_a_server_as_on_the_served_build() {
+    let build = document();
+    let server = document_of(Target::Server(SERVER), None, Vec::new());
+    for key in ["results", "coverage", "conditions", "completion"] {
+        assert_eq!(
+            server.get("evidence").unwrap().get(key),
+            build.get("evidence").unwrap().get(key),
+            "{key}"
+        );
+    }
 }
 
 #[test]

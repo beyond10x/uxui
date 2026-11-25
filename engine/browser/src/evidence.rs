@@ -2,8 +2,9 @@
 //! revision 2), in the shape `ux-static@1` writes: one number per check and page, then the failed
 //! checks of each page as an identity set. Field by field: `docs/browser-adapter.md`.
 //!
-//! The target is of the kind `build`: the served build, identified by its artifact digest
-//! ([`build_digest`]), which is also the candidate.
+//! The target is of the kind `build` for a served build, identified by its artifact digest
+//! ([`build_digest`]), which is also the candidate; of the kind `deployment` for a running server
+//! (`--url`), identified by its URL, with no candidate.
 
 use crate::checks::{self, Config, PageResult};
 use crate::render::FileRef;
@@ -16,6 +17,16 @@ pub const ASSESSOR: &str = "ux-browser@1";
 pub const FINDINGS: &str = "findings";
 /// The target kind: a served build.
 pub const TARGET_KIND: &str = "build";
+/// The target kind of a running server the run did not start (`--url`).
+pub const TARGET_SERVER: &str = "deployment";
+
+/// What a run measured.
+pub enum Target<'a> {
+    /// The served build: its digest ([`build_digest`]), and its path when it lies under the root.
+    Build(&'a FileRef),
+    /// A running server: its URL as `target::Site::url` writes it.
+    Server(&'a str),
+}
 
 /// What the document says about the run beside its results.
 pub struct Header<'a> {
@@ -23,8 +34,7 @@ pub struct Header<'a> {
     pub assessment: &'a str,
     pub class: &'a str,
     pub config: &'a FileRef,
-    /// The served build: its digest ([`build_digest`]), and its path when it lies under the root.
-    pub build: &'a FileRef,
+    pub target: Target<'a>,
     /// The `--pages` value, when the run measured a list of pages and not the whole site.
     pub pages: Option<&'a str>,
     /// The local inputs of the run (`jobs`, `capture`, `profile`) with the values it used:
@@ -475,7 +485,10 @@ pub fn document(header: &Header, config: &Config, pages: &[PageResult]) -> Value
     }
     let viewports: Vec<&str> = config.viewports.iter().map(|v| v.name.as_str()).collect();
     let mut inputs = vec![("config", file(header.config, "value", "bytes"))];
-    if let Some(path) = &header.build.path {
+    if let Target::Build(FileRef {
+        path: Some(path), ..
+    }) = &header.target
+    {
         inputs.push(("build", map(vec![("value", s(path))])));
     }
     if let Some(pages) = header.pages {
@@ -495,52 +508,72 @@ pub fn document(header: &Header, config: &Config, pages: &[PageResult]) -> Value
                 .collect()),
         ));
     }
-    let evidence = map(vec![
-        ("project", s(header.project)),
-        ("assessment", s(header.assessment)),
-        ("assessor", s(ASSESSOR)),
-        ("candidate", s(&header.build.digest)),
-        (
-            "target",
+    // A build is the candidate, by its digest. What a server sends has no digest the run could
+    // compute, so its evidence is attributable to no candidate: no `candidate`, no `selection`.
+    let (candidate, target) = match &header.target {
+        Target::Build(build) => (
+            Some(s(&build.digest)),
             map(vec![
                 ("kind", s(TARGET_KIND)),
                 ("class", s(header.class)),
                 ("selection", s("candidate")),
                 (
                     "identifiers",
-                    map(vec![("artifact_digest", s(&header.build.digest))]),
+                    map(vec![("artifact_digest", s(&build.digest))]),
                 ),
             ]),
         ),
-        ("inputs", map(inputs)),
-        ("completion", s("completed")),
-        (
-            "conditions",
+        Target::Server(url) => (
+            None,
             map(vec![
-                (
-                    "tools",
-                    map(vec![
-                        ("ux-browser", s(env!("CARGO_PKG_VERSION"))),
-                        ("chromium", s(header.browser)),
-                    ]),
-                ),
-                (
-                    "other",
-                    map(vec![
-                        ("viewports", s(&viewports.join(" "))),
-                        ("modes", s(&config.modes.join(" "))),
-                        ("settle_ms", s(&config.settle_ms.to_string())),
-                        ("reduced_motion", s(&config.reduced_motion.to_string())),
-                    ]),
-                ),
+                ("kind", s(TARGET_SERVER)),
+                ("class", s(header.class)),
+                ("identifiers", map(vec![("environment_id", s(url))])),
             ]),
         ),
-        ("coverage", map(counts)),
-        (
-            "results",
-            Value::List(numbers.into_iter().chain(sets).collect()),
-        ),
-    ]);
+    };
+    let mut head = vec![
+        ("project", s(header.project)),
+        ("assessment", s(header.assessment)),
+        ("assessor", s(ASSESSOR)),
+    ];
+    if let Some(c) = candidate {
+        head.push(("candidate", c));
+    }
+    head.push(("target", target));
+    let evidence = map(head
+        .into_iter()
+        .chain(vec![
+            ("inputs", map(inputs)),
+            ("completion", s("completed")),
+            (
+                "conditions",
+                map(vec![
+                    (
+                        "tools",
+                        map(vec![
+                            ("ux-browser", s(env!("CARGO_PKG_VERSION"))),
+                            ("chromium", s(header.browser)),
+                        ]),
+                    ),
+                    (
+                        "other",
+                        map(vec![
+                            ("viewports", s(&viewports.join(" "))),
+                            ("modes", s(&config.modes.join(" "))),
+                            ("settle_ms", s(&config.settle_ms.to_string())),
+                            ("reduced_motion", s(&config.reduced_motion.to_string())),
+                        ]),
+                    ),
+                ]),
+            ),
+            ("coverage", map(counts)),
+            (
+                "results",
+                Value::List(numbers.into_iter().chain(sets).collect()),
+            ),
+        ])
+        .collect());
     map(vec![
         ("format", s(FORMAT)),
         ("evidence", evidence),

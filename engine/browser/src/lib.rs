@@ -6,7 +6,8 @@
 //! - [`json`]: the JSON reader; writing is `uxui_doc::json`;
 //! - [`cdp`]: commands, responses, events and the request guard;
 //! - [`chrome`]: finding and starting Chromium; [`session`]: one page driven through a session;
-//! - [`serve`]: a static server for a built site;
+//! - [`serve`]: a static server for a built site; [`target`]: a running server (`checks --url`), its
+//!   origin and the URL of each page on it;
 //! - [`render`]: the render record `ux-browser-render/1`;
 //! - [`pool`]: the worker threads a checks run measures its pages with;
 //! - [`values`]: the values file a consumer's ratchet and hard gates read, from a checks document.
@@ -23,6 +24,7 @@ pub mod render;
 pub mod serve;
 pub mod session;
 pub mod sha1;
+pub mod target;
 pub mod value;
 pub mod values;
 pub mod ws;

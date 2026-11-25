@@ -11,7 +11,7 @@ It does three things for any page with a URL:
    each declared node's box, computed styles and accessibility-tree entry, and a screenshot.
 2. **checks**: the five page checks that the UI-loop copies share
    (`research/2026-11-24-loop-copies-page-checks.md`), with the first consumer's (`llm`) definitions,
-   over every page of a built site, as one `ratchet-evidence/1` document per run.
+   over every page of a built site or of a running server, as one `ratchet-evidence/1` document per run.
 3. **values**: the consumer's values file (`ux-browser-values/1`) from such a document: per page
    scenario the numbers its ratchet compares, and per page, viewport and mode the hard-gate failures
    with the open finding that waives each (`ux-browser values`, or `ux-browser checks --values`).
@@ -22,11 +22,11 @@ It does three things for any page with a URL:
 |---|---|---|
 | WebSocket | `src/ws.rs`, `src/base64.rs`, `src/sha1.rs` | RFC 6455 client: the opening handshake with its accept check, masked client frames, server frames of any length, fragments, ping and close |
 | JSON | `src/json.rs` | a reader into `uxui_doc::yaml::Value`; writing is `uxui_doc::json` |
-| protocol | `src/cdp.rs` | commands with ids, responses matched by id, events queued until asked for, flat sessions; a guard that answers every paused request: requests to the served build go on, every other one fails (`BlockedByClient`) |
+| protocol | `src/cdp.rs` | commands with ids, responses matched by id, events queued until asked for, flat sessions; a guard that answers every paused request: requests to the measured server with a declared method (`GET` and `HEAD` unless `request_methods` names more) go on, every other one fails (`BlockedByClient`) |
 | Chromium | `src/chrome.rs` | `UXUI_CHROME`, else the newest `chromium-<n>/chrome-linux*/chrome` under the Playwright cache (`PLAYWRIGHT_BROWSERS_PATH`, else `~/.cache/ms-playwright`); started headless with its own profile, `--remote-debugging-port=0`, and the switches of Playwright's headless Chromium that change what a page measures (`--hide-scrollbars`, the hover and pointer media of a headless device, sRGB); ended with `Browser.close`, then by its PID |
 | pages | `src/session.rs` | one browser context per page and viewport (as a fresh Playwright context): viewport, `prefers-color-scheme`, `prefers-reduced-motion`, focus emulation, scripts before the page's own, navigation to the `load` event, keys, the accessibility tree, screenshots |
 | workers | `src/pool.rs`, `src/measure.rs` | a checks run starts one Chromium and measures up to `--jobs` page and viewport pairs at a time in it, each worker on a DevTools connection of its own; pairs are taken in order, results are put back in order, and the first browser failure stops the run |
-| server | `src/serve.rs` | a static server for a built site under its base path on a free loopback port (file, file plus `.html`, `index.html`; else `404.html` with status 404) |
+| server | `src/serve.rs`, `src/target.rs` | a static server for a built site under its base path on a free loopback port (file, file plus `.html`, `index.html`; else `404.html` with status 404); or, with `--url`, a running server: its origin and the URL of each page and of the sitemap on it |
 | probes | `src/probes/*.js` | the JavaScript the page runs: it returns geometry, and decides nothing |
 | checks | `src/checks.rs`, `src/evidence.rs` | every rule and every count, in Rust, from the recorded geometry |
 
@@ -76,15 +76,18 @@ ux-browser checks --config engine/browser/examples/llm.checks.yaml --build <llm>
   --project llm-docs --assessment page-checks --out llm-docs.evidence.json \
   [--root .] [--class local] [--pages /llm/,/llm/search] [--capture <dir>] [--jobs 4] \
   [--values page-checks.json]
+ux-browser checks --config ux/ux-browser.checks.yaml --url http://127.0.0.1:4173 \
+  --project my-app --assessment page-checks --out page-checks.evidence.json
 ```
 
-It serves `--build` itself, measures every page (the sitemap's, or a list), and writes one
+It serves `--build` itself, or measures a server it did not start (`--url`, below), measures every
+page (the sitemap's, or a list), and writes one
 `ratchet-evidence/1` document. With `--values` it then writes the values file from that document, as
 `ux-browser values` does (below), in the same run. `--jobs` is the number of page and viewport pairs measured at a time
 in the one Chromium of the run: by default the CPUs the process may use, at most 4; at least 1. The
 values do not depend on it (Timings). `--capture` writes each page's recorded geometry as
 `<page>.capture.json`, the input `checks::page_result` reads. Exit statuses as `ux-static`
-(`docs/ux-static.md`): 0 written; 1 refused inputs (a configuration or build that does not read); 2
+(`docs/ux-static.md`): 0 written; 1 refused inputs (a configuration or build that does not read, a sitemap the server does not answer); 2
 wrong invocation; 3 infrastructure (Chromium did not start or answer, the document was not written). A
 page the server does not answer with 200 is no failure of the run: its results are incomplete.
 
@@ -95,6 +98,34 @@ written, the values file is written; the exit status is then that of `ux-browser
 values report a problem (an incomplete result, an unmapped page, a failure no open finding waives),
 with both files written; 3 when the values file could not be written.
 
+### A running server: `--url`
+
+`--url` names a server the run did not start (a dev server, a preview, a deployed origin) in place of
+`--build`. Exactly one of the two is given: both, or neither, is a wrong invocation (exit 2).
+
+| part | rule |
+|---|---|
+| form | `http://` or `https://`, a host (a name, an IPv4 address, or an IPv6 address in `[]`), an optional port, an optional path; no user, query or fragment. Anything else is a wrong invocation (exit 2) |
+| origin | scheme, host and port, in lower case, without the default port (80, 443): `HTTP://Example.ORG:80/` is `http://example.org`. The guard compares request URLs with it |
+| path | where the configuration's `base_path` lies on that server. No path, or `/`: the server serves the site where the configuration says, and a page is its configured path on the origin (`/llm/search` at `http://127.0.0.1:4173/llm/search`). Any other path (`/preview` reads as `/preview/`): a page's part after `base_path` goes under it (`/llm/search` at `http://127.0.0.1:4173/preview/search`), and a configured page outside `base_path` is refused (exit 1). Page paths in the document stay the configured ones, so a document of a server and one of the build have the same items |
+| pages | `pages.paths` as with `--build`; `pages.sitemap` is the file under the base path on that server (`sitemap.xml` with `base_path: /llm/` is `<origin>/llm/sitemap.xml`, moved by a path as a page is), read in the run's Chromium behind the same guard; its `<loc>` paths are measured as above. A sitemap the server does not answer with 200 is a refused input (exit 1, no document) |
+| guard | requests to the origin go on when their method is in `request_methods` (default `GET` and `HEAD`; Configuration); requests to any other origin, and other methods to the origin, fail (`BlockedByClient`), as with `--build`. A measurement does not change the state of a server it did not start; a page that must send a `POST` to show itself names it in `request_methods`, and the configuration's digest in the document records that |
+| status | a page the server does not answer with 200 is incomplete, as with `--build` |
+| evidence | `target: {kind: deployment, class, identifiers: {environment_id: <the URL, normalized: origin and path>}}`, no `selection` and no `candidate` (Evidence) |
+
+The values do not depend on where the same bytes are served from. Measured 2026-11-25, Chrome/158.0.8127.18,
+the same directory served once by `--build` and once by a separate process on a loopback port (the same
+static server code) for `--url`:
+
+| site | pages x viewports | values | equal | wall time `--url` / `--build` |
+|---|---|---|---|---|
+| llm's documentation build (`examples/llm.checks.yaml`, sitemap read from the server) | 27 x 2 | 135 | 135, every result byte for byte | 40.9 s / 45.1 s |
+| the second consumer's snapshot (a control plane web application, `pages.paths`) | 11 x 5 | 55 | the 44 exact values, byte for byte with their details and findings | 32.5 s / 22.1 s; again 49.3 s / 50.9 s |
+
+The second consumer's 11 `layout_shift.after_ready@1` values (sampled) vary from run to run on its page
+under either flag: two `--build` runs differed in 9 of them, a `--url` and a `--build` run in 9. The
+host's load moved the wall times more than the flag did.
+
 ### Configuration `ux-browser-checks/1`
 
 Viewports, modes, settle times and the declared items are inputs, never constants of the tool. llm's,
@@ -102,8 +133,8 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 
 | key | value |
 |---|---|
-| `base_path` | where the build is served, `/llm/` |
-| `pages` | `{sitemap: sitemap.xml}` (a file of the build) or `{paths: [...]}` |
+| `base_path` | where the build is served, `/llm/`; with `--url`, where the pages are on the server unless its path says otherwise (A running server) |
+| `pages` | `{sitemap: sitemap.xml}` (a file of the build; with `--url`, the file under the base path on the server) or `{paths: [...]}` |
 | `viewports` | `{name, width, height}` each |
 | `modes` | `light`, `dark`, in order; the page loads in the first, the others are switched in place |
 | `mode_attribute` | the attribute of `<html>` that shows the applied mode (`data-theme`); a page that does not apply a mode within 5 s is incomplete |
@@ -112,6 +143,7 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `always_visible` | `{name, role, name_is \| name_contains, css, scope, min_width, path_prefix}` each |
 | `keyboard` | `{skip_link_is \| skip_link_contains, must_reach, max_tabs, modes, viewports, focus_settle_ms}`; `modes` defaults to the last mode, `viewports` (names) to every viewport; each target is an always-visible item |
 | `opt_in` | checks that run only when named here: `layout_shift.load` (The checks); default none |
+| `request_methods` | the HTTP methods a page may send to the measured server, in capitals, each once, `GET` among them; default `[GET, HEAD]`. A request with another method fails as one to another origin does (A running server) |
 | `values` | how `ux-browser values` and `checks --values` turn the document into the consumer's values file (`ux-browser values`); optional |
 
 The `values` section (every path is under `--root`):
@@ -174,8 +206,8 @@ As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
 | field | value |
 |---|---|
 | `evidence.assessor` | `ux-browser@1` |
-| `evidence.target` | `kind: build` (ratchet `docs/evidence-format.md`, `evidence.target.kind`): the served build, `identifiers: {artifact_digest: <build digest>}`, `selection: candidate`, no `revision` |
-| `evidence.candidate` | the build digest, as ratchet's format asks of a `build` ("the artifact digest"): see below |
+| `evidence.target` | with `--build`, `kind: build` (ratchet `docs/evidence-format.md`, `evidence.target.kind`): the served build, `identifiers: {artifact_digest: <build digest>}`, `selection: candidate`, no `revision`. With `--url`, `kind: deployment`: the running server, `identifiers: {environment_id: <the --url, normalized>}`, no `selection` and no `revision`; the URL is not repeated under `inputs`, as ratchet's format says of a document target |
+| `evidence.candidate` | the build digest, as ratchet's format asks of a `build` ("the artifact digest"): see below. Absent with `--url`: what a server sends has no digest the run could compute before it measures, so the document is attributable to no candidate (ratchet's rule: `candidate` exactly when `selection`) |
 | `evidence.inputs.config` | the configuration file, `{value: <path>, digest, digest_form: bytes}` |
 | `evidence.inputs.build` | `{value: <path>}` for a build under `--root`, absent for one outside it; no digest beside it, the candidate is its digest |
 | `evidence.inputs.pages` | `{value: <the --pages list>}` when the run measured a list and not the whole sitemap |
@@ -209,15 +241,15 @@ digests and the same 1,234 values.
 | field | value |
 |---|---|
 | `command` | `ux-browser checks` |
-| `targets` | `[build]`; no `target_input`, which only a `document` target has |
-| `inputs` | `config` and `build` (paths, required), `pages` (text: paths separated by commas), and the local inputs `capture`, `profile`, `values` (paths) and `jobs` (integer); `values` names a file the run writes and changes no value of the document, as `capture` |
+| `targets` | `[build, deployment]`: a served build (`--build`) or a running server (`--url`); no `target_input`, which only a `document` target has |
+| `inputs` | `config` (path, required), `build` (path) and `url` (text), of which a run gets exactly one (a choice of the usage; the format has no way to say so), `pages` (text: paths separated by commas), and the local inputs `capture`, `profile`, `values` (paths) and `jobs` (integer); `values` names a file the run writes and changes no value of the document, as `capture` |
 | `conditions` | `viewports`, `modes`, `settle_ms`, `reduced_motion`: the keys of `conditions.other` |
 | `coverage_unit`, `coverage` | `check`; all six counts |
 | `outputs` | the six numbers (`scope: page`; unit `units`, `blocks`, `items`, `checks`, `score`, `score`; the two layout shifts `sampled`, the others `exact`) and `findings` (`identity_key: [rule, node_path]`, `item_fields: [reason]`) |
 
 A test (`tests/assessor.rs`) reads it and compares its inputs with the arguments of the `checks` usage
-(required where the usage does not bracket them), its conditions with a document's, and its outputs with
-every result of the example document and of the test document.
+(required where the usage neither brackets them nor puts them in a choice `( | )`), its conditions with a document's, and its outputs with
+every result and the target kind of the example document and of the test documents (a build's and a running server's).
 
 ## `ux-browser values`
 
