@@ -577,6 +577,7 @@ pub fn document(header: &Header, config: &Config, pages: &[PageResult]) -> Value
                             ),
                             ("overflow_elements", s(&layout.overflow.elements.join(", "))),
                             ("overflow_exclude", s(&layout.overflow.exclude.join(", "))),
+                            ("clock", s(&checks::clock_condition(config))),
                         ]),
                     ),
                 ]),

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A page that prints the time</title>
+<style>
+  body { margin: 0; font: 16px/1.4 monospace; }
+  main { width: 360px; padding: 8px; }
+  .box { width: 240px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<main>
+  <p class="box" id="now"></p>
+  <p class="box" id="ago"></p>
+  <p class="box" id="bar"></p>
+</main>
+<script>
+  // The time now, and how long ago the data's instant was, as an application shows "3 min ago".
+  const since = Date.parse("2025-12-31T09:00:00Z");
+  const s = Math.floor((Date.now() - since) / 1000);
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  document.getElementById("now").textContent = new Date().toISOString();
+  document.getElementById("ago").textContent = (d ? d + "d " : "") + h + "h " + m + "m " + (s % 60) + "s ago";
+  // One mark per second of the current minute: the width of this line moves with the clock, and
+  // past 25 marks it runs out of its box.
+  document.getElementById("bar").textContent = "|".repeat(new Date().getUTCSeconds()) || "-";
+</script>
+</body>
+</html>
