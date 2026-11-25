@@ -16,7 +16,7 @@ custom_edit_url: null
 
 | Item | Status | What it means |
 |---|---|---|
-| [ui-iteration-loop skill](./reference/skill.md) | ● shipped | Plugin 0.8.0 for Claude Code and Codex: rounds of trial, measure, triage, design decision, build and gate, with hard gates on every merge and ratchets against a baseline.json. |
+| [ui-iteration-loop skill](./reference/skill.md) | ● shipped | Plugin 0.8.1 for Claude Code and Codex: rounds of trial, measure, triage, design decision, build and gate, with hard gates on every merge and ratchets against a baseline.json. |
 | [Marketplace for both hosts](./getting-started.md) | ● shipped | Install from a clone of the repository with claude plugin install uxui@uxui or codex plugin add uxui@uxui. |
 | [Plugin check](./getting-started.md) | ● shipped | task check validates both manifests and marketplaces and proves the check fails on broken copies of the tree. |
 
