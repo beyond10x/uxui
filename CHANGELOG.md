@@ -2,12 +2,20 @@
 
 ## Unreleased
 
-## 0.8.0 — 2026-11-25
+## 0.8.1 — 2026-11-25
 
+- `ux-browser checks` refuses its inputs (exit 1) before it looks for a browser (exit 3): the
+  configuration, the values section and its scenario files, the build and the pages. 0.8.0 looked
+  for Chrome right after reading the configuration, so on a host without a browser a refused input
+  ended with exit 3 and the browser's message. The tests of those refusals now run with no
+  `UXUI_CHROME` and an empty Playwright cache, as on a CI runner, so the local gate fails the same
+  way the release gate did.
+- 0.8.0 was tagged on 5595daf and never published: its release gate failed on the two refusal
+  tests above. 0.8.1 holds what 0.8.0 was to hold (the entries below) and this fix.
 - The Chrome build of a run is pinned in its `ux-browser-checks/1` file: `chrome: {build: <n>}` takes
   the Playwright build `chromium-<n>`, `chrome: {version: <major>}` the newest build whose Chrome has
   that major version (read with the binary's `--version`, which starts no browser). A pin no build
-  meets ends `ux-browser checks` with exit 3 before the site is read or a browser starts, naming the
+  meets ends `ux-browser checks` with exit 3 after every refusal of the inputs and before a browser starts, naming the
   pin, the cache and the builds found (`found: chromium-1228 (149.0.7827.55)`). `UXUI_CHROME` still
   wins and is checked against the pin: a `build` pin by the binary's `chromium-<n>` directory, a
   `version` pin by its `--version`; a mismatch, or a `build` pin on a binary outside any build

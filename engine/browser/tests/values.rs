@@ -60,8 +60,15 @@ fn evidence_of(root: &Path, item: &str) -> PathBuf {
     file
 }
 
+/// Runs `ux-browser` as on a CI runner without a browser: no `UXUI_CHROME` and an empty
+/// Playwright cache, so a refusal that must come before the browser is not masked by a host that
+/// has one (0.8.0's release gate, 2026-11-25: exit 3 for a missing browser instead of exit 1).
 fn run(args: &[&str]) -> Output {
+    let no_browsers = Path::new(env!("CARGO_TARGET_TMPDIR")).join("values-no-browsers");
+    std::fs::create_dir_all(&no_browsers).unwrap();
     Command::new(env!("CARGO_BIN_EXE_ux-browser"))
+        .env_remove("UXUI_CHROME")
+        .env("PLAYWRIGHT_BROWSERS_PATH", &no_browsers)
         .args(args)
         .output()
         .unwrap()
