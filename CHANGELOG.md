@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- `layout.overflow@1` counts only content the page draws. The overflow probe skips an element for
+  which `checkVisibility({visibilityProperty: true})` is false, and a text run whose `visibility` is
+  not `visible` or whose nearest element with a box fails `checkVisibility()`, has
+  `content-visibility: hidden` or is a closed `details` (text straight inside it): content of a
+  closed `details`, under `content-visibility: hidden` or `hidden="until-found"`, or under
+  `display: none`. A long line inside a closed `details` (the second consumer's `p.full` in
+  `details.more`, "right edge 895 past its parent at 892") is no longer overflow; the same line with
+  the `details` open still is. Text in a `display: contents` element and content under
+  `content-visibility: auto` below the fold still count (`docs/browser-adapter.md`, Content the
+  page does not draw).
 - An always-visible item may set `max_width`: it is checked only at viewports with `min_width <=
   width <= max_width`, and at a wider one it is not measured and counts nothing, as below its
   `min_width`. A `max_width` that is not a whole number above 0, or that is below the item's

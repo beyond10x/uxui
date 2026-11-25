@@ -406,13 +406,49 @@ page that is not served.
 | result (`scope: page`) | per page | definition (llm's) |
 |---|---|---|
 | `layout.page_scroll@1` (units) | sum over viewport x mode | 1 when `scrollingElement.scrollWidth - documentElement.clientWidth > layout.page_slack_px` (default 0) |
-| `layout.overflow@1` (blocks) | sum | every non-blank text run (Range box) and every element of `layout.overflow.elements` (default `img, svg, video, canvas, iframe, input, select, textarea, table, pre`): overflow when its right edge passes the viewport or its nearest non-inline block by more than `layout.overflow.tolerance_px` (default 1); none under `position: fixed`, `overflow-x: auto \| scroll` or a clipping box, none inside a match of `layout.overflow.exclude` (default none); at most one per block |
+| `layout.overflow@1` (blocks) | sum | every non-blank text run (Range box) and every element of `layout.overflow.elements` (default `img, svg, video, canvas, iframe, input, select, textarea, table, pre`) that the page draws (Content the page does not draw): overflow when its right edge passes the viewport or its nearest non-inline block by more than `layout.overflow.tolerance_px` (default 1); none under `position: fixed`, `overflow-x: auto \| scroll` or a clipping box, none inside a match of `layout.overflow.exclude` (default none); at most one per block |
 | `always_visible.misses@1` (items) | sum over viewport x mode x top and bottom | the first visible candidate in scope (role and name from the accessibility tree first, then CSS; with `current`, only a current one; Configuration): missing, clipped (not wholly inside the viewport +-0.5 px) or covered (`elementFromPoint` of its centre is not it or inside it); an item outside its `min_width`, `max_width` or `path_prefix` is not checked |
 | `keyboard.misses@1` (checks) | sum over the walks | with a skip link declared: on a fresh load the first Tab is on the skip link; Enter (or one more Tab) puts focus into its target; a skip link that is not first misses both of its checks. On another fresh load up to `max_tabs` Tabs reach each target; with `focus_mark`, each reached target shows a focus mark; each reached target of `activates` acts on Enter or Space (The keyboard walk) |
 | `layout_shift.after_ready@1` (score) | largest over the viewports | `layout-shift` entries without recent input after the ready time (above), summed, rounded to 4 places; read once per viewport, before the first mode switch |
 | `layout_shift.load@1` (score), opt-in | largest over the viewports | every `layout-shift` entry without recent input since the navigation started (the observer is buffered and set before the page's own scripts), summed, rounded to 4 places; read in the same reading as after ready, after the settle time, so it holds the shifts after ready too. llm's round mode (`readShift().load` of its `ux/core/layout.ts` before 0.3.0): it varies with how fast fonts arrive, so llm reports it and does not ratchet it |
 
 `keyboard.viewports` limits the walk to some viewports, as llm's round walks only its gating ones.
+
+### Content the page does not draw
+
+Chromium lays out content it does not draw when a script asks for its box, so a line inside a
+closed `details` has a right edge. The overflow probe skips it:
+
+| item | skipped when |
+|---|---|
+| element of `layout.overflow.elements` | `checkVisibility({visibilityProperty: true})` is false: no box (`display: none` on it or an ancestor), under `content-visibility: hidden` (the contents of a closed `details` and of `hidden="until-found"`), or its own `visibility` is not `visible` |
+| text run | its `visibility` is not `visible`; or its parent element, or the nearest ancestor with a box when the parent is `display: contents`, fails `checkVisibility()`, has `content-visibility: hidden` (its contents are skipped), or is a `details` whose `::details-content` has `content-visibility: hidden` (text straight inside a closed `details`) |
+
+`checkVisibility` is not passed `contentVisibilityAuto: true`: content under `content-visibility:
+auto` that is off screen is drawn once it is scrolled to, and its overflow counts as before. Text in a
+`display: contents` element is drawn and counts; `checkVisibility()` of that element itself is false,
+so the probe asks its nearest ancestor with a box. An element with `visibility: visible` under a
+`visibility: hidden` ancestor is drawn and counts.
+
+Measured 2026-11-25, Chrome/149.0.7827.55, `tests/fixtures/checks/hidden-site/` with
+`hidden.checks.yaml` (400 x 300; the captures in `hidden/`, 0.6.0's in `hidden-0.6.0/`):
+
+| page | 0.6.0 | now |
+|---|---|---|
+| `/details/`: `p.full`, one line 263 px wide in a 200 px card, inside a closed `details.more` | 1 | 0 |
+| `/details-open/`: the same with `details open` | 1 | 1 |
+| `/hidden/`: a line straight inside a closed `details`, a `pre` in one, a line inside and one straight inside `content-visibility: hidden`, one inside `hidden="until-found"`, one under `display: none`, one under `visibility: hidden` | 5 | 0 |
+| `/drawn/`: a closed `details`' summary, a line in a `display: contents` span, a visible `pre` under a `visibility: hidden` card, a line below the fold under `content-visibility: auto` | 4 | 4 |
+
+The probe with `checkVisibility({contentVisibilityAuto: true, visibilityProperty: true})` on the
+text run's parent and on the element, and nothing else, gave 0, 1, 2 and 2: it counted the line
+straight inside the closed `details` and the one straight inside `content-visibility: hidden`, and
+dropped the `display: contents` line and the one under `content-visibility: auto`.
+
+llm's documentation build (`examples/llm.checks.yaml`, the same Chrome): all 162 results byte for
+byte those of `examples/llm-docs.evidence.json`. Over its 27 page captures the probe measures 1,016
+items fewer than 0.6.0's, every one of them a zero box (under `display: none`, never overflow), and
+the same 46,064 items at least 1 px wide.
 
 ### The keyboard walk
 

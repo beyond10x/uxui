@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Long lines the page does not draw</title>
+<style>
+html, body { margin: 0; padding: 0; font: 16px sans-serif; }
+.card { width: 200px; white-space: nowrap; }
+.card p { margin: 0; }
+.wide { width: 300px; margin: 0; }
+.cv-hidden { content-visibility: hidden; }
+.gone { display: none; }
+.unseen { visibility: hidden; }
+</style>
+</head>
+<body>
+<details class="card"><summary>Text in the details</summary>a line straight inside a closed details element</details>
+<div class="card"><details><summary>A pre in the details</summary><pre class="wide">x</pre></details></div>
+<div class="card cv-hidden"><p>a line inside content-visibility hidden, in a paragraph</p></div>
+<div class="card cv-hidden">a line straight inside content-visibility hidden</div>
+<div class="card" hidden="until-found"><p>a line inside an element hidden until found</p></div>
+<div class="card gone"><p>a line inside an element that is not displayed</p></div>
+<div class="card unseen"><p>a line inside an element whose visibility is hidden</p></div>
+</body>
+</html>
