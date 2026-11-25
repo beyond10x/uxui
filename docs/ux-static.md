@@ -20,6 +20,11 @@ the same bytes for the same inputs. Exit status, as ratchet's assessor contract 
 | 2 | wrong invocation: an unknown argument, a missing one (`--project`, `--assessment` and the three files are required), an argument given twice or without a value, a `--class` ratchet does not know, an empty `--project` or `--assessment`, a `--root` that is not a directory | none |
 | 3 | infrastructure: the document could not be written to `--out`; ratchet records `stopped_by_infrastructure` | none |
 
+`ux-static --version` (or `-V`) prints `ux-static <version>` and a newline on stdout, the crate
+version a run records as `evidence.conditions.tools.ux-static`, and exits 0 without reading a file;
+`ux-static --help` (or `-h`) prints the usage. The release checks the answer of the binary it packages
+against the tag (`tools/release-versions.sh`).
+
 Any of the three files may lie outside `--root`, as a generated variant in a scratch directory does.
 Such a file has no path in the evidence; its digest identifies it. The journeys and declarations must
 still name the document in their `document` key.

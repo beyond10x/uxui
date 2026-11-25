@@ -1019,15 +1019,22 @@ fn the_assessor_declaration_parses_and_agrees_with_the_cli_and_the_documents() {
     );
 
     // The inputs are the CLI's arguments beside the reserved ones, required where the usage line
-    // does not bracket them.
+    // of a run (the first one, up to the next `ux-static`) does not bracket them.
     let help = std::process::Command::new(env!("CARGO_BIN_EXE_ux-static"))
         .arg("--help")
         .output()
         .unwrap();
     assert!(help.status.success());
     let usage = String::from_utf8(help.stdout).unwrap();
+    let run_line = usage
+        .split_once("ux-static")
+        .expect("the usage names the command")
+        .1;
     let mut cli: Vec<(String, bool)> = Vec::new();
-    for token in usage.split_whitespace() {
+    for token in run_line.split_whitespace() {
+        if token == "ux-static" {
+            break;
+        }
         let required = !token.starts_with('[');
         if let Some(name) = token.trim_start_matches('[').strip_prefix("--") {
             cli.push((name.to_string(), required));
@@ -1106,4 +1113,60 @@ fn the_assessor_declaration_parses_and_agrees_with_the_cli_and_the_documents() {
             "{name} is declared and never written"
         );
     }
+}
+
+/// `ux-static` with one flag `flag`, in an empty working directory.
+fn ask_version(flag: &str) -> std::process::Output {
+    let work = Path::new(env!("CARGO_TARGET_TMPDIR"))
+        .join("version")
+        .join(flag.trim_start_matches('-'));
+    let _ = std::fs::remove_dir_all(&work);
+    std::fs::create_dir_all(&work).unwrap();
+    let o = std::process::Command::new(env!("CARGO_BIN_EXE_ux-static"))
+        .arg(flag)
+        .current_dir(&work)
+        .output()
+        .unwrap();
+    assert_eq!(
+        std::fs::read_dir(&work).unwrap().count(),
+        0,
+        "{flag} writes nothing"
+    );
+    o
+}
+
+#[test]
+fn version_and_v_print_the_name_and_the_crate_version_and_nothing_else() {
+    let answer = format!("ux-static {}\n", env!("CARGO_PKG_VERSION"));
+    for flag in ["--version", "-V"] {
+        let o = ask_version(flag);
+        assert_eq!(o.status.code(), Some(0), "{flag}");
+        assert_eq!(String::from_utf8_lossy(&o.stdout), answer, "{flag}");
+        assert_eq!(String::from_utf8_lossy(&o.stderr), "", "{flag}");
+    }
+}
+
+#[test]
+fn the_version_is_the_one_a_run_records_in_its_conditions() {
+    let stdout = String::from_utf8(ask_version("--version").stdout).unwrap();
+    let version = stdout.trim_end().strip_prefix("ux-static ").unwrap();
+    let doc = run(&studio()).unwrap();
+    let tools = evidence(&doc).get("conditions").unwrap().get("tools");
+    assert_eq!(tools.unwrap().get_str("ux-static"), Some(version));
+}
+
+#[test]
+fn the_usage_lists_version() {
+    let help = std::process::Command::new(env!("CARGO_BIN_EXE_ux-static"))
+        .arg("--help")
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    let usage = String::from_utf8(help.stdout).unwrap();
+    assert!(
+        usage
+            .lines()
+            .any(|l| l.trim() == "ux-static -V | --version"),
+        "{usage}"
+    );
 }

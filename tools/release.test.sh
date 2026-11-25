@@ -20,10 +20,24 @@ fresh() {
 	printf '# Changelog\n\n## Unreleased\n\n## 9.8.7 — 2026-11-24\n\n- one entry\n\n## 9.8.6 — 2026-11-23\n\n- older\n' >"$work/CHANGELOG.md"
 }
 
+# bin <name> <answer> [<exit>]: a stand-in for a built binary under $work/bin that prints <answer>
+# (a printf format) to `--version` and exits <exit> (default 0).
+bin() {
+	mkdir -p "$work/bin"
+	printf '#!/bin/sh\n[ "$1" = --version ] || exit 2\nprintf '\''%s'\''\nexit %s\n' "$2" "${3:-0}" >"$work/bin/$1"
+	chmod +x "$work/bin/$1"
+}
+
+bins() {
+	bin ux-browser 'ux-browser 9.8.7\n'
+	bin ux-static 'ux-static 9.8.7\n'
+}
+
 expect() {
 	want=$1
 	label=$2
-	sh "$work/tools/release-versions.sh" 9.8.7 >"$work.out" 2>&1
+	shift 2
+	sh "$work/tools/release-versions.sh" 9.8.7 "$@" >"$work.out" 2>&1
 	got=$?
 	if [ "$want" = pass ] && [ "$got" -eq 0 ]; then
 		printf 'ok   %s\n' "$label"
@@ -50,6 +64,43 @@ expect fail "a crate of another version"
 fresh
 sed -i 's/^## 9.8.7 — 2026-11-24$/## Unreleased 9.8.7/' "$work/CHANGELOG.md"
 expect fail "no dated changelog section"
+
+fresh
+bins
+expect pass "the built binaries answer the release" "$work/bin"
+
+fresh
+bins
+bin ux-static 'ux-static 9.8.6\n'
+expect fail "a built binary answers another version" "$work/bin"
+
+fresh
+bins
+bin ux-browser 'ux-browser 9.8.7\nmore\n'
+expect fail "a built binary answers more than its line" "$work/bin"
+
+fresh
+bins
+bin ux-browser 'ux-browser 9.8.7'
+expect fail "a built binary answers without the newline" "$work/bin"
+
+fresh
+bins
+bin ux-browser 'ux-static 9.8.7\n'
+expect fail "a built binary answers another name" "$work/bin"
+
+fresh
+bins
+bin ux-browser 'ux-browser 9.8.7\n' 1
+expect fail "a built binary exits non-zero" "$work/bin"
+
+fresh
+bins
+rm "$work/bin/ux-static"
+expect fail "a built binary is missing" "$work/bin"
+
+fresh
+expect fail "the binary directory does not exist" "$work/no-such-dir"
 
 fresh
 notes=$(sh "$work/tools/release-notes.sh" 9.8.7)

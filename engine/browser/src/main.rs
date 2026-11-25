@@ -19,7 +19,9 @@ const USAGE: &str = "usage:
                     [--jobs <pages measured at a time, default: the CPUs, at most 4>] [--values <values file>]
                     [--chrome-arg <a Chromium switch, or a JSON list of them; repeatable>]
   ux-browser values --config <ux-browser-checks/1 file with a values section> --evidence <ratchet-evidence/1 file> --out <values file>
-                    [--root <repository root, default .>]";
+                    [--root <repository root, default .>]
+  ux-browser -V | --version
+  ux-browser -h | --help";
 
 /// Where a checks run measures.
 enum Place<'a> {
@@ -551,6 +553,10 @@ fn main() -> ExitCode {
         Some("values") => values_command(&args[1..]),
         Some("-h" | "--help") => {
             println!("{USAGE}");
+            ExitCode::SUCCESS
+        }
+        Some("-V" | "--version") => {
+            println!("ux-browser {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
         Some(other) => wrong(&format!("unknown command `{other}`")),

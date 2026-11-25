@@ -56,6 +56,7 @@ jobs:
           set -euo pipefail
           target=x86_64-unknown-linux-gnu
           cargo build --locked --release --target "$target" -p ux-browser -p ux-static
+          sh tools/release-versions.sh "$GITHUB_REF_NAME" "target/$target/release"
           for bin in ux-browser ux-static; do
             "target/$target/release/$bin" --help > /dev/null 2>&1 || test "$?" = 2
             package="$bin-$GITHUB_REF_NAME-$target"
