@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.4.0 — 2026-11-25
+
 - `ux-browser checks` waits for a ready condition the page sets, for a page that draws after its
   `load` event: `ready: {selector: <css>}` (an element matches it) or `ready: {global: <name>}`
   (`window.<name>` set to `true`), within `ready_timeout_ms` (default 10000). Ready is then the
