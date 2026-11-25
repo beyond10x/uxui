@@ -2,11 +2,15 @@
 format: aep.planning-md/3
 id: story:workspace-lint-clean
 kind: story
-status: draft
+status: implemented
 title: Workspace clippy and rustfmt clean, and held by the gate
 relations:
 - decomposes: epic:engine-slices
-revision: 3
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T10:46:13Z", actor: "human:operator", revision: 4}
+- {from: "proposed", to: "active", at: "2026-11-25T10:46:13Z", actor: "human:operator", revision: 5}
+- {from: "active", to: "implemented", at: "2026-11-25T10:46:53Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1}}}
 ---
 # Story: Workspace clippy and rustfmt clean, and held by the gate
 

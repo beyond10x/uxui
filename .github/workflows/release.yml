@@ -25,6 +25,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249
         with:
           toolchain: ${{ steps.toolchain.outputs.channel }}
+          components: clippy, rustfmt
       - name: Run the checks that need no local login
         run: sh tools/gate.sh
       - name: The tag, the plugin, the crates and the changelog agree
