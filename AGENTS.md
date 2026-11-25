@@ -16,7 +16,7 @@ what is specific to uxui.
 | `plugin/.codex-plugin/plugin.json` | Codex manifest; `skills` points at `./skills/` |
 | `.claude-plugin/marketplace.json` | Claude Code marketplace `uxui` |
 | `.agents/plugins/marketplace.json` | Codex marketplace `uxui` |
-| `tools/` | the gate (`gate.sh`), the plugin check (`check-plugin.sh`), the workflow check (`check-workflows.sh`), the docs generator and check (`docs.sh`), the path list of planning and prose files (`prose-only.sh`), the release checks (`release-versions.sh`, `release-ready.sh`) and their tests, POSIX sh |
+| `tools/` | the gate (`gate.sh`), the plugin check (`check-plugin.sh`), the workflow check (`check-workflows.sh`), the docs generator and check (`docs.sh`), the path list of planning and prose files (`prose-only.sh`), the release checks (`release-versions.sh`, `release-ready.sh`), the repeat of the test binaries (`repeat-tests.sh`) and their tests, POSIX sh |
 | `research/` | research notes on making UI/UX quality machine-checkable from a specification |
 | `reviews/` | dated reviews of the skill and its approach (`<YYYY-MM-DD>-<topic>.md`) |
 | `ess/` | ESS specification `uxsearch` of the UX search engine: domains, the studio `ess-ui/1` document and its tests, `GAPS.md`; gate `ess specify validate --path ess`, `ess compile --path ess`, `ess ui check --path ess/ui/studio.ui.yaml --model ess`, `ess ui test --path ess/ui/studio.ui.yaml --model ess ess/ui/tests/studio.yaml` |
@@ -103,7 +103,7 @@ The forge runs the same `tools/gate.sh` on `ubuntu-latest` with the toolchain of
 `rust-toolchain.toml`: the workflow `Gate` (`.github/workflows/ci.yml`) on every pull request and
 every push to `main`, and the release workflow's Gate job on a tag. What the runner does
 differently is made the same in `tools/gate.sh`: it has no browser (the script hides the Playwright
-cache and `UXUI_CHROME`), and it builds with `--locked`. A pull request whose changed files are all
+cache and `UXUI_CHROME`), and it builds with `--locked`. The gate runs the test binaries 4 more times (`tools/repeat-tests.sh`): two tests that race on a scratch directory failed on the forge only (#38, the 0.9.0 release gate). A pull request whose changed files are all
 planning or prose files ends `Gate` green without building; the one list of those paths is
 `tools/prose-only.sh`. Whether `Gate` is a required check is the owner's ruleset.
 

@@ -1115,11 +1115,12 @@ fn the_assessor_declaration_parses_and_agrees_with_the_cli_and_the_documents() {
     }
 }
 
-/// `ux-static` with one flag `flag`, in an empty working directory.
-fn ask_version(flag: &str) -> std::process::Output {
+/// `ux-static` with one flag `flag`, in an empty working directory of the test `test`: two tests that
+/// shared one directory removed it under each other (release run 45586279102 of 0.9.0).
+fn ask_version(test: &str, flag: &str) -> std::process::Output {
     let work = Path::new(env!("CARGO_TARGET_TMPDIR"))
         .join("version")
-        .join(flag.trim_start_matches('-'));
+        .join(format!("{test}{flag}"));
     let _ = std::fs::remove_dir_all(&work);
     std::fs::create_dir_all(&work).unwrap();
     let o = std::process::Command::new(env!("CARGO_BIN_EXE_ux-static"))
@@ -1139,7 +1140,7 @@ fn ask_version(flag: &str) -> std::process::Output {
 fn version_and_v_print_the_name_and_the_crate_version_and_nothing_else() {
     let answer = format!("ux-static {}\n", env!("CARGO_PKG_VERSION"));
     for flag in ["--version", "-V"] {
-        let o = ask_version(flag);
+        let o = ask_version("print", flag);
         assert_eq!(o.status.code(), Some(0), "{flag}");
         assert_eq!(String::from_utf8_lossy(&o.stdout), answer, "{flag}");
         assert_eq!(String::from_utf8_lossy(&o.stderr), "", "{flag}");
@@ -1148,7 +1149,7 @@ fn version_and_v_print_the_name_and_the_crate_version_and_nothing_else() {
 
 #[test]
 fn the_version_is_the_one_a_run_records_in_its_conditions() {
-    let stdout = String::from_utf8(ask_version("--version").stdout).unwrap();
+    let stdout = String::from_utf8(ask_version("record", "--version").stdout).unwrap();
     let version = stdout.trim_end().strip_prefix("ux-static ").unwrap();
     let doc = run(&studio()).unwrap();
     let tools = evidence(&doc).get("conditions").unwrap().get("tools");

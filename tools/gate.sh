@@ -35,6 +35,7 @@ for test in check-plugin release docs gate release-ready; do
 done
 step cargo test --workspace --locked --no-run
 step timeout 120 cargo test --workspace --locked --no-fail-fast
+step timeout 120 sh tools/repeat-tests.sh 4
 
 if [ -n "$failed" ]; then
 	printf 'gate: failed:%s\n' "$failed"

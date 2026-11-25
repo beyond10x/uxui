@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.9.0 — 2026-11-25
+## 0.9.1 — 2026-11-25
+
+- ux-static's two `--version` tests each run in a directory of their own. Both used
+  `version/version`, and one removed it while the other ran `ux-static` in it: 0.9.0's release
+  gate (run 45586279102) failed on that, after the same commit's `Gate` had passed.
+- `tools/gate.sh` runs the workspace's test binaries 4 more times (`tools/repeat-tests.sh`), so a
+  race between two tests shows in the local gate and in `Gate` more often than once.
+- 0.9.0 was tagged on 659f93d and never published. 0.9.1 holds everything listed for 0.9.0 below
+  it, plus this fix.
 
 - `ux-browser --version` (and `-V`) prints `ux-browser <version>` and a newline and exits 0; it starts
   no browser and reads no file, and the version is the crate's, the one a run records as

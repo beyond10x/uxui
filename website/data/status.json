@@ -7,7 +7,7 @@
       "area": "Plugin",
       "label": "ui-iteration-loop skill",
       "status": "shipped",
-      "detail": "Plugin 0.9.0 for Claude Code and Codex: rounds of trial, measure, triage, design decision, build and gate, with hard gates on every merge and ratchets against a baseline.json.",
+      "detail": "Plugin 0.9.1 for Claude Code and Codex: rounds of trial, measure, triage, design decision, build and gate, with hard gates on every merge and ratchets against a baseline.json.",
       "href": "/docs/reference/skill"
     },
     {
