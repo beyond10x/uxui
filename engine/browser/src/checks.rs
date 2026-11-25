@@ -293,7 +293,9 @@ pub struct Candidate {
     pub in_scope: bool,
     pub visible: bool,
     pub rect: Rect,
-    /// The element at the centre of its box is it or inside it.
+    /// The element at each of five points of its box, the centre and the four corners, is it or
+    /// inside it (`docs/browser-adapter.md`, The cover test); a record of 0.9.1 and before holds the
+    /// centre only.
     pub hit: bool,
     /// Its `aria-current` attribute, if it has one; a record of 0.3.0 has none.
     pub current: Option<String>,
