@@ -1,0 +1,12 @@
+format: ux-browser-checks/1
+base_path: /
+pages: {paths: [/]}
+viewports:
+  - {name: 390x844, width: 390, height: 844}
+  - {name: 1024x768, width: 1024, height: 768}
+  - {name: 1440x900, width: 1440, height: 900}
+modes: [light]
+settle_ms: 100
+always_visible:
+  - {name: open menu, role: button, name_is: Open menu, max_width: 1023}
+  - {name: navigation toggle, role: button, name_is: Toggle navigation, min_width: 1024}

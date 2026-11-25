@@ -417,11 +417,15 @@ pub struct AlwaysVisible {
     pub name: String,
     pub locate: Locate,
     pub min_width: Option<i64>,
+    /// The widest viewport the item is checked at: it is checked at `min_width <= width <=
+    /// max_width`. A whole number above 0, not below `min_width`.
+    pub max_width: Option<i64>,
     pub path_prefix: Option<String>,
 }
 
 pub fn applies(item: &AlwaysVisible, path: &str, width: i64) -> bool {
     item.min_width.is_none_or(|m| width >= m)
+        && item.max_width.is_none_or(|m| width <= m)
         && item
             .path_prefix
             .as_deref()
@@ -1160,6 +1164,7 @@ pub fn config(text: &str) -> Result<Config, String> {
                 "scope",
                 "current",
                 "min_width",
+                "max_width",
                 "path_prefix",
             ],
             "always_visible",
@@ -1189,6 +1194,23 @@ pub fn config(text: &str) -> Result<Config, String> {
         if always_visible.iter().any(|a| a.name == name) {
             return Err(format!("{what} is declared twice"));
         }
+        let min_width = get_i64(item, "min_width");
+        let max_width = match item.get("max_width") {
+            None => None,
+            Some(Value::Int(n)) if *n > 0 => Some(*n),
+            Some(_) => {
+                return Err(format!(
+                    "{what}: `max_width` is a whole number of pixels above 0"
+                ));
+            }
+        };
+        if let (Some(min), Some(max)) = (min_width, max_width)
+            && max < min
+        {
+            return Err(format!(
+                "{what}: `max_width` {max} is below `min_width` {min}"
+            ));
+        }
         always_visible.push(AlwaysVisible {
             name: name.to_string(),
             locate: Locate {
@@ -1198,7 +1220,8 @@ pub fn config(text: &str) -> Result<Config, String> {
                 scope: item.get_str("scope").map(str::to_string),
                 current,
             },
-            min_width: get_i64(item, "min_width"),
+            min_width,
+            max_width,
             path_prefix: item.get_str("path_prefix").map(str::to_string),
         });
     }

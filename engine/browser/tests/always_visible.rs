@@ -1,6 +1,7 @@
 //! Always-visible items located by CSS alone or by `aria-current` in a scope: what the
 //! configuration accepts and refuses, which recorded candidate is the item, and the values of a page
-//! from recorded candidates. An item with a role computes as before.
+//! from recorded candidates. An item with a role computes as before. An item's `max_width` limits
+//! the viewports it is checked at from above, as `min_width` does from below.
 
 use crate::checks::LLM_LIKE;
 use ux_browser::checks::{self, Candidate, Status};
@@ -266,4 +267,166 @@ fn the_recorded_guide_page_locates_items_by_css_and_by_aria_current() {
     let current = checks::located(&entry.locate, &top).unwrap();
     assert!(top[current].is_current());
     assert!(checks::first_visible(&top).unwrap() < current);
+}
+
+// ---------------------------------------------------------------- max_width
+
+/// The configuration of the narrow-menu fixture page (`fixtures/checks/narrow-menu-site/`): a
+/// header whose "Open menu" button is shown below 1024 px and whose "Toggle navigation" button is
+/// shown from 1024 px, both by a media query. The first is declared with `max_width: 1023`.
+fn narrow_menu_config() -> String {
+    std::fs::read_to_string(crate::fixture("checks/narrow-menu.checks.yaml")).unwrap()
+}
+
+/// The statuses of `item` at viewport `vp`, top then bottom (one mode).
+fn statuses<'a>(result: &'a checks::PageResult, vp: &str, item: &str) -> Vec<&'a str> {
+    result
+        .units
+        .iter()
+        .filter(|u| u.viewport == vp)
+        .flat_map(|u| &u.visible)
+        .filter(|v| v.item == item)
+        .map(|v| v.status.word())
+        .collect()
+}
+
+fn misses_at(result: &checks::PageResult, vp: &str) -> usize {
+    result
+        .units
+        .iter()
+        .filter(|u| u.viewport == vp)
+        .flat_map(|u| &u.visible)
+        .filter(|v| v.status.is_miss())
+        .count()
+}
+
+/// The page as ux-browser 0.6.0 recorded it (`checks --capture`, the configuration without
+/// `max_width`): the "Open menu" item's candidates at all three viewports, none of them at 1024 and
+/// 1440 px.
+#[test]
+fn an_item_with_max_width_is_checked_only_up_to_it() {
+    let config = checks::config(&narrow_menu_config()).unwrap();
+    let page = crate::fixture_json("checks/narrow-menu-0.6.0.capture.json");
+    let result = checks::page_result(&config, &page).unwrap();
+    assert_eq!(result.error, None);
+    assert_eq!(statuses(&result, "390x844", "open menu"), ["ok", "ok"]);
+    assert_eq!(statuses(&result, "1024x768", "open menu"), ["n/a", "n/a"]);
+    assert_eq!(statuses(&result, "1440x900", "open menu"), ["n/a", "n/a"]);
+    assert_eq!(
+        statuses(&result, "390x844", "navigation toggle"),
+        ["n/a", "n/a"]
+    );
+    assert_eq!(
+        statuses(&result, "1440x900", "navigation toggle"),
+        ["ok", "ok"]
+    );
+    assert_eq!(misses_at(&result, "390x844"), 0);
+    assert_eq!(misses_at(&result, "1440x900"), 0);
+    assert_eq!(result.always_visible_misses(), 0);
+}
+
+/// The page as this version records it with `max_width: 1023`: the item is measured at 390 px only.
+#[test]
+fn an_item_past_its_max_width_is_not_measured() {
+    let config = checks::config(&narrow_menu_config()).unwrap();
+    let page = crate::fixture_json("checks/narrow-menu.capture.json");
+    let measured: Vec<(&str, Vec<&str>)> = page
+        .get("viewports")
+        .unwrap()
+        .list()
+        .iter()
+        .map(|vp| {
+            let top = vp.get("units").unwrap().list()[0]
+                .get("visible")
+                .unwrap()
+                .get("top")
+                .unwrap()
+                .list();
+            (
+                vp.get_str("viewport").unwrap(),
+                top.iter().map(|e| e.get_str("item").unwrap()).collect(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        measured,
+        [
+            ("390x844", vec!["open menu"]),
+            ("1024x768", vec!["navigation toggle"]),
+            ("1440x900", vec!["navigation toggle"]),
+        ]
+    );
+    let result = checks::page_result(&config, &page).unwrap();
+    assert_eq!(statuses(&result, "390x844", "open menu"), ["ok", "ok"]);
+    assert_eq!(statuses(&result, "1440x900", "open menu"), ["n/a", "n/a"]);
+    assert_eq!(result.always_visible_misses(), 0);
+}
+
+#[test]
+fn without_max_width_the_item_counts_at_every_width_as_in_0_6_0() {
+    let text = narrow_menu_config().replace(", max_width: 1023}", "}");
+    assert!(!text.contains("max_width"));
+    let config = checks::config(&text).unwrap();
+    let page = crate::fixture_json("checks/narrow-menu-0.6.0.capture.json");
+    let result = checks::page_result(&config, &page).unwrap();
+    assert_eq!(statuses(&result, "390x844", "open menu"), ["ok", "ok"]);
+    assert_eq!(
+        statuses(&result, "1440x900", "open menu"),
+        ["missing", "missing"]
+    );
+    assert_eq!(misses_at(&result, "390x844"), 0);
+    assert_eq!(
+        misses_at(&result, "1440x900"),
+        2,
+        "one item, top and bottom"
+    );
+    assert_eq!(result.always_visible_misses(), 4, "at 1024 and at 1440 px");
+}
+
+#[test]
+fn the_width_range_holds_both_its_ends() {
+    let c = checks::config(&with_items(
+        "  - {name: title, css: a, min_width: 400, max_width: 1023}\n",
+    ))
+    .unwrap();
+    let title = item(&c, "title");
+    for (width, applies) in [(399, false), (400, true), (1023, true), (1024, false)] {
+        assert_eq!(
+            checks::applies(title, "/llm/", width),
+            applies,
+            "{width} px"
+        );
+    }
+    let only_narrow =
+        checks::config(&with_items("  - {name: title, css: a, max_width: 1023}\n")).unwrap();
+    let title = item(&only_narrow, "title");
+    assert!(checks::applies(title, "/llm/", 1));
+    assert!(!checks::applies(title, "/llm/", 1440));
+    let one_width = checks::config(&with_items(
+        "  - {name: title, css: a, min_width: 1024, max_width: 1024}\n",
+    ))
+    .unwrap();
+    assert!(checks::applies(item(&one_width, "title"), "/llm/", 1024));
+}
+
+#[test]
+fn refuses_a_max_width_below_min_width_zero_or_not_a_whole_number() {
+    for items in [
+        "  - {name: title, css: a, min_width: 1024, max_width: 1023}\n",
+        "  - {name: title, css: a, max_width: 0}\n",
+        "  - {name: title, css: a, max_width: -1}\n",
+        "  - {name: title, css: a, max_width: 1023.5}\n",
+        "  - {name: title, css: a, max_width: '1023'}\n",
+        "  - {name: title, css: a, max_width: wide}\n",
+        "  - {name: title, css: a, max_width: true}\n",
+        "  - {name: title, css: a, max_width: [1023]}\n",
+    ] {
+        let Err(err) = checks::config(&with_items(items)) else {
+            panic!("{items}: accepted");
+        };
+        assert!(
+            err.contains("always_visible `title`") && err.contains("max_width"),
+            "{items}: {err}"
+        );
+    }
 }

@@ -143,7 +143,7 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `ready` | the condition the page sets once its content is drawn, for a page that draws after its `load` event (from fetched data, say): `{selector: <css>}`, ready when an element matches it (`{selector: 'html[data-ready]'}` for an attribute the page sets, `{selector: 'main:has(.panel):not(:has([aria-busy=true]))'}` for every panel loaded), or `{global: <name>}`, ready when the page sets `window.<name>` to `true` (`window.name = true` or a top-level `var`; a `let` or `const` is no property of `window`). Default: none, ready at `load` as before (The checks) |
 | `ready_timeout_ms` | how long after `load` the page may take to set `ready`; default 10000; only with `ready`. A page that does not set it in time is incomplete |
 | `settle_ms`, `scroll_settle_ms`, `mode_settle_ms` | after ready (250), after the scroll to the bottom (200), after a mode switch (100) |
-| `always_visible` | `{name, role, name_is \| name_contains, css, scope, current, min_width, path_prefix}` each; located by at least one of `role`, `css` and `current: true` (below) |
+| `always_visible` | `{name, role, name_is \| name_contains, css, scope, current, min_width, max_width, path_prefix}` each; located by at least one of `role`, `css` and `current: true` (below); checked at the viewports with `min_width <= width <= max_width` (each bound optional) and on the pages under `path_prefix` |
 | `keyboard` | `{skip_link_is \| skip_link_contains, must_reach, max_tabs, focus_mark, activates, modes, viewports, focus_settle_ms}`; the skip link is optional (without it the walk has no skip-link checks); `focus_mark` is `true` or `false` (default); `activates` lists targets of `must_reach`, each once (default none); `modes` defaults to the last mode, `viewports` (names) to every viewport; each target is an always-visible item (The keyboard walk) |
 | `opt_in` | checks that run only when named here: `layout_shift.load` (The checks); default none |
 | `request_methods` | the HTTP methods a page may send to the measured server, in capitals, each once, `GET` among them; default `[GET, HEAD]`. A request with another method fails as one to another origin does (A running server) |
@@ -230,6 +230,21 @@ first match of `scope`. The item is the first candidate that is in `scope` and v
 `current` is `true` or `false` (default `false`). An item with neither `role` nor `css` nor `current:
 true` is refused, as is a name without a `role`. A keyboard target (`must_reach`) is located the
 same way.
+
+`max_width` is the widest viewport, in CSS pixels, an item is checked at: an item a page shows only
+on narrow viewports (a phone menu button under a media query) is declared with it, and at a wider
+viewport it is not measured and counts nothing (`n/a`), as below its `min_width`. Both bounds hold
+their own width: `{min_width: 1024}` and `{max_width: 1023}` split the viewports between a desktop and a
+phone control. A `max_width` that is not a whole number above 0, or that is below the item's
+`min_width`, is refused with the item's name. Without it an item is checked as in 0.6.0. The bounds
+and `path_prefix` choose where the always-visible check runs; the keyboard walk reaches for its
+targets at every viewport of `keyboard.viewports`, whatever their bounds.
+
+```yaml
+always_visible:
+  - {name: open menu, role: button, name_is: Open menu, max_width: 1023}
+  - {name: navigation toggle, role: button, name_is: Toggle navigation, min_width: 1024}
+```
 
 ### A fixed page clock: `clock`
 
@@ -392,7 +407,7 @@ page that is not served.
 |---|---|---|
 | `layout.page_scroll@1` (units) | sum over viewport x mode | 1 when `scrollingElement.scrollWidth - documentElement.clientWidth > layout.page_slack_px` (default 0) |
 | `layout.overflow@1` (blocks) | sum | every non-blank text run (Range box) and every element of `layout.overflow.elements` (default `img, svg, video, canvas, iframe, input, select, textarea, table, pre`) that the page draws (Content the page does not draw): overflow when its right edge passes the viewport or its nearest non-inline block by more than `layout.overflow.tolerance_px` (default 1); none under `position: fixed`, `overflow-x: auto \| scroll` or a clipping box, none inside a match of `layout.overflow.exclude` (default none); at most one per block |
-| `always_visible.misses@1` (items) | sum over viewport x mode x top and bottom | the first visible candidate in scope (role and name from the accessibility tree first, then CSS; with `current`, only a current one; Configuration): missing, clipped (not wholly inside the viewport +-0.5 px) or covered (`elementFromPoint` of its centre is not it or inside it); an item outside its `min_width` or `path_prefix` is not checked |
+| `always_visible.misses@1` (items) | sum over viewport x mode x top and bottom | the first visible candidate in scope (role and name from the accessibility tree first, then CSS; with `current`, only a current one; Configuration): missing, clipped (not wholly inside the viewport +-0.5 px) or covered (`elementFromPoint` of its centre is not it or inside it); an item outside its `min_width`, `max_width` or `path_prefix` is not checked |
 | `keyboard.misses@1` (checks) | sum over the walks | with a skip link declared: on a fresh load the first Tab is on the skip link; Enter (or one more Tab) puts focus into its target; a skip link that is not first misses both of its checks. On another fresh load up to `max_tabs` Tabs reach each target; with `focus_mark`, each reached target shows a focus mark; each reached target of `activates` acts on Enter or Space (The keyboard walk) |
 | `layout_shift.after_ready@1` (score) | largest over the viewports | `layout-shift` entries without recent input after the ready time (above), summed, rounded to 4 places; read once per viewport, before the first mode switch |
 | `layout_shift.load@1` (score), opt-in | largest over the viewports | every `layout-shift` entry without recent input since the navigation started (the observer is buffered and set before the page's own scripts), summed, rounded to 4 places; read in the same reading as after ready, after the settle time, so it holds the shifts after ready too. llm's round mode (`readShift().load` of its `ux/core/layout.ts` before 0.3.0): it varies with how fast fonts arrive, so llm reports it and does not ratchet it |
@@ -451,7 +466,9 @@ node path of a miss is `<viewport>/<mode>/<check>`):
 Without a skip link the walk loads the page once, not twice, and has no skip-link check: a page that
 has none and declares none misses nothing for it. An unreached target is one miss, whatever
 `focus_mark` and `activates` say of it. A configuration of 0.5.0 (a skip link, no `focus_mark`, no
-`activates`) walks and counts as 0.5.0 and before did.
+`activates`) walks and counts as 0.5.0 and before did. A target's `min_width`, `max_width` and
+`path_prefix` do not limit the walk: it runs at the viewports of `keyboard.viewports`, so a target
+shown only on narrow viewports is walked only where those name narrow ones.
 
 **A focus mark.** On the Tab that first puts focus on a target or inside it, `probes/focus-mark.js`
 reads the focused element (`document.activeElement`): whether it matches `:focus-visible`, its
