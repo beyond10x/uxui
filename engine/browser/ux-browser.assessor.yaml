@@ -11,7 +11,7 @@ inputs:
   profile: {type: path, local: true}
   values: {type: path, local: true}
   jobs: {type: integer, local: true}
-conditions: [viewports, modes, settle_ms, reduced_motion]
+conditions: [viewports, modes, ready, settle_ms, reduced_motion]
 coverage_unit: check
 coverage: [executed, skipped, not_run, unsupported, passed, failed]
 outputs:

@@ -11,6 +11,7 @@ mod codec;
 mod evidence;
 mod json;
 mod pool;
+mod ready;
 mod render;
 mod values;
 mod ws;

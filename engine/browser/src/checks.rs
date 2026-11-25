@@ -513,6 +513,103 @@ pub enum Pages {
     Paths(Vec<String>),
 }
 
+/// A condition the page sets when its content is drawn: an element that matches a CSS selector, or
+/// a property of `window` the page sets to `true`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Ready {
+    Selector(String),
+    Global(String),
+}
+
+/// How long a page may take to set its ready condition, by default.
+pub const DEFAULT_READY_TIMEOUT_MS: u64 = 10_000;
+
+impl Ready {
+    /// `selector <css>` or `global <name>`.
+    pub fn condition(&self) -> String {
+        match self {
+            Ready::Selector(css) => format!("selector {css}"),
+            Ready::Global(name) => format!("global {name}"),
+        }
+    }
+}
+
+/// The ready condition as the document names it (`conditions.other.ready`): `load` without one.
+pub fn ready_condition(config: &Config) -> String {
+    config
+        .ready
+        .as_ref()
+        .map_or_else(|| "load".to_string(), Ready::condition)
+}
+
+/// The ready instant (`performance.now()` once the condition held, fonts were loaded and two frames
+/// drawn) from the answer of `measure::READY_PROBE`, or why the page is not ready: the page's
+/// failure, which makes its results incomplete.
+pub fn ready_time(config: &Config, answer: &Value) -> Result<f64, String> {
+    let condition = ready_condition(config);
+    if get_bool(answer, "invalid") == Some(true) {
+        let css = match &config.ready {
+            Some(Ready::Selector(css)) => css.as_str(),
+            _ => condition.as_str(),
+        };
+        return Err(format!("ready: `{css}` is not a valid selector"));
+    }
+    match get_bool(answer, "met") {
+        Some(true) => get_f64(answer, "ready")
+            .ok_or_else(|| format!("ready: `{condition}` held and the page gave no ready time")),
+        Some(false) => Err(format!(
+            "ready: the page did not set `{condition}` within {} ms",
+            config.ready_timeout_ms
+        )),
+        None => Err(format!("ready: no answer for `{condition}`")),
+    }
+}
+
+/// Whether `name` is a JavaScript identifier of plain characters: `[A-Za-z_$][A-Za-z0-9_$]*`.
+fn is_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+}
+
+fn ready_of(v: &Value) -> Result<(Option<Ready>, u64), String> {
+    let ready = match v.get("ready") {
+        None => None,
+        Some(r @ Value::Map(_)) => {
+            only(r, &["selector", "global"], "ready")?;
+            match (r.get("selector"), r.get("global")) {
+                (Some(css), None) => {
+                    let css = css
+                        .str()
+                        .filter(|c| !c.trim().is_empty())
+                        .ok_or("ready: `selector` is a CSS selector")?;
+                    Some(Ready::Selector(css.to_string()))
+                }
+                (None, Some(name)) => {
+                    let name = name
+                        .str()
+                        .filter(|n| is_identifier(n))
+                        .ok_or("ready: `global` is the name of a property of `window`")?;
+                    Some(Ready::Global(name.to_string()))
+                }
+                _ => return Err("ready: one of `selector` or `global`".to_string()),
+            }
+        }
+        Some(_) => return Err("ready: `{selector: <css>}` or `{global: <name>}`".to_string()),
+    };
+    let timeout = match (v.get("ready_timeout_ms"), &ready) {
+        (None, _) => DEFAULT_READY_TIMEOUT_MS,
+        (Some(_), None) => return Err("`ready_timeout_ms` without `ready`".to_string()),
+        (Some(Value::Int(n)), Some(_)) if *n > 0 => *n as u64,
+        (Some(_), Some(_)) => {
+            return Err("`ready_timeout_ms` is a whole number of milliseconds above 0".to_string());
+        }
+    };
+    Ok((ready, timeout))
+}
+
 pub struct Config {
     pub base_path: String,
     pub pages: Pages,
@@ -531,6 +628,10 @@ pub struct Config {
     pub keyboard: Option<KeyboardConfig>,
     /// The opt-in check `layout_shift.load`.
     pub layout_shift_load: bool,
+    /// The condition the page sets when it is ready (`ready`); `None`: its `load` event.
+    pub ready: Option<Ready>,
+    /// How long a page may take to set `ready` after its `load` event.
+    pub ready_timeout_ms: u64,
     /// How the values file is made from the document (`ux-browser values`).
     pub values: Option<crate::values::ValuesConfig>,
 }
@@ -546,6 +647,8 @@ const TOP_KEYS: &[&str] = &[
     "settle_ms",
     "scroll_settle_ms",
     "mode_settle_ms",
+    "ready",
+    "ready_timeout_ms",
     "always_visible",
     "keyboard",
     "opt_in",
@@ -760,6 +863,7 @@ pub fn config(text: &str) -> Result<Config, String> {
         None => None,
         Some(section) => Some(crate::values::config(section, &names)?),
     };
+    let (ready, ready_timeout_ms) = ready_of(&v)?;
     let reduced_motion = match v.get("reduced_motion") {
         None => true,
         Some(Value::Bool(b)) => *b,
@@ -778,6 +882,8 @@ pub fn config(text: &str) -> Result<Config, String> {
         always_visible,
         keyboard,
         layout_shift_load,
+        ready,
+        ready_timeout_ms,
         values,
     })
 }

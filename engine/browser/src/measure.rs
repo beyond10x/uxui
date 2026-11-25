@@ -3,7 +3,9 @@
 //! where the tests reach it without a browser.
 
 use crate::cdp::Connection;
-use crate::checks::{self, AlwaysVisible, Candidate, Config, KeyboardConfig, NamedViewport, Pages};
+use crate::checks::{
+    self, AlwaysVisible, Candidate, Config, KeyboardConfig, NamedViewport, Pages, Ready,
+};
 use crate::render::{self, Declarations, FileRef, NodeRender, Record, Shot};
 use crate::session::{Browser, Conn, Page, READY, Setup};
 use crate::value::{f64_of, map, s};
@@ -16,6 +18,13 @@ pub const NODE_PROBE: &str = include_str!("probes/node.js");
 pub const OVERFLOW_PROBE: &str = include_str!("probes/overflow.js");
 pub const CANDIDATE_PROBE: &str = include_str!("probes/candidate.js");
 pub const SHIFTS_INIT: &str = include_str!("probes/shifts.js");
+/// Waits for the page's ready condition (watched, not polled, up to the declared time), then fonts
+/// and two frames; answers what `checks::ready_time` reads.
+pub const READY_PROBE: &str = include_str!("probes/ready.js");
+/// The trap a global ready condition needs before the page's own scripts: called with its name.
+const READY_GLOBAL_INIT: &str = include_str!("probes/ready-global.js");
+/// How long a DevTools call waits for its answer (`cdp::Connection`), beside the ready time.
+const CALL_TIMEOUT: Duration = Duration::from_secs(30);
 /// The focused element's label (its `aria-label`, else its text) and `href`.
 const ACTIVE_PROBE: &str = "(() => { const a = document.activeElement; return { label: a ? (a.getAttribute('aria-label') ?? a.innerText ?? '').trim() : '', href: a && a.getAttribute ? (a.getAttribute('href') ?? '') : '' }; })()";
 /// Whether focus is on the skip link's target or inside it.
@@ -26,6 +35,47 @@ const FOCUS_WITHIN: &str = "function () { const a = document.activeElement; retu
 const MODE_WAIT_MS: u64 = 5_000;
 /// Resolves once `<html>` has `attr` equal to `mode`, or after `ms`: the page is watched, not polled.
 const MODE_WAIT: &str = "(function (attr, mode, ms) { const el = document.documentElement; const done = () => el.getAttribute(attr) === mode; if (done()) return true; return new Promise((resolve) => { let timer; const watch = new MutationObserver(() => { if (done()) { watch.disconnect(); clearTimeout(timer); resolve(true); } }); watch.observe(el, { attributes: true, attributeFilter: [attr] }); timer = setTimeout(() => { watch.disconnect(); resolve(done()); }, ms); }); })";
+
+/// The script that runs before the page's own for the configuration's ready condition, if it needs
+/// one: a global's trap.
+pub fn ready_init(config: &Config) -> Option<String> {
+    match &config.ready {
+        Some(Ready::Global(name)) => Some(format!(
+            "{}({})",
+            READY_GLOBAL_INIT.trim_end(),
+            uxui_doc::json::string(name)
+        )),
+        _ => None,
+    }
+}
+
+/// Ready after a load: without a condition, fonts and two frames as in 0.3.0; with one, the
+/// condition, then fonts and two frames. Returns the ready instant (`performance.now()`); a page
+/// that does not set its condition in time is the page's failure.
+fn ready(conn: &mut Conn, page: &Page, config: &Config) -> Result<Value, Failure> {
+    let Some(condition) = &config.ready else {
+        return Ok(page.eval(conn, READY)?);
+    };
+    let (kind, value) = match condition {
+        Ready::Selector(css) => ("selector", css),
+        Ready::Global(name) => ("global", name),
+    };
+    conn.set_timeout(CALL_TIMEOUT + Duration::from_millis(config.ready_timeout_ms));
+    let answer = page.run(
+        conn,
+        READY_PROBE,
+        &[
+            s(kind),
+            s(value),
+            Value::Int(config.ready_timeout_ms as i64),
+        ],
+    );
+    conn.set_timeout(CALL_TIMEOUT);
+    let answer = answer?;
+    checks::ready_time(config, &answer).map_err(Failure::Page)?;
+    Ok(answer.get("ready").cloned().unwrap_or(Value::Null))
+}
+
 /// The pages a configuration names: its list, or its sitemap in the build.
 pub fn pages(config: &Config, build: &Path) -> Result<Vec<String>, String> {
     match &config.pages {
@@ -140,6 +190,9 @@ fn measure_viewport(
     vp: &NamedViewport,
 ) -> Result<Value, Failure> {
     let first = &config.modes[0];
+    let ready_init = ready_init(config);
+    let mut init_scripts = vec![SHIFTS_INIT];
+    init_scripts.extend(ready_init.as_deref());
     let page = Page::open(
         conn,
         &Setup {
@@ -147,7 +200,7 @@ fn measure_viewport(
             mode: first,
             reduced_motion: config.reduced_motion,
             origin: Some(origin),
-            init_scripts: &[SHIFTS_INIT],
+            init_scripts: &init_scripts,
         },
     )?;
     let result = measure_open(conn, &page, config, origin, path, vp);
@@ -168,7 +221,7 @@ fn measure_open(
     if status != 200 {
         return Err(Failure::Page(format!("HTTP status {status}")));
     }
-    let ready = page.eval(conn, READY)?;
+    let ready = ready(conn, page, config)?;
     page.wait(conn, config.settle_ms)?;
     let entries = page.eval(conn, "window.__uxbShifts")?;
     let shifts = map(vec![("ready", ready), ("entries", entries)]);
@@ -299,15 +352,22 @@ fn visible_items(
 
 /// The keyboard walk of the first consumer: on a fresh load, the first Tab stop must be the skip
 /// link and Enter on it (or one more Tab) must put focus into its target; on another fresh load, up
-/// to `max_tabs` Tabs must reach each target.
+/// to `max_tabs` Tabs must reach each target. With a ready condition each fresh load waits for it.
 fn keyboard_walk(
     conn: &mut Conn,
     page: &Page,
     config: &Config,
     k: &KeyboardConfig,
     url: &str,
-) -> Result<Value, String> {
-    page.navigate(conn, url)?;
+) -> Result<Value, Failure> {
+    let fresh_load = |conn: &mut Conn| -> Result<(), Failure> {
+        page.navigate(conn, url)?;
+        if config.ready.is_some() {
+            ready(conn, page, config)?;
+        }
+        Ok(())
+    };
+    fresh_load(conn)?;
     page.press(conn, "Tab")?;
     let active = page.eval(conn, ACTIVE_PROBE)?;
     let label = active.get_str("label").unwrap_or_default().to_string();
@@ -323,7 +383,7 @@ fn keyboard_walk(
             after_tab = page.run(conn, PAST_PROBE, &[s(&href)])?;
         }
     }
-    page.navigate(conn, url)?;
+    fresh_load(conn)?;
     let tree = page.ax_tree(conn)?;
     let mut targets: Vec<(String, Option<String>)> = Vec::new();
     for name in &k.must_reach {
