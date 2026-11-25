@@ -696,7 +696,7 @@ pub struct RenderInputs<'a> {
 }
 
 pub fn render_url(inputs: &RenderInputs) -> Result<Rendered, String> {
-    let mut browser = Browser::start(inputs.profile)?;
+    let mut browser = Browser::start(inputs.profile, &[])?;
     let result = render_in(&mut browser, inputs);
     browser.close();
     result

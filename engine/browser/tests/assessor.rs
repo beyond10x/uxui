@@ -151,6 +151,16 @@ fn the_declared_inputs_are_the_arguments_of_the_checks_command() {
         ("path".to_string(), true),
         "a file the run writes, as capture"
     );
+    assert_eq!(
+        kind("chrome-arg"),
+        ("string".to_string(), true),
+        "switches change no value"
+    );
+    assert_eq!(
+        inputs.get("chrome-arg").unwrap().get("list"),
+        Some(&Value::Bool(true)),
+        "repeatable; ratchet passes a list as one argument of JSON"
+    );
 }
 
 /// Every result of `doc` is one the declaration allows; returns the outputs it wrote.
