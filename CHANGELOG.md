@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.5.0 — 2026-11-25
+
 - The page-scroll slack and the overflow rule are configuration: `layout: {page_slack_px,
   overflow: {tolerance_px, elements, exclude}}` in a `ux-browser-checks/1` file. A unit counts for
   `layout.page_scroll` when the page scrolls sideways by more than `page_slack_px` (default 0); an
