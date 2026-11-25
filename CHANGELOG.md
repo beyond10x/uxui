@@ -9,6 +9,9 @@
   navigation, replaces one item per page. An item with neither `role` nor `css` nor `current: true`
   is still refused, and so is `name_is` or `name_contains` without a `role`. The candidate probe
   records `aria-current` (`current` in a `--capture` file). Items with a role compute as in 0.3.0.
+
+## 0.4.0 — 2026-11-25
+
 - `ux-browser checks` waits for a ready condition the page sets, for a page that draws after its
   `load` event: `ready: {selector: <css>}` (an element matches it) or `ready: {global: <name>}`
   (`window.<name>` set to `true`), within `ready_timeout_ms` (default 10000). Ready is then the
