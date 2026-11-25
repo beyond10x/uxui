@@ -4,25 +4,25 @@ version = 4
 
 [[package]]
 name = "ux-browser"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "uxui-doc",
 ]
 
 [[package]]
 name = "ux-static"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "uxui-doc",
 ]
 
 [[package]]
 name = "uxui-doc"
-version = "0.5.0"
+version = "0.6.0"
 
 [[package]]
 name = "uxui-gen"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "uxui-doc",
 ]

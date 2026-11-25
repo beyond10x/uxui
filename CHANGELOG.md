@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.0 — 2026-11-25
+
 - The keyboard walk of `ux-browser checks` works without a skip link: `keyboard.skip_link_is` and
   `skip_link_contains` are optional, and without them the walk has no skip-link checks (and loads the
   page once, not twice); it checks that up to `max_tabs` Tabs reach each `must_reach` target. On the
