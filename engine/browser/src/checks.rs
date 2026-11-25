@@ -997,6 +997,8 @@ pub struct Config {
     pub request_methods: Vec<String>,
     /// The page-scroll slack and the overflow rule (`layout`).
     pub layout: LayoutRule,
+    /// The page clock (`clock`); `None`: the host's.
+    pub clock: Option<Clock>,
 }
 
 /// The methods a page may send to the measured server unless the configuration names more: reads,
@@ -1047,6 +1049,7 @@ const TOP_KEYS: &[&str] = &[
     "values",
     "request_methods",
     "layout",
+    "clock",
 ];
 
 /// The checks that run only when `opt_in` names them.
@@ -1320,7 +1323,175 @@ pub fn config(text: &str) -> Result<Config, String> {
         values,
         request_methods: request_methods(&v)?,
         layout: layout_rule(&v)?,
+        clock: clock_of(&v)?,
     })
+}
+
+// ---------------------------------------------------------------- configuration: clock
+
+/// A fixed page clock (`clock: {at, advance}`): `Date` reads the declared instant, plus the time
+/// since the document's time origin unless the clock is frozen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Clock {
+    /// The declared instant, in milliseconds since 1970-01-01T00:00:00Z.
+    pub at_ms: i64,
+    /// Whether the clock runs on from the instant (`advance`, default true) or stands still.
+    pub advance: bool,
+}
+
+impl Clock {
+    /// The instant in UTC, RFC 3339: `2026-01-01T12:00:20Z`, with milliseconds when it has any.
+    pub fn instant(&self) -> String {
+        let ms = self.at_ms.rem_euclid(1000);
+        let secs = self.at_ms.div_euclid(1000);
+        let (days, day_secs) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
+        let (y, m, d) = civil_from_days(days);
+        let fraction = if ms == 0 {
+            String::new()
+        } else {
+            format!(".{ms:03}")
+        };
+        format!(
+            "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}{fraction}Z",
+            day_secs / 3600,
+            day_secs % 3600 / 60,
+            day_secs % 60
+        )
+    }
+
+    /// `from <instant>`, or `frozen at <instant>`.
+    pub fn condition(&self) -> String {
+        if self.advance {
+            format!("from {}", self.instant())
+        } else {
+            format!("frozen at {}", self.instant())
+        }
+    }
+}
+
+/// The clock as the document names it (`conditions.other.clock`): `real` without one.
+pub fn clock_condition(config: &Config) -> String {
+    config
+        .clock
+        .as_ref()
+        .map_or_else(|| "real".to_string(), Clock::condition)
+}
+
+/// Days since 1970-01-01 of a date of the proleptic Gregorian calendar (H. Hinnant's
+/// `days_from_civil`).
+fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+/// The date of a day since 1970-01-01 (`civil_from_days`).
+fn civil_from_days(z: i64) -> (i64, i64, i64) {
+    let z = z + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    (yoe + era * 400 + i64::from(m <= 2), m, d)
+}
+
+fn days_in_month(y: i64, m: i64) -> i64 {
+    match m {
+        2 if (y % 4 == 0 && y % 100 != 0) || y % 400 == 0 => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    }
+}
+
+/// An RFC 3339 instant (`date-time`: `2026-01-01T12:00:20Z`, `2026-01-01T13:00:20.25+01:00`; `T`
+/// and `Z` in either case) in milliseconds since 1970-01-01T00:00:00Z. A second fraction has at
+/// most 3 digits, as a JavaScript `Date` holds no finer time; a leap second (`:60`) is refused, as
+/// `Date` has none.
+pub fn rfc3339_ms(text: &str) -> Result<i64, String> {
+    let bad = || {
+        format!(
+            "clock: `at` is an RFC 3339 instant, `2026-01-01T12:00:20Z` or `2026-01-01T13:00:20+01:00`; `{text}` is not one"
+        )
+    };
+    let b = text.as_bytes();
+    let digits = |from: usize, n: usize| -> Option<i64> {
+        let part = b.get(from..from + n)?;
+        part.iter()
+            .all(u8::is_ascii_digit)
+            .then(|| part.iter().fold(0i64, |a, c| a * 10 + i64::from(c - b'0')))
+    };
+    let at = |i: usize, c: u8| b.get(i).is_some_and(|x| x.eq_ignore_ascii_case(&c));
+    if !(at(4, b'-') && at(7, b'-') && at(10, b'T') && at(13, b':') && at(16, b':')) {
+        return Err(bad());
+    }
+    let (Some(y), Some(mo), Some(d), Some(h), Some(mi), Some(s)) = (
+        digits(0, 4),
+        digits(5, 2),
+        digits(8, 2),
+        digits(11, 2),
+        digits(14, 2),
+        digits(17, 2),
+    ) else {
+        return Err(bad());
+    };
+    if !(1..=12).contains(&mo) || d < 1 || d > days_in_month(y, mo) || h > 23 || mi > 59 || s > 59 {
+        return Err(bad());
+    }
+    let mut i = 19;
+    let mut ms = 0;
+    if at(i, b'.') {
+        let n = b[i + 1..].iter().take_while(|c| c.is_ascii_digit()).count();
+        if !(1..=3).contains(&n) {
+            return Err(bad());
+        }
+        ms = digits(i + 1, n).ok_or_else(bad)? * 10i64.pow(3 - n as u32);
+        i += 1 + n;
+    }
+    let offset_min = if at(i, b'Z') && b.len() == i + 1 {
+        0
+    } else if (at(i, b'+') || at(i, b'-')) && b.len() == i + 6 && at(i + 3, b':') {
+        let (Some(oh), Some(om)) = (digits(i + 1, 2), digits(i + 4, 2)) else {
+            return Err(bad());
+        };
+        if oh > 23 || om > 59 {
+            return Err(bad());
+        }
+        let sign = if b[i] == b'-' { -1 } else { 1 };
+        sign * (oh * 60 + om)
+    } else {
+        return Err(bad());
+    };
+    let secs = days_from_civil(y, mo, d) * 86_400 + h * 3600 + mi * 60 + s - offset_min * 60;
+    Ok(secs * 1000 + ms)
+}
+
+/// `clock`: `{at: <RFC 3339 instant>, advance: true | false}`; `advance` defaults to true.
+fn clock_of(v: &Value) -> Result<Option<Clock>, String> {
+    let Some(section) = v.get("clock") else {
+        return Ok(None);
+    };
+    if !matches!(section, Value::Map(_)) {
+        return Err("`clock` is a section: `{at: <RFC 3339 instant>, advance}`".to_string());
+    }
+    only(section, &["at", "advance"], "clock")?;
+    let at = match section.get("at") {
+        Some(Value::Str(text)) => rfc3339_ms(text)?,
+        Some(_) => return Err("clock: `at` is an RFC 3339 instant, as text".to_string()),
+        None => return Err("clock: no `at`, the instant the page's clock starts at".to_string()),
+    };
+    let advance = match section.get("advance") {
+        None => true,
+        Some(Value::Bool(b)) => *b,
+        Some(_) => return Err("clock: `advance` is true or false".to_string()),
+    };
+    Ok(Some(Clock { at_ms: at, advance }))
 }
 
 // ---------------------------------------------------------------- configuration: layout

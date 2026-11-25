@@ -54,6 +54,17 @@ pub fn ready_init(config: &Config) -> Option<String> {
     }
 }
 
+/// Sets the page's clock to a declared instant before the page's own scripts: called with the
+/// instant in milliseconds and whether the clock advances.
+pub const CLOCK_INIT: &str = include_str!("probes/clock.js");
+
+/// The script that runs before the page's own for the configuration's clock, if it declares one.
+pub fn clock_init(config: &Config) -> Option<String> {
+    config
+        .clock
+        .map(|c| format!("{}({},{})", CLOCK_INIT.trim_end(), c.at_ms, c.advance))
+}
+
 /// Ready after a load: without a condition, fonts and two frames as in 0.3.0; with one, the
 /// condition, then fonts and two frames. Returns the ready instant (`performance.now()`); a page
 /// that does not set its condition in time is the page's failure.
@@ -241,7 +252,9 @@ fn measure_viewport(
         .map_err(Failure::Page)?;
     let first = &config.modes[0];
     let ready_init = ready_init(config);
-    let mut init_scripts = vec![SHIFTS_INIT];
+    let clock_init = clock_init(config);
+    let mut init_scripts: Vec<&str> = clock_init.as_deref().into_iter().collect();
+    init_scripts.push(SHIFTS_INIT);
     init_scripts.extend(ready_init.as_deref());
     let page = Page::open(
         conn,

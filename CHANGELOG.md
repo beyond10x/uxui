@@ -25,6 +25,18 @@
   document: llm's documentation build, all 162 results equal to
   `engine/browser/examples/llm-docs.evidence.json` byte for byte; the second consumer's 0.3.0
   configuration, its 55 exact results equal to its 0.3.0 document.
+- A fixed page clock: `clock: {at: <RFC 3339 instant>, advance: true | false}` in a
+  `ux-browser-checks/1` file. A script before the page's own sets `Date` (`Date()`, `new Date()`,
+  `Date.now()`) to the declared instant plus the time since the document's time origin, or to the
+  instant alone with `advance: false`; `performance.timeOrigin` is the instant, and
+  `Intl.DateTimeFormat`'s `format()` and `formatToParts()` without a date and `Temporal.Now` read
+  the same clock. Timers, frames and `performance.now()` run as before, so the ready wait, the
+  settle times and the layout-shift times do not change. An instant without a zone, with a leap
+  second or with more than 3 digits of fraction is refused. Two runs of a fixture page that prints
+  the time (`tests/fixtures/clock/`) give equal geometry with the key and different geometry
+  without it. Every document names its clock in `evidence.conditions.other.clock` (`real` without
+  the key, `from <instant>` or `frozen at <instant>` in UTC) and the assessor declaration lists
+  `clock`; `examples/llm-docs.evidence.json` is rewritten by such a run with the same values.
 
 ## 0.5.0 — 2026-11-25
 

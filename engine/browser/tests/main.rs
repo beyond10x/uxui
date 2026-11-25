@@ -8,6 +8,7 @@ mod always_visible;
 mod assessor;
 mod cdp;
 mod checks;
+mod clock;
 mod codec;
 mod evidence;
 mod json;
