@@ -12,7 +12,6 @@ fn answer() -> String {
 /// An empty working directory, and in it a stand-in for Chromium that leaves `started` behind
 /// when anything starts it.
 fn place(name: &str) -> (PathBuf, PathBuf, PathBuf) {
-    use std::os::unix::fs::PermissionsExt;
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR"))
         .join("version")
         .join(name);
@@ -21,17 +20,15 @@ fn place(name: &str) -> (PathBuf, PathBuf, PathBuf) {
     std::fs::create_dir_all(&work).unwrap();
     let chrome = dir.join("chrome");
     let started = dir.join("started");
-    std::fs::write(
+    crate::executable(
         &chrome,
-        format!("#!/bin/sh\ntouch '{}'\nexit 9\n", started.display()),
-    )
-    .unwrap();
-    std::fs::set_permissions(&chrome, std::fs::Permissions::from_mode(0o755)).unwrap();
+        &format!("#!/bin/sh\ntouch '{}'\nexit 9\n", started.display()),
+    );
     (work, chrome, started)
 }
 
-fn ask(flag: &str) -> (Output, PathBuf) {
-    let (work, chrome, started) = place(flag.trim_start_matches('-'));
+fn ask(test: &str, flag: &str) -> (Output, PathBuf) {
+    let (work, chrome, started) = place(&format!("{test}{flag}"));
     let o = Command::new(env!("CARGO_BIN_EXE_ux-browser"))
         .arg(flag)
         .current_dir(&work)
@@ -50,7 +47,7 @@ fn ask(flag: &str) -> (Output, PathBuf) {
 #[test]
 fn version_and_v_print_the_name_and_the_crate_version_and_nothing_else() {
     for flag in ["--version", "-V"] {
-        let (o, started) = ask(flag);
+        let (o, started) = ask("print", flag);
         assert_eq!(o.status.code(), Some(0), "{flag}");
         assert_eq!(String::from_utf8_lossy(&o.stdout), answer(), "{flag}");
         assert_eq!(String::from_utf8_lossy(&o.stderr), "", "{flag}");
@@ -60,7 +57,7 @@ fn version_and_v_print_the_name_and_the_crate_version_and_nothing_else() {
 
 #[test]
 fn the_version_is_the_one_a_run_records_in_its_conditions() {
-    let (o, _) = ask("--version");
+    let (o, _) = ask("record", "--version");
     let stdout = String::from_utf8(o.stdout).unwrap();
     let version = stdout.trim_end().strip_prefix("ux-browser ").unwrap();
     for doc in [

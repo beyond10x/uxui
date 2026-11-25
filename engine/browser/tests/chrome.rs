@@ -258,18 +258,15 @@ fn documents_of_runs_that_differ_only_in_switches_have_equal_evidence() {
 /// A stand-in for Chromium: writes its arguments one per line to `args`, prints the line Chromium
 /// prints when it listens, and waits to be ended.
 fn fake_chrome(dir: &Path) -> PathBuf {
-    use std::os::unix::fs::PermissionsExt;
     let script = dir.join("chrome");
     let args = dir.join("args");
-    std::fs::write(
+    crate::executable(
         &script,
-        format!(
+        &format!(
             "#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done > '{}'\necho 'DevTools listening on ws://127.0.0.1:9/devtools/browser/x' >&2\nexec sleep 30\n",
             args.display()
         ),
-    )
-    .unwrap();
-    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     script
 }
 
@@ -296,17 +293,14 @@ fn chromium_starts_with_the_defaults_then_the_added_switches() {
 /// A stand-in Chrome binary at `dir/chrome`: `--version` prints `version` as Chrome for Testing
 /// prints it; anything else fails, so no test starts a browser by mistake.
 fn fake_binary(dir: &Path, version: &str) -> PathBuf {
-    use std::os::unix::fs::PermissionsExt;
     std::fs::create_dir_all(dir).unwrap();
     let script = dir.join("chrome");
-    std::fs::write(
+    crate::executable(
         &script,
-        format!(
+        &format!(
             "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'Google Chrome for Testing {version} '; exit 0; fi\nexit 9\n"
         ),
-    )
-    .unwrap();
-    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    );
     script
 }
 
