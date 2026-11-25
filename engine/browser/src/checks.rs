@@ -295,6 +295,8 @@ pub struct Candidate {
     pub rect: Rect,
     /// The element at the centre of its box is it or inside it.
     pub hit: bool,
+    /// Its `aria-current` attribute, if it has one; a record of 0.3.0 has none.
+    pub current: Option<String>,
 }
 
 impl Candidate {
@@ -315,6 +317,16 @@ impl Candidate {
             visible,
             rect,
             hit,
+            current: v.get_str("current").map(str::to_string),
+        })
+    }
+
+    /// Whether it is the current element of a set (`aria-current` other than `false`): an empty
+    /// value is `false`, as is no attribute; any other value, ARIA's tokens or not, is current.
+    pub fn is_current(&self) -> bool {
+        self.current.as_deref().is_some_and(|v| {
+            let v = v.trim();
+            !v.is_empty() && !v.eq_ignore_ascii_case("false")
         })
     }
 }
@@ -363,13 +375,41 @@ pub fn visible_status(candidate: Option<&Candidate>, vw: f64, vh: f64) -> Status
     if c.hit { Status::Ok } else { Status::Covered }
 }
 
-/// How an item is found: by role and name, else by CSS, inside the first match of `scope`.
+/// How an item is found: by role and name, else by CSS, inside the first match of `scope`; with
+/// `current`, only an element whose `aria-current` is not `false`, and without a role or CSS any
+/// such element in the scope.
 #[derive(Clone, Debug)]
 pub struct Locate {
-    pub role: String,
+    /// `None`: the accessibility tree is not read, and no name is matched.
+    pub role: Option<String>,
     pub name: Name,
     pub css: Option<String>,
     pub scope: Option<String>,
+    pub current: bool,
+}
+
+/// The selector of the elements that may be current: any with `aria-current`; the candidate probe
+/// reads its value.
+pub const CURRENT_CSS: &str = "[aria-current]";
+
+impl Locate {
+    /// The CSS selector whose matches inside the scope are candidates after the role matches:
+    /// `css`, else [`CURRENT_CSS`] for an item with `current` and no role.
+    pub fn selector(&self) -> Option<&str> {
+        match (&self.css, &self.role, self.current) {
+            (Some(css), _, _) => Some(css),
+            (None, None, true) => Some(CURRENT_CSS),
+            _ => None,
+        }
+    }
+}
+
+/// The candidate that is the item: the first visible one in scope, and current when the item
+/// declares `current`.
+pub fn located(locate: &Locate, candidates: &[Candidate]) -> Option<usize> {
+    candidates
+        .iter()
+        .position(|c| c.in_scope && c.visible && (!locate.current || c.is_current()))
 }
 
 #[derive(Clone, Debug)]
@@ -865,6 +905,7 @@ pub fn config(text: &str) -> Result<Config, String> {
                 "name_contains",
                 "css",
                 "scope",
+                "current",
                 "min_width",
                 "path_prefix",
             ],
@@ -874,19 +915,35 @@ pub fn config(text: &str) -> Result<Config, String> {
             .get_str("name")
             .ok_or("always_visible: an item has no `name`")?;
         let what = format!("always_visible `{name}`");
-        let role = item
-            .get_str("role")
-            .ok_or_else(|| format!("{what}: no `role`"))?;
+        let role = item.get_str("role").map(str::to_string);
+        let css = item.get_str("css").map(str::to_string);
+        let current = match item.get("current") {
+            None => false,
+            Some(Value::Bool(b)) => *b,
+            Some(_) => return Err(format!("{what}: `current` is true or false")),
+        };
+        if role.is_none() && css.is_none() && !current {
+            return Err(format!(
+                "{what}: no `role`, `css` or `current: true` to locate it by"
+            ));
+        }
+        let name_match = name_of(item, "name_is", "name_contains", &what)?;
+        if role.is_none() && name_match != Name::Any {
+            return Err(format!(
+                "{what}: a name is matched on a `role`'s accessible name; the item has no `role`"
+            ));
+        }
         if always_visible.iter().any(|a| a.name == name) {
             return Err(format!("{what} is declared twice"));
         }
         always_visible.push(AlwaysVisible {
             name: name.to_string(),
             locate: Locate {
-                role: role.to_string(),
-                name: name_of(item, "name_is", "name_contains", &what)?,
-                css: item.get_str("css").map(str::to_string),
+                role,
+                name: name_match,
+                css,
                 scope: item.get_str("scope").map(str::to_string),
+                current,
             },
             min_width: get_i64(item, "min_width"),
             path_prefix: item.get_str("path_prefix").map(str::to_string),
@@ -1189,7 +1246,7 @@ fn visible_of(
                 .iter()
                 .map(Candidate::from_value)
                 .collect::<Result<Vec<_>, _>>()?;
-            let first = first_visible(&candidates).map(|i| &candidates[i]);
+            let first = located(&item.locate, &candidates).map(|i| &candidates[i]);
             visible_status(first, vp.width as f64, vp.height as f64)
         };
         out.push(Visible {
