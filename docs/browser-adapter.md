@@ -148,6 +148,7 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `request_methods` | the HTTP methods a page may send to the measured server, in capitals, each once, `GET` among them; default `[GET, HEAD]`. A request with another method fails as one to another origin does (A running server) |
 | `layout` | the page-scroll slack and the overflow rule (below); optional, each key left out keeps its default |
 | `values` | how `ux-browser values` and `checks --values` turn the document into the consumer's values file (`ux-browser values`); optional |
+| `clock` | the page's clock: `{at: <RFC 3339 instant>, advance: true \| false}`; every load starts its `Date` at `at`, running on from there (`advance`, default true) or standing still. Default: none, the host's clock (A fixed page clock) |
 
 The `layout` section; the defaults are llm's rule, the one of 0.4.0 and before (The checks):
 
@@ -228,6 +229,68 @@ first match of `scope`. The item is the first candidate that is in `scope` and v
 true` is refused, as is a name without a `role`. A keyboard target (`must_reach`) is located the
 same way.
 
+### A fixed page clock: `clock`
+
+A page that shows times (a timestamp, "3 min ago", the seconds of a clock) draws other text at every
+run, and other text has other geometry. `clock` starts the clock of every load at one declared
+instant, so such a page measures the same on every run:
+
+```yaml
+clock: {at: 2026-01-01T12:00:20Z}
+```
+
+| key | value |
+|---|---|
+| `at` | an RFC 3339 instant (`date-time`): `2026-01-01T12:00:20Z`, `2026-01-01T13:00:20.25+01:00`; `T` and `Z` in either case. Refused: no zone, a leap second (`:60`, which `Date` does not have), more than 3 digits of fraction (finer than `Date` holds), a date that is not in the calendar, a number |
+| `advance` | `true` (default): the clock runs on from `at` in real time; `false`: it stands at `at` |
+
+How: a script that runs before the page's own (`src/probes/clock.js`, set as the layout-shift
+observer is) replaces `Date`. `Date()`, `new Date()` and `Date.now()` read `at` plus the time since the
+document's time origin (`performance.now()`, whole milliseconds), or `at` alone with `advance: false`.
+`new Date(...)` with arguments, `Date.parse`, `Date.UTC`, `instanceof Date`, a subclass of `Date` and
+`new Date().constructor === Date` behave as before. `performance.timeOrigin` is `at`, so `Date.now()`
+and `performance.timeOrigin + performance.now()` agree. `Intl.DateTimeFormat`'s `format()` and
+`formatToParts()` without a date, and `Temporal.Now` where the browser has it, read the same clock.
+Every load starts at `at`: the measured load and each fresh load of the keyboard walk.
+
+Not changed: timers (`setTimeout`, `setInterval`), frames (`requestAnimationFrame`), `performance.now()`
+and the time of every performance entry. The ready wait (a `MutationObserver` or a property trap,
+bounded by a timer), fonts, the two frames, the settle times (waited by the run, not by the page),
+the mode wait and the layout-shift times are what they are without a clock.
+
+Why a script and not DevTools' virtual time: `Emulation.setVirtualTimePolicy` with
+`initialVirtualTime` sets `Date` too, but it moves timers, frames and the page's network waits onto a
+clock that advances only by a budget or while the page is idle. The ready wait, fonts and the settle
+times the run waits in real time would then depend on how that budget is spent. A script on `Date`
+changes what the page reads and nothing about when it runs.
+
+Why `advance` defaults to true: with a clock that stands still, code that compares two `Date.now()`
+readings, to order events (Vue 3's DOM event handlers do) or to measure a time span, sees no time
+pass. With a running clock a page reads `at` plus the milliseconds since its load began, so text to
+the minute is the same on every run as long as the page draws it before the minute of `at` ends (an
+instant at the start of a minute leaves the most time); a page that shows seconds or milliseconds
+of a time it draws late is measured with `advance: false`.
+
+Not covered: workers (dedicated, shared, service) read the host's clock, as the script runs in
+documents only; the time zone is the host's, so a page that prints local times draws other text on
+a host in another zone; times the server sends are as it sends them, and only what the page computes
+from its clock changes; `ux-browser render` has no clock.
+
+The document names the clock (`conditions.other.clock`): `real` without the key, `from <instant>` or
+`frozen at <instant>`, the instant in UTC (`from 2026-01-01T12:00:20Z`).
+
+Measured 2026-11-26, Chrome/149.0.7827.55, `checks --build`:
+
+| page | runs | result |
+|---|---|---|
+| `tests/fixtures/clock/` (prints `new Date().toISOString()`, how long ago a fixed instant was, and one mark per second of the minute in a 240 px box), its configuration | 2, 7 s apart, `clock: {at: 2026-01-01T12:00:20Z}` | the same three text runs: 230.4, 153.6 and 192.0 px wide (20 marks); overflow 0 in both |
+| the same, without `clock` | 2, 7 s apart | the marks 393.6 and 470.4 px wide (41 and 49 seconds), the age 182.4 px; overflow 1 in both: the geometry differs, the value happens not to |
+| a scratch page of 24 checks of the clock in the page (the constructor's forms, `instanceof`, a subclass, `parse`, `UTC`, `timeOrigin`, `Intl`, `Temporal.Now`, a 100 ms timer against `performance.now()` and `Date.now()`), each failed check one overflowing line; `ready: {global}` set by that timer | `advance` true, then false | 0 failed in both, ready met; without `clock` 5 failed (the ones that compare a reading with the instant) |
+| the second consumer's snapshot (a control plane web application: relative ages and times computed from `Date.now()` and the times in its data), its configuration without `values`, 11 pages x 5 viewports | without, with `clock: {at: 2026-11-25T09:00:00Z}`, without, with | the 44 exact values, their per-viewport details, the findings and the 451 checks equal in all four runs. Recorded geometry (overflow items and always-visible candidates): the two runs with the clock equal on 11 of 11 pages; the two without equal on 7 (on the sessions page a run of text moved 5 px between them); with against without equal on 7 (on four pages runs of text of other widths, 43.1 px against 51.7 px). `layout_shift.after_ready` varied in every pair, as without a ready condition before (A page that draws from fetched data) |
+
+Its ages are drawn to the minute, inside boxes wide enough for them, so the clock changes its
+geometry and none of its values.
+
 ### The checks
 
 Per page and viewport, as llm's L2 spec does it: a fresh context in the first mode, the page loaded to
@@ -283,7 +346,7 @@ As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
 | `evidence.inputs.config` | the configuration file, `{value: <path>, digest, digest_form: bytes}` |
 | `evidence.inputs.build` | `{value: <path>}` for a build under `--root`, absent for one outside it; no digest beside it, the candidate is its digest |
 | `evidence.inputs.pages` | `{value: <the --pages list>}` when the run measured a list and not the whole sitemap |
-| `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, ready, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude}`; `ready` is `load` without a ready condition, else `selector <css>` or `global <name>`. A document of 0.3.0 has no `ready`; its ready was `load`. The layout keys are the rule values the run used, defaults included (`"0"`, `"1"`, the elements joined by `, `, the exclusions joined by `, ` or `""`); a document of 0.4.0 or before has none, its rule was the default |
+| `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, ready, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude, clock}`; `ready` is `load` without a ready condition, else `selector <css>` or `global <name>`. A document of 0.3.0 has no `ready`; its ready was `load`. The layout keys are the rule values the run used, defaults included (`"0"`, `"1"`, the elements joined by `, `, the exclusions joined by `, ` or `""`); a document of 0.4.0 or before has none, its rule was the default. `clock` is `real` without a clock, else `from <instant>` or `frozen at <instant>` in UTC (A fixed page clock); a document of 0.4.0 or before has none, its clock was the host's |
 | `run.local_inputs` | `jobs` (the value used), and `capture` and `profile` when given: they differ per machine and change no value, so they stay outside the evidence |
 | `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk (skip link first, its target, each target), and one counted layout-shift reading per viewport. A page that did not load is one `not_run` entry, id the page path |
 | `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks` |
@@ -316,7 +379,7 @@ digests and the same 1,234 values.
 | `command` | `ux-browser checks` |
 | `targets` | `[build, deployment]`: a served build (`--build`) or a running server (`--url`); no `target_input`, which only a `document` target has |
 | `inputs` | `config` (path, required), `build` (path) and `url` (text), of which a run gets exactly one (a choice of the usage; the format has no way to say so), `pages` (text: paths separated by commas), and the local inputs `capture`, `profile`, `values` (paths) and `jobs` (integer); `values` names a file the run writes and changes no value of the document, as `capture` |
-| `conditions` | `viewports`, `modes`, `ready`, `settle_ms`, `reduced_motion`: the keys of `conditions.other` |
+| `conditions` | `viewports`, `modes`, `ready`, `settle_ms`, `reduced_motion`, `page_slack_px`, `overflow_tolerance_px`, `overflow_elements`, `overflow_exclude`, `clock`: the keys of `conditions.other` |
 | `coverage_unit`, `coverage` | `check`; all six counts |
 | `outputs` | the six numbers (`scope: page`; unit `units`, `blocks`, `items`, `checks`, `score`, `score`; the two layout shifts `sampled`, the others `exact`) and `findings` (`identity_key: [rule, node_path]`, `item_fields: [reason]`) |
 
@@ -433,7 +496,12 @@ same commit: the same 1,234 values, the new target kind, another build digest. R
 llm `6df5102cc`: the same 135 numbers and findings and the same 1,234 checks; per-viewport details
 on every number, as written since 0.3.0. Rewritten again when the layout rule became configuration
 (Configuration, `layout`), by that change's run on the same build: the same 135 numbers and 1,234
-checks (1,176 passed, 4 failed), and the rule values in its conditions.
+checks (1,176 passed, 4 failed), and the rule values in its conditions. Rewritten again when
+documents began to name their clock (`clock: real`), by that change's run on the same build with
+Chrome/149.0.7827.55, the newest Chromium left on the host (158's full build was no longer in its
+Playwright cache): the 135 numbers with their per-viewport details, the findings, the coverage
+(1,234 checks) and the build digest equal to the document before; only the conditions and the run's
+times differ.
 
 Each cell: ux-browser / llm's `ux/baseline.json` / llm's own harness (`ux/tests/l2-layout.spec.ts`)
 run on the same build the same day.
