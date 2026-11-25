@@ -26,8 +26,6 @@
   --uxui-nav-bg: #11142a;
   --uxui-nav-text: #d6d9ec;
   --uxui-nav-head: #8b90b3;
-  --uxui-nav-hover: rgb(255 255 255 / 0.06);
-  --uxui-nav-current: rgb(124 124 255 / 0.22);
   --uxui-shadow: 0 1px 2px rgb(22 26 43 / 0.04), 0 8px 24px -12px rgb(22 26 43 / 0.12);
   --uxui-section-border: rgb(22 26 43 / 0.06);
   --uxui-series-0: #5b5bd6;
@@ -100,8 +98,10 @@
   --uxui-series-3: #3dd6c1;
 }
 
-/* Values both modes share. */
+/* Values both modes share (the sidebar is dark in both). */
 :root {
+  --uxui-nav-hover: rgb(255 255 255 / 0.06);
+  --uxui-nav-current: rgb(124 124 255 / 0.22);
   --ui-tone-info-fill: var(--ui-color-info_fill);
   --ui-tone-success-fill: var(--ui-color-success_fill);
   --ui-tone-warning-fill: var(--ui-color-warning_fill);

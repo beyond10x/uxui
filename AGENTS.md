@@ -16,14 +16,14 @@ what is specific to uxui.
 | `plugin/.codex-plugin/plugin.json` | Codex manifest; `skills` points at `./skills/` |
 | `.claude-plugin/marketplace.json` | Claude Code marketplace `uxui` |
 | `.agents/plugins/marketplace.json` | Codex marketplace `uxui` |
-| `tools/` | the gate (`gate.sh`), the plugin check (`check-plugin.sh`), the workflow check (`check-workflows.sh`), the docs generator and check (`docs.sh`), the path list of planning and prose files (`prose-only.sh`), the release checks (`release-versions.sh`, `release-ready.sh`), the repeat of the test binaries (`repeat-tests.sh`) and their tests, POSIX sh |
+| `tools/` | the gate (`gate.sh`), the plugin check (`check-plugin.sh`), the workflow check (`check-workflows.sh`), the theme check (`check-themes.sh`: every theme has a light and a dark mode that set the same properties, no `var()` of an unset property, `themes/README.md` names every file, each fixture matches its sha256, and `dense.css` and `slot-jobs.css` declare what they promise, against slot's document in `themes/fixtures/`), the docs generator and check (`docs.sh`), the path list of planning and prose files (`prose-only.sh`), the release checks (`release-versions.sh`, `release-ready.sh`), the repeat of the test binaries (`repeat-tests.sh`) and their tests, POSIX sh |
 | `research/` | research notes on making UI/UX quality machine-checkable from a specification |
 | `reviews/` | dated reviews of the skill and its approach (`<YYYY-MM-DD>-<topic>.md`) |
 | `ess/` | ESS specification `uxsearch` of the UX search engine: domains, the studio `ess-ui/1` document and its tests, `GAPS.md`; gate `ess specify validate --path ess`, `ess compile --path ess`, `ess ui check --path ess/ui/studio.ui.yaml --model ess`, `ess ui test --path ess/ui/studio.ui.yaml --model ess ess/ui/tests/studio.yaml` |
 | `docs/` | design documents of the engine: `brief.md` (glossary), `concept.md`, `state-space.md`, `metrics.md` (the metric and KPI catalogue), `ratchet.md`, `roadmap.md` (state and next steps; read it first) |
 | `presets/` | `web-ux.ratchet.yaml`, a proposed ratchet preset family for the metric catalogue |
 | `.engineering/` | the AEP planning store and the backlog's one home (`aep plan artifact list`); it carries the work items of `docs/roadmap.md`, `docs/generator-round.md`, `docs/ess-gaps.md`, `docs/targets.md` and `docs/comparison.md`, which stay as design records |
-| `themes/` | themes: CSS over the variables the stock `ess-ui/1` generator writes, plus what they do not cover; every theme has a light and a dark mode, chosen by `theme-toggle.js` (system setting until a person picks one); `studio.css` is the studio's |
+| `themes/` | themes and templates: CSS over the variables the stock `ess-ui/1` generator writes, plus what they do not cover, and `dense.css` over the uxui class hooks (`themes/README.md`); every theme has a light and a dark mode, chosen by `theme-toggle.js` (system setting until a person picks one); `studio.css` is the studio's, `slot-jobs.css` slot's job pages (`themes/slot-jobs.md`); `fixtures/` holds the consumer documents the theme check reads |
 | `website/` | the public documentation site, Docusaurus on the shared Docs System, served at `https://beyond10x.github.io/uxui/`; `website/README.md` lists what is generated |
 | `.github/workflows/` | `ci.yml` (`Gate`: `tools/gate.sh` on every pull request and push to `main`), `release.yml` (the same gate, then the release assets, on a tag), `pages.yml` (builds and checks the site, uploads it on `main`; no credential, no deploy step) and `b10x-docs-site.yml` (hands that artifact to the shared publisher) |
 | `generators/own/` | `uxui-gen`, the smallest own generator: one page of the studio document as static HTML and plain JS (`docs/own-generator.md`); Rust, no third-party crates; workspace `Cargo.toml` and `rust-toolchain.toml` at the root |
@@ -92,8 +92,9 @@ fails on a page that names it.
 the marketplace, then `tools/gate.sh`, the checks that need no local login: `tools/check-plugin.sh`
 (manifests and marketplaces agree; every skill directory has a `SKILL.md` with `name` equal to the
 directory and a `description`; every `references/` path a skill names exists),
-`tools/check-workflows.sh` (the pull-request gate and the release gate are the same), `tools/docs.sh
-check`, the test scripts `tools/check-plugin.test.sh`, `tools/release.test.sh`, `tools/docs.test.sh`,
+`tools/check-workflows.sh` (the pull-request gate and the release gate are the same),
+`tools/check-themes.sh` (the themes under `themes/`), `tools/docs.sh check`, the test scripts
+`tools/check-plugin.test.sh`, `tools/check-themes.test.sh`, `tools/release.test.sh`, `tools/docs.test.sh`,
 `tools/gate.test.sh` and `tools/release-ready.test.sh`, which prove the checks fail on broken copies
 of the tree (written under `target/`), `cargo fmt --all --check`, `cargo clippy --workspace --all-targets
 --locked -- -D warnings` (the forge installs both components in each gate job), and `cargo test

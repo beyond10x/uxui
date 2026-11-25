@@ -1,0 +1,113 @@
+<!doctype html>
+<!-- The markup the uxui class hooks ask of a generator (themes/README.md), for slot's job list and job
+     detail, with made-up rows. Open it in a browser to see themes/dense.css and themes/slot-jobs.css in
+     both modes; the button bottom left switches the mode. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>slot jobs: uxui themes dense and slot-jobs</title>
+  <script src="../theme-toggle.js"></script>
+  <link rel="stylesheet" href="../dense.css">
+  <link rel="stylesheet" href="../slot-jobs.css">
+  <style>
+    body { margin: 0; padding: 0 14px 48px; font: 14px/1.45 system-ui, sans-serif; color: var(--uxui-dense-text); background: var(--uxui-dense-bg); }
+    h1 { font-size: 16px; line-height: 24px; }
+    h2 { font-size: 14px; }
+    .uxui-theme-toggle { position: fixed; left: 1rem; bottom: 1rem; font: inherit; font-size: 0.8rem; color: inherit; background: var(--uxui-dense-hover); border: 1px solid var(--uxui-dense-line); border-radius: 999px; padding: 0.35rem 0.75rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Jobs</h1>
+  <section class="uxui-dense-frame" data-ui-path="pages/jobs.list/sections/done">
+    <h2>Finished: 3</h2>
+    <table class="uxui-dense">
+      <thead>
+        <tr>
+          <th class="uxui-field-id uxui-as-text">job</th>
+          <th class="uxui-field-toolchain uxui-as-text">tool</th>
+          <th class="uxui-field-repo uxui-as-text">repo</th>
+          <th class="uxui-field-session uxui-as-text">session</th>
+          <th class="uxui-field-argv uxui-as-list">command</th>
+          <th class="uxui-field-ended_ms uxui-as-time">ended</th>
+          <th class="uxui-field-state uxui-as-badge">result</th>
+          <th class="uxui-field-tokens uxui-as-number">slots</th>
+          <th class="uxui-field-cpu_s uxui-as-number">CPU s</th>
+          <th class="uxui-field-peak_rss uxui-as-bytes">peak RSS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="uxui-field-id uxui-as-text" data-uxui-value="61259">61259</td>
+          <td class="uxui-field-toolchain uxui-as-text" data-uxui-value="rust">rust</td>
+          <td class="uxui-field-repo uxui-as-text" data-uxui-value="uxui">uxui</td>
+          <td class="uxui-field-session uxui-as-text" data-uxui-value="themes">themes</td>
+          <td class="uxui-field-argv uxui-as-list" title="cargo test --workspace --locked --no-fail-fast">cargo test --workspace --locked --no-fail-fast</td>
+          <td class="uxui-field-ended_ms uxui-as-time" data-uxui-value="1764076800000">14:20:00</td>
+          <td class="uxui-field-state uxui-as-badge" data-uxui-value="failed"><span class="uxui-badge">failed</span></td>
+          <td class="uxui-field-tokens uxui-as-number" data-uxui-value="4">4</td>
+          <td class="uxui-field-cpu_s uxui-as-number" data-uxui-value="81.4">81.4</td>
+          <td class="uxui-field-peak_rss uxui-as-bytes" data-uxui-value="1288490188">1.2 GiB</td>
+        </tr>
+        <tr>
+          <td class="uxui-field-id uxui-as-text" data-uxui-value="61258">61258</td>
+          <td class="uxui-field-toolchain uxui-as-text" data-uxui-value="go">go</td>
+          <td class="uxui-field-repo uxui-as-text" data-uxui-value="worktree">worktree</td>
+          <td class="uxui-field-session uxui-as-text" data-uxui-value="release">release</td>
+          <td class="uxui-field-argv uxui-as-list" title="go test ./...">go test ./...</td>
+          <td class="uxui-field-ended_ms uxui-as-time" data-uxui-value="1764076740000">14:19:00</td>
+          <td class="uxui-field-state uxui-as-badge" data-uxui-value="ok"><span class="uxui-badge">ok</span></td>
+          <td class="uxui-field-tokens uxui-as-number" data-uxui-value="2">2</td>
+          <td class="uxui-field-cpu_s uxui-as-number" data-uxui-value="12">12</td>
+          <td class="uxui-field-peak_rss uxui-as-bytes" data-uxui-value="314572800">300 MiB</td>
+        </tr>
+        <tr>
+          <td class="uxui-field-id uxui-as-text" data-uxui-value="61257">61257</td>
+          <td class="uxui-field-toolchain uxui-as-text" data-uxui-value="node">node</td>
+          <td class="uxui-field-repo uxui-as-text" data-uxui-value="website">website</td>
+          <td class="uxui-field-session uxui-as-text" data-uxui-value="docs">docs</td>
+          <td class="uxui-field-argv uxui-as-list" title="task docs-site">task docs-site</td>
+          <td class="uxui-field-ended_ms uxui-as-time" data-uxui-value="1764076680000">14:18:00</td>
+          <td class="uxui-field-state uxui-as-badge" data-uxui-value="cancelled"><span class="uxui-badge">cancelled</span></td>
+          <td class="uxui-field-tokens uxui-as-number" data-uxui-value="1">1</td>
+          <td class="uxui-field-cpu_s uxui-as-number" data-uxui-value="3.2">3.2</td>
+          <td class="uxui-field-peak_rss uxui-as-bytes" data-uxui-value="104857600">100 MiB</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="uxui-dense-frame" data-ui-path="pages/jobs.list/sections/queued">
+    <h2>Queued: 0</h2>
+    <table class="uxui-dense">
+      <thead><tr><th class="uxui-field-id uxui-as-text">job</th><th class="uxui-field-argv uxui-as-list">command</th></tr></thead>
+      <tbody><tr class="uxui-empty"><td colspan="2">nothing queued</td></tr></tbody>
+    </table>
+  </section>
+
+  <h1>Job 61259<span class="uxui-badge uxui-field-state" data-uxui-value="failed">failed</span></h1>
+  <section data-ui-path="pages/jobs.detail/sections/summary">
+    <dl class="uxui-dense">
+      <dt class="uxui-field-argv uxui-as-list">command</dt>
+      <dd class="uxui-field-argv uxui-as-list">cargo test --workspace --locked --no-fail-fast</dd>
+      <dt class="uxui-field-state uxui-as-badge">state</dt>
+      <dd class="uxui-field-state uxui-as-badge" data-uxui-value="failed"><span class="uxui-badge">failed</span></dd>
+      <dt class="uxui-field-exit uxui-as-number">exit</dt>
+      <dd class="uxui-field-exit uxui-as-number" data-uxui-value="101">101</dd>
+    </dl>
+    <details open>
+      <summary>scheduling</summary>
+      <dl class="uxui-dense">
+        <div>
+          <dt class="uxui-field-toolchain uxui-as-text">tool</dt>
+          <dd class="uxui-field-toolchain uxui-as-text" data-uxui-value="rust">rust</dd>
+        </div>
+        <div>
+          <dt class="uxui-field-priority uxui-as-text">level</dt>
+          <dd class="uxui-field-priority uxui-as-text" data-uxui-value="urgent">urgent</dd>
+        </div>
+      </dl>
+    </details>
+  </section>
+</body>
+</html>
