@@ -128,7 +128,7 @@ host's load moved the wall times more than the flag did.
 
 ### Configuration `ux-browser-checks/1`
 
-Viewports, modes, settle times and the declared items are inputs, never constants of the tool. llm's,
+Viewports, modes, settle times, the declared items and the layout rule are inputs, never constants of the tool. llm's,
 from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 
 | key | value |
@@ -142,11 +142,52 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `ready` | the condition the page sets once its content is drawn, for a page that draws after its `load` event (from fetched data, say): `{selector: <css>}`, ready when an element matches it (`{selector: 'html[data-ready]'}` for an attribute the page sets, `{selector: 'main:has(.panel):not(:has([aria-busy=true]))'}` for every panel loaded), or `{global: <name>}`, ready when the page sets `window.<name>` to `true` (`window.name = true` or a top-level `var`; a `let` or `const` is no property of `window`). Default: none, ready at `load` as before (The checks) |
 | `ready_timeout_ms` | how long after `load` the page may take to set `ready`; default 10000; only with `ready`. A page that does not set it in time is incomplete |
 | `settle_ms`, `scroll_settle_ms`, `mode_settle_ms` | after ready (250), after the scroll to the bottom (200), after a mode switch (100) |
-| `always_visible` | `{name, role, name_is \| name_contains, css, scope, min_width, path_prefix}` each |
+| `always_visible` | `{name, role, name_is \| name_contains, css, scope, current, min_width, path_prefix}` each; located by at least one of `role`, `css` and `current: true` (below) |
 | `keyboard` | `{skip_link_is \| skip_link_contains, must_reach, max_tabs, focus_mark, activates, modes, viewports, focus_settle_ms}`; the skip link is optional (without it the walk has no skip-link checks); `focus_mark` is `true` or `false` (default); `activates` lists targets of `must_reach`, each once (default none); `modes` defaults to the last mode, `viewports` (names) to every viewport; each target is an always-visible item (The keyboard walk) |
 | `opt_in` | checks that run only when named here: `layout_shift.load` (The checks); default none |
 | `request_methods` | the HTTP methods a page may send to the measured server, in capitals, each once, `GET` among them; default `[GET, HEAD]`. A request with another method fails as one to another origin does (A running server) |
+| `layout` | the page-scroll slack and the overflow rule (below); optional, each key left out keeps its default |
 | `values` | how `ux-browser values` and `checks --values` turn the document into the consumer's values file (`ux-browser values`); optional |
+
+The `layout` section; the defaults are llm's rule, the one of 0.4.0 and before (The checks):
+
+| key | value |
+|---|---|
+| `page_slack_px` | how far, in CSS pixels, the page may scroll sideways before a unit counts for `layout.page_scroll`; a number, 0 or more; default 0. A rule "scroll width above client width + 1" is `1` |
+| `overflow.tolerance_px` | how far, in CSS pixels, a right edge may pass the viewport or its block before it overflows; a number, 0 or more; default 1 |
+| `overflow.elements` | the CSS selectors of the elements measured besides the text runs; a list, none empty, each once; default `[img, svg, video, canvas, iframe, input, select, textarea, table, pre]` |
+| `overflow.exclude` | CSS selectors: a text run or element inside a match of one (or the match itself) is not overflow; a list, none empty, each once; default none |
+
+The elements and the exclusions are inputs of the in-page probe (`src/probes/overflow.js`): it
+measures the elements they name and reports, per item, the first exclusion it lies inside; it returns
+them with the geometry, and `checks::page_result` refuses a recording made with other ones (a capture
+of 0.4.0 or before reads as the defaults). The slack, the tolerance, the exclusion and the count are applied in
+Rust (`checks.rs`). A selector the browser does not parse makes the probe throw, and the run exits 3.
+With a slack above 0 a page-scroll finding names it: `the page scrolls 3 px sideways, past the slack
+of 1 px`. The document's conditions name every value used (Evidence).
+
+Measured 2026-11-25, Chrome/158.0.8127.18:
+
+| site | layout keys | units | page scroll / overflow | against |
+|---|---|---|---|---|
+| llm's documentation build (`examples/llm.checks.yaml`) | none | 27 pages x 2 viewports x 2 modes | 0 / 0 | the run of the probe before this change on the same build: its 135 values and its results, findings and details byte for byte; its values file byte for byte |
+| the second consumer's snapshot (a control plane web application, its configuration) | none | 11 pages x 5 viewports | 0 / 0 | its own gate: 0 / 0 on its 22 gating units |
+| the same | `page_slack_px: 1` (its rule: scroll width above client width + 1) | 11 x 5 | 0 / 0 | every unit's raw page scroll is 0 px, so the slack changes nothing there |
+| the same | `page_slack_px: 1`, `overflow.elements: ['body *']` (every element, as its rule takes) | 11 x 5 | 0 / 0 | 16,890 items measured where the default elements give 7,070 |
+
+The consumer's own overflow rule is not the same rule with other values: it takes any element
+whose content is wider than its box (`overflow-x: visible`) or that ends past the page edge, the
+innermost only; this rule takes text runs and elements past their block or the viewport. Both give
+0 on its pages.
+
+```yaml
+layout:
+  page_slack_px: 1
+  overflow:
+    tolerance_px: 1
+    elements: [img, svg, video, canvas, iframe, input, select, textarea, table, pre, span]
+    exclude: ['.code-sample']
+```
 
 The `values` section (every path is under `--root`):
 
@@ -168,6 +209,24 @@ Names: `name_is` is the whole accessible name (white space folded, case kept), a
 `getByRole` with a string name; `name_contains` is a list of parts matched in any case. llm's regular
 expressions translate to it: `/search/i` is `[search]`, `/dark and light mode/i` is `[dark and light
 mode]`, `/skip to (main )?content/i` is `[skip to content, skip to main content]`.
+
+An always-visible item is located by its candidates, in this order: the elements of `role` whose
+accessible name matches (from the accessibility tree), then the elements `css` matches inside the
+first match of `scope`. The item is the first candidate that is in `scope` and visible:
+
+- `role` (and `name_is` or `name_contains`), with `css` as a fallback: as in 0.3.0.
+- `css` alone: the first visible match in `scope`; no accessibility tree is read and no name is
+  matched, so `name_is` and `name_contains` need a `role`.
+- `current: true`: only a candidate whose `aria-current` is not `false` (an empty value counts as
+  `false`; any other value, `page`, `step`, `true` and the rest, as current). With `role` or `css`
+  it narrows their candidates; without both its candidates are the elements with `aria-current` in
+  `scope`. One item `{name: title, current: true, scope: 'nav[aria-label=screens]'}` is the current
+  entry of a navigation on every page, where one item per page with its own name and `path_prefix`
+  was needed before. A page that has no such element counts the item `missing`.
+
+`current` is `true` or `false` (default `false`). An item with neither `role` nor `css` nor `current:
+true` is refused, as is a name without a `role`. A keyboard target (`must_reach`) is located the
+same way.
 
 ### The checks
 
@@ -192,9 +251,9 @@ page that is not served.
 
 | result (`scope: page`) | per page | definition (llm's) |
 |---|---|---|
-| `layout.page_scroll@1` (units) | sum over viewport x mode | 1 when `scrollingElement.scrollWidth - documentElement.clientWidth > 0` |
-| `layout.overflow@1` (blocks) | sum | every non-blank text run (Range box) and every `img, svg, video, canvas, iframe, input, select, textarea, table, pre`: overflow when its right edge passes the viewport + 1 px or its nearest non-inline block + 1 px; none under `position: fixed`, `overflow-x: auto \| scroll` or a clipping box; at most one per block |
-| `always_visible.misses@1` (items) | sum over viewport x mode x top and bottom | the first visible candidate in scope (role and name from the accessibility tree first, then CSS): missing, clipped (not wholly inside the viewport +-0.5 px) or covered (`elementFromPoint` of its centre is not it or inside it); an item outside its `min_width` or `path_prefix` is not checked |
+| `layout.page_scroll@1` (units) | sum over viewport x mode | 1 when `scrollingElement.scrollWidth - documentElement.clientWidth > layout.page_slack_px` (default 0) |
+| `layout.overflow@1` (blocks) | sum | every non-blank text run (Range box) and every element of `layout.overflow.elements` (default `img, svg, video, canvas, iframe, input, select, textarea, table, pre`): overflow when its right edge passes the viewport or its nearest non-inline block by more than `layout.overflow.tolerance_px` (default 1); none under `position: fixed`, `overflow-x: auto \| scroll` or a clipping box, none inside a match of `layout.overflow.exclude` (default none); at most one per block |
+| `always_visible.misses@1` (items) | sum over viewport x mode x top and bottom | the first visible candidate in scope (role and name from the accessibility tree first, then CSS; with `current`, only a current one; Configuration): missing, clipped (not wholly inside the viewport +-0.5 px) or covered (`elementFromPoint` of its centre is not it or inside it); an item outside its `min_width` or `path_prefix` is not checked |
 | `keyboard.misses@1` (checks) | sum over the walks | with a skip link declared: on a fresh load the first Tab is on the skip link; Enter (or one more Tab) puts focus into its target; a skip link that is not first misses both of its checks. On another fresh load up to `max_tabs` Tabs reach each target; with `focus_mark`, each reached target shows a focus mark; each reached target of `activates` acts on Enter or Space (The keyboard walk) |
 | `layout_shift.after_ready@1` (score) | largest over the viewports | `layout-shift` entries without recent input after the ready time (above), summed, rounded to 4 places; read once per viewport, before the first mode switch |
 | `layout_shift.load@1` (score), opt-in | largest over the viewports | every `layout-shift` entry without recent input since the navigation started (the observer is buffered and set before the page's own scripts), summed, rounded to 4 places; read in the same reading as after ready, after the settle time, so it holds the shifts after ready too. llm's round mode (`readShift().load` of its `ux/core/layout.ts` before 0.3.0): it varies with how fast fonts arrive, so llm reports it and does not ratchet it |
@@ -216,8 +275,8 @@ node path of a miss is `<viewport>/<mode>/<check>`):
 
 Without a skip link the walk loads the page once, not twice, and has no skip-link check: a page that
 has none and declares none misses nothing for it. An unreached target is one miss, whatever
-`focus_mark` and `activates` say of it. A configuration of 0.4.0 (a skip link, no `focus_mark`, no
-`activates`) walks and counts as 0.4.0 did.
+`focus_mark` and `activates` say of it. A configuration of 0.5.0 (a skip link, no `focus_mark`, no
+`activates`) walks and counts as 0.5.0 and before did.
 
 **A focus mark.** On the Tab that first puts focus on a target or inside it, `probes/focus-mark.js`
 reads the focused element (`document.activeElement`): whether it matches `:focus-visible`, its
@@ -288,7 +347,7 @@ As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
 | `evidence.inputs.config` | the configuration file, `{value: <path>, digest, digest_form: bytes}` |
 | `evidence.inputs.build` | `{value: <path>}` for a build under `--root`, absent for one outside it; no digest beside it, the candidate is its digest |
 | `evidence.inputs.pages` | `{value: <the --pages list>}` when the run measured a list and not the whole sitemap |
-| `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, ready, settle_ms, reduced_motion}`; `ready` is `load` without a ready condition, else `selector <css>` or `global <name>`. A document of 0.3.0 has no `ready`; its ready was `load` |
+| `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, ready, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude}`; `ready` is `load` without a ready condition, else `selector <css>` or `global <name>`. A document of 0.3.0 has no `ready`; its ready was `load`. The layout keys are the rule values the run used, defaults included (`"0"`, `"1"`, the elements joined by `, `, the exclusions joined by `, ` or `""`); a document of 0.4.0 or before has none, its rule was the default |
 | `run.local_inputs` | `jobs` (the value used), and `capture` and `profile` when given: they differ per machine and change no value, so they stay outside the evidence |
 | `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk check (The keyboard walk: the skip link's two when declared, each target, each focus mark, each activation), and one counted layout-shift reading per viewport. A page that did not load is one `not_run` entry, id the page path |
 | `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks`: per walk `viewport`, `mode`, `skip_link_first` and `skip_moves_focus` (only with a skip link), `reached`, `focus_marks` (when a mark was judged) and `activates` (when an activation was judged), each a map of target to true or false. A keyboard finding's reason is `missed`, except a focus mark's (the focused element and what it showed) and an activation's (what failed) |
@@ -432,11 +491,13 @@ ms). Chromium 158.0.8127.18 (Playwright revision 1254) for both: ux-browser star
 --headless=new`, llm's Playwright 1.65.0 its headless shell of the same version.
 
 ux-browser: 27 pages, 1,234 checks, 107 s at PR #11 (one pair at a time; now: Timings). Document:
-`engine/browser/examples/llm-docs.evidence.json`, rewritten by this version's run on a rebuild of the
+`engine/browser/examples/llm-docs.evidence.json`, rewritten by 0.3.0's run on a rebuild of the
 same commit: the same 1,234 values, the new target kind, another build digest. Rewritten again on
 2026-11-25, when documents began to name their ready condition (`ready: load`), by a run on a build of
 llm `6df5102cc`: the same 135 numbers and findings and the same 1,234 checks; per-viewport details
-on every number, as written since 0.3.0.
+on every number, as written since 0.3.0. Rewritten again when the layout rule became configuration
+(Configuration, `layout`), by that change's run on the same build: the same 135 numbers and 1,234
+checks (1,176 passed, 4 failed), and the rule values in its conditions.
 
 Each cell: ux-browser / llm's `ux/baseline.json` / llm's own harness (`ux/tests/l2-layout.spec.ts`)
 run on the same build the same day.
@@ -509,3 +570,23 @@ below it by 21 px at three viewports, and in some runs a panel as the data above
 panels' signal, the header widget alone. A ready condition is as good as what the page signals: a part
 that draws late and is not in the condition still counts after ready. Every other value (451 checks)
 was the same in all 20 runs.
+
+## A per-page item declared once, 2026-11-25
+
+The same snapshot and configuration. It declared the current screen's title as 11 items, one per page,
+each a `link` with the page's name under `path_prefix`. They were replaced by one item, run by run:
+
+| title item(s) | `always_visible.misses@1` per page, every viewport | its findings | checks (executed / passed / failed) | located on |
+|---|---|---|---|---|
+| the 11 items (as before) | 0 on all 11 pages | 0 | 451 / 352 / 44 | 11 of 11 pages, 10 of 10 viewport and position pairs each |
+| `{name: title, current: true, scope: 'nav[aria-label=screens]'}` | 0 on all 11 pages | 0 | 451 / 352 / 44 | the same, each time the link with `aria-current="page"` |
+| `{name: title, css: 'a[aria-current=page]', scope: 'nav[aria-label=screens]'}` | 0 on all 11 pages | 0 | 451 / 352 / 44 | the same |
+| control: `{name: title, current: true, scope: main}` | 10 per page (2 per viewport) | 110, `missing` | 451 / 242 / 154 | none |
+
+The values file's `always_visible.misses` was 0 for all 11 scenarios and every viewport in the first
+three rows, as in the consumer's 0.3.0 run; the control row is 4 per scenario at the two gating
+viewports and fails 22 `gate2` keys. Between the first three rows every result and finding was the same
+except `layout_shift.after_ready` (no ready condition declared; above). llm's documentation build with
+`engine/browser/examples/llm.checks.yaml`, in the same build of this change: the 135 numbers, their
+per-viewport details, the 27 findings sets and the 1,234 checks equal to
+`engine/browser/examples/llm-docs.evidence.json`.

@@ -1,7 +1,7 @@
 // One element that may be an always-visible item or a keyboard target, called with `this` bound to
 // it: whether it lies inside the first match of `scope`, whether it is visible (rendered, not
-// `visibility: hidden`, a box of some size), its box in viewport coordinates, and whether the
-// element at the centre of that box is it or inside it.
+// `visibility: hidden`, a box of some size), its box in viewport coordinates, whether the element at
+// the centre of that box is it or inside it, and its `aria-current` attribute (null without one).
 function (scope) {
   const e = this;
   const r = e.getBoundingClientRect();
@@ -16,5 +16,6 @@ function (scope) {
     visible,
     box: { x: r.x, y: r.y, width: r.width, height: r.height },
     hit: !!hitEl && (hitEl === e || e.contains(hitEl)),
+    current: e.getAttribute('aria-current'),
   };
 }

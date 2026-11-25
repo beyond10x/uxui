@@ -293,7 +293,13 @@ fn measure_open(
             None => true,
         };
         page.eval(conn, "window.scrollTo(0, 0)")?;
-        let overflow = page.run(conn, OVERFLOW_PROBE, &[])?;
+        let strs = |l: &[String]| Value::List(l.iter().map(|e| s(e)).collect());
+        let rule = &config.layout.overflow;
+        let overflow = page.run(
+            conn,
+            OVERFLOW_PROBE,
+            &[strs(&rule.elements), strs(&rule.exclude)],
+        )?;
         let top = visible_items(conn, page, config, path, vp)?;
         page.eval(
             conn,
@@ -333,7 +339,8 @@ fn mode_of(conn: &mut Conn, page: &Page, attr: &str) -> Result<Option<String>, S
 }
 
 /// The remote objects that may be `item`: role-and-name matches from the accessibility tree, then
-/// CSS matches inside the scope, in that order.
+/// CSS matches inside the scope (`css`, or every element with `aria-current` for an item with
+/// `current` and neither), in that order.
 fn objects(
     conn: &mut Conn,
     page: &Page,
@@ -342,16 +349,31 @@ fn objects(
 ) -> Result<Vec<String>, String> {
     let l = &item.locate;
     let mut out = Vec::new();
-    for backend in checks::ax_candidates(tree, &l.role, &l.name) {
-        // A node that left the DOM since the tree was read has no object; it is no candidate.
-        if let Ok(object) = page.resolve(conn, backend) {
-            out.push(object);
+    if let Some(role) = &l.role {
+        for backend in checks::ax_candidates(tree, role, &l.name) {
+            // A node that left the DOM since the tree was read has no object; it is no candidate.
+            if let Ok(object) = page.resolve(conn, backend) {
+                out.push(object);
+            }
         }
     }
-    if let Some(css) = &l.css {
+    if let Some(css) = l.selector() {
         out.extend(page.query(conn, css, l.scope.as_deref())?);
     }
     Ok(out)
+}
+
+/// The accessibility tree when one of `items` is located by role; else no tree is read.
+fn ax_tree_for<'a>(
+    conn: &mut Conn,
+    page: &Page,
+    mut items: impl Iterator<Item = &'a AlwaysVisible>,
+) -> Result<Value, String> {
+    if items.any(|a| a.locate.role.is_some()) {
+        page.ax_tree(conn)
+    } else {
+        Ok(Value::Null)
+    }
 }
 
 fn candidate(
@@ -379,7 +401,7 @@ fn visible_items(
     if applicable.is_empty() {
         return Ok(Value::List(Vec::new()));
     }
-    let tree = page.ax_tree(conn)?;
+    let tree = ax_tree_for(conn, page, applicable.iter().copied())?;
     let mut out = Vec::new();
     for item in applicable {
         let mut candidates = Vec::new();
@@ -506,7 +528,11 @@ fn keyboard_targets(
     config: &Config,
     k: &KeyboardConfig,
 ) -> Result<Vec<(String, Option<String>)>, String> {
-    let tree = page.ax_tree(conn)?;
+    let walked = config
+        .always_visible
+        .iter()
+        .filter(|a| k.must_reach.contains(&a.name));
+    let tree = ax_tree_for(conn, page, walked)?;
     let mut targets: Vec<(String, Option<String>)> = Vec::new();
     for name in &k.must_reach {
         let item = config
@@ -522,7 +548,7 @@ fn keyboard_targets(
                 &object,
                 item.locate.scope.as_deref(),
             )?)?;
-            if checks::first_visible(std::slice::from_ref(&c)).is_some() {
+            if checks::located(&item.locate, std::slice::from_ref(&c)).is_some() {
                 found = Some(object);
                 break;
             }
