@@ -34,3 +34,13 @@ journeys:
       - pages/campaigns.start/sections/target
       - pages/campaigns.start/sections/form
     signal: pages/campaigns.start/sections/target
+  the budget reads as a map and the KPI values as a list:
+    required:
+      - pages/campaigns.climb/sections/summary/fields/budget
+      - pages/campaigns.climb/sections/frontier/columns/kpi_values
+      - pages/campaigns.frontier/sections/frontier/columns/kpi_values
+    signal: pages/campaigns.climb/sections/summary/fields/budget
+  the step table shows its rows by seq, a live step included:
+    required:
+      - pages/campaigns.climb/sections/points
+    signal: pages/campaigns.climb/sections/points

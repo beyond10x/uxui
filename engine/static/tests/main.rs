@@ -22,6 +22,10 @@ const J_SWITCH: &str = "switching one axis of a variant sends the switch";
 const J_OWNER: &str = "the owner sees what gets worse and is offered only the accept that applies";
 const J_START: &str = "starting a campaign from the catalog opens the form on that target";
 const JOURNEYS: [&str; 5] = [J_STOP, J_PROGRESS, J_SWITCH, J_OWNER, J_START];
+/// The two tests `story:studio-stock-generator` added: the first reads values on two pages, the
+/// second plays a live event; neither acts on a control.
+const J_BUDGET: &str = "the budget reads as a map and the KPI values as a list";
+const J_STEPS: &str = "the step table shows its rows by seq, a live step included";
 
 /// The row action `stop` of the campaign list, as the studio document writes it.
 const STOP_ACTION: &str = "          - name: stop\n            does: uxsearch.search.StopCampaign\n            bind: {campaign_id: row.campaign_id}\n            visible: row.state == Running\n            confirm: {title: Stop this campaign}\n            label: Stop\n";
@@ -257,13 +261,13 @@ fn the_studio_gives_one_document_with_a_result_per_output_and_scope_item_each_co
     };
     assert_eq!(
         count(STRUCTURE),
-        6,
-        "five journeys and the variant's always-visible nodes"
+        8,
+        "seven journeys and the variant's always-visible nodes"
     );
-    assert_eq!(count(ACTIONS), 5, "one per journey");
+    assert_eq!(count(ACTIONS), 7, "one per journey");
     assert_eq!(count(NAMES), 10, "one per page");
-    assert_eq!(count(FINDINGS), 16, "one per scope item of a rule");
-    assert_eq!(results(&doc).len(), 37);
+    assert_eq!(count(FINDINGS), 18, "one per scope item of a rule");
+    assert_eq!(results(&doc).len(), 43);
     let e = evidence(&doc);
     assert_eq!(e.get_str("assessor"), Some("ux-static@1"));
     assert_eq!(e.get_str("completion"), Some("completed"));
@@ -276,10 +280,20 @@ fn the_studio_gives_one_document_with_a_result_per_output_and_scope_item_each_co
             other => panic!("value type {other:?}"),
         }
     }
-    for journey in JOURNEYS {
+    for journey in JOURNEYS.iter().chain(&[J_BUDGET, J_STEPS]) {
         assert_eq!(value(find(&doc, STRUCTURE, journey)), Some(0), "{journey}");
     }
     assert_eq!(value(find(&doc, STRUCTURE, "document")), Some(0));
+    assert_eq!(
+        value(find(&doc, ACTIONS, J_BUDGET)),
+        Some(1),
+        "the budget journey opens a second page, the frontier"
+    );
+    assert_eq!(
+        value(find(&doc, ACTIONS, J_STEPS)),
+        Some(0),
+        "the step journey plays an event and acts on nothing"
+    );
     let actions: Vec<_> = JOURNEYS
         .iter()
         .map(|j| value(find(&doc, ACTIONS, j)))
