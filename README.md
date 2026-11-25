@@ -2,8 +2,8 @@
 
 An agent plugin for Claude Code and Codex that improves a web UI in measured rounds.
 
-**Documentation: <https://beyond10x.github.io/uxui/>** (install, the loop, `ux-browser` and
-`ux-static`, the reference). Releases: <https://github.com/beyond10x/uxui/releases>.
+**Documentation: <https://beyond10x.github.io/uxui/>** (install, the loop, the search engine, the
+skill and metric reference). Releases: <https://github.com/beyond10x/uxui/releases>.
 
 The skill `ui-iteration-loop` drives rounds of trial, measure, triage, design decision, build and
 gate on an app panel, a Vue app or a docs website. Every merge passes hard gates: no scroll at the
