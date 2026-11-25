@@ -161,6 +161,7 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `clock` | the page's clock: `{at: <RFC 3339 instant>, advance: true \| false}`; every load starts its `Date` at `at`, running on from there (`advance`, default true) or standing still. Default: none, the host's clock (A fixed page clock) |
 | `chrome_args` | switches Chromium starts with after the defaults, a list: `[--enable-gpu]`; a switch the defaults set with another value is refused. Default: none (Chromium switches) |
 | `chrome` | the Chrome build the run uses: `{build: <n>}`, the Playwright build `chromium-<n>`, or `{version: <major>}`, the newest build whose Chrome has that major version; exactly one key, a whole number above 0. Default: none, the newest build (The Chrome build) |
+| `journeys` | steps named by CSS selector that bring a page into a state, and the states at which page scroll, overflow and the always-visible items are checked: `{name, page, steps, timeout_ms}` each. Default: none (Journeys) |
 
 The `layout` section; the defaults are llm's rule, the one of 0.4.0 and before (The checks):
 
@@ -627,6 +628,114 @@ measured ones 1280 x 800, 1024 x 768 and 768 x 1024 (the docs-site sizes of the 
 table), settle 750 ms, `layout_shift.load` on, the keyboard walk at the gating viewports only, and
 `values.gating` so that the measured viewports are reported per viewport and gate nothing.
 
+### Journeys
+
+The checks above run on a page as it loads. A journey brings a page into a state by steps (open a
+menu, fill a form, open a dialog, open a closed `details`) and checks it there. Every node a step
+names is a CSS selector, never an `ess-ui/1` node path (spec scenario
+`browser-journey-names-nodes-by-selector`).
+
+```yaml
+journeys:
+  - name: open details
+    page: /details/
+    steps:
+      - {click: 'details.more > summary'}
+      - {state: opened}
+  - name: search
+    page: /search/
+    timeout_ms: 2000
+    steps:
+      - {type: '#q', text: a word}
+      - {press: Enter}
+      - {wait: '#results p'}
+      - {scroll: bottom}
+      - {state: results}
+```
+
+| key | value |
+|---|---|
+| `name` | the journey's name, unique, not empty, without `/` or a line break |
+| `page` | the path it starts on, served as one of `pages.paths` is (with `--url`, moved by the URL's path in the same way); it need not be one of the measured pages |
+| `steps` | a list of steps, at least one of them a `state` |
+| `timeout_ms` | how long a `wait` step waits; a whole number above 0; default 5000 |
+
+A step is a map with exactly one of these keys (`text` goes with `type`):
+
+| step | what it does | fails when |
+|---|---|---|
+| `{click: <css>}` | takes the first element the selector matches that is rendered (`checkVisibility()`, a box of some size), scrolls it into view when part of it is outside the viewport, and clicks the left mouse button at the centre of its box (`Input.dispatchMouseEvent`: a move, a press, a release) | the selector does not parse, matches no element, matches no rendered element, or the element at the centre is neither it nor inside it (another element covers it) |
+| `{type: <css>, text: <text>}` | the same element, focused and its content selected; the text is typed in place of it (`Input.insertText`, which sends the page's `beforeinput` and `input` events) | as `click`, or the element does not take focus |
+| `{press: <key>}` | a key on the focused element, as the keyboard walk presses it: `Tab`, `Enter`, `Space` or `Escape` | never |
+| `{wait: <css>}` | until the selector matches a rendered element, watched with a `MutationObserver` on the document (nodes, attributes, text), not polled | the selector does not parse, or no rendered element matched within `timeout_ms` |
+| `{scroll: top \| bottom}` | the page scrolled to its top or its bottom, then `scroll_settle_ms` | never |
+| `{state: <name>}` | fonts loaded, two frames drawn and `settle_ms`; then the checks of the state. A name is unique in its journey, not empty, without `/` | never |
+
+A click or a key that starts a navigation (a link, a submitted form) is followed: when the browser
+reports it before the step ends, the run waits for the new document to stop loading (at most 10 s),
+as the keyboard walk does. A step after it that needs the new page's content should `wait` for it.
+
+**What runs in a state.** Per journey, viewport and mode: a fresh browser context opened in that
+mode, the page loaded and ready as for the checks above (its `load` event or `ready`, then
+`settle_ms`, and the mode shown in `mode_attribute`), then the steps in order. At each `state`, on
+the page as the steps left it (no reload, no scroll): page scroll, overflow (with the `layout` rule),
+and the always-visible items that apply to the journey's `page` at that viewport, each checked once
+where the page stands, at position `state`. The keyboard walk and the layout shifts are not run in a
+state: each needs a fresh load, which would undo the steps.
+
+**A step that fails** ends the journey at that viewport and mode; nothing crashes and the run goes
+on. Each of its states after the step is one `not_run` entry in `evidence.coverage.not_executed`, id
+`journey/<journey>/<state>/<viewport>/<mode>`, reason the step and why: ``step 2, click `#nothing`:
+matches no element``, ``step 1, wait `#never`: no rendered element matched it within 300 ms``. A page
+that does not load (step 0), is not ready in time or does not apply the mode skips every state of the
+run the same way. A state with a skipped run has its results incomplete, cause `incompatible_target`,
+detail ``not run at <viewport>/<mode>: <reason>``; a count above 0 from its other runs is kept as a
+lower bound (`at_least: true`), a count of 0 is left out. The browser failing ends the run (exit 3), as
+for a page.
+
+**Identity.** Each state has its own results: scope `state`, item `<journey>/<state>`
+(`open details/opened`), the numbers `layout.page_scroll@1`, `layout.overflow@1` and
+`always_visible.misses@1` and a `findings` set, after the pages' results in the same order (the
+numbers of every page, then of every state; the sets of every page, then of every state). Each has
+`details.page`, `details.journey` and `details.state`; the numbers have `details.viewports` as a page's
+do. A finding's node path is `journey/<journey>/<state>/<viewport>/<mode>/<what>`, `<what>` as on a
+page (`brand@state` for an always-visible item). A scope of its own keeps a ratchet's measurements of
+pages apart from those of states: a page's results are the same with or without journeys. A
+configuration without `journeys` writes the document it wrote before, byte for byte. `--pages` limits
+the journeys to those whose `page` is in its list.
+
+**Refused** at configuration read, exit 1 before the browser is looked for, the message naming the
+journey and the step (``journey `open details`: step 2: unknown key `hover`; a step is one of click,
+type, press, wait, scroll, state``): an unknown key in a journey or a step; a step with none or two of
+the step keys, or `text` without `type`; a `click`, `type` or `wait` without a selector; `type` without
+`text`; a key that is not one of the four; a `scroll` that is not `top` or `bottom`; a state named twice
+in a journey, or with `/`; a journey without steps or without a `state`; a journey without `name` or
+`page`, named twice or with `/`; a `page` that does not start with `/` (or, with `--url`, has no place
+on the server); a `timeout_ms` that is not a whole number above 0.
+
+**Capture.** `--capture` writes each journey as `journey-<name>.capture.json` (the name in lower case,
+every other character `-`): per viewport, per mode `{mode, mode_applied, states, failed}`, each state
+`{state, overflow, visible}` as a page's unit records them, `failed` `{step, error}` or null.
+
+Measured 2026-11-25, Chrome/149.0.7827.55, `tests/fixtures/checks/journey-site/` with
+`journey.checks.yaml` (400 x 300, one mode; the captures in `journey/`):
+
+| journey and state | steps to it | after load (the page) | in the state |
+|---|---|---|---|
+| `open details/opened` | click `details.more > summary` | overflow 0 (`/details/`: the line 263 px wide in a 200 px card is inside the closed `details`) | overflow 1: `p.full`, right edge 263 past its parent at 200 |
+| `open menu/closed` | none | always visible 0 (`/menu/`: `brand` and `toggle`, top and bottom) | always visible 0 |
+| `open menu/opened` | click `#toggle`, wait `#menu a` | always visible 0 | always visible 1: `brand@state` covered by the opened drawer; `toggle` ok |
+| `search/results` | type `#q`, press `Enter`, wait `#results p`, scroll bottom, press `Escape` | overflow 0 (`/search/`) | overflow 1: the typed word, 372 px, in a 200 px box |
+| `missing button/before`, `/after` | none; click `#nothing` | always visible 0 | 0; `after` not run: ``step 2, click `#nothing`: matches no element`` |
+| `slow wait/never` | wait `#never`, `timeout_ms: 300` | always visible 0 | not run: ``step 1, wait `#never`: no rendered element matched it within 300 ms`` |
+
+Coverage of that run: 29 checks executed (13 of the pages, 16 of the 5 states reached), 3 failed, 2
+`not_run`.
+
+Not covered: a step on an element inside an `iframe` or a shadow root (the selector is matched in the
+document), a hover, a drag or a key other than the four, a wait for a change that touches no node
+(a CSS transition, a canvas), and a state's keyboard walk and layout shift (above).
+
 ### Evidence
 
 As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
@@ -641,8 +750,8 @@ As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
 | `evidence.inputs.pages` | `{value: <the --pages list>}` when the run measured a list and not the whole sitemap |
 | `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, ready, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude, clock}`; `ready` is `load` without a ready condition, else `selector <css>` or `global <name>`. A document of 0.3.0 has no `ready`; its ready was `load`. The layout keys are the rule values the run used, defaults included (`"0"`, `"1"`, the elements joined by `, `, the exclusions joined by `, ` or `""`); a document of 0.4.0 or before has none, its rule was the default. `clock` is `real` without a clock, else `from <instant>` or `frozen at <instant>` in UTC (A fixed page clock); a document of 0.4.0 or before has none, its clock was the host's |
 | `run.local_inputs` | `jobs` (the value used), `capture` and `profile` when given, and `chrome-arg`, the switches added by `chrome_args` and `--chrome-arg` as a JSON list, when there are any: they differ per machine and change no value, so they stay outside the evidence |
-| `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk check (The keyboard walk: the skip link's two when declared, each target, each focus mark, each activation), and one counted layout-shift reading per viewport. A page that did not load is one `not_run` entry, id the page path |
-| `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks`: per walk `viewport`, `mode`, `skip_link_first` and `skip_moves_focus` (only with a skip link), `reached`, `focus_marks` (when a mark was judged) and `activates` (when an activation was judged), each a map of target to true or false. A keyboard finding's reason is `missed`, except a focus mark's (the focused element and what it showed) and an activation's (what failed) |
+| `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk check (The keyboard walk: the skip link's two when declared, each target, each focus mark, each activation), and one counted layout-shift reading per viewport; per state of a journey and its viewport and mode, page scroll, overflow and each applicable item once. A page that did not load is one `not_run` entry, id the page path; a state a run did not reach is one, id `journey/<journey>/<state>/<viewport>/<mode>` (Journeys) |
+| `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks`: per walk `viewport`, `mode`, `skip_link_first` and `skip_moves_focus` (only with a skip link), `reached`, `focus_marks` (when a mark was judged) and `activates` (when an activation was judged), each a map of target to true or false. A keyboard finding's reason is `missed`, except a focus mark's (the focused element and what it showed) and an activation's (what failed). After the pages' numbers and before their sets: per state of a journey three numbers and a set, scope `state`, item `<journey>/<state>` (Journeys) |
 
 A page that is not served, does not apply a mode or does not set its ready condition in time has
 every result incomplete with cause `incompatible_target` and no value; the detail says why, and names
@@ -674,7 +783,7 @@ digests and the same 1,234 values.
 | `inputs` | `config` (path, required), `build` (path) and `url` (text), of which a run gets exactly one (a choice of the usage; the format has no way to say so), `pages` (text: paths separated by commas), and the local inputs `capture`, `profile`, `values` (paths), `jobs` (integer) and `chrome-arg` (a list of text: the added Chromium switches); `values` names a file the run writes and changes no value of the document, as `capture` |
 | `conditions` | `viewports`, `modes`, `ready`, `settle_ms`, `reduced_motion`, `page_slack_px`, `overflow_tolerance_px`, `overflow_elements`, `overflow_exclude`, `clock`: the keys of `conditions.other` |
 | `coverage_unit`, `coverage` | `check`; all six counts |
-| `outputs` | the six numbers (`scope: page`; unit `units`, `blocks`, `items`, `checks`, `score`, `score`; the two layout shifts `sampled`, the others `exact`) and `findings` (`identity_key: [rule, node_path]`, `item_fields: [reason]`) |
+| `outputs` | the six numbers (`scope: page`; page scroll, overflow and always visible also `scope: state`, as is `findings`; unit `units`, `blocks`, `items`, `checks`, `score`, `score`; the two layout shifts `sampled`, the others `exact`) and `findings` (`identity_key: [rule, node_path]`, `item_fields: [reason]`) |
 
 A test (`tests/assessor.rs`) reads it and compares its inputs with the arguments of the `checks` usage
 (required where the usage neither brackets them nor puts them in a choice `( | )`), its conditions with a document's, and its outputs with
@@ -710,8 +819,8 @@ key, so that it is the bytes the script it replaces wrote; `ux-browser-values/1`
 
 | key | value |
 |---|---|
-| `values` | per page scenario (`scenarios`) an object: per number of the document its output without the `@<version>` suffix (`layout.page_scroll`) and its value. A number without a value (incomplete) is left out; a page without a scenario has none. Without `gating`, the document's value: a sum over viewport x mode, a layout shift the largest over the viewports. With `gating`, the same sum or largest over the gating viewports only, from `details.viewports` |
-| `units` | per page, viewport and mode that has a gate failure, `{path, viewport, theme, failures}`; `theme` is the mode. Sorted by path, viewport, mode |
+| `values` | per page scenario (`scenarios`) an object: per number of the document its output without the `@<version>` suffix (`layout.page_scroll`) and its value. A number without a value (incomplete) is left out; a page without a scenario has none. Without `gating`, the document's value: a sum over viewport x mode, a layout shift the largest over the viewports. With `gating`, the same sum or largest over the gating viewports only, from `details.viewports`. A state of a journey counts under the scenario of its page (`details.page`), its numbers named `<output without suffix>#<journey>/<state>` (`layout.overflow#open details/opened`); a state some run did not reach has no value there |
+| `units` | per page, viewport and mode that has a gate failure, `{path, viewport, theme, failures}`; `theme` is the mode. A state's `path` is `<page>#<journey>/<state>`. Sorted by path, viewport, mode |
 | `units[].failures` | `{gate, detail, key, waivedBy}` each, one per key, sorted by key. `waivedBy` is the `id` of the first finding record (in the order of `waivers.files`) whose status is not closed and one of whose `waives` patterns matches the key; else `null` |
 | `incomplete` | `<page> <output>: <cause>` per result that is incomplete, in the document's order |
 | `unmapped` | the pages of the document without a page scenario, sorted, each once |
@@ -724,11 +833,14 @@ A failure is a finding of an output named in `gates`, at a gating viewport. Its 
 |---|---|
 | `layout.page_scroll@1` | `page-scroll` |
 | `layout.overflow@1` | `overflow:<block>` |
-| `always_visible.misses@1` | `<item>:<reason>@<top \| bottom>`; `<item>:missing` for a missing item |
+| `always_visible.misses@1` | `<item>:<reason>@<top \| bottom \| state>`; `<item>:missing` for a missing item |
 | `keyboard.misses@1` | `keyboard:<check>` (The keyboard walk: `keyboard:tab-reaches-<target>`, `keyboard:focus-mark-<target>`, ...); `skip-link-moves-focus` is left out in a unit where `skip-link-first` failed, as it follows from it |
 
 The key: `gate<N>|<page>|<viewport>|<mode>|<detail>`, with every `|` and `,` of the detail a space,
 so that a key splits on `|` and a `waives` line on `,`. llm's `core/findings.ts` writes the same form.
+A finding of a journey's state (node path `journey/<journey>/<state>/<viewport>/<mode>/<what>`) has
+`<page>#<journey>/<state>` in place of `<page>`:
+`gate3|/menu/#open menu/opened|400x300|light|brand:covered@state` (`tests/journey.rs`).
 
 **Acceptance** (`tests/values.rs`): `tests/fixtures/values/` holds llm's fixture document of 0.2.0's
 patch (`page-checks.evidence.json`: the search page with the 4 keyboard misses UXF-005 waives, a planted

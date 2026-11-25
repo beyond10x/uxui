@@ -9,6 +9,7 @@
 //! - [`serve`]: a static server for a built site; [`target`]: a running server (`checks --url`), its
 //!   origin and the URL of each page on it;
 //! - [`render`]: the render record `ux-browser-render/1`;
+//! - [`journey`]: journeys, steps by CSS selector to a page state, and the checks of each state;
 //! - [`pool`]: the worker threads a checks run measures its pages with;
 //! - [`values`]: the values file a consumer's ratchet and hard gates read, from a checks document.
 
@@ -17,6 +18,7 @@ pub mod cdp;
 pub mod checks;
 pub mod chrome;
 pub mod evidence;
+pub mod journey;
 pub mod json;
 pub mod measure;
 pub mod pool;

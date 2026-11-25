@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A search that shows what was typed</title>
+<style>
+html, body { margin: 0; padding: 0; font: 16px sans-serif; }
+form { padding: 10px; }
+#q { box-sizing: border-box; width: 200px; }
+#results { width: 200px; }
+#results p { margin: 0; }
+.spacer { height: 600px; }
+</style>
+</head>
+<body>
+<form id="search"><input id="q" name="q" aria-label="Search"></form>
+<div id="results"></div>
+<div class="spacer"></div>
+<script>
+document.getElementById('search').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const p = document.createElement('p');
+  p.textContent = document.getElementById('q').value;
+  const results = document.getElementById('results');
+  results.replaceChildren(p);
+});
+</script>
+</body>
+</html>

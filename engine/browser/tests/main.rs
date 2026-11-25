@@ -13,6 +13,7 @@ mod chrome;
 mod clock;
 mod codec;
 mod evidence;
+mod journey;
 mod json;
 mod keyboard;
 mod layout;

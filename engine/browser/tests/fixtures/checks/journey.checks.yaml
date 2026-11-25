@@ -1,0 +1,44 @@
+format: ux-browser-checks/1
+base_path: /
+pages: {paths: [/details/, /menu/, /search/]}
+viewports:
+  - {name: 400x300, width: 400, height: 300}
+modes: [light]
+settle_ms: 100
+always_visible:
+  - {name: brand, css: '#brand', path_prefix: /menu/}
+  - {name: toggle, css: '#toggle', path_prefix: /menu/}
+journeys:
+  - name: open details
+    page: /details/
+    steps:
+      - {click: 'details.more > summary'}
+      - {state: opened}
+  - name: open menu
+    page: /menu/
+    steps:
+      - {state: closed}
+      - {click: '#toggle'}
+      - {wait: '#menu a'}
+      - {state: opened}
+  - name: search
+    page: /search/
+    steps:
+      - {type: '#q', text: averyveryverylongwordthatnoboxof200pixelscanhold}
+      - {press: Enter}
+      - {wait: '#results p'}
+      - {scroll: bottom}
+      - {press: Escape}
+      - {state: results}
+  - name: missing button
+    page: /menu/
+    steps:
+      - {state: before}
+      - {click: '#nothing'}
+      - {state: after}
+  - name: slow wait
+    page: /menu/
+    timeout_ms: 300
+    steps:
+      - {wait: '#never'}
+      - {state: never}

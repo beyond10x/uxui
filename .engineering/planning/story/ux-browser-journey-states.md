@@ -2,12 +2,16 @@
 format: aep.planning-md/3
 id: story:ux-browser-journey-states
 kind: story
-status: draft
+status: implemented
 title: Checks at each state of a scripted journey
 relations:
 - decomposes: epic:engine-slices
 - depends_on: story:ux-browser-values-output
-revision: 3
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T11:08:41Z", actor: "human:operator", revision: 4}
+- {from: "proposed", to: "active", at: "2026-11-25T11:08:41Z", actor: "human:operator", revision: 5}
+- {from: "active", to: "implemented", at: "2026-11-25T11:24:13Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1}}}
 ---
 # Story: Checks at each state of a scripted journey
 

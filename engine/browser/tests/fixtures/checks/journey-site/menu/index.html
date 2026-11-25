@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A menu that opens over the brand</title>
+<style>
+html, body { margin: 0; padding: 0; font: 16px sans-serif; }
+header { display: flex; justify-content: space-between; align-items: center; height: 48px; padding: 0 10px; }
+#brand { display: inline-block; padding: 8px; }
+#toggle { width: 80px; height: 32px; }
+#menu { position: fixed; top: 0; left: 0; box-sizing: border-box; width: 240px; height: 100%; padding: 56px 10px 10px; background: #fff; border-right: 1px solid; }
+#menu[hidden] { display: none; }
+</style>
+</head>
+<body>
+<header><a id="brand" href="#top">Brand</a><button type="button" id="toggle" aria-expanded="false" aria-controls="menu">Menu</button></header>
+<nav id="menu" hidden><a href="#one">One</a> <a href="#two">Two</a></nav>
+<script>
+const toggle = document.getElementById('toggle');
+const menu = document.getElementById('menu');
+toggle.addEventListener('click', () => {
+  const open = menu.hidden;
+  menu.hidden = !open;
+  toggle.setAttribute('aria-expanded', String(open));
+});
+</script>
+</body>
+</html>

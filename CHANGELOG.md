@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- ux-browser checks pages in states reached by steps, not only after load: a configuration may
+  declare `journeys`, each a `page`, `steps` named by CSS selector (`click`, `type` with `text`,
+  `press` Tab, Enter, Space or Escape, `wait` for a rendered match within `timeout_ms`, `scroll` top
+  or bottom) and the `state`s at which page scroll, overflow and the always-visible items run on the
+  page as the steps left it, per viewport and mode. Each state has its own results, scope `state`,
+  item `<journey>/<state>`, node paths `journey/<journey>/<state>/<viewport>/<mode>/<what>`; a step
+  that fails ends that run and its later states are `not_run` with the step and the reason. A
+  journey that does not read is refused with exit 1 before the browser, naming the journey and the
+  step. The values file counts a state under its page's scenario as `<metric>#<journey>/<state>`. A
+  fixture page with a long line in a closed `details` counts overflow 0 after load and 1 in the
+  state after a click on its `summary`; an opened menu counts its covered item in its state only. A
+  configuration without journeys writes the document it wrote before. `docs/browser-adapter.md`,
+  Journeys.
 - ux-browser's cover test samples five points of an always-visible item, not its centre only: the
   centre and the four corners, each 1 px inside the box and further in along the corner's diagonal
   by r (1 - 1/sqrt(2)) for its used `border-radius` r, so a point stays inside a rounded corner. The

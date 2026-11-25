@@ -7,6 +7,7 @@
 //! (`--url`), identified by its URL, with no candidate.
 
 use crate::checks::{self, Config, PageResult};
+use crate::journey::{JourneyResult, StateResult};
 use crate::render::FileRef;
 use crate::value::{decimal, map, s};
 use std::path::Path;
@@ -165,11 +166,26 @@ struct Finding {
     reason: String,
 }
 
+/// The scope of a result of a page after load.
+pub const SCOPE_PAGE: &str = "page";
+/// The scope of a result of a journey's state; its item is `<journey>/<state>`.
+pub const SCOPE_STATE: &str = "state";
+
 fn head(output: &str, kind: &str, item: &str, value_type: &str) -> Vec<(&'static str, Value)> {
+    head_at(output, kind, SCOPE_PAGE, item, value_type)
+}
+
+fn head_at(
+    output: &str,
+    kind: &str,
+    scope: &str,
+    item: &str,
+    value_type: &str,
+) -> Vec<(&'static str, Value)> {
     vec![
         ("output", s(output)),
         ("kind", s(kind)),
-        ("scope", s("page")),
+        ("scope", s(scope)),
         ("item", s(item)),
         ("value_type", s(value_type)),
     ]
@@ -293,47 +309,7 @@ fn page(p: &PageResult, coverage: &mut Coverage, load: bool) -> (Vec<Value>, Val
     let mut findings: Vec<Finding> = Vec::new();
     for u in &p.units {
         let at = format!("{}/{}", u.viewport, u.mode);
-        coverage.judged(!u.scrolls());
-        if u.scrolls() {
-            let slack = if u.page_slack_px > 0.0 {
-                format!(", past the slack of {} px", decimal(u.page_slack_px, 2))
-            } else {
-                String::new()
-            };
-            findings.push(Finding {
-                rule: checks::PAGE_SCROLL,
-                node_path: format!("{at}/page"),
-                reason: format!(
-                    "the page scrolls {} px sideways{slack}",
-                    decimal(u.page_scroll_px, 2)
-                ),
-            });
-        }
-        coverage.judged(u.overflow.is_empty());
-        for o in &u.overflow {
-            findings.push(Finding {
-                rule: checks::OVERFLOW,
-                node_path: format!("{at}/{}", o.desc),
-                reason: format!(
-                    "right edge {} past its {} at {}",
-                    o.right, o.against, o.limit
-                ),
-            });
-        }
-        for v in u
-            .visible
-            .iter()
-            .filter(|v| v.status != checks::Status::NotApplicable)
-        {
-            coverage.judged(!v.status.is_miss());
-            if v.status.is_miss() {
-                findings.push(Finding {
-                    rule: checks::ALWAYS_VISIBLE,
-                    node_path: format!("{at}/{}@{}", v.item, v.position),
-                    reason: v.status.word().to_string(),
-                });
-            }
-        }
+        judge_unit(u, &at, coverage, &mut findings);
     }
     let mut walks = Vec::new();
     for k in &p.keyboard {
@@ -476,8 +452,67 @@ fn page(p: &PageResult, coverage: &mut Coverage, load: bool) -> (Vec<Value>, Val
     if load {
         numbers.push(shift_number(checks::LAYOUT_SHIFT_LOAD, item, p, |s| s.load));
     }
+    let mut set = head(FINDINGS, "exact", item, "identity_set");
+    set.push(("key", Value::List(vec![s("rule"), s("node_path")])));
+    set.push(("items", Value::List(finding_items(findings))));
+    (numbers, map(set))
+}
+
+/// Page scroll, overflow and the always-visible items of one viewport and mode, counted into
+/// `coverage`; their failures go to `findings` under the node path prefix `at`.
+fn judge_unit(
+    u: &checks::UnitResult,
+    at: &str,
+    coverage: &mut Coverage,
+    findings: &mut Vec<Finding>,
+) {
+    coverage.judged(!u.scrolls());
+    if u.scrolls() {
+        let slack = if u.page_slack_px > 0.0 {
+            format!(", past the slack of {} px", decimal(u.page_slack_px, 2))
+        } else {
+            String::new()
+        };
+        findings.push(Finding {
+            rule: checks::PAGE_SCROLL,
+            node_path: format!("{at}/page"),
+            reason: format!(
+                "the page scrolls {} px sideways{slack}",
+                decimal(u.page_scroll_px, 2)
+            ),
+        });
+    }
+    coverage.judged(u.overflow.is_empty());
+    for o in &u.overflow {
+        findings.push(Finding {
+            rule: checks::OVERFLOW,
+            node_path: format!("{at}/{}", o.desc),
+            reason: format!(
+                "right edge {} past its {} at {}",
+                o.right, o.against, o.limit
+            ),
+        });
+    }
+    for v in u
+        .visible
+        .iter()
+        .filter(|v| v.status != checks::Status::NotApplicable)
+    {
+        coverage.judged(!v.status.is_miss());
+        if v.status.is_miss() {
+            findings.push(Finding {
+                rule: checks::ALWAYS_VISIBLE,
+                node_path: format!("{at}/{}@{}", v.item, v.position),
+                reason: v.status.word().to_string(),
+            });
+        }
+    }
+}
+
+/// The items of a findings set: each rule and node path once, the first reason kept.
+fn finding_items(findings: Vec<Finding>) -> Vec<Value> {
     let mut seen = std::collections::HashSet::new();
-    let items = findings
+    findings
         .into_iter()
         .filter(|f| seen.insert((f.rule, f.node_path.clone())))
         .map(|f| {
@@ -489,14 +524,90 @@ fn page(p: &PageResult, coverage: &mut Coverage, load: bool) -> (Vec<Value>, Val
                 ("fields", map(vec![("reason", s(&f.reason))])),
             ])
         })
-        .collect();
-    let mut set = head(FINDINGS, "exact", item, "identity_set");
+        .collect()
+}
+
+/// The numbers and the findings of one state of a journey (scope `state`, item
+/// `<journey>/<state>`), and its checks counted into `coverage`. A run that did not reach the state
+/// is one `not_run` entry; the state's results are then incomplete, a count kept as a lower bound
+/// when it is above 0.
+fn state(j: &JourneyResult, st: &StateResult, coverage: &mut Coverage) -> (Vec<Value>, Value) {
+    let item = format!("{}/{}", j.name, st.name);
+    let prefix = format!("journey/{item}");
+    let mut findings: Vec<Finding> = Vec::new();
+    for run in &st.runs {
+        let at = format!("{prefix}/{}/{}", run.viewport, run.mode);
+        match &run.outcome {
+            Ok(u) => judge_unit(u, &at, coverage, &mut findings),
+            Err(reason) => coverage.skipped(&at, "not_run", reason),
+        }
+    }
+    let skipped = st.skipped();
+    let why = (!skipped.is_empty()).then(|| {
+        incomplete(
+            "incompatible_target",
+            &format!("not run at {}", skipped.join("; ")),
+        )
+    });
+    let units: Vec<&checks::UnitResult> = st.units().collect();
+    let names = |extra: Option<(&'static str, Value)>| {
+        let mut d = vec![
+            ("page", s(&j.page)),
+            ("journey", s(&j.name)),
+            ("state", s(&st.name)),
+        ];
+        d.extend(extra);
+        map(d)
+    };
+    let count = |output: &str, of: &dyn Fn(&checks::UnitResult) -> i64| {
+        let total: i64 = units.iter().map(|u| of(u)).sum();
+        let by = per_viewport(units.iter().map(|u| (u.viewport.as_str(), of(u))));
+        let mut e = head_at(output, "exact", SCOPE_STATE, &item, "number");
+        match &why {
+            None => e.push(("value", s(&total.to_string()))),
+            Some(_) if total > 0 => {
+                e.push(("value", s(&total.to_string())));
+                e.push(("at_least", Value::Bool(true)));
+            }
+            Some(_) => {}
+        }
+        e.push(("unit", s(unit_of(output))));
+        if let Some(w) = &why {
+            e.push(("incomplete", w.clone()));
+        }
+        e.push(("details", names(Some(("viewports", by)))));
+        map(e)
+    };
+    let numbers = vec![
+        count(checks::PAGE_SCROLL, &|u| i64::from(u.scrolls())),
+        count(checks::OVERFLOW, &|u| u.overflow.len() as i64),
+        count(checks::ALWAYS_VISIBLE, &|u| {
+            u.visible.iter().filter(|v| v.status.is_miss()).count() as i64
+        }),
+    ];
+    let mut set = head_at(FINDINGS, "exact", SCOPE_STATE, &item, "identity_set");
     set.push(("key", Value::List(vec![s("rule"), s("node_path")])));
-    set.push(("items", Value::List(items)));
+    set.push(("items", Value::List(finding_items(findings))));
+    if let Some(w) = why {
+        set.push(("incomplete", w));
+    }
+    set.push(("details", names(None)));
     (numbers, map(set))
 }
 
+/// The document of a run without journeys.
 pub fn document(header: &Header, config: &Config, pages: &[PageResult]) -> Value {
+    document_with_journeys(header, config, pages, &[])
+}
+
+/// The document of a run: per page its numbers, then per state of each journey its numbers, then
+/// the findings sets in the same order. Without journeys it is the document of [`document`].
+pub fn document_with_journeys(
+    header: &Header,
+    config: &Config,
+    pages: &[PageResult],
+    journeys: &[JourneyResult],
+) -> Value {
     let layout = &config.layout;
     let mut coverage = Coverage::default();
     let mut numbers = Vec::new();
@@ -505,6 +616,13 @@ pub fn document(header: &Header, config: &Config, pages: &[PageResult]) -> Value
         let (n, set) = page(p, &mut coverage, config.layout_shift_load);
         numbers.extend(n);
         sets.push(set);
+    }
+    for j in journeys {
+        for st in &j.states {
+            let (n, set) = state(j, st, &mut coverage);
+            numbers.extend(n);
+            sets.push(set);
+        }
     }
     let c = coverage;
     let mut counts = vec![
