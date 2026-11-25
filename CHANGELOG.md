@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- An always-visible item (and so a keyboard target) may be located without a role: by `css` alone,
+  the first visible match in its `scope` with no accessible name checked, or by the new `current:
+  true`, the element whose `aria-current` is not `false` in its `scope` (with `role` or `css`, only
+  their current candidates). One declaration of a per-page item, the current page's entry of a
+  navigation, replaces one item per page. An item with neither `role` nor `css` nor `current: true`
+  is still refused, and so is `name_is` or `name_contains` without a `role`. The candidate probe
+  records `aria-current` (`current` in a `--capture` file). Items with a role compute as in 0.3.0.
 - `ux-browser checks` waits for a ready condition the page sets, for a page that draws after its
   `load` event: `ready: {selector: <css>}` (an element matches it) or `ready: {global: <name>}`
   (`window.<name>` set to `true`), within `ready_timeout_ms` (default 10000). Ready is then the

@@ -4,6 +4,7 @@
 //! (`fixtures/`, written by `ux-browser checks --capture` and `ux-browser render --capture`). The
 //! command-line cases run the binary only on invocations it refuses before it starts a browser.
 
+mod always_visible;
 mod assessor;
 mod cdp;
 mod checks;
