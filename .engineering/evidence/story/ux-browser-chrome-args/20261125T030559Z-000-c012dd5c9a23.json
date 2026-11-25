@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-25T03:05:59Z",
+  "actor": "human:operator",
+  "artifact": "story:ux-browser-chrome-args",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check:pool exit 0: ux-browser 168 passed (156 before); no --type=gpu-process in any sample with the new default (52 samples with the old); second consumer 55/55 exact results equal, CPU 86.8 -> 56.3 s; llm 3 of 5 runs byte-equal, 2 differ in one layout_shift.after_ready sample (0 vs 0.0004)"
+  }
+}

@@ -1003,6 +1003,8 @@ pub struct Config {
     pub layout: LayoutRule,
     /// The page clock (`clock`); `None`: the host's.
     pub clock: Option<Clock>,
+    /// Switches Chromium starts with after the defaults (`chrome_args`, `chrome::switches`).
+    pub chrome_args: Vec<String>,
 }
 
 /// The methods a page may send to the measured server unless the configuration names more: reads,
@@ -1054,6 +1056,7 @@ const TOP_KEYS: &[&str] = &[
     "request_methods",
     "layout",
     "clock",
+    "chrome_args",
 ];
 
 /// The checks that run only when `opt_in` names them.
@@ -1323,6 +1326,8 @@ pub fn config(text: &str) -> Result<Config, String> {
         Some(section) => Some(crate::values::config(section, &names)?),
     };
     let (ready, ready_timeout_ms) = ready_of(&v)?;
+    let chrome_args = get_strs(&v, "chrome_args")?;
+    crate::chrome::switches(&chrome_args).map_err(|e| format!("chrome_args: {e}"))?;
     let reduced_motion = match v.get("reduced_motion") {
         None => true,
         Some(Value::Bool(b)) => *b,
@@ -1347,6 +1352,7 @@ pub fn config(text: &str) -> Result<Config, String> {
         request_methods: request_methods(&v)?,
         layout: layout_rule(&v)?,
         clock: clock_of(&v)?,
+        chrome_args,
     })
 }
 

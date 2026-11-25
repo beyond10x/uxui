@@ -17,6 +17,7 @@ const USAGE: &str = "usage:
                     [--root <repository root, default .>] [--out <file>] [--class <target class, default local>]
                     [--pages <path,path,...>] [--capture <dir>] [--profile <dir>]
                     [--jobs <pages measured at a time, default: the CPUs, at most 4>] [--values <values file>]
+                    [--chrome-arg <a Chromium switch, or a JSON list of them; repeatable>]
   ux-browser values --config <ux-browser-checks/1 file with a values section> --evidence <ratchet-evidence/1 file> --out <values file>
                     [--root <repository root, default .>]";
 
@@ -50,7 +51,10 @@ fn fail(code: u8, message: &str) -> ExitCode {
     ExitCode::from(code)
 }
 
-/// `--name value` pairs; each name at most once and only from `known`.
+/// The arguments that may be given more than once.
+const REPEATABLE: &[&str] = &["chrome-arg"];
+
+/// `--name value` pairs; only names from `known`, each at most once unless it is [`REPEATABLE`].
 fn options(args: &[String], known: &[&str]) -> Result<Vec<(String, String)>, String> {
     let mut out: Vec<(String, String)> = Vec::new();
     let mut it = args.iter();
@@ -58,7 +62,7 @@ fn options(args: &[String], known: &[&str]) -> Result<Vec<(String, String)>, Str
         let Some(name) = arg.strip_prefix("--").filter(|n| known.contains(n)) else {
             return Err(format!("unknown argument `{arg}`"));
         };
-        if out.iter().any(|(n, _)| n == name) {
+        if !REPEATABLE.contains(&name) && out.iter().any(|(n, _)| n == name) {
             return Err(format!("`{arg}` is given twice"));
         }
         let value = it.next().ok_or_else(|| format!("`{arg}` has no value"))?;
@@ -213,11 +217,22 @@ fn checks_command(args: &[String]) -> ExitCode {
         "profile",
         "jobs",
         "values",
+        "chrome-arg",
     ];
     let opts = match options(args, &known) {
         Ok(o) => o,
         Err(e) => return wrong(&e),
     };
+    let mut flag_switches = Vec::new();
+    for (_, value) in opts.iter().filter(|(n, _)| n == "chrome-arg") {
+        match ux_browser::chrome::flag_switches(value) {
+            Ok(s) => flag_switches.extend(s),
+            Err(e) => return wrong(&e),
+        }
+    }
+    if let Err(e) = ux_browser::chrome::switches(&flag_switches) {
+        return wrong(&format!("`--chrome-arg`: {e}"));
+    }
     let jobs = match get(&opts, "jobs") {
         None => ux_browser::pool::default_jobs(ux_browser::pool::cpus()),
         Some(n) => match n.parse::<usize>() {
@@ -328,7 +343,14 @@ fn checks_command(args: &[String]) -> ExitCode {
             let _ = std::fs::write(file, uxui_doc::json::write(page) + "\n");
         }
     };
-    let mut browser = match Browser::start(&profile) {
+    // The configuration's switches, then the flag's; each list was checked alone, so together too.
+    let added: Vec<String> = config
+        .chrome_args
+        .iter()
+        .chain(&flag_switches)
+        .cloned()
+        .collect();
+    let mut browser = match Browser::start(&profile, &added) {
         Ok(b) => b,
         Err(e) => return fail(NOT_WRITTEN, &e),
     };
@@ -383,6 +405,9 @@ fn checks_command(args: &[String]) -> ExitCode {
         if let Some(value) = get(&opts, name) {
             local_inputs.push((name, value.to_string()));
         }
+    }
+    if let Some(switches) = ux_browser::chrome::local_input(&added) {
+        local_inputs.push(("chrome-arg", switches));
     }
     let header = Header {
         project,

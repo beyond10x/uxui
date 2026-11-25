@@ -22,9 +22,10 @@ pub struct Browser {
 }
 
 impl Browser {
-    pub fn start(profile: &Path) -> Result<Browser, String> {
+    /// Starts Chromium with the default switches and `added` after them (`chrome::switches`).
+    pub fn start(profile: &Path, added: &[String]) -> Result<Browser, String> {
         let binary = crate::chrome::find()?;
-        let process = Process::start(&binary, profile)?;
+        let process = Process::start(&binary, profile, added)?;
         let socket = WebSocket::connect(&process.ws_url, Duration::from_secs(10))?;
         let mut conn = Connection::new(socket);
         let version = conn.call(None, "Browser.getVersion", map(vec![]))?;
