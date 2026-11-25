@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-25T05:43:33Z",
+  "actor": "human:operator",
+  "artifact": "story:forge-gate-parity",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "gate.test.sh 31 ok, release-ready.test.sh 22 ok, check-workflows.sh 0; gate on the #34 tree plus this change: 212 cargo tests passed with no browser; live: release:ready on 5595daf refused with Gate: absent"
+  }
+}

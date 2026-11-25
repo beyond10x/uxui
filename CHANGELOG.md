@@ -11,6 +11,15 @@
   and `ux-static` in that directory answer `--version` with exactly the release; the release
   workflow's package job runs it on the binaries it builds. Without the directory it checks the
   manifests, crates and changelog as before.
+- The forge runs the release gate on every pull request and every push to `main`: the new workflow
+  `Gate` (`.github/workflows/ci.yml`) and the release workflow's Gate job both run `tools/gate.sh`
+  on `ubuntu-latest` with the toolchain of `rust-toolchain.toml`, and `task check:pool` runs the
+  same script. It hides the browser, as the runner has none: 0.8.0's two `values::` tests that
+  failed only after the tag (run 45545202319, 183 passed, 2 failed) fail the same way locally. A
+  pull request of planning and prose files only (`tools/prose-only.sh`) ends `Gate` green without
+  building. `task release:ready -- <sha>` (`tools/release-ready.sh`) refuses a release tag, naming
+  the run, while `Gate`, `Documentation validation` or `Documentation site` on that commit is
+  absent, pending or not `success`; the release procedure runs it before the tag.
 
 ## 0.8.1 — 2026-11-25
 

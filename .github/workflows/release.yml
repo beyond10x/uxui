@@ -16,15 +16,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      - name: The toolchain of rust-toolchain.toml
+        id: toolchain
+        run: |
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
+          test -n "$channel"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249
         with:
-          toolchain: 1.99.1
+          toolchain: ${{ steps.toolchain.outputs.channel }}
       - name: Run the checks that need no local login
-        run: |
-          set -euo pipefail
-          sh tools/check-plugin.sh
-          sh tools/docs.sh check
-          cargo test --workspace --locked
+        run: sh tools/gate.sh
       - name: The tag, the plugin, the crates and the changelog agree
         run: |
           set -euo pipefail
@@ -39,9 +41,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      - name: The toolchain of rust-toolchain.toml
+        id: toolchain
+        run: |
+          channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
+          test -n "$channel"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249
         with:
-          toolchain: 1.99.1
+          toolchain: ${{ steps.toolchain.outputs.channel }}
       - name: Build, smoke-test and package the assessors
         shell: bash
         run: |
