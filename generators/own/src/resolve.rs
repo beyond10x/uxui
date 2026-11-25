@@ -7,7 +7,13 @@
 use crate::yaml::Value;
 
 pub fn obj(entries: Vec<(&str, Value)>) -> Value {
-    Value::Map(entries.into_iter().filter(|(_, v)| !v.is_null()).map(|(k, v)| (k.to_string(), v)).collect())
+    Value::Map(
+        entries
+            .into_iter()
+            .filter(|(_, v)| !v.is_null())
+            .map(|(k, v)| (k.to_string(), v))
+            .collect(),
+    )
 }
 
 pub fn s(text: &str) -> Value {
@@ -26,18 +32,33 @@ fn cloned(value: Option<&Value>) -> Value {
 /// The built-in page kinds of `ess-ui/1` the generator supports: what a page inherits.
 fn page_kind(kind: &str) -> Result<Value, String> {
     let sections = |name: &str, component: &str| {
-        Value::List(vec![obj(vec![("name", s(name)), ("component", s(component))])])
+        Value::List(vec![obj(vec![
+            ("name", s(name)),
+            ("component", s(component)),
+        ])])
     };
     match kind {
         "detail_page" => Ok(obj(vec![("sections", sections("summary", "record"))])),
         "list_page" => Ok(obj(vec![
-            ("sections", Value::List(vec![
-                obj(vec![("name", s("filters")), ("component", s("filter_bar"))]),
-                obj(vec![("name", s("list")), ("component", s("collection"))]),
-            ])),
-            ("header", obj(vec![("title", s("from_page")), ("total", s("list")), ("filters", s("filters"))])),
+            (
+                "sections",
+                Value::List(vec![
+                    obj(vec![("name", s("filters")), ("component", s("filter_bar"))]),
+                    obj(vec![("name", s("list")), ("component", s("collection"))]),
+                ]),
+            ),
+            (
+                "header",
+                obj(vec![
+                    ("title", s("from_page")),
+                    ("total", s("list")),
+                    ("filters", s("filters")),
+                ]),
+            ),
         ])),
-        other => Err(format!("page kind `{other}` is not supported by this generator")),
+        other => Err(format!(
+            "page kind `{other}` is not supported by this generator"
+        )),
     }
 }
 
@@ -90,10 +111,16 @@ fn merge_named(base: &[Value], over: &[Value]) -> Vec<Value> {
 fn field(doc: &Value, written: &Value, parent: &str, container: &str) -> Value {
     let (field, rest) = match written {
         Value::Str(name) => (name.clone(), Value::Map(vec![])),
-        other => (other.get_str("field").unwrap_or("").to_string(), other.clone()),
+        other => (
+            other.get_str("field").unwrap_or("").to_string(),
+            other.clone(),
+        ),
     };
     let name = rest.get_str("name").unwrap_or(&field).to_string();
-    let label = rest.get_str("label").map(str::to_string).unwrap_or_else(|| name.replace('_', " "));
+    let label = rest
+        .get_str("label")
+        .map(str::to_string)
+        .unwrap_or_else(|| name.replace('_', " "));
     obj(vec![
         ("field", s(&field)),
         ("name", s(&name)),
@@ -118,19 +145,31 @@ fn action(written: &Value, parent: &str, container: &str) -> Value {
     let name = action_name(written);
     let path = format!("{parent}/{container}/{name}");
     let confirm = written.get("confirm").map(|c| match c {
-        Value::Str(overlay) => obj(vec![("overlay", s(overlay)), ("path", s(&format!("{path}/confirm/overlay")))]),
+        Value::Str(overlay) => obj(vec![
+            ("overlay", s(overlay)),
+            ("path", s(&format!("{path}/confirm/overlay"))),
+        ]),
         record => obj(vec![
             ("kind", s("dialog")),
             ("title", cloned(record.get("title"))),
             ("body", cloned(record.get("body"))),
             // The schema's default is `Delete`; the stock renderers show `Confirm`.
-            ("confirm_label", s(record.get_str("confirm_label").unwrap_or("Confirm"))),
+            (
+                "confirm_label",
+                s(record.get_str("confirm_label").unwrap_or("Confirm")),
+            ),
             ("path", s(&format!("{path}/confirm/overlay"))),
         ]),
     });
     obj(vec![
         ("name", s(&name)),
-        ("label", s(&written.get_str("label").map(str::to_string).unwrap_or_else(|| name.replace('_', " ")))),
+        (
+            "label",
+            s(&written
+                .get_str("label")
+                .map(str::to_string)
+                .unwrap_or_else(|| name.replace('_', " "))),
+        ),
         ("does", cloned(written.get("does"))),
         ("bind", cloned(written.get("bind"))),
         ("opens", cloned(written.get("opens"))),
@@ -143,7 +182,9 @@ fn action(written: &Value, parent: &str, container: &str) -> Value {
 
 /// A duration (`500ms`, `30s`, `1m`, `1h`) in milliseconds.
 pub fn millis(text: &str) -> Option<i64> {
-    let (number, unit) = text.find(|c: char| !c.is_ascii_digit()).map(|at| text.split_at(at))?;
+    let (number, unit) = text
+        .find(|c: char| !c.is_ascii_digit())
+        .map(|at| text.split_at(at))?;
     let n: i64 = number.parse().ok()?;
     Some(match unit {
         "ms" => n,
@@ -159,8 +200,15 @@ pub fn millis(text: &str) -> Option<i64> {
 /// `tone_by: <name>` resolves to the document's tone map of that name.
 fn tone_map(doc: &Value, tone_by: Option<&Value>) -> Value {
     match tone_by {
-        Some(Value::Str(name)) => doc.get("tone_maps").and_then(|m| m.get(name)).cloned().unwrap_or(Value::Null),
-        Some(Value::Map(_)) => tone_by.and_then(|t| t.get("map")).cloned().unwrap_or(Value::Null),
+        Some(Value::Str(name)) => doc
+            .get("tone_maps")
+            .and_then(|m| m.get(name))
+            .cloned()
+            .unwrap_or(Value::Null),
+        Some(Value::Map(_)) => tone_by
+            .and_then(|t| t.get("map"))
+            .cloned()
+            .unwrap_or(Value::Null),
         _ => Value::Null,
     }
 }
@@ -169,16 +217,27 @@ fn tone_map(doc: &Value, tone_by: Option<&Value>) -> Value {
 // PART: live and channel semantics
 /// A section's `live`: `match` defaults to the read's `key`, else `id`; durations in ms.
 fn live(written: Option<&Value>, key: &str) -> Value {
-    let Some(live) = written else { return Value::Null };
+    let Some(live) = written else {
+        return Value::Null;
+    };
     obj(vec![
         ("channel", cloned(live.get("channel"))),
         ("on", cloned(live.get("on"))),
         ("effect", cloned(live.get("effect"))),
         ("match", s(live.get_str("match").unwrap_or(key))),
         ("only_if", cloned(live.get("only_if"))),
-        ("coalesce", live.get_str("coalesce").and_then(millis).map(Value::Int).unwrap_or(Value::Null)),
+        (
+            "coalesce",
+            live.get_str("coalesce")
+                .and_then(millis)
+                .map(Value::Int)
+                .unwrap_or(Value::Null),
+        ),
         ("max_rows", cloned(live.get("max_rows"))),
-        ("when_paged_away", s(live.get_str("when_paged_away").unwrap_or("count_new"))),
+        (
+            "when_paged_away",
+            s(live.get_str("when_paged_away").unwrap_or("count_new")),
+        ),
     ])
 }
 
@@ -190,9 +249,18 @@ pub fn channels(doc: &Value) -> Value {
             .unwrap_or(&[])
             .iter()
             .map(|(name, ch)| {
-                let events = ch.get("carries").and_then(|c| c.get("events")).cloned().unwrap_or(Value::List(vec![]));
+                let events = ch
+                    .get("carries")
+                    .and_then(|c| c.get("events"))
+                    .cloned()
+                    .unwrap_or(Value::List(vec![]));
                 let backoff = ch.get("reconnect").and_then(|r| r.get("backoff"));
-                let ms = |v: Option<&Value>| v.and_then(Value::str).and_then(millis).map(Value::Int).unwrap_or(Value::Null);
+                let ms = |v: Option<&Value>| {
+                    v.and_then(Value::str)
+                        .and_then(millis)
+                        .map(Value::Int)
+                        .unwrap_or(Value::Null)
+                };
                 (
                     name.clone(),
                     obj(vec![
@@ -213,15 +281,23 @@ pub fn channels(doc: &Value) -> Value {
 // PART: page resolution and node paths
 /// One page, resolved.
 pub fn page(doc: &Value, name: &str) -> Result<Value, String> {
-    let written = doc.get("pages").and_then(|p| p.get(name)).ok_or(format!("no page `{name}`"))?;
-    let kind = written.get_str("kind").ok_or(format!("page `{name}` has no kind"))?;
+    let written = doc
+        .get("pages")
+        .and_then(|p| p.get(name))
+        .ok_or(format!("no page `{name}`"))?;
+    let kind = written
+        .get_str("kind")
+        .ok_or(format!("page `{name}` has no kind"))?;
     let inherited = page_kind(kind)?;
     let path = format!("pages/{name}");
     let sections_written = merge_named(
         inherited.get("sections").map(Value::list).unwrap_or(&[]),
         written.get("sections").map(Value::list).unwrap_or(&[]),
     );
-    let header = merge(&cloned(inherited.get("header")), &cloned(written.get("header")));
+    let header = merge(
+        &cloned(inherited.get("header")),
+        &cloned(written.get("header")),
+    );
     let title = written.get_str("title").unwrap_or(name);
     let header_path = format!("{path}/header");
     let header_title = match header.get_str("title") {
@@ -229,14 +305,32 @@ pub fn page(doc: &Value, name: &str) -> Result<Value, String> {
         Some(other) => other.to_string(),
     };
     let actions = header.get("actions").map(Value::list).unwrap_or(&[]);
-    let switch_to: Vec<Value> = std::iter::once(obj(vec![("page", s(name)), ("label", s(title)), ("current", Value::Bool(true))]))
-        .chain(written.get("switch_to").map(Value::list).unwrap_or(&[]).iter().filter_map(Value::str).map(|to| {
-            let label = doc.get("pages").and_then(|p| p.get(to)).and_then(|p| p.get_str("title")).unwrap_or(to);
-            obj(vec![("page", s(to)), ("label", s(label))])
-        }))
-        .collect();
-    let sections: Vec<Value> =
-        sections_written.iter().map(|sec| section(doc, sec, &path)).collect::<Result<_, _>>()?;
+    let switch_to: Vec<Value> = std::iter::once(obj(vec![
+        ("page", s(name)),
+        ("label", s(title)),
+        ("current", Value::Bool(true)),
+    ]))
+    .chain(
+        written
+            .get("switch_to")
+            .map(Value::list)
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(Value::str)
+            .map(|to| {
+                let label = doc
+                    .get("pages")
+                    .and_then(|p| p.get(to))
+                    .and_then(|p| p.get_str("title"))
+                    .unwrap_or(to);
+                obj(vec![("page", s(to)), ("label", s(label))])
+            }),
+    )
+    .collect();
+    let sections: Vec<Value> = sections_written
+        .iter()
+        .map(|sec| section(doc, sec, &path))
+        .collect::<Result<_, _>>()?;
     let layout = match written.get("layout").and_then(|l| l.get("columns")) {
         Some(columns) => Value::List(
             columns
@@ -257,20 +351,42 @@ pub fn page(doc: &Value, name: &str) -> Result<Value, String> {
         None => Value::List(vec![obj(vec![
             ("name", s("stack")),
             ("width", s("wide")),
-            ("sections", Value::List(sections.iter().map(|x| cloned(x.get("name"))).collect())),
+            (
+                "sections",
+                Value::List(sections.iter().map(|x| cloned(x.get("name"))).collect()),
+            ),
         ])]),
     };
     Ok(obj(vec![
         ("name", s(name)),
         ("path", s(&path)),
         ("title", s(title)),
-        ("params", Value::List(written.get("params").map(Value::entries).unwrap_or(&[]).iter().map(|(k, _)| s(k)).collect())),
+        (
+            "params",
+            Value::List(
+                written
+                    .get("params")
+                    .map(Value::entries)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|(k, _)| s(k))
+                    .collect(),
+            ),
+        ),
         (
             "header",
             obj(vec![
                 ("title", s(&header_title)),
                 ("live", cloned(header.get("live"))),
-                ("actions", Value::List(actions.iter().map(|a| action(a, &header_path, "actions")).collect())),
+                (
+                    "actions",
+                    Value::List(
+                        actions
+                            .iter()
+                            .map(|a| action(a, &header_path, "actions"))
+                            .collect(),
+                    ),
+                ),
                 ("switch", Value::List(switch_to)),
                 ("path", s(&header_path)),
             ]),
@@ -283,34 +399,58 @@ pub fn page(doc: &Value, name: &str) -> Result<Value, String> {
 fn section(doc: &Value, written: &Value, page_path: &str) -> Result<Value, String> {
     let name = written.get_str("name").ok_or("a section without a name")?;
     let path = format!("{page_path}/sections/{name}");
-    let component = written.get_str("component").ok_or(format!("section `{name}` has no component"))?;
+    let component = written
+        .get_str("component")
+        .ok_or(format!("section `{name}` has no component"))?;
     let reads = match written.get("reads") {
         Some(Value::Str(view)) => obj(vec![("view", s(view))]),
         Some(r) => r.clone(),
         None => Value::Null,
     };
-    let key = reads.get_str("key").or_else(|| written.get("live").and_then(|l| l.get_str("match"))).unwrap_or("id").to_string();
+    let key = reads
+        .get_str("key")
+        .or_else(|| written.get("live").and_then(|l| l.get_str("match")))
+        .unwrap_or("id")
+        .to_string();
     let reads = if reads.is_null() {
         reads
     } else {
         obj(vec![
             ("view", cloned(reads.get("view"))),
             ("key", s(&key)),
-            ("params", reads.get("params").cloned().unwrap_or(Value::Map(vec![]))),
+            (
+                "params",
+                reads.get("params").cloned().unwrap_or(Value::Map(vec![])),
+            ),
             ("paging", s(reads.get_str("paging").unwrap_or("none"))),
             ("filter", cloned(reads.get("filter"))),
         ])
     };
     let fields = |key: &str, container: &str| {
-        Value::List(written.get(key).map(Value::list).unwrap_or(&[]).iter().map(|f| field(doc, f, &path, container)).collect())
+        Value::List(
+            written
+                .get(key)
+                .map(Value::list)
+                .unwrap_or(&[])
+                .iter()
+                .map(|f| field(doc, f, &path, container))
+                .collect(),
+        )
     };
     let fields_value = match component {
         "record" => fields("fields", "fields"),
         "collection" => fields("columns", "columns"),
         "chart" => Value::Null,
-        other => return Err(format!("section `{name}`: component `{other}` is not supported by this generator")),
+        other => {
+            return Err(format!(
+                "section `{name}`: component `{other}` is not supported by this generator"
+            ));
+        }
     };
-    let empty = written.get("states").and_then(|st| st.get("empty")).and_then(|e| e.get_str("message"));
+    let empty = written
+        .get("states")
+        .and_then(|st| st.get("empty"))
+        .and_then(|e| e.get_str("message"));
     Ok(obj(vec![
         ("name", s(name)),
         ("path", s(&path)),
@@ -323,7 +463,18 @@ fn section(doc: &Value, written: &Value, page_path: &str) -> Result<Value, Strin
         ("x", cloned(written.get("x"))),
         ("series", cloned(written.get("series"))),
         ("sort", cloned(written.get("sort"))),
-        ("row_actions", Value::List(written.get("row_actions").map(Value::list).unwrap_or(&[]).iter().map(|a| action(a, &path, "row_actions")).collect())),
+        (
+            "row_actions",
+            Value::List(
+                written
+                    .get("row_actions")
+                    .map(Value::list)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|a| action(a, &path, "row_actions"))
+                    .collect(),
+            ),
+        ),
         // Absent, a section with no rows says what the stock renderers say.
         ("empty", s(empty.unwrap_or("Nothing to show yet"))),
         ("degrades", cloned(written.get("degrades"))),

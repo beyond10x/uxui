@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-25T10:46:53Z",
+  "actor": "human:operator",
+  "artifact": "story:workspace-lint-clean",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "tools/gate.sh through slot task check:pool on the build node, exit 0: cargo fmt --all --check 0, cargo clippy --workspace --all-targets --locked -- -D warnings 0, tools/gate.test.sh (planted format diff in a workspace copy fails the format check; release gate without clippy and rustfmt fails check-workflows) 0, cargo test 189 23 7 ; on main 2432d00 cargo fmt --all --check exited 1"
+  }
+}

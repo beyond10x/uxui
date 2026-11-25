@@ -1,0 +1,13 @@
+format: ux-browser-checks/1
+base_path: /
+pages: {paths: [/corner/, /centre/, /free/, /pill/, /dialog/]}
+viewports:
+  - {name: 400x300, width: 400, height: 300}
+modes: [light]
+settle_ms: 100
+always_visible:
+  - {name: corner, css: '#item', path_prefix: /corner/}
+  - {name: centre, css: '#item', path_prefix: /centre/}
+  - {name: free, css: '#item', path_prefix: /free/}
+  - {name: pill, css: '#item', path_prefix: /pill/}
+  - {name: dialog, css: '#item', path_prefix: /dialog/}

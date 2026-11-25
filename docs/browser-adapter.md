@@ -475,7 +475,7 @@ page that is not served.
 |---|---|---|
 | `layout.page_scroll@1` (units) | sum over viewport x mode | 1 when `scrollingElement.scrollWidth - documentElement.clientWidth > layout.page_slack_px` (default 0) |
 | `layout.overflow@1` (blocks) | sum | every non-blank text run (Range box) and every element of `layout.overflow.elements` (default `img, svg, video, canvas, iframe, input, select, textarea, table, pre`) that the page draws (Content the page does not draw): overflow when its right edge passes the viewport or its nearest non-inline block by more than `layout.overflow.tolerance_px` (default 1); none under `position: fixed`, `overflow-x: auto \| scroll` or a clipping box, none inside a match of `layout.overflow.exclude` (default none); at most one per block |
-| `always_visible.misses@1` (items) | sum over viewport x mode x top and bottom | the first visible candidate in scope (role and name from the accessibility tree first, then CSS; with `current`, only a current one; Configuration): missing, clipped (not wholly inside the viewport +-0.5 px) or covered (`elementFromPoint` of its centre is not it or inside it); an item outside its `min_width`, `max_width` or `path_prefix` is not checked |
+| `always_visible.misses@1` (items) | sum over viewport x mode x top and bottom | the first visible candidate in scope (role and name from the accessibility tree first, then CSS; with `current`, only a current one; Configuration): missing, clipped (not wholly inside the viewport +-0.5 px) or covered (`elementFromPoint` of one of five points of its box, its centre and its four corners, is not it or inside it; The cover test); an item outside its `min_width`, `max_width` or `path_prefix` is not checked |
 | `keyboard.misses@1` (checks) | sum over the walks | with a skip link declared: on a fresh load the first Tab is on the skip link; Enter (or one more Tab) puts focus into its target; a skip link that is not first misses both of its checks. On another fresh load up to `max_tabs` Tabs reach each target; with `focus_mark`, each reached target shows a focus mark; each reached target of `activates` acts on Enter or Space (The keyboard walk) |
 | `layout_shift.after_ready@1` (score) | largest over the viewports | `layout-shift` entries without recent input after the ready time (above), summed, rounded to 4 places; read once per viewport, before the first mode switch |
 | `layout_shift.load@1` (score), opt-in | largest over the viewports | every `layout-shift` entry without recent input since the navigation started (the observer is buffered and set before the page's own scripts), summed, rounded to 4 places; read in the same reading as after ready, after the settle time, so it holds the shifts after ready too. llm's round mode (`readShift().load` of its `ux/core/layout.ts` before 0.3.0): it varies with how fast fonts arrive, so llm reports it and does not ratchet it |
@@ -517,6 +517,53 @@ llm's documentation build (`examples/llm.checks.yaml`, the same Chrome): all 162
 byte those of `examples/llm-docs.evidence.json`. Over its 27 page captures the probe measures 1,016
 items fewer than 0.6.0's, every one of them a zero box (under `display: none`, never overflow), and
 the same 46,064 items at least 1 px wide.
+
+### The cover test
+
+An always-visible item is covered when `document.elementFromPoint` at one of five points of its box
+(`getBoundingClientRect`, viewport coordinates) is neither the item nor inside it. The probe
+(`src/probes/candidate.js`) records `hit` (true when none is) and `missed`, the names of the points
+that are, in this order:
+
+| point | x | y |
+|---|---|---|
+| `centre` | left + width / 2 | top + height / 2 |
+| `top-left` | left + dx | top + dy |
+| `top-right` | right - dx | top + dy |
+| `bottom-right` | right - dx | bottom - dy |
+| `bottom-left` | left + dx | bottom - dy |
+
+dx and dy are each corner's own: 1 + rx (1 - 1/sqrt(2)) and 1 + ry (1 - 1/sqrt(2)), at most width / 2
+and height / 2, where rx and ry are that corner's used `border-radius` along x and y. The used radii
+are the computed ones (a length, or a percentage of the box's width or height), all scaled by one
+factor when two radii on one side add up to more than that side, as CSS draws them: a pill of 160 x 40
+with `border-radius: 999px` has radii of 20. Without a radius a corner point lies 1 px inside the box.
+Hit testing follows `border-radius`, so a point 1 px inside a rounded corner lies outside the element;
+r (1 - 1/sqrt(2)) is where the corner's curve crosses its diagonal, and the 1 px puts the point inside
+it. The bound keeps a corner point of a box a few pixels wide or high from passing the centre.
+
+A capture of 0.9.1 and before has `hit` of the centre only and no `missed`; it reads as before.
+
+Measured 2026-11-25, Chrome/149.0.7827.55, `tests/fixtures/checks/cover-site/` with
+`cover.checks.yaml` (400 x 300, one mode; one item `button#item` per page, declared only on its page;
+the pages do not scroll, so an item counts at the top and at the bottom: 2 per covered item; the
+captures in `cover/`, 0.9.1's in `cover-0.9.1/`):
+
+| page | 0.9.1 | now | `missed` |
+|---|---|---|---|
+| `/corner/`: the item (160 x 60 at 20,10) under a sticky bar from x 170, 30 px high, at its top right corner only | 0 | 2 | `top-right` |
+| `/centre/`: a 40 x 20 badge over the item's centre, its corners free | 2 | 2 | `centre` |
+| `/free/`: the item alone | 0 | 0 | none |
+| `/pill/`: a 160 x 40 pill (`border-radius: 999px`) alone | 0 | 0 | none |
+| `/dialog/`: an open `dialog` from x 110 over the item's right side, short of its centre | 0 | 2 | `top-right`, `bottom-right` |
+
+The same probe with every corner 1 px inside the box and no radius term gave the pill 2, all four
+corners missed: each lies outside the curve.
+
+Not covered: an inline item that wraps over two lines (a link, for one) has one bounding box over
+both lines, and a corner of it can lie on space the item does not draw; such an item is reported
+covered. Sampling each of its line boxes (`getClientRects`) would avoid it; no consumer has asked.
+`missed` stays in the capture; a finding names `covered` only.
 
 ### The keyboard walk
 

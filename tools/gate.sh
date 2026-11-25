@@ -33,6 +33,8 @@ step sh tools/docs.sh check
 for test in check-plugin release docs gate release-ready; do
 	step timeout 60 sh "tools/$test.test.sh"
 done
+step cargo fmt --all --check
+step cargo clippy --workspace --all-targets --locked -- -D warnings
 step cargo test --workspace --locked --no-run
 step timeout 120 cargo test --workspace --locked --no-fail-fast
 step timeout 120 sh tools/repeat-tests.sh 4
