@@ -142,7 +142,7 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `ready` | the condition the page sets once its content is drawn, for a page that draws after its `load` event (from fetched data, say): `{selector: <css>}`, ready when an element matches it (`{selector: 'html[data-ready]'}` for an attribute the page sets, `{selector: 'main:has(.panel):not(:has([aria-busy=true]))'}` for every panel loaded), or `{global: <name>}`, ready when the page sets `window.<name>` to `true` (`window.name = true` or a top-level `var`; a `let` or `const` is no property of `window`). Default: none, ready at `load` as before (The checks) |
 | `ready_timeout_ms` | how long after `load` the page may take to set `ready`; default 10000; only with `ready`. A page that does not set it in time is incomplete |
 | `settle_ms`, `scroll_settle_ms`, `mode_settle_ms` | after ready (250), after the scroll to the bottom (200), after a mode switch (100) |
-| `always_visible` | `{name, role, name_is \| name_contains, css, scope, min_width, path_prefix}` each |
+| `always_visible` | `{name, role, name_is \| name_contains, css, scope, current, min_width, path_prefix}` each; located by at least one of `role`, `css` and `current: true` (below) |
 | `keyboard` | `{skip_link_is \| skip_link_contains, must_reach, max_tabs, modes, viewports, focus_settle_ms}`; `modes` defaults to the last mode, `viewports` (names) to every viewport; each target is an always-visible item |
 | `opt_in` | checks that run only when named here: `layout_shift.load` (The checks); default none |
 | `request_methods` | the HTTP methods a page may send to the measured server, in capitals, each once, `GET` among them; default `[GET, HEAD]`. A request with another method fails as one to another origin does (A running server) |
@@ -169,6 +169,24 @@ Names: `name_is` is the whole accessible name (white space folded, case kept), a
 expressions translate to it: `/search/i` is `[search]`, `/dark and light mode/i` is `[dark and light
 mode]`, `/skip to (main )?content/i` is `[skip to content, skip to main content]`.
 
+An always-visible item is located by its candidates, in this order: the elements of `role` whose
+accessible name matches (from the accessibility tree), then the elements `css` matches inside the
+first match of `scope`. The item is the first candidate that is in `scope` and visible:
+
+- `role` (and `name_is` or `name_contains`), with `css` as a fallback: as in 0.3.0.
+- `css` alone: the first visible match in `scope`; no accessibility tree is read and no name is
+  matched, so `name_is` and `name_contains` need a `role`.
+- `current: true`: only a candidate whose `aria-current` is not `false` (an empty value counts as
+  `false`; any other value, `page`, `step`, `true` and the rest, as current). With `role` or `css`
+  it narrows their candidates; without both its candidates are the elements with `aria-current` in
+  `scope`. One item `{name: title, current: true, scope: 'nav[aria-label=screens]'}` is the current
+  entry of a navigation on every page, where one item per page with its own name and `path_prefix`
+  was needed before. A page that has no such element counts the item `missing`.
+
+`current` is `true` or `false` (default `false`). An item with neither `role` nor `css` nor `current:
+true` is refused, as is a name without a `role`. A keyboard target (`must_reach`) is located the
+same way.
+
 ### The checks
 
 Per page and viewport, as llm's L2 spec does it: a fresh context in the first mode, the page loaded to
@@ -194,7 +212,7 @@ page that is not served.
 |---|---|---|
 | `layout.page_scroll@1` (units) | sum over viewport x mode | 1 when `scrollingElement.scrollWidth - documentElement.clientWidth > 0` |
 | `layout.overflow@1` (blocks) | sum | every non-blank text run (Range box) and every `img, svg, video, canvas, iframe, input, select, textarea, table, pre`: overflow when its right edge passes the viewport + 1 px or its nearest non-inline block + 1 px; none under `position: fixed`, `overflow-x: auto \| scroll` or a clipping box; at most one per block |
-| `always_visible.misses@1` (items) | sum over viewport x mode x top and bottom | the first visible candidate in scope (role and name from the accessibility tree first, then CSS): missing, clipped (not wholly inside the viewport +-0.5 px) or covered (`elementFromPoint` of its centre is not it or inside it); an item outside its `min_width` or `path_prefix` is not checked |
+| `always_visible.misses@1` (items) | sum over viewport x mode x top and bottom | the first visible candidate in scope (role and name from the accessibility tree first, then CSS; with `current`, only a current one; Configuration): missing, clipped (not wholly inside the viewport +-0.5 px) or covered (`elementFromPoint` of its centre is not it or inside it); an item outside its `min_width` or `path_prefix` is not checked |
 | `keyboard.misses@1` (checks) | sum over the walks | on a fresh load the first Tab is on the skip link; Enter (or one more Tab) puts focus into its target; on another fresh load up to `max_tabs` Tabs reach each target. A skip link that is not first misses both of its checks |
 | `layout_shift.after_ready@1` (score) | largest over the viewports | `layout-shift` entries without recent input after the ready time (above), summed, rounded to 4 places; read once per viewport, before the first mode switch |
 | `layout_shift.load@1` (score), opt-in | largest over the viewports | every `layout-shift` entry without recent input since the navigation started (the observer is buffered and set before the page's own scripts), summed, rounded to 4 places; read in the same reading as after ready, after the settle time, so it holds the shifts after ready too. llm's round mode (`readShift().load` of its `ux/core/layout.ts` before 0.3.0): it varies with how fast fonts arrive, so llm reports it and does not ratchet it |
@@ -445,3 +463,23 @@ below it by 21 px at three viewports, and in some runs a panel as the data above
 panels' signal, the header widget alone. A ready condition is as good as what the page signals: a part
 that draws late and is not in the condition still counts after ready. Every other value (451 checks)
 was the same in all 20 runs.
+
+## A per-page item declared once, 2026-11-25
+
+The same snapshot and configuration. It declared the current screen's title as 11 items, one per page,
+each a `link` with the page's name under `path_prefix`. They were replaced by one item, run by run:
+
+| title item(s) | `always_visible.misses@1` per page, every viewport | its findings | checks (executed / passed / failed) | located on |
+|---|---|---|---|---|
+| the 11 items (as before) | 0 on all 11 pages | 0 | 451 / 352 / 44 | 11 of 11 pages, 10 of 10 viewport and position pairs each |
+| `{name: title, current: true, scope: 'nav[aria-label=screens]'}` | 0 on all 11 pages | 0 | 451 / 352 / 44 | the same, each time the link with `aria-current="page"` |
+| `{name: title, css: 'a[aria-current=page]', scope: 'nav[aria-label=screens]'}` | 0 on all 11 pages | 0 | 451 / 352 / 44 | the same |
+| control: `{name: title, current: true, scope: main}` | 10 per page (2 per viewport) | 110, `missing` | 451 / 242 / 154 | none |
+
+The values file's `always_visible.misses` was 0 for all 11 scenarios and every viewport in the first
+three rows, as in the consumer's 0.3.0 run; the control row is 4 per scenario at the two gating
+viewports and fails 22 `gate2` keys. Between the first three rows every result and finding was the same
+except `layout_shift.after_ready` (no ready condition declared; above). llm's documentation build with
+`engine/browser/examples/llm.checks.yaml`, in the same build of this change: the 135 numbers, their
+per-viewport details, the 27 findings sets and the 1,234 checks equal to
+`engine/browser/examples/llm-docs.evidence.json`.

@@ -1,0 +1,32 @@
+format: ux-browser-checks/1
+base_path: /llm/
+pages: {sitemap: sitemap.xml}
+viewports:
+  - {name: 1440x900, width: 1440, height: 900}
+  - {name: 390x844, width: 390, height: 844}
+modes: [light, dark]
+mode_attribute: data-theme
+reduced_motion: true
+settle_ms: 250
+scroll_settle_ms: 200
+mode_settle_ms: 100
+always_visible:
+  - name: navbar
+    css: nav.navbar
+  - name: section
+    current: true
+    scope: .navbar__items
+  - name: page entry
+    current: true
+    scope: 'nav[aria-label="Docs sidebar"]'
+    min_width: 997
+    path_prefix: /llm/docs
+  - name: entry link
+    role: link
+    current: true
+    scope: 'nav[aria-label="Docs sidebar"]'
+    min_width: 997
+    path_prefix: /llm/docs
+  - name: footer current
+    current: true
+    scope: footer
