@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:toy-climb
 kind: story
-status: active
+status: implemented
 title: First climb on a toy page
 tags:
 - roadmap-step-5
@@ -24,10 +24,11 @@ scope:
   path: website/docs/index.md
 - confidence: cited
   path: website/docs/limitations.md
-revision: 11
+revision: 12
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T13:54:16Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"review_outcome":1}}}
 - {from: "proposed", to: "active", at: "2026-11-25T13:54:16Z", actor: "human:operator", revision: 7, decided_on: {"recorded":{"review_outcome":1}}}
+- {from: "active", to: "implemented", at: "2026-11-25T16:47:32Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"test_result":1,"review_outcome":1}}}
 ---
 # Story: First climb on a toy page
 

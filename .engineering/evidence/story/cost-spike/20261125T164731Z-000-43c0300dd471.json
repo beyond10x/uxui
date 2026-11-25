@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-25T16:47:31Z",
+  "actor": "human:operator",
+  "artifact": "story:cost-spike",
+  "kind": "story",
+  "revision": 11,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "ux-search cost on ESS partner-portal tickets.detail: open 29,918 us, step 110 us, geometry 1,288 us, VmHWM 16,204 KiB; verdict per scope in docs/cost-spike.md (toy go; component, page, journey no-go). engine/search tests 20 passed. slot sh tools/gate.sh on wave/2026-11-25-1: every step passed (workspace 207 + 23 + 7, engine/search 20), 2026-11-25",
+    "reference": "docs/cost-spike.md"
+  }
+}

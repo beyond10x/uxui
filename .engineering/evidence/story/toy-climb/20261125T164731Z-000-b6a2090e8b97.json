@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-25T16:47:31Z",
+  "actor": "human:operator",
+  "artifact": "story:toy-climb",
+  "kind": "story",
+  "revision": 11,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "ux-search climb, theme x section order on ESS partner-portal tickets.detail, layout model v0: 18 variants, frontier 9, printed as text; two climbs byte-identical and equal to tests/fixtures/partner-portal.frontier.txt (tests a, b), the bad variant ranks below the top (c), 18 = 3 x 6 (d). slot sh tools/gate.sh on wave/2026-11-25-1: every step passed (workspace 207 + 23 + 7, engine/search 20), 2026-11-25",
+    "reference": "engine/search/tests/climb.rs"
+  }
+}

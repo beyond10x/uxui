@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-25T16:47:31Z",
+  "actor": "human:operator",
+  "artifact": "story:studio-stock-generator",
+  "kind": "story",
+  "revision": 6,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot ess ui test --path ess/ui/studio.ui.yaml --model ess ess/ui/tests/studio.yaml: 7 passed, 0 failed (ess 0.99.2). slot sh tools/gate.sh on wave/2026-11-25-1: every step passed (workspace 207 + 23 + 7, engine/search 20), 2026-11-25",
+    "reference": "ess/ui/tests/studio.yaml"
+  }
+}

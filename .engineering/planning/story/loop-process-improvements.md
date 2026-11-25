@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:loop-process-improvements
 kind: story
-status: active
+status: implemented
 title: Take the loop's generic process improvements
 tags:
 - roadmap-step-8
@@ -11,10 +11,11 @@ relations:
 scope:
 - confidence: cited
   path: plugin/skills/ui-iteration-loop
-revision: 5
+revision: 6
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-25T16:47:32Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 # Story: Take the loop's generic process improvements
 

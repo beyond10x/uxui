@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:cost-spike
 kind: story
-status: active
+status: implemented
 title: 'Spike: measure the cost of one evaluation'
 tags:
 - roadmap-step-3
@@ -20,10 +20,11 @@ scope:
   path: engine/search
 - confidence: cited
   path: tools/gate.sh
-revision: 11
+revision: 12
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T13:54:14Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"review_outcome":3}}}
 - {from: "proposed", to: "active", at: "2026-11-25T13:54:14Z", actor: "human:operator", revision: 7, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "active", to: "implemented", at: "2026-11-25T16:47:32Z", actor: "human:operator", revision: 12, decided_on: {"recorded":{"test_result":1,"review_outcome":3}}}
 ---
 # Story: Spike: measure the cost of one evaluation
 
