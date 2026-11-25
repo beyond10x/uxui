@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Long lines the page draws</title>
+<style>
+html, body { margin: 0; padding: 0; font: 16px sans-serif; }
+.card { width: 200px; white-space: nowrap; }
+.card p { margin: 0; }
+.wide { width: 300px; margin: 0; }
+.contents { display: contents; }
+.below { margin-top: 1000px; content-visibility: auto; }
+.unseen { visibility: hidden; }
+.seen { visibility: visible; }
+</style>
+</head>
+<body>
+<details class="card"><summary>a summary that is much wider than its card</summary>the closed part</details>
+<div class="card"><span class="contents">a line inside an element displayed as contents</span></div>
+<div class="card unseen"><pre class="wide seen">x</pre></div>
+<div class="card below"><p>a line below the fold, under content-visibility auto</p></div>
+</body>
+</html>
