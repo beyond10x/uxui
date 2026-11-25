@@ -452,27 +452,22 @@ fn the_configuration_pins_a_build_or_a_version() {
     }
 }
 
-/// `checks` on a configuration that pins `pin`, with the fake cache and no `UXUI_CHROME`, and a
-/// built site that does not exist: a run that gets past the choice of the browser stops at the site.
-fn pinned_call(name: &str, pin: &str) -> (Option<i32>, String) {
+/// `checks` on a configuration that pins `pin`, with the fake cache and no `UXUI_CHROME`, on the
+/// built site `build`. The inputs are refused first (exit 1), then the browser is chosen (exit 3).
+fn pinned_call(name: &str, pin: &str, build: &Path) -> (Option<i32>, String) {
     let (cache, _, _) = two_builds(name);
     let config = cache.parent().unwrap().join("checks.yaml");
-    std::fs::write(&config, format!("{LLM_LIKE}chrome: {pin}\n")).unwrap();
+    let pages = LLM_LIKE.replace("pages: {sitemap: sitemap.xml}", "pages: {paths: [/llm/]}");
+    std::fs::write(&config, format!("{pages}chrome: {pin}\n")).unwrap();
     let out = cache.parent().unwrap().join("out.json");
     let o = Command::new(env!("CARGO_BIN_EXE_ux-browser"))
         .env_remove("UXUI_CHROME")
         .env("PLAYWRIGHT_BROWSERS_PATH", &cache)
         .args(["checks", "--config"])
         .arg(&config)
-        .args([
-            "--build",
-            "no-such-build",
-            "--project",
-            "p",
-            "--assessment",
-            "a",
-            "--out",
-        ])
+        .arg("--build")
+        .arg(build)
+        .args(["--project", "p", "--assessment", "a", "--out"])
         .arg(&out)
         .output()
         .unwrap();
@@ -485,17 +480,21 @@ fn pinned_call(name: &str, pin: &str) -> (Option<i32>, String) {
 
 #[test]
 fn a_missing_pinned_build_fails_the_run_before_anything_is_measured() {
-    let (code, stderr) = pinned_call("run-miss", "{build: 1300}");
+    let site = crate::fixture("site");
+    let (code, stderr) = pinned_call("run-miss", "{build: 1300}", &site);
     assert_eq!(code, Some(3), "{stderr}");
     assert!(
         stderr.contains("chromium-1300") && stderr.contains("chromium-1254, chromium-1228"),
         "{stderr}"
     );
+    let missing = Path::new("no-such-build");
+    let (code, stderr) = pinned_call("run-miss-inputs", "{build: 1300}", missing);
+    assert_eq!(code, Some(1), "the inputs are refused first: {stderr}");
     assert!(
-        !stderr.contains("no-such-build"),
-        "before the site: {stderr}"
+        stderr.contains("no-such-build") && !stderr.contains("chromium-1300"),
+        "{stderr}"
     );
-    let (code, stderr) = pinned_call("run-hit", "{build: 1228}");
+    let (code, stderr) = pinned_call("run-hit", "{build: 1228}", missing);
     assert_eq!(code, Some(1), "the pinned build is found: {stderr}");
     assert!(stderr.contains("no-such-build"), "{stderr}");
 }

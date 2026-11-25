@@ -399,8 +399,8 @@ chrome: {version: 149}
   file that names the version (`chrome-linux64/` has an `ABOUT` without one), so each build's binary
   is asked with `--version` (`Google Chrome for Testing 149.0.7827.55`); it prints the line and
   exits, no browser starts.
-- A pin no build meets ends the run before the site is read or served, before a browser starts,
-  with exit 3 and nothing written. The message names the pin, the cache and the builds found,
+- A pin no build meets, or a host with no browser, ends the run after every refusal of the inputs
+  (those exit 1 first) and before a browser starts, with exit 3 and nothing written. The message names the pin, the cache and the builds found,
   newest first; for a version pin with the version of each:
 
   ```

@@ -281,12 +281,6 @@ fn checks_command(args: &[String]) -> ExitCode {
         Ok(c) => c,
         Err(e) => return fail(REFUSED, &format!("{config_path}: {e}")),
     };
-    // The browser, before the site is read or served: a pinned build that is missing ends the run
-    // here.
-    let chrome = match ux_browser::chrome::find(config.chrome) {
-        Ok(binary) => binary,
-        Err(e) => return fail(NOT_WRITTEN, &e),
-    };
     let values_out = get(&opts, "values");
     let values_inputs = match values_out {
         None => None,
@@ -332,6 +326,12 @@ fn checks_command(args: &[String]) -> ExitCode {
     {
         return fail(REFUSED, &format!("{config_path}: {e}"));
     }
+    // The browser, after every refusal of the inputs (exit 1) and before anything is measured: a
+    // missing browser or a pinned build that is missing ends the run here (exit 3).
+    let chrome = match ux_browser::chrome::find(config.chrome) {
+        Ok(binary) => binary,
+        Err(e) => return fail(NOT_WRITTEN, &e),
+    };
     let only: Option<Vec<&str>> = get(&opts, "pages").map(|p| p.split(',').collect());
     let capture = get(&opts, "capture").map(PathBuf::from);
     if let Some(dir) = &capture
