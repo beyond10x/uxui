@@ -2,14 +2,22 @@
 format: aep.planning-md/3
 id: story:migrate-smallest-ui-loop-copy
 kind: story
-status: draft
+status: active
 title: Migrate the smallest UI-loop copy onto ratchet and uxui
 tags:
 - roadmap-step-7
 relations:
 - decomposes: epic:ratchet-integration
 - depends_on: story:ratchet-presets-and-gates
-revision: 3
+scope:
+- confidence: inferred
+  path: docs/roadmap.md
+- confidence: inferred
+  path: presets/web-ux.ratchet.yaml
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"review_outcome":1}}}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"review_outcome":1}}}
 ---
 # Story: Migrate the smallest UI-loop copy onto ratchet and uxui
 

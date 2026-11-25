@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:ess-ui-needs-per-way
 kind: story
-status: draft
+status: implemented
 title: What `ess-ui/1` needs, per way
 relations:
 - decomposes: epic:generators-and-themes
@@ -10,7 +10,11 @@ relations:
 scope:
 - confidence: cited
   path: docs/ess-gaps.md
-revision: 5
+revision: 8
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:14Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:14Z", actor: "human:operator", revision: 7, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "active", to: "implemented", at: "2026-11-25T16:47:32Z", actor: "human:operator", revision: 8, decided_on: {"recorded":{"test_result":1,"review_outcome":2}}}
 ---
 # Story: What `ess-ui/1` needs, per way
 

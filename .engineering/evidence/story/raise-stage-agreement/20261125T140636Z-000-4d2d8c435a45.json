@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-25T14:06:36Z",
+  "actor": "human:operator",
+  "artifact": "story:raise-stage-agreement",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "tools/scaffold/agreement.mjs over run 2's 31 variants, commit 9ae3849: Kendall tau-b 0.998 between stage 1 and stage 2 (acceptance: at least 0.6); docs/campaign-2026-11-24-docs-landing.md, section Stage agreement, revision",
+    "reference": "docs/campaign-2026-11-24-docs-landing.md"
+  }
+}

@@ -1,0 +1,188 @@
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
+
+use ux_search::{climb, cost, drive};
+
+const USAGE: &str = "usage: ux-search climb --doc <ui.yaml> --page <page> [--param <name>=<value>]... [--sizes <W>x<H>[,<W>x<H>]...] [--cap <1-8>] [--state-dir <dir>]
+       ux-search cost --doc <ui.yaml> --page <page> [--param <name>=<value>]... [--keys <key spec>] [--size <W>x<H>] [--repeat <n>] [--format text|json] [--state-dir <dir>]
+       ux-search -V | --version
+       ux-search -h | --help
+defaults: --sizes 120x40,48x40, --cap 5, --keys <tab><tab><tab><tab><tab>, --size 120x40, --repeat 5, --format text, --state-dir target/ux-search/state";
+
+/// 1: the inputs are refused (a document that does not load, a page it lacks); nothing printed.
+const REFUSED: u8 = 1;
+/// 2: the invocation is wrong.
+const WRONG_INVOCATION: u8 = 2;
+
+const DEFAULT_SIZES: &str = "120x40,48x40";
+const DEFAULT_SIZE: &str = "120x40";
+const DEFAULT_KEYS: &str = "<tab><tab><tab><tab><tab>";
+const DEFAULT_REPEAT: usize = 5;
+const DEFAULT_STATE_DIR: &str = "target/ux-search/state";
+/// The most sections a climb permutes: 8 give 40,320 orders per theme.
+const MAX_CAP: usize = 8;
+
+fn wrong(message: &str) -> ExitCode {
+    eprintln!("ux-search: {message}\n{USAGE}");
+    ExitCode::from(WRONG_INVOCATION)
+}
+
+fn refused(message: &str) -> ExitCode {
+    eprintln!("ux-search: {message}");
+    ExitCode::from(REFUSED)
+}
+
+fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    match args.first().map(String::as_str) {
+        Some("-h" | "--help") => {
+            println!("{USAGE}");
+            ExitCode::SUCCESS
+        }
+        Some("-V" | "--version") => {
+            println!("ux-search {}", env!("CARGO_PKG_VERSION"));
+            ExitCode::SUCCESS
+        }
+        Some("climb") => run_climb(&args[1..]),
+        Some("cost") => run_cost(&args[1..]),
+        Some(other) => wrong(&format!("unknown command `{other}`")),
+        None => wrong("no command"),
+    }
+}
+
+/// The flags of one command: each named once, and `--param` as often as needed.
+struct Parsed {
+    flags: BTreeMap<String, String>,
+    params: Vec<(String, String)>,
+}
+
+impl Parsed {
+    fn get(&self, flag: &str) -> Option<&str> {
+        self.flags.get(flag).map(String::as_str)
+    }
+
+    fn target(&self) -> Option<drive::Target> {
+        Some(drive::Target {
+            page: self.get("--page")?.to_owned(),
+            params: self.params.clone(),
+        })
+    }
+
+    fn state_dir(&self) -> PathBuf {
+        PathBuf::from(self.get("--state-dir").unwrap_or(DEFAULT_STATE_DIR))
+    }
+}
+
+fn parse(args: &[String], allowed: &[&str]) -> Result<Parsed, String> {
+    let mut flags = BTreeMap::new();
+    let mut params = Vec::new();
+    let mut rest = args.iter();
+    while let Some(flag) = rest.next() {
+        let Some(value) = rest.next() else {
+            return Err(format!("`{flag}` has no value"));
+        };
+        if flag == "--param" {
+            let Some((name, value)) = value.split_once('=') else {
+                return Err(format!("--param `{value}` is not <name>=<value>"));
+            };
+            params.push((name.to_owned(), value.to_owned()));
+        } else if allowed.contains(&flag.as_str()) {
+            if flags.insert(flag.clone(), value.clone()).is_some() {
+                return Err(format!("`{flag}` is given twice"));
+            }
+        } else {
+            return Err(format!("unknown argument `{flag}`"));
+        }
+    }
+    Ok(Parsed { flags, params })
+}
+
+fn run_climb(args: &[String]) -> ExitCode {
+    let parsed = match parse(
+        args,
+        &["--doc", "--page", "--sizes", "--cap", "--state-dir"],
+    ) {
+        Ok(parsed) => parsed,
+        Err(message) => return wrong(&message),
+    };
+    let (Some(document), Some(target)) = (parsed.get("--doc"), parsed.target()) else {
+        return wrong("climb needs --doc and --page");
+    };
+    let Some(sizes) = drive::parse_sizes(parsed.get("--sizes").unwrap_or(DEFAULT_SIZES)) else {
+        return wrong("--sizes is not <W>x<H>[,<W>x<H>]..., each side from 1 to 1000");
+    };
+    let cap = match parsed.get("--cap").map(str::parse::<usize>) {
+        None => climb::SECTION_CAP,
+        Some(Ok(cap)) if (1..=MAX_CAP).contains(&cap) => cap,
+        Some(_) => return wrong(&format!("--cap is not a whole number from 1 to {MAX_CAP}")),
+    };
+    let options = climb::Options {
+        target,
+        sizes,
+        state_dir: parsed.state_dir(),
+        cap,
+    };
+    match climb::climb(Path::new(document), &options) {
+        Ok(climb) => {
+            print!("{}", climb.render());
+            ExitCode::SUCCESS
+        }
+        Err(message) => refused(&message),
+    }
+}
+
+fn run_cost(args: &[String]) -> ExitCode {
+    let parsed = match parse(
+        args,
+        &[
+            "--doc",
+            "--page",
+            "--keys",
+            "--size",
+            "--repeat",
+            "--format",
+            "--state-dir",
+        ],
+    ) {
+        Ok(parsed) => parsed,
+        Err(message) => return wrong(&message),
+    };
+    let (Some(document), Some(target)) = (parsed.get("--doc"), parsed.target()) else {
+        return wrong("cost needs --doc and --page");
+    };
+    let Some(size) = drive::parse_size(parsed.get("--size").unwrap_or(DEFAULT_SIZE)) else {
+        return wrong("--size is not <W>x<H>, each side from 1 to 1000");
+    };
+    let repeat = match parsed.get("--repeat").map(str::parse::<usize>) {
+        None => DEFAULT_REPEAT,
+        Some(Ok(repeat)) if repeat > 0 => repeat,
+        Some(_) => return wrong("--repeat is not a positive whole number"),
+    };
+    let json = match parsed.get("--format") {
+        None | Some("text") => false,
+        Some("json") => true,
+        Some(other) => return wrong(&format!("--format `{other}` is not text or json")),
+    };
+    let options = cost::Options {
+        target,
+        keys: parsed.get("--keys").unwrap_or(DEFAULT_KEYS).to_owned(),
+        size,
+        repeat,
+        state_dir: parsed.state_dir(),
+    };
+    match cost::measure(Path::new(document), &options) {
+        Ok(measured) => {
+            print!(
+                "{}",
+                if json {
+                    measured.json()
+                } else {
+                    measured.text()
+                }
+            );
+            ExitCode::SUCCESS
+        }
+        Err(message) => refused(&message),
+    }
+}

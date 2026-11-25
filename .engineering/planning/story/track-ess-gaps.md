@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:track-ess-gaps
 kind: story
-status: draft
+status: active
 title: Track the ESS gaps and adopt each release
 tags:
 - roadmap-step-2
@@ -11,7 +11,10 @@ relations:
 scope:
 - confidence: cited
   path: docs/ess-gaps.md
-revision: 3
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:16Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"review_outcome":1}}}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:16Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"review_outcome":1}}}
 ---
 # Story: Track the ESS gaps and adopt each release
 

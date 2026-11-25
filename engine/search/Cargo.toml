@@ -1,0 +1,33 @@
+[package]
+name = "ux-search"
+version = "0.10.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+autotests = false
+description = "ux-search: the engine's first search on layout model v0 (ESS's terminal renderer, in process): the cost of one evaluation, and an exhaustive climb over theme x section order printed as a ranked frontier."
+
+[workspace]
+
+[lib]
+name = "ux_search"
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[[bin]]
+name = "ux-search"
+path = "src/main.rs"
+test = false
+
+[[test]]
+name = "main"
+path = "tests/main.rs"
+
+[dependencies]
+ess-ui = { git = "https://github.com/beyond10x/ess", tag = "0.99.4" }
+ess-ui-check = { git = "https://github.com/beyond10x/ess", tag = "0.99.4" }
+ess-ui-tui = { git = "https://github.com/beyond10x/ess", tag = "0.99.4" }
+
+[profile.dev.package."*"]
+opt-level = 2

@@ -57,13 +57,20 @@ second; the first code is a thin vertical slice that measures the assumption the
 3. **Spike: measure the cost of one evaluation.** `docs/state-space.md` assumes 50 µs per layout call; nothing
    has measured it. Drive ESS's terminal renderer in process on one example page, time open + N steps +
    geometry read, report per-state cost and memory. Go/no-go for "exhaustive" per scope. Code in Rust, no
-   third-party dependency beyond ESS.
+   third-party dependency beyond ESS. The tool exists: `ux-search cost` (`engine/search`), with the method,
+   the rule per scope and a table still to be measured in `docs/cost-spike.md`.
 4. **Thin vertical slice `ux-static@1`.** Read an `ess-ui/1` document, its `ess-ui-test/1` journeys and a
    `uxui-declarations/1` file; compute the static metrics (required nodes present, actions per journey,
    accessible names); write ratchet evidence records in ratchet's draft shape. No browser, no layout model.
    Proves the evidence contract with ratchet.
 5. **First climb on a toy.** Two axes (theme x section order) on an ESS example page, exhaustive, layout model
    v0, a ranked frontier printed as text. Then the studio, generated from `ess/ui/studio.ui.yaml`.
+   Exists: `ux-search climb` (`engine/search`), a first search on layout model v0 over a toy page: the
+   ticket page of ESS's partner-portal example, 3 themes x 6 section orders, each variant checked, opened
+   and drawn at two sizes, ranked on check errors, regions below the fold, regions cut by the frame and rows
+   above the primary action, the frontier and the full ranking printed as text and held by a golden file.
+   Themes tie: the terminal renderer reads no theme. Not yet: exploring UI states (each variant is its
+   page as opened), the climb in the studio, and the browser stage.
    **Then the first real target, this repository's documentation site,** on a browser adapter: the engine
    with a headless browser as renderer, for any page with a URL (`docs/targets.md`).
 6. **Trial target.** One page or component of an admin console generated from an `ess-ui/1` document (a

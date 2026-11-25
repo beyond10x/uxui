@@ -89,9 +89,29 @@ Every merge: L0–L3, hermetic, no keys. Per round: L4–L7. L4 and L5 are opera
 - Run three scripted sessions from scenario cards: the two anchors and one rotating card. A free
   session is optional. Each card is its own truth, so nothing needs writing afterwards.
 - Record every session (rrweb, with the regions marked) and keep the raw recording.
-- After each session the person answers a 90-second questionnaire.
+- After each session the person answers a 90-second questionnaire, under the survey rule below.
 - Paid levels (L4, L5) run under one operator approval for the round.
 - A driver bot may replace the person (§ 7, closed loop).
+
+The colleague's loop has a decision template, reviewer sections, an A/B decision order and a survey
+rule; their text was not shared, so the wording of all four here (§ 3.1, § 3.4,
+`references/review-agents.md`) is ours.
+
+**Survey rule.**
+
+1. The same questions in the same order every round: the single ease question (SEQ, 1–7) per
+   scenario card, satisfaction (1–7), and one free line, "what slowed you down?". A changed
+   question starts a new trend column; its scores are not compared with the old one.
+2. The person answers straight after the session, before the person sees the recording, the round
+   report, the other sessions' answers or which version (A or B, § 3.4) they used. In a round with a
+   decision open, both anchor cards run on A, and the rotating card runs once on A and once on B,
+   the order alternating from round to round.
+3. Answers are kept raw, one record per session (the recorder's `survey` event), and reported per
+   session with n beside every median. No mean over fewer than 5 sessions.
+4. A survey score is never a gate, never a ratchet key and never a finding on its own. It is a second
+   source for triage confidence only when a recording shows the same moment (§ 3.3), and it is step 4
+   of the A/B decision order (§ 3.4).
+5. A driver bot (§ 7) answers no survey.
 
 ### 3.2 Measure
 
@@ -131,8 +151,8 @@ cost             S = 1, M = 2, L = 4
    reason, or reverted.
 5. Findings caused by input the UI cannot control (the colleague's transcript class) are known losses.
    Only the UI's handling of them becomes a change.
-6. A finding that needs a design decision still enters the set. It waits for the yes/no and blocks no
-   other change.
+6. A finding that needs a design decision still enters the set. It waits for the answer (§ 3.4) and
+   blocks no other change.
 
 Write `triage.md`: caveats, a table "did the last change sets move their metrics?", the change set.
 The change set becomes one task per round under one standing story (in the planning store; AEP where
@@ -141,22 +161,65 @@ target metric movements.
 
 ### 3.4 Design decision
 
-Only for layout and interaction changes, at most one per round, in `decision.md`. Template (ours,
-pending the colleague's original):
+Only for layout and interaction changes, at most one per round, in `decision.md`. A decision compares
+two versions: A, what is on `main`, and B, the change. B is built in § 3.5 of round n behind a flag
+or on a branch, and compared with A in round n+1: its trial (§ 3.1), its round command, which
+measures both, and its two review agents, which fill their Decision sections
+(`references/review-agents.md`) before the session writes the file. The order below gives a
+recommendation and a default; the person decides. Template:
 
 ```
-# R-nn decision: <question answerable yes or no>
-Finding: UXF-nnn. Target metric: <key>, now <value>, expected <value>.
-Yes: <change>, shot: shots/decision-yes.png
-No:  <what stays>, shot: shots/decision-no.png
-Default if unanswered by the next round: <yes|no>, because <reason>.
-Answer: <yes|no>, <date>
+# R-nn decision: take B? <the change, in one line>
+Finding: UXF-nnn. Target metric: <key>.
+A (now):    <what stays>. Shot: shots/decision-a.png
+B (change): <the change>. Shot: shots/decision-b.png
+
+| step of the order | A | B | separates? |
+|---|---|---|---|
+| 1 hard gates (§ 4) | pass | <pass or the failing gate> | <yes|no> |
+| 2 open S1, S2 findings (`found_on`, § 5) | <count, count> | <count, count> | <yes|no> |
+| 3 ratchet (§ 6) | <target metric value> | <value; every key worse, by scenario and how much> | <yes|no|trade-off|tie> |
+| 4 survey (§ 3.1) | <median SEQ, n; median satisfaction, n> | <same> | <yes|no> |
+| 5 reviewers | <heuristics where A is better> | <where B is better> | <yes|no> |
+
+Reviewers:
+- heuristic reviewer: <A|B|no view>, <its § 3 Decision line, unchanged>
+- report reviewer: <A|B|no view>, <its § 5 Decision line, unchanged>
+Trade-off: <every key B makes worse, by scenario, or none>.
+Decision id: R-nn, written beside every baseline value B makes worse (§ 6); none when B makes no key worse.
+Recommendation: <A|B>, from step <n>.
+Default if unanswered by the next round: <A|B>, because <reason>.
+Answer: <A|B>, <date>, <the person | the default>
 ```
+
+**A/B decision order.** The session fills the table top to bottom. A is on `main` and passed § 4 at
+its merge; A failing a gate now is a finding (§ 5), not a step of this order.
+
+1. Hard gates (§ 4). B fails one: A.
+2. Open S1 and S2 findings, counted per version by their `found_on` field (§ 5). The version with
+   fewer open S1, then fewer open S2.
+3. Ratchet (§ 6), every key of every scenario, each beyond its tolerance. A key counts as worse when
+   it is worse in any one scenario. B worse on the target metric: A. B worse on another key and not
+   better on the target metric: A. B better on the target metric and worse on another key: a
+   trade-off. B worse on no key and better on the target metric, or equal on it and better on
+   another key: B. Equal on every key: a tie. A trade-off or a tie goes on to step 4.
+4. Survey (§ 3.1): the median SEQ and the median satisfaction per version, each with its n. Both
+   medians better for the same version: that version. Anything else (an equal median, or SEQ and
+   satisfaction pointing to different versions): no signal; go on to step 5.
+5. Reviewers: the Decision sections of both reviewers, by their evidence, not their count.
+6. The person: taste and the trade-off.
+
+The first step that separates A and B gives the recommendation; later steps are filled in and do not
+overturn it. A tie at every step recommends A. The order gives only a recommendation and a default;
+the person decides, since only a person accepts a trade-off and taste stays with people. The
+default: when B makes any key worse, A; otherwise the recommendation. B never lands with a key
+worse without the decision id beside each worse baseline value (§ 6).
 
 ### 3.5 Build
 
 The build agent builds the task failing-first: each finding's regression asset is written, run red,
-then the change makes it green. The gates (§ 4) stay green.
+then the change makes it green. The gates (§ 4) stay green. The B of a design decision is built
+behind a flag or on a branch, passes § 4 too, and replaces A only on the answer (§ 3.4).
 
 ### 3.6 Gate, then measure again
 
@@ -185,9 +248,11 @@ Every finding is a record `ux/findings/UXF-nnn.md`. Header fields:
 
 ```
 id, title, class (layout|cue|affordance|copy|noise|engine|input), severity (S1|S2|S3),
-metric, status, found_by, evidence_recording (file @ seconds), evidence_screenshot,
-evidence_lines, regression_asset
+metric, status, found_by, found_on (A|B|both), evidence_recording (file @ seconds),
+evidence_screenshot, evidence_lines, regression_asset
 ```
+
+`found_on` names the version (§ 3.4) the evidence shows the finding on; `A` when no decision is open.
 
 - The regression asset is one of: an engine scenario, a library scenario, a Playwright assertion, a
   heuristic checklist line.
@@ -243,8 +308,8 @@ the colleague's original.
 ## 8. Review agents
 
 Two fresh agents per round, started after the round command, each with no context from the session.
-Their briefs are in `references/review-agents.md`: ours, pending the colleague's originals. The 16
-heuristics are in `references/heuristics.md`.
+Their briefs and the sections of their files are in `references/review-agents.md`: ours, pending the
+colleague's originals. The 16 heuristics are in `references/heuristics.md`.
 
 ## 9. Not available here
 

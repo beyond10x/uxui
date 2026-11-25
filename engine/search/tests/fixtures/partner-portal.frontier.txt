@@ -1,0 +1,35 @@
+# ux-search climb: layout model v0, the terminal renderer of ESS 0.99.4, in process
+# document ui.yaml (app portal), page tickets.detail, params id=tk-01
+# sizes 120x40 48x40; narrow 48x40; reference height 1000
+# primary action pages/tickets.detail/sections/reply/children/send
+# axes: theme 3 (dark, dense, light) x section order 6 (3 of 3 sections permuted) = 18 variants
+# terms, lexicographic, lower is better: errors below_fold cut primary_rows; ties by variant id
+frontier 9
+   1 dark:reply,conversation,summary errors=0 below_fold=0 cut=0 primary_rows=30
+   2 dark:reply,summary,conversation errors=0 below_fold=0 cut=0 primary_rows=30
+   3 dark:summary,reply,conversation errors=0 below_fold=0 cut=0 primary_rows=30
+   4 dense:reply,conversation,summary errors=0 below_fold=0 cut=0 primary_rows=30
+   5 dense:reply,summary,conversation errors=0 below_fold=0 cut=0 primary_rows=30
+   6 dense:summary,reply,conversation errors=0 below_fold=0 cut=0 primary_rows=30
+   7 light:reply,conversation,summary errors=0 below_fold=0 cut=0 primary_rows=30
+   8 light:reply,summary,conversation errors=0 below_fold=0 cut=0 primary_rows=30
+   9 light:summary,reply,conversation errors=0 below_fold=0 cut=0 primary_rows=30
+ranking 18
+   1 dark:reply,conversation,summary errors=0 below_fold=0 cut=0 primary_rows=30
+   2 dark:reply,summary,conversation errors=0 below_fold=0 cut=0 primary_rows=30
+   3 dark:summary,reply,conversation errors=0 below_fold=0 cut=0 primary_rows=30
+   4 dense:reply,conversation,summary errors=0 below_fold=0 cut=0 primary_rows=30
+   5 dense:reply,summary,conversation errors=0 below_fold=0 cut=0 primary_rows=30
+   6 dense:summary,reply,conversation errors=0 below_fold=0 cut=0 primary_rows=30
+   7 light:reply,conversation,summary errors=0 below_fold=0 cut=0 primary_rows=30
+   8 light:reply,summary,conversation errors=0 below_fold=0 cut=0 primary_rows=30
+   9 light:summary,reply,conversation errors=0 below_fold=0 cut=0 primary_rows=30
+  10 dark:conversation,reply,summary errors=0 below_fold=0 cut=0 primary_rows=46
+  11 dark:conversation,summary,reply errors=0 below_fold=0 cut=0 primary_rows=46
+  12 dark:summary,conversation,reply errors=0 below_fold=0 cut=0 primary_rows=46
+  13 dense:conversation,reply,summary errors=0 below_fold=0 cut=0 primary_rows=46
+  14 dense:conversation,summary,reply errors=0 below_fold=0 cut=0 primary_rows=46
+  15 dense:summary,conversation,reply errors=0 below_fold=0 cut=0 primary_rows=46
+  16 light:conversation,reply,summary errors=0 below_fold=0 cut=0 primary_rows=46
+  17 light:conversation,summary,reply errors=0 below_fold=0 cut=0 primary_rows=46
+  18 light:summary,conversation,reply errors=0 below_fold=0 cut=0 primary_rows=46

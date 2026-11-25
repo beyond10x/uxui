@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:spec-round-2-scenarios
 kind: story
-status: draft
+status: active
 title: 'Specification round 2: a scenario for every outcome'
 tags:
 - roadmap-step-1
@@ -14,7 +14,10 @@ scope:
   path: ess/GAPS.md
 - confidence: cited
   path: ess/domains
-revision: 4
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"review_outcome":3}}}
 ---
 # Story: Specification round 2: a scenario for every outcome
 

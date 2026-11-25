@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+- The engine's first search: `ux-search` (`engine/search`, a crate with its own workspace, the ESS
+  crates by git tag 0.99.4) climbs exhaustively over theme x section order of one page on layout
+  model v0, ESS's terminal renderer in process. Each variant is checked, opened fresh and drawn at
+  120x40 and 48x40; its terms (check errors, regions below the fold, regions cut, rows before the
+  primary action) rank it lexicographically, ties by id, and the Pareto frontier prints first. On
+  the ticket page of ESS's partner portal: 18 variants, a frontier of 9 with the send button at row
+  30, against 46 when the conversation comes first; theme changes no v0 term (the renderer reads no
+  style tokens). Two climbs print the same bytes, and a test holds them to a committed golden file.
+  `ux-search cost` gives the time per UI state (open, steps replayed from open, geometry read) and
+  the peak memory: `docs/cost-spike.md`. The gate runs its fmt, clippy and tests.
+- `ui-iteration-loop`: a decision template that compares A (now) with B (change); a decision order
+  (hard gates, open S1/S2 by `found_on`, ratchet per scenario, survey medians, reviewers, the person)
+  that recommends and sets a default while the person decides, and B never lands with a worse key
+  without a decision id; a survey rule; the sections each review agent writes.
+- Themes: `themes/dense.css` (fixed columns, one-line cells, a label beside its value, a colour per
+  value through `data-uxui-value`) and `themes/slot-jobs.css` for slot's job pages, with the steps
+  slot takes in `themes/slot-jobs.md`; `tools/check-themes.sh` and its 25-case test run in the gate.
+- `docs/ess-gaps.md` read again against ESS 0.99.4 and its main: the stories behind each gap, and a
+  section "Needs per way" whose open needs ESS filed as stories on 2026-11-25.
+- The studio's terminal tests read the budget as a map, the KPI values as a list and the step table
+  in its declared order (7 tests).
+
 ## 0.10.0 — 2026-11-25
 
 - ux-browser checks pages in states reached by steps, not only after load: a configuration may
