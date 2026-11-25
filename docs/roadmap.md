@@ -69,8 +69,9 @@ second; the first code is a thin vertical slice that measures the assumption the
    ticket page of ESS's partner-portal example, 3 themes x 6 section orders, each variant checked, opened
    and drawn at two sizes, ranked on check errors, regions below the fold, regions cut by the frame and rows
    above the primary action, the frontier and the full ranking printed as text and held by a golden file.
-   Themes tie: the terminal renderer reads no theme. Not yet: exploring UI states (each variant is its
-   page as opened), the climb in the studio, and the browser stage.
+   Themes tie: the terminal renderer reads no theme. The studio: `campaigns.climb`, section order inside each
+   layout column, 120 variants, a frontier of 42; the page as written ranks 72nd (`docs/studio-climb.md`).
+   Not yet: exploring UI states (each variant is its page as opened) and the browser stage.
    **Then the first real target, this repository's documentation site,** on a browser adapter: the engine
    with a headless browser as renderer, for any page with a URL (`docs/targets.md`).
 6. **Trial target.** One page or component of an admin console generated from an `ess-ui/1` document (a

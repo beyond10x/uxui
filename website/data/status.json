@@ -84,7 +84,7 @@
       "area": "Search engine",
       "label": "First climb on a toy",
       "status": "planned",
-      "detail": "Two axes on one example page, searched exhaustively, a ranked frontier printed as text; then the studio. The search ux-search climb is written for theme x section order on layout model v0; no UI state exploration, no studio climb.",
+      "detail": "Two axes on one example page, searched exhaustively, a ranked frontier printed as text; then the studio. The search ux-search climb is written for theme x section order on layout model v0; it also climbs the studio's live climb page (120 section orders, frontier 42); no UI state exploration.",
       "href": "/docs/roadmap"
     },
     {

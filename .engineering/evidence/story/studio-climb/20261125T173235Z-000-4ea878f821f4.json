@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-25T17:32:35Z",
+  "actor": "human:operator",
+  "artifact": "story:studio-climb",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "ux-search climb on ess/ui/studio.ui.yaml campaigns.climb (campaign_id=cp-01), layout model v0: 120 variants (section order inside each layout column), frontier 42, the page as written ranks 72nd; output equals engine/search/tests/fixtures/studio.frontier.txt; engine/search tests 32 passed (adversary's 3 included); slot sh tools/gate.sh: every step passed (workspace 207 + 23 + 7, engine/search 32), 2026-11-25",
+    "reference": "docs/studio-climb.md"
+  }
+}

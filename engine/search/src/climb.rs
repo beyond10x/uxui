@@ -1,5 +1,13 @@
-//! The toy climb: every theme x every section order of one page, each variant checked, opened
-//! fresh and drawn on layout model v0, ranked, and printed as a frontier and a full ranking.
+//! The climb: every theme x every section order of one page, each variant checked, opened fresh
+//! and drawn on layout model v0, ranked, and printed as a frontier and a full ranking.
+//!
+//! The section orders of a page without `layout: columns:` are the orders of its `sections:`
+//! (the first `cap` permuted, [`SECTION_CAP`] by default). On a page with columns they are the
+//! product of each column's orders (the first `cap` of each column permuted): a variant writes
+//! each column's `sections: [...]` in its order and the page's `sections:` column by column,
+//! the sections no column lists after them as written. The terminal renderer draws no columns
+//! (ESS 0.99.4 lacks `no_columns` and stacks the page's `sections:` in the order written), so
+//! the stack it draws is the columns read one after another, as the variant lists them.
 //!
 //! The terms, in ranking order, each a count where lower is better:
 //!
@@ -26,7 +34,7 @@ use std::path::{Path, PathBuf};
 
 use crate::drive::{self, Cells, Placed, Target};
 use crate::rank::{self, Scored};
-use crate::variant::{self, Sections};
+use crate::variant::{self, Column, Columns, Sections};
 
 /// How many of a page's sections are permuted at most: 5 sections give 120 orders.
 pub const SECTION_CAP: usize = 5;
@@ -85,11 +93,12 @@ impl Terms {
 /// One evaluated variant.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Variant {
-    /// `<theme>:<section>,<section>,...`; the theme is `-` when the document has none.
+    /// `<theme>:<section>,<section>,...`; the theme is `-` when the document has none. On a
+    /// page with columns, `|` separates the columns (and the sections no column lists, last).
     pub id: String,
     /// The theme chosen, `None` when the document declares no theme.
     pub theme: Option<String>,
-    /// The page's sections in the variant's order.
+    /// The page's sections in the variant's order, as its `sections:` writes them.
     pub order: Vec<String>,
     /// Its terms.
     pub terms: Terms,
@@ -116,7 +125,11 @@ pub struct Climb {
     pub themes: Vec<Option<String>>,
     /// The page's sections, in the order written.
     pub sections: Vec<String>,
-    /// How many of them are permuted.
+    /// The page's layout columns, as written; empty when it has none.
+    pub columns: Vec<Column>,
+    /// How many sections are permuted at most, in each column on a page with columns.
+    pub cap: usize,
+    /// How many of them are permuted, summed over the columns on a page with columns.
     pub permuted: usize,
     /// The number of section orders.
     pub orders: usize,
@@ -133,6 +146,27 @@ impl Climb {
                 terms: variant.terms.values(),
             })
             .collect()
+    }
+
+    /// How the section orders are made: `<n> of <m> sections permuted`, or per column.
+    fn order_axis(&self) -> String {
+        if self.columns.is_empty() {
+            return format!(
+                "{} of {} sections permuted",
+                self.permuted,
+                self.sections.len()
+            );
+        }
+        let columns = self
+            .columns
+            .iter()
+            .map(|column| {
+                let count = column.sections.len();
+                format!("{} {} of {count}", column.name, count.min(self.cap))
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("per column: {columns} sections permuted")
     }
 
     /// The indices of [`Climb::variants`], best first.
@@ -179,11 +213,10 @@ impl Climb {
                 self.primary.as_deref().unwrap_or("none")
             ),
             format!(
-                "# axes: theme {} ({themes}) x section order {} ({} of {} sections permuted) = {} variants",
+                "# axes: theme {} ({themes}) x section order {} ({}) = {} variants",
                 self.themes.len(),
                 self.orders,
-                self.permuted,
-                self.sections.len(),
+                self.order_axis(),
                 self.variants.len()
             ),
             format!(
@@ -244,18 +277,33 @@ pub fn climb(document: &Path, options: &Options) -> Result<Climb, String> {
         .ok_or_else(|| format!("{file}: no page `{}`", options.target.page))?;
     let primary = primary_action(&options.target.page, page);
     let themes = theme_axis(&loaded);
-    let sections = Sections::find(&text, &options.target.page)?;
+    let page_name = &options.target.page;
+    let sections = Sections::find(&text, page_name)?;
     let names: Vec<String> = sections.names().into_iter().map(str::to_owned).collect();
-    let orders = variant::orders(names.len(), options.cap);
+    let layout = Columns::find(&text, page_name)?;
+    let columns = layout
+        .as_ref()
+        .map_or_else(Vec::new, |layout| layout.columns.clone());
+    let arrangements = arrangements(&names, &columns, options.cap, page_name)?;
 
-    let mut variants = Vec::with_capacity(themes.len() * orders.len());
+    let mut variants = Vec::with_capacity(themes.len() * arrangements.len());
     for theme in &themes {
-        for order in &orders {
-            let mut variant_text = sections.with_order(order);
+        for arrangement in &arrangements {
+            let mut variant_text = match &layout {
+                Some(layout) => {
+                    Sections::find(&layout.with_orders(&arrangement.columns), page_name)?
+                        .with_order(&arrangement.order)
+                }
+                None => sections.with_order(&arrangement.order),
+            };
             if let Some(theme) = theme {
                 variant_text = variant::with_theme(&variant_text, theme)?;
             }
-            let order: Vec<String> = order.iter().map(|&index| names[index].clone()).collect();
+            let order: Vec<String> = arrangement
+                .order
+                .iter()
+                .map(|&index| names[index].clone())
+                .collect();
             let (terms, refused) = evaluate(
                 &variant_text,
                 &file,
@@ -265,7 +313,7 @@ pub fn climb(document: &Path, options: &Options) -> Result<Climb, String> {
                 narrow,
             );
             variants.push(Variant {
-                id: format!("{}:{}", theme.as_deref().unwrap_or("-"), order.join(",")),
+                id: format!("{}:{}", theme.as_deref().unwrap_or("-"), arrangement.label),
                 theme: theme.clone(),
                 order,
                 terms,
@@ -281,11 +329,108 @@ pub fn climb(document: &Path, options: &Options) -> Result<Climb, String> {
         narrow,
         primary,
         themes,
-        permuted: names.len().min(options.cap),
+        permuted: if columns.is_empty() {
+            names.len().min(options.cap)
+        } else {
+            columns
+                .iter()
+                .map(|column| column.sections.len().min(options.cap))
+                .sum()
+        },
         sections: names,
-        orders: orders.len(),
+        columns,
+        cap: options.cap,
+        orders: arrangements.len(),
         variants,
     })
+}
+
+/// One section order: the page's `sections:` as indices, each column's order (empty on a page
+/// without columns), and the order as the variant id shows it.
+struct Arrangement {
+    order: Vec<usize>,
+    columns: Vec<Vec<usize>>,
+    label: String,
+}
+
+/// Every section order of a page whose sections are `names`: the orders of `sections:` on a
+/// page without `columns`, else the product of each column's orders, the sections stacked
+/// column by column and those no column lists after them as written.
+fn arrangements(
+    names: &[String],
+    columns: &[Column],
+    cap: usize,
+    page: &str,
+) -> Result<Vec<Arrangement>, String> {
+    let label = |order: &[usize]| {
+        order
+            .iter()
+            .map(|&index| names[index].as_str())
+            .collect::<Vec<_>>()
+            .join(",")
+    };
+    if columns.is_empty() {
+        return Ok(variant::orders(names.len(), cap)
+            .into_iter()
+            .map(|order| Arrangement {
+                label: label(&order),
+                order,
+                columns: Vec::new(),
+            })
+            .collect());
+    }
+    let mut placed = BTreeSet::new();
+    let mut members = Vec::with_capacity(columns.len());
+    for column in columns {
+        let mut indices = Vec::with_capacity(column.sections.len());
+        for name in &column.sections {
+            let index = names
+                .iter()
+                .position(|written| written == name)
+                .ok_or_else(|| {
+                    format!(
+                        "column `{}` of page `{page}` lists `{name}`, which the page's sections do \
+                     not write",
+                        column.name
+                    )
+                })?;
+            if !placed.insert(index) {
+                return Err(format!(
+                    "page `{page}` lists section `{name}` in more than one place of its columns"
+                ));
+            }
+            indices.push(index);
+        }
+        members.push(indices);
+    }
+    let rest: Vec<usize> = (0..names.len())
+        .filter(|index| !placed.contains(index))
+        .collect();
+    let per_column: Vec<Vec<Vec<usize>>> = columns
+        .iter()
+        .map(|column| variant::orders(column.sections.len(), cap))
+        .collect();
+    Ok(variant::product(&per_column)
+        .into_iter()
+        .map(|choice| {
+            let mut order = Vec::with_capacity(names.len());
+            let mut parts = Vec::with_capacity(columns.len() + 1);
+            for (indices, chosen) in members.iter().zip(&choice) {
+                let stacked: Vec<usize> = chosen.iter().map(|&at| indices[at]).collect();
+                parts.push(label(&stacked));
+                order.extend(stacked);
+            }
+            if !rest.is_empty() {
+                parts.push(label(&rest));
+                order.extend(&rest);
+            }
+            Arrangement {
+                order,
+                columns: choice,
+                label: parts.join("|"),
+            }
+        })
+        .collect())
 }
 
 /// The page's primary action, as the node path its region carries: the first `button` child of

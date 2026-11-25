@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use ux_search::variant::{Sections, orders, permutations, with_theme};
+use ux_search::variant::{Columns, Sections, orders, permutations, product, with_theme};
 
 const DOC: &str = "\
 format: ess-ui/1
@@ -137,4 +137,97 @@ fn the_theme_default_is_rewritten_in_flow_and_block_style_and_added_when_absent(
         with_theme(none, "a").unwrap_or_else(|error| panic!("{error}")),
         "themes:\n  a: {}\npages: {}\ntheme: {default: a}\n"
     );
+}
+
+const COLUMNS: &str = "\
+format: ess-ui/1
+pages:
+  live:
+    kind: detail_page
+    layout:
+      columns:
+        - {name: side, sections: [summary], width: narrow}
+        - name: main
+          sections: [kpis, \"hill\", points]
+          width: wide
+    sections:
+      - name: summary
+        component: record
+      - {name: kpis, component: collection}
+      # the hill: the best value per step
+      - name: hill
+        component: chart
+      - name: points
+        component: collection
+";
+
+fn live_columns() -> Columns {
+    Columns::find(COLUMNS, "live")
+        .unwrap_or_else(|error| panic!("{error}"))
+        .expect("the page has columns")
+}
+
+#[test]
+fn a_pages_layout_columns_are_found_with_the_sections_each_lists() {
+    let columns = live_columns();
+    let found: Vec<(&str, Vec<&str>)> = columns
+        .columns
+        .iter()
+        .map(|column| {
+            (
+                column.name.as_str(),
+                column.sections.iter().map(String::as_str).collect(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("side", vec!["summary"]),
+            ("main", vec!["kpis", "hill", "points"])
+        ]
+    );
+}
+
+#[test]
+fn each_columns_sections_are_written_in_another_order_and_nothing_else_moves() {
+    let columns = live_columns();
+    assert_eq!(columns.with_orders(&[vec![0], vec![0, 1, 2]]), COLUMNS);
+    assert_eq!(
+        columns.with_orders(&[vec![0], vec![2, 0, 1]]),
+        COLUMNS.replace("[kpis, \"hill\", points]", "[points, kpis, \"hill\"]")
+    );
+}
+
+#[test]
+fn a_page_without_columns_has_none_and_other_shapes_are_refused() {
+    assert_eq!(Columns::find(DOC, "second"), Ok(None));
+    let stack = "pages:\n  only:\n    layout: {stack: {}}\n    sections:\n      - {name: a}\n";
+    assert_eq!(Columns::find(stack, "only"), Ok(None));
+    let flow = "pages:\n  only:\n    layout: {columns: [{name: a, sections: [x]}]}\n    \
+                sections:\n      - {name: x}\n";
+    let error = Columns::find(flow, "only").expect_err("flow columns are refused");
+    assert!(error.contains("flow"), "{error}");
+    let block = "pages:\n  only:\n    layout:\n      columns:\n        - name: a\n          \
+                 sections:\n            - x\n    sections:\n      - {name: x}\n";
+    let error = Columns::find(block, "only").expect_err("a block list of sections is refused");
+    assert!(error.contains("flow sequence"), "{error}");
+}
+
+#[test]
+fn the_product_of_the_column_orders_puts_the_first_column_outermost() {
+    let all = product(&[orders(1, 5), orders(3, 5)]);
+    assert_eq!(all.len(), 6);
+    assert_eq!(all[0], [vec![0], vec![0, 1, 2]]);
+    assert_eq!(all[5], [vec![0], vec![2, 1, 0]]);
+    assert_eq!(
+        product(&[orders(2, 5), orders(2, 5)]),
+        [
+            [vec![0, 1], vec![0, 1]],
+            [vec![0, 1], vec![1, 0]],
+            [vec![1, 0], vec![0, 1]],
+            [vec![1, 0], vec![1, 0]]
+        ]
+    );
+    assert_eq!(product::<usize>(&[]), [Vec::<usize>::new()]);
 }
