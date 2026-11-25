@@ -4,6 +4,15 @@
 // `exclude` selector it is inside, and each block's right edge. The inputs are returned with the
 // geometry. What counts as overflow is decided in Rust, not here.
 //
+// Only what the page draws is measured: an element for which `checkVisibility({visibilityProperty:
+// true})` is false (no box, under `display: none`, under `content-visibility: hidden`: a closed
+// `details`, `hidden="until-found"`; or its own `visibility` not `visible`) is skipped, and so is a
+// text run whose `visibility` is not `visible`, whose nearest ancestor with a box fails
+// `checkVisibility()`, or whose contents that box skips (its own `content-visibility: hidden`, or
+// a closed `details`' `::details-content`, where text straight inside a `details` goes). Text in a
+// `display: contents` element is measured. `contentVisibilityAuto` is not set: content under
+// `content-visibility: auto` is drawn once it is scrolled to.
+//
 // items: [right, width, height, context, block, excluded]; context 0 flow, 1 fixed, 2 horizontal
 // scroll container, 3 clipping box; block indexes `blocks` ([desc, right]), -1 outside the flow;
 // excluded indexes `exclude`, -1 none.
@@ -62,16 +71,25 @@
   };
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   const range = document.createRange();
+  // Whether the page draws a text run whose parent element is `p` (the header above).
+  const drawsText = (p) => {
+    if (st(p).visibility !== 'visible') return false;
+    let a = p;
+    while (a && st(a).display === 'contents') a = a.parentElement;
+    if (!a) return true;
+    if (!a.checkVisibility() || st(a).contentVisibility === 'hidden') return false;
+    return a.localName !== 'details' || a.open || getComputedStyle(a, '::details-content').contentVisibility !== 'hidden';
+  };
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
     const p = n.parentElement;
-    if (!p || !(n.textContent || '').trim() || st(p).visibility === 'hidden') continue;
-    if (p.closest('svg, script, style, noscript, template')) continue;
+    if (!p || !(n.textContent || '').trim()) continue;
+    if (p.closest('svg, script, style, noscript, template') || !drawsText(p)) continue;
     range.selectNodeContents(n);
     add(range.getBoundingClientRect(), p, p);
   }
   for (const el of document.body.querySelectorAll(elements.join(', '))) {
     if (el.parentElement && el.parentElement.closest('svg')) continue;
-    if (st(el).visibility === 'hidden') continue;
+    if (!el.checkVisibility({ visibilityProperty: true })) continue;
     add(el.getBoundingClientRect(), el.parentElement || el, el);
   }
   return { vw, scroll_width: se.scrollWidth, elements, exclude, blocks, items };

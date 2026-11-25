@@ -1,7 +1,8 @@
 //! The page-scroll slack and the overflow rule as configuration (`layout`): on geometry recorded
 //! from `fixtures/checks/layout-site/` (a page that scrolls 1 px sideways, a canvas 2 px past its
 //! box, a `pre` 50 px past a `.wide-demo` box, an inline-block `span` 30 px past its box) and on
-//! the recorded pages of the first consumer's site.
+//! the recorded pages of the first consumer's site; content the page does not draw on geometry
+//! recorded from `fixtures/checks/hidden-site/` (the end of this file).
 //!
 //! `layout-defaults.capture.json` was recorded by ux-browser 0.3.0 (`checks --capture` with
 //! `layout.checks.yaml`); its document gave page scroll 1 and overflow 2 (`div.box` at 202 past
@@ -351,4 +352,68 @@ fn a_page_scroll_within_the_slack_is_no_value_and_no_finding() {
     };
     assert_eq!(value(""), ("1".to_string(), 1));
     assert_eq!(value("layout: {page_slack_px: 1}\n"), ("0".to_string(), 0));
+}
+
+// ---------------------------------------------------------------- content the page does not draw
+//
+// `fixtures/checks/hidden-site/` measured with `hidden.checks.yaml`: `hidden/` holds the captures of
+// this probe, `hidden-0.6.0/` those ux-browser 0.6.0 recorded of the same pages.
+
+/// The overflow of a page of `hidden-site`, as recorded in `dir`.
+fn hidden_overflow(dir: &str, page: &str) -> Vec<(String, i64, i64, &'static str)> {
+    let config = checks::config(
+        &std::fs::read_to_string(crate::fixture("checks/hidden.checks.yaml")).unwrap(),
+    )
+    .unwrap();
+    let capture = fixture_json(&format!("checks/{dir}/{page}.capture.json"));
+    overflowed(&checks::page_result(&config, &capture).unwrap())
+}
+
+fn line(desc: &str, right: i64) -> (String, i64, i64, &'static str) {
+    (desc.to_string(), right, 200, "parent")
+}
+
+const FULL: &str = "p.full \"a line that is much wider than its card\"";
+
+#[test]
+fn a_long_line_in_a_closed_details_is_no_overflow() {
+    assert_eq!(
+        hidden_overflow("hidden-0.6.0", "details"),
+        [line(FULL, 263)],
+        "0.6.0 counted it"
+    );
+    assert_eq!(hidden_overflow("hidden", "details"), []);
+}
+
+#[test]
+fn the_same_line_in_an_open_details_overflows() {
+    assert_eq!(hidden_overflow("hidden", "details-open"), [line(FULL, 263)]);
+    assert_eq!(
+        hidden_overflow("hidden-0.6.0", "details-open"),
+        [line(FULL, 263)]
+    );
+}
+
+#[test]
+fn text_and_elements_the_page_does_not_draw_are_no_overflow() {
+    // Straight inside a closed details, a `pre` in one, inside and straight inside
+    // `content-visibility: hidden`, inside `hidden="until-found"`; a `display: none` and a
+    // `visibility: hidden` ancestor were no overflow in 0.6.0 either.
+    assert_eq!(hidden_overflow("hidden-0.6.0", "hidden").len(), 5);
+    assert_eq!(hidden_overflow("hidden", "hidden"), []);
+}
+
+#[test]
+fn text_and_elements_the_page_draws_overflow_as_before() {
+    // A closed details' summary, text in a `display: contents` element, a `pre` that is visible
+    // under a `visibility: hidden` card, a line below the fold under `content-visibility: auto`;
+    // the text runs come first, then the elements.
+    let drawn = [
+        line("summary \"a summary that is much wider than its ca\"", 321),
+        line("div.card \"a line inside an element displayed as co\"", 326),
+        line("p \"a line below the fold, under content-vis\"", 344),
+        line("div.card.unseen \"x\"", 300),
+    ];
+    assert_eq!(hidden_overflow("hidden-0.6.0", "drawn"), drawn);
+    assert_eq!(hidden_overflow("hidden", "drawn"), drawn);
 }
