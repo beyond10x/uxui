@@ -328,6 +328,13 @@ fn checks_command(args: &[String]) -> ExitCode {
     {
         return fail(REFUSED, &format!("{config_path}: {e}"));
     }
+    if let Some(e) = config.journeys.iter().find_map(|j| {
+        site.page_url(&config.base_path, &j.page)
+            .err()
+            .map(|e| format!("journey `{}`: {e}", j.name))
+    }) {
+        return fail(REFUSED, &format!("{config_path}: {e}"));
+    }
     // The browser, after every refusal of the inputs (exit 1) and before anything is measured: a
     // missing browser or a pinned build that is missing ends the run here (exit 3).
     let chrome = match ux_browser::chrome::find(config.chrome) {
@@ -349,6 +356,15 @@ fn checks_command(args: &[String]) -> ExitCode {
         if let Some(dir) = &capture {
             let file = dir.join(format!("{}.capture.json", slug(path, &base_path)));
             let _ = std::fs::write(file, uxui_doc::json::write(page) + "\n");
+        }
+    };
+    let journey_progress = |journey: &ux_browser::journey::Journey,
+                            record: &uxui_doc::yaml::Value| {
+        eprintln!("measured journey `{}`", journey.name);
+        if let Some(dir) = &capture {
+            let name = ux_browser::journey::capture_name(&journey.name);
+            let file = dir.join(format!("{name}.capture.json"));
+            let _ = std::fs::write(file, uxui_doc::json::write(record) + "\n");
         }
     };
     // The configuration's switches, then the flag's; each list was checked alone, so together too.
@@ -378,12 +394,25 @@ fn checks_command(args: &[String]) -> ExitCode {
         if let Some(wanted) = &only {
             paths.retain(|p| wanted.contains(&p.as_str()));
         }
-        measure::check_pages(&browser, &config, &site, &paths, jobs, progress)
-            .map_err(|e| (NOT_WRITTEN, e))
+        let pages = measure::check_pages(&browser, &config, &site, &paths, jobs, progress)
+            .map_err(|e| (NOT_WRITTEN, e))?;
+        // The journeys whose page is measured: every one, or with `--pages` those on its pages.
+        let journeys: Vec<&ux_browser::journey::Journey> = config
+            .journeys
+            .iter()
+            .filter(|j| only.as_ref().is_none_or(|w| w.contains(&j.page.as_str())))
+            .collect();
+        let journeys = if journeys.is_empty() {
+            Vec::new()
+        } else {
+            measure::check_journeys(&browser, &config, &site, &journeys, jobs, journey_progress)
+                .map_err(|e| (NOT_WRITTEN, e))?
+        };
+        Ok((pages, journeys))
     })();
     let product = browser.product.clone();
     browser.close();
-    let recorded = match run {
+    let (recorded, recorded_journeys) = match run {
         Ok(r) => r,
         Err((code, e)) => return fail(code, &e),
     };
@@ -395,6 +424,18 @@ fn checks_command(args: &[String]) -> ExitCode {
                 return fail(
                     NOT_WRITTEN,
                     &format!("a recorded page does not read back: {e}"),
+                );
+            }
+        }
+    }
+    let mut journeys = Vec::new();
+    for record in &recorded_journeys {
+        match ux_browser::journey::journey_result(&config, record) {
+            Ok(j) => journeys.push(j),
+            Err(e) => {
+                return fail(
+                    NOT_WRITTEN,
+                    &format!("a recorded journey does not read back: {e}"),
                 );
             }
         }
@@ -429,7 +470,7 @@ fn checks_command(args: &[String]) -> ExitCode {
         started_at,
         ended_at: evidence::now(),
     };
-    let document = evidence::document(&header, &config, &pages);
+    let document = evidence::document_with_journeys(&header, &config, &pages, &journeys);
     let text = evidence::text(&document);
     match get(&opts, "out") {
         Some(out) => {

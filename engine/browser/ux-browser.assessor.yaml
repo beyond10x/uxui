@@ -18,11 +18,11 @@ coverage_unit: check
 coverage: [executed, skipped, not_run, unsupported, passed, failed]
 outputs:
   layout.page_scroll@1:
-    {value_type: number, kind: exact, scopes: [page], unit: units}
+    {value_type: number, kind: exact, scopes: [page, state], unit: units}
   layout.overflow@1:
-    {value_type: number, kind: exact, scopes: [page], unit: blocks}
+    {value_type: number, kind: exact, scopes: [page, state], unit: blocks}
   always_visible.misses@1:
-    {value_type: number, kind: exact, scopes: [page], unit: items}
+    {value_type: number, kind: exact, scopes: [page, state], unit: items}
   keyboard.misses@1:
     {value_type: number, kind: exact, scopes: [page], unit: checks}
   layout_shift.after_ready@1:
@@ -32,6 +32,6 @@ outputs:
   findings:
     value_type: identity_set
     kind: exact
-    scopes: [page]
+    scopes: [page, state]
     identity_key: [rule, node_path]
     item_fields: [reason]

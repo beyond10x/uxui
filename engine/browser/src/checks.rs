@@ -1009,6 +1009,8 @@ pub struct Config {
     pub chrome_args: Vec<String>,
     /// The Chrome build the run uses (`chrome`, `chrome::find`); `None`: the newest.
     pub chrome: Option<crate::chrome::Pin>,
+    /// The journeys whose states are checked (`journeys`, `journey::config`); none by default.
+    pub journeys: Vec<crate::journey::Journey>,
 }
 
 /// The methods a page may send to the measured server unless the configuration names more: reads,
@@ -1062,6 +1064,7 @@ const TOP_KEYS: &[&str] = &[
     "clock",
     "chrome_args",
     "chrome",
+    "journeys",
 ];
 
 /// The checks that run only when `opt_in` names them.
@@ -1359,6 +1362,7 @@ pub fn config(text: &str) -> Result<Config, String> {
         clock: clock_of(&v)?,
         chrome_args,
         chrome: v.get("chrome").map(crate::chrome::pin).transpose()?,
+        journeys: crate::journey::config(v.get("journeys"))?,
     })
 }
 
@@ -1691,7 +1695,8 @@ impl PageResult {
     }
 }
 
-fn visible_of(
+/// The always-visible items of a page at `vp` from their recorded candidates at `position`.
+pub fn visible_of(
     config: &Config,
     path: &str,
     vp: &NamedViewport,

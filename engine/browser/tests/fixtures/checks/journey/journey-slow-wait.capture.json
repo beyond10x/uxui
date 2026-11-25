@@ -1,0 +1,1 @@
+{"journey":"slow wait","page":"/menu/","viewports":[{"viewport":"400x300","runs":[{"mode":"light","mode_applied":true,"states":[],"failed":{"step":1,"error":"no rendered element matched it within 300 ms"}}]}]}

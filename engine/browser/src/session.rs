@@ -324,12 +324,38 @@ impl Page {
         )
     }
 
-    /// Presses a key as a keyboard does: `Tab`, `Enter` or `Space`.
+    /// A click of the left mouse button at `x`, `y` (viewport coordinates), as a mouse does it: a
+    /// move there, a press and a release.
+    pub fn click(&self, conn: &mut Conn, x: f64, y: f64) -> Result<(), String> {
+        for (kind, buttons) in [("mouseMoved", 0), ("mousePressed", 1), ("mouseReleased", 0)] {
+            let mut event = vec![
+                ("type", s(kind)),
+                ("x", Value::Float(x)),
+                ("y", Value::Float(y)),
+                ("buttons", Value::Int(buttons)),
+            ];
+            if kind != "mouseMoved" {
+                event.push(("button", s("left")));
+                event.push(("clickCount", Value::Int(1)));
+            }
+            self.call(conn, "Input.dispatchMouseEvent", map(event))?;
+        }
+        Ok(())
+    }
+
+    /// Types `text` into the focused element, in place of its selection, as an input method does.
+    pub fn insert_text(&self, conn: &mut Conn, text: &str) -> Result<(), String> {
+        self.call(conn, "Input.insertText", map(vec![("text", s(text))]))?;
+        Ok(())
+    }
+
+    /// Presses a key as a keyboard does: `Tab`, `Enter`, `Space` or `Escape`.
     pub fn press(&self, conn: &mut Conn, key: &str) -> Result<(), String> {
         let (code, text) = match key {
             "Tab" => (9, None),
             "Enter" => (13, Some("\r")),
             "Space" => (32, Some(" ")),
+            "Escape" => (27, None),
             other => return Err(format!("key `{other}` is not supported")),
         };
         // The DOM `key` of the space bar is a space; its `code` is `Space`.

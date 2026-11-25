@@ -6,6 +6,7 @@ use crate::cdp::{Connection, Guard};
 use crate::checks::{
     self, AlwaysVisible, Candidate, Config, KeyboardConfig, NamedViewport, Pages, Ready,
 };
+use crate::journey::{Edge, Journey, Step};
 use crate::render::{self, Declarations, FileRef, NodeRender, Record, Shot};
 use crate::session::{Browser, Conn, Page, READY, Setup};
 use crate::target::Site;
@@ -341,6 +342,255 @@ fn measure_open(
         ("units", Value::List(units)),
         ("keyboard", Value::List(walks)),
     ]))
+}
+
+/// The element a `click` or `type` step acts on (`probes/step-target.js`).
+const STEP_TARGET_PROBE: &str = include_str!("probes/step-target.js");
+/// A `wait` step (`probes/wait.js`).
+const WAIT_PROBE: &str = include_str!("probes/wait.js");
+
+/// Runs every journey of `journeys` at every viewport, up to `jobs` journey and viewport pairs at a
+/// time as [`check_pages`] does; returns one recorded journey per journey (what
+/// `journey::journey_result` reads).
+pub fn check_journeys(
+    browser: &Browser,
+    config: &Config,
+    site: &Site,
+    journeys: &[&Journey],
+    jobs: usize,
+    mut progress: impl FnMut(&Journey, &Value),
+) -> Result<Vec<Value>, String> {
+    let ws_url = browser.process.ws_url.clone();
+    let guard = guard(config, site);
+    let viewports = config.viewports.len();
+    let measured = crate::pool::run(
+        jobs,
+        journeys.len() * viewports,
+        || {
+            let socket = WebSocket::connect(&ws_url, Duration::from_secs(10))?;
+            Ok(Connection::new(socket))
+        },
+        |conn: &mut Conn, item| {
+            let (journey, vp) = (
+                journeys[item / viewports],
+                &config.viewports[item % viewports],
+            );
+            journey_viewport(conn, config, site, &guard, journey, vp)
+                .map_err(|e| format!("journey `{}` {}: {e}", journey.name, vp.name))
+        },
+        |mut conn: Conn| conn.transport_mut().close(),
+    );
+    let mut measured = measured?.into_iter();
+    let mut out = Vec::new();
+    for journey in journeys {
+        let records = (0..viewports)
+            .map(|_| {
+                measured
+                    .next()
+                    .expect("one result per journey and viewport")
+            })
+            .collect();
+        let record = map(vec![
+            ("journey", s(&journey.name)),
+            ("page", s(&journey.page)),
+            ("viewports", Value::List(records)),
+        ]);
+        progress(journey, &record);
+        out.push(record);
+    }
+    Ok(out)
+}
+
+/// A journey at `vp`: per mode, a fresh browser context loaded in that mode, the steps, and at each
+/// state its geometry. A step that fails ends the run of that mode; the error is the browser's
+/// failure only when the browser failed.
+fn journey_viewport(
+    conn: &mut Conn,
+    config: &Config,
+    site: &Site,
+    guard: &Guard,
+    journey: &Journey,
+    vp: &NamedViewport,
+) -> Result<Value, String> {
+    let url = site.page_url(&config.base_path, &journey.page)?;
+    let ready_init = ready_init(config);
+    let clock_init = clock_init(config);
+    let mut init_scripts: Vec<&str> = clock_init.as_deref().into_iter().collect();
+    init_scripts.extend(ready_init.as_deref());
+    let mut runs = Vec::new();
+    for mode in &config.modes {
+        let page = Page::open(
+            conn,
+            &Setup {
+                viewport: &vp.viewport(),
+                mode,
+                reduced_motion: config.reduced_motion,
+                guard: Some(guard),
+                init_scripts: &init_scripts,
+            },
+        )?;
+        let result = journey_run(conn, &page, config, &url, journey, vp, mode);
+        page.close(conn)?;
+        runs.push(result?);
+    }
+    Ok(map(vec![
+        ("viewport", s(&vp.name)),
+        ("runs", Value::List(runs)),
+    ]))
+}
+
+/// One run of a journey: `failed` is `{step, error}` for the step that failed (step 0: the page did
+/// not load or get ready), or null.
+fn journey_run(
+    conn: &mut Conn,
+    page: &Page,
+    config: &Config,
+    url: &str,
+    journey: &Journey,
+    vp: &NamedViewport,
+    mode: &str,
+) -> Result<Value, String> {
+    let mut states = Vec::new();
+    let record = |applied: bool, states: Vec<Value>, failed: Option<(usize, String)>| {
+        let failed = failed.map_or(Value::Null, |(step, error)| {
+            map(vec![
+                ("step", Value::Int(step as i64)),
+                ("error", s(&error)),
+            ])
+        });
+        map(vec![
+            ("mode", s(mode)),
+            ("mode_applied", Value::Bool(applied)),
+            ("states", Value::List(states)),
+            ("failed", failed),
+        ])
+    };
+    let status = page.navigate(conn, url)?;
+    if status != 200 {
+        return Ok(record(
+            true,
+            states,
+            Some((0, format!("HTTP status {status}"))),
+        ));
+    }
+    match ready(conn, page, config) {
+        Ok(_) => {}
+        Err(Failure::Page(e)) => return Ok(record(true, states, Some((0, e)))),
+        Err(Failure::Browser(e)) => return Err(e),
+    }
+    page.wait(conn, config.settle_ms)?;
+    let applied = match &config.mode_attribute {
+        Some(attr) => {
+            page.run(
+                conn,
+                MODE_WAIT,
+                &[s(attr), s(mode), Value::Int(MODE_WAIT_MS as i64)],
+            )?;
+            mode_of(conn, page, attr)?.as_deref() == Some(mode)
+        }
+        None => true,
+    };
+    if !applied {
+        return Ok(record(false, states, None));
+    }
+    for (i, step) in journey.steps.iter().enumerate() {
+        if let Some(error) = journey_step(conn, page, config, journey, vp, step, &mut states)? {
+            return Ok(record(true, states, Some((i + 1, error))));
+        }
+    }
+    Ok(record(true, states, None))
+}
+
+/// One step; `Ok(Some(error))` when the page did not let it happen.
+fn journey_step(
+    conn: &mut Conn,
+    page: &Page,
+    config: &Config,
+    journey: &Journey,
+    vp: &NamedViewport,
+    step: &Step,
+    states: &mut Vec<Value>,
+) -> Result<Option<String>, String> {
+    match step {
+        Step::Click(css) => {
+            let answer = page.run(conn, STEP_TARGET_PROBE, &[s(css), Value::Bool(false)])?;
+            if let Some(error) = answer.get_str("error") {
+                return Ok(Some(error.to_string()));
+            }
+            let (Some(x), Some(y)) = (
+                answer.get("x").and_then(f64_of),
+                answer.get("y").and_then(f64_of),
+            ) else {
+                return Err(format!("click `{css}`: no point to click"));
+            };
+            conn.forget(Some(&page.session));
+            page.click(conn, x, y)?;
+            // A click that follows a link: the new document is loaded before the next step.
+            navigated(conn, page);
+        }
+        Step::Type { css, text } => {
+            let answer = page.run(conn, STEP_TARGET_PROBE, &[s(css), Value::Bool(true)])?;
+            if let Some(error) = answer.get_str("error") {
+                return Ok(Some(error.to_string()));
+            }
+            page.insert_text(conn, text)?;
+        }
+        Step::Press(key) => {
+            conn.forget(Some(&page.session));
+            page.press(conn, key)?;
+            navigated(conn, page);
+        }
+        Step::Wait(css) => {
+            conn.set_timeout(CALL_TIMEOUT + Duration::from_millis(journey.timeout_ms));
+            let answer = page.run(
+                conn,
+                WAIT_PROBE,
+                &[s(css), Value::Int(journey.timeout_ms as i64)],
+            );
+            conn.set_timeout(CALL_TIMEOUT);
+            let answer = answer?;
+            if get_bool_of(&answer, "invalid") {
+                return Ok(Some("is not a valid selector".to_string()));
+            }
+            if !get_bool_of(&answer, "met") {
+                return Ok(Some(format!(
+                    "no rendered element matched it within {} ms",
+                    journey.timeout_ms
+                )));
+            }
+        }
+        Step::Scroll(edge) => {
+            let to = match edge {
+                Edge::Top => "window.scrollTo(0, 0)",
+                Edge::Bottom => "window.scrollTo(0, document.documentElement.scrollHeight)",
+            };
+            page.eval(conn, to)?;
+            page.wait(conn, config.scroll_settle_ms)?;
+        }
+        Step::State(name) => {
+            // What the steps changed is laid out and drawn: fonts, two frames, the settle time.
+            page.eval(conn, READY)?;
+            page.wait(conn, config.settle_ms)?;
+            let strs = |l: &[String]| Value::List(l.iter().map(|e| s(e)).collect());
+            let rule = &config.layout.overflow;
+            let overflow = page.run(
+                conn,
+                OVERFLOW_PROBE,
+                &[strs(&rule.elements), strs(&rule.exclude)],
+            )?;
+            let visible = visible_items(conn, page, config, &journey.page, vp)?;
+            states.push(map(vec![
+                ("state", s(name)),
+                ("overflow", overflow),
+                ("visible", visible),
+            ]));
+        }
+    }
+    Ok(None)
+}
+
+fn get_bool_of(v: &Value, key: &str) -> bool {
+    matches!(v.get(key), Some(Value::Bool(true)))
 }
 
 fn mode_of(conn: &mut Conn, page: &Page, attr: &str) -> Result<Option<String>, String> {

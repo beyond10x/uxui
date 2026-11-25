@@ -510,28 +510,57 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
 
     for r in results {
         let output = r.get_str("output").unwrap_or_default();
-        let item = r.get_str("item");
+        // A journey's state (scope `state`, item `<journey>/<state>`) counts under the scenario of
+        // its page; it is shown as `<page>#<journey>/<state>`, and its numbers are its metrics with
+        // `#<journey>/<state>`.
+        let state = r.get_str("scope") == Some(crate::evidence::SCOPE_STATE);
+        let (item, shown) = match (r.get_str("item"), state) {
+            (Some(i), false) => (Some(i.to_string()), Some(i.to_string())),
+            (Some(i), true) => match r.get("details").and_then(|d| d.get_str("page")) {
+                Some(page) => (Some(page.to_string()), Some(format!("{page}#{i}"))),
+                None => (None, Some(i.to_string())),
+            },
+            (None, _) => (None, None),
+        };
         if r.get("incomplete").is_some_and(|i| !i.is_null())
             && !matches!(r.get("incomplete"), Some(Value::Bool(false)))
         {
             incomplete.push(format!(
                 "{} {}: {}",
-                text_or_null(r.get("item")),
+                match (state, &shown) {
+                    (true, Some(shown)) => shown.clone(),
+                    _ => text_or_null(r.get("item")),
+                },
                 text_or_null(r.get("output")),
                 text_or_null(r.get("incomplete").and_then(|i| i.get("cause")))
             ));
         }
-        let Some(item) = item else { continue };
+        let (Some(item), Some(shown)) = (item.as_deref(), shown.as_deref()) else {
+            continue;
+        };
+        let state_of = state.then(|| r.get_str("item").unwrap_or_default());
+        let metric_of = |output: &str| match state_of {
+            Some(s) => format!("{}#{s}", metric(output)),
+            None => metric(output).to_string(),
+        };
         let scenario = inputs.scenario(item);
         if scenario.is_none() && !unmapped.iter().any(|u| u == item) {
             unmapped.push(item.to_string());
         }
-        let what = format!("{item} {output}");
+        let what = format!("{shown} {output}");
         if output == crate::evidence::FINDINGS {
+            let prefix = state_of.map(|s| format!("journey/{s}/"));
             for f in r.get("items").map(Value::list).unwrap_or_default() {
                 let id = f.get("identity");
                 let rule = id.and_then(|i| i.get_str("rule")).unwrap_or_default();
                 let node = id.and_then(|i| i.get_str("node_path")).unwrap_or_default();
+                let node = match &prefix {
+                    Some(p) => match node.strip_prefix(p.as_str()) {
+                        Some(rest) => rest,
+                        None => continue,
+                    },
+                    None => node,
+                };
                 let mut parts = node.splitn(3, '/');
                 let (Some(vp), Some(mode), Some(rest)) = (parts.next(), parts.next(), parts.next())
                 else {
@@ -544,7 +573,7 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
                     .get("fields")
                     .and_then(|x| x.get_str("reason"))
                     .unwrap_or_default();
-                let key = (item.to_string(), vp.to_string(), mode.to_string());
+                let key = (shown.to_string(), vp.to_string(), mode.to_string());
                 let entry = (rule.to_string(), rest.to_string(), reason.to_string());
                 match groups.iter_mut().find(|(k, _)| *k == key) {
                     Some((_, list)) => list.push(entry),
@@ -556,6 +585,10 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
         let Some(value) = r.get("value").filter(|v| !v.is_null()) else {
             continue;
         };
+        // A state some runs did not reach has at most a lower bound: no value.
+        if state && r.get("incomplete").is_some() {
+            continue;
+        }
         let kind = r.get_str("kind").unwrap_or("exact");
         let number = if c.gating.is_some() {
             let per = per_viewport(r, &what)?;
@@ -571,13 +604,9 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
                 if !pages.iter().any(|p| p == item) {
                     pages.push(item.to_string());
                 }
-                match metrics.iter_mut().find(|(m, _, _)| m == metric(output)) {
+                match metrics.iter_mut().find(|(m, _, _)| *m == metric_of(output)) {
                     Some((_, _, texts)) => texts.push(text.clone()),
-                    None => metrics.push((
-                        metric(output).to_string(),
-                        kind.to_string(),
-                        vec![text.clone()],
-                    )),
+                    None => metrics.push((metric_of(output), kind.to_string(), vec![text.clone()])),
                 }
             }
             let at_gating: Vec<String> = per
@@ -592,7 +621,7 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
         let (Some(scenario), Some(number)) = (scenario, number) else {
             continue;
         };
-        let entry = (metric(output).to_string(), number);
+        let entry = (metric_of(output), number);
         match values.iter_mut().find(|(s, _)| s == scenario) {
             Some((_, list)) => {
                 list.retain(|(m, _)| *m != entry.0);
