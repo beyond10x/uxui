@@ -314,13 +314,16 @@ impl Page {
         )
     }
 
-    /// Presses a key as a keyboard does: `Tab` or `Enter`.
+    /// Presses a key as a keyboard does: `Tab`, `Enter` or `Space`.
     pub fn press(&self, conn: &mut Conn, key: &str) -> Result<(), String> {
         let (code, text) = match key {
             "Tab" => (9, None),
             "Enter" => (13, Some("\r")),
+            "Space" => (32, Some(" ")),
             other => return Err(format!("key `{other}` is not supported")),
         };
+        // The DOM `key` of the space bar is a space; its `code` is `Space`.
+        let key_value = if key == "Space" { " " } else { key };
         let mut down = vec![
             (
                 "type",
@@ -330,7 +333,7 @@ impl Page {
                     "rawKeyDown"
                 }),
             ),
-            ("key", s(key)),
+            ("key", s(key_value)),
             ("code", s(key)),
             ("windowsVirtualKeyCode", Value::Int(code)),
             ("nativeVirtualKeyCode", Value::Int(code)),
@@ -345,7 +348,7 @@ impl Page {
             "Input.dispatchKeyEvent",
             map(vec![
                 ("type", s("keyUp")),
-                ("key", s(key)),
+                ("key", s(key_value)),
                 ("code", s(key)),
                 ("windowsVirtualKeyCode", Value::Int(code)),
                 ("nativeVirtualKeyCode", Value::Int(code)),

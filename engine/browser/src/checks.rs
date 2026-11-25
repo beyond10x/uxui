@@ -319,24 +319,178 @@ pub fn applies(item: &AlwaysVisible, path: &str, width: i64) -> bool {
 
 // ---------------------------------------------------------------- keyboard
 
+/// `probes/focus-mark.js` on the focused element: whether it matches `:focus-visible`, its computed
+/// outline and box-shadow, and a short description of it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FocusStyle {
+    pub element: String,
+    pub focus_visible: bool,
+    pub outline_style: String,
+    pub outline_width: f64,
+    pub outline_color: String,
+    pub box_shadow: String,
+}
+
+impl FocusStyle {
+    pub fn from_value(v: &Value) -> Result<Self, String> {
+        let text = |key: &str| {
+            v.get_str(key)
+                .map(str::to_string)
+                .ok_or_else(|| format!("focus mark: no `{key}`"))
+        };
+        Ok(FocusStyle {
+            element: text("element")?,
+            focus_visible: get_bool(v, "focus_visible").ok_or("focus mark: no `focus_visible`")?,
+            outline_style: text("outline_style")?,
+            outline_width: get_f64(v, "outline_width").ok_or("focus mark: no `outline_width`")?,
+            outline_color: text("outline_color")?,
+            box_shadow: text("box_shadow")?,
+        })
+    }
+}
+
+/// Whether a computed colour is fully transparent: `transparent`, or a colour function whose alpha
+/// (its fourth part, or the part after `/`) is 0.
+fn transparent(color: &str) -> bool {
+    let c = color.trim();
+    if c.eq_ignore_ascii_case("transparent") {
+        return true;
+    }
+    let Some(inner) = c
+        .split_once('(')
+        .and_then(|(_, rest)| rest.strip_suffix(')'))
+    else {
+        return false;
+    };
+    let alpha = match inner.split_once('/') {
+        Some((_, a)) => Some(a),
+        None => {
+            let parts: Vec<&str> = inner.split(',').collect();
+            (parts.len() == 4).then(|| parts[3])
+        }
+    };
+    alpha.is_some_and(|a| {
+        let a = a.trim();
+        let number = a.strip_suffix('%').unwrap_or(a);
+        number.parse::<f64>().is_ok_and(|x| x == 0.0)
+    })
+}
+
+/// A focus mark: the element matches `:focus-visible`, and its outline is drawn (a style, a width
+/// above 0, a colour that is not fully transparent) or it has a box-shadow.
+pub fn focus_marked(style: &FocusStyle) -> bool {
+    let outline = style.outline_style != "none"
+        && style.outline_width > 0.0
+        && !transparent(&style.outline_color);
+    style.focus_visible && (outline || style.box_shadow != "none")
+}
+
+impl FocusStyle {
+    /// What a miss says: the focused element and what it showed.
+    pub fn detail(&self) -> String {
+        let visible = if self.focus_visible {
+            ""
+        } else {
+            ", not :focus-visible"
+        };
+        format!(
+            "focused {}: outline {} {}px {}, box-shadow {}{visible}",
+            self.element,
+            self.outline_style,
+            crate::value::decimal(self.outline_width, 2),
+            self.outline_color,
+            self.box_shadow
+        )
+    }
+}
+
+/// What one key did within its wait (`probes/activate.js` and the browser's navigation events).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct KeyFacts {
+    pub navigated: bool,
+    pub focus_moved: bool,
+    pub state_changed: bool,
+    pub dom_changed: bool,
+}
+
+impl KeyFacts {
+    pub fn from_value(v: &Value) -> Result<Self, String> {
+        let fact = |key: &str| get_bool(v, key).ok_or_else(|| format!("activation: no `{key}`"));
+        Ok(KeyFacts {
+            navigated: fact("navigated")?,
+            focus_moved: fact("focus_moved")?,
+            state_changed: fact("state_changed")?,
+            dom_changed: fact("dom_changed")?,
+        })
+    }
+}
+
+/// The activation of one target: whether focus came back to it on a fresh load, and what Enter and
+/// Space did (`None`: not pressed).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Activation {
+    pub refocused: bool,
+    pub enter: Option<KeyFacts>,
+    pub space: Option<KeyFacts>,
+}
+
+impl Activation {
+    pub fn from_value(v: &Value) -> Result<Self, String> {
+        let key = |name: &str| match v.get(name) {
+            None | Some(Value::Null) => Ok(None),
+            Some(f) => KeyFacts::from_value(f).map(Some),
+        };
+        Ok(Activation {
+            refocused: get_bool(v, "refocused").ok_or("activation: no `refocused`")?,
+            enter: key("enter")?,
+            space: key("space")?,
+        })
+    }
+}
+
+impl KeyFacts {
+    pub fn any(&self) -> bool {
+        self.navigated || self.focus_moved || self.state_changed || self.dom_changed
+    }
+}
+
+/// Enter or Space acted on a target focused again: the page navigated, focus moved, the focused
+/// element changed its state, or the document changed where it had been quiet.
+pub fn acted(a: &Activation) -> bool {
+    a.refocused && (a.enter.is_some_and(|k| k.any()) || a.space.is_some_and(|k| k.any()))
+}
+
+impl Activation {
+    /// What a miss says.
+    pub fn detail(&self) -> String {
+        if !self.refocused {
+            "focus did not come back to it on a fresh load".to_string()
+        } else {
+            "neither Enter nor Space changed the page".to_string()
+        }
+    }
+}
+
 /// `measure.rs`'s keyboard walk: the label of the first Tab stop, whether Enter (or one more Tab)
-/// put focus into the skip link's target, which targets were found, and per Tab the targets focus
-/// was in.
+/// put focus into the skip link's target (only with a skip link), which targets were found, per Tab
+/// the targets focus was in, and with them the focus marks and the activations of the targets.
 pub struct KeyboardRaw {
-    pub first_label: String,
+    pub first_label: Option<String>,
     pub after_enter: bool,
     pub after_tab: Option<bool>,
     pub located: Vec<(String, bool)>,
     pub tabs: Vec<Vec<String>>,
+    pub marks: Vec<(String, FocusStyle)>,
+    pub activations: Vec<(String, Activation)>,
 }
 
 impl KeyboardRaw {
     pub fn from_value(v: &Value) -> Result<Self, String> {
-        let first_label = v
-            .get_str("first_label")
-            .ok_or("keyboard: no `first_label`")?
-            .to_string();
-        let after_enter = get_bool(v, "after_enter").ok_or("keyboard: no `after_enter`")?;
+        let first_label = v.get_str("first_label").map(str::to_string);
+        let after_enter = match first_label {
+            Some(_) => get_bool(v, "after_enter").ok_or("keyboard: no `after_enter`")?,
+            None => false,
+        };
         let after_tab = get_bool(v, "after_tab");
         let located = v
             .get("located")
@@ -357,35 +511,74 @@ impl KeyboardRaw {
                     .collect()
             })
             .collect();
+        let marks = v
+            .get("marks")
+            .map(Value::entries)
+            .unwrap_or_default()
+            .iter()
+            .map(|(k, m)| Ok((k.clone(), FocusStyle::from_value(m)?)))
+            .collect::<Result<_, String>>()?;
+        let activations = v
+            .get("activations")
+            .map(Value::entries)
+            .unwrap_or_default()
+            .iter()
+            .map(|(k, a)| Ok((k.clone(), Activation::from_value(a)?)))
+            .collect::<Result<_, String>>()?;
         Ok(KeyboardRaw {
             first_label,
             after_enter,
             after_tab,
             located,
             tabs,
+            marks,
+            activations,
         })
     }
 }
 
+/// One judged check of a target: whether it held, and what was seen.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Judged {
+    pub target: String,
+    pub ok: bool,
+    pub detail: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KeyboardResult {
+    /// Whether the skip-link checks ran: a skip link is declared.
+    pub skip_link: bool,
     pub skip_link_first: bool,
     pub skip_moves_focus: bool,
     pub reached: Vec<(String, bool)>,
+    /// With `focus_mark`, per reached target.
+    pub focus_marks: Vec<Judged>,
+    /// Per reached target of `activates`.
+    pub activated: Vec<Judged>,
 }
 
 impl KeyboardResult {
-    /// The skip link not first, its target not focused (also when it is not first), and each target
-    /// not reached.
+    /// With a skip link: the skip link not first, its target not focused (also when it is not
+    /// first); then each target not reached, each focus mark not shown, each activation that did
+    /// not act.
     pub fn misses(&self) -> i64 {
-        i64::from(!self.skip_link_first)
-            + i64::from(!self.skip_moves_focus)
-            + self.reached.iter().filter(|(_, r)| !r).count() as i64
+        let skip = if self.skip_link {
+            i64::from(!self.skip_link_first) + i64::from(!self.skip_moves_focus)
+        } else {
+            0
+        };
+        skip + self.reached.iter().filter(|(_, r)| !r).count() as i64
+            + self.focus_marks.iter().filter(|j| !j.ok).count() as i64
+            + self.activated.iter().filter(|j| !j.ok).count() as i64
     }
 }
 
 pub fn keyboard(raw: &KeyboardRaw, skip_link: &Name, max_tabs: usize) -> KeyboardResult {
-    let skip_link_first = skip_link.matches(&raw.first_label);
+    let skip_link_first = raw
+        .first_label
+        .as_deref()
+        .is_some_and(|l| skip_link.matches(l));
     let skip_moves_focus = skip_link_first && (raw.after_enter || raw.after_tab == Some(true));
     let reached = raw
         .located
@@ -401,10 +594,59 @@ pub fn keyboard(raw: &KeyboardRaw, skip_link: &Name, max_tabs: usize) -> Keyboar
         })
         .collect();
     KeyboardResult {
+        skip_link: true,
         skip_link_first,
         skip_moves_focus,
         reached,
+        focus_marks: Vec::new(),
+        activated: Vec::new(),
     }
+}
+
+/// The checks of one recorded walk under the configuration's keyboard section: the skip link's
+/// two when one is declared, each target's reach, and of each reached target its focus mark (with
+/// `focus_mark`) and its activation (when `activates` names it). A reached target whose mark or
+/// activation the walk did not record is refused: the record is not of this configuration.
+pub fn keyboard_of(raw: &KeyboardRaw, k: &KeyboardConfig) -> Result<KeyboardResult, String> {
+    let mut r = match &k.skip_link {
+        Some(name) => keyboard(raw, name, k.max_tabs),
+        None => KeyboardResult {
+            skip_link: false,
+            skip_link_first: false,
+            skip_moves_focus: false,
+            ..keyboard(raw, &Name::Any, k.max_tabs)
+        },
+    };
+    for (target, reached) in &r.reached {
+        if !reached {
+            continue;
+        }
+        if k.focus_mark {
+            let (_, style) = raw
+                .marks
+                .iter()
+                .find(|(n, _)| n == target)
+                .ok_or_else(|| format!("keyboard: no focus mark recorded for `{target}`"))?;
+            r.focus_marks.push(Judged {
+                target: target.clone(),
+                ok: focus_marked(style),
+                detail: style.detail(),
+            });
+        }
+        if k.activates.contains(target) {
+            let (_, a) = raw
+                .activations
+                .iter()
+                .find(|(n, _)| n == target)
+                .ok_or_else(|| format!("keyboard: no activation recorded for `{target}`"))?;
+            r.activated.push(Judged {
+                target: target.clone(),
+                ok: acted(a),
+                detail: a.detail(),
+            });
+        }
+    }
+    Ok(r)
 }
 
 // ---------------------------------------------------------------- layout shift
@@ -498,13 +740,18 @@ impl NamedViewport {
 }
 
 pub struct KeyboardConfig {
-    pub skip_link: Name,
+    /// The skip link's name; `None`: the walk has no skip-link checks.
+    pub skip_link: Option<Name>,
     pub must_reach: Vec<String>,
     pub max_tabs: usize,
+    /// Each reached target shows a focus mark (`focus_marked`).
+    pub focus_mark: bool,
+    /// The targets on which Enter or Space must act (`acted`).
+    pub activates: Vec<String>,
     /// The viewports (names) the walk runs at; `None`: every viewport.
     pub viewports: Option<Vec<String>>,
     pub modes: Vec<String>,
-    /// The wait after Enter on the skip link.
+    /// The wait after Enter on the skip link, and the quiet watch and the waits of an activation.
     pub focus_settle_ms: u64,
 }
 
@@ -828,25 +1075,45 @@ pub fn config(text: &str) -> Result<Config, String> {
                     "skip_link_contains",
                     "must_reach",
                     "max_tabs",
+                    "focus_mark",
+                    "activates",
                     "modes",
                     "viewports",
                     "focus_settle_ms",
                 ],
                 "keyboard",
             )?;
-            let skip_link = name_of(k, "skip_link_is", "skip_link_contains", "keyboard")?;
-            if skip_link == Name::Any {
-                return Err(
-                    "keyboard: the skip link is named by `skip_link_is` or `skip_link_contains`"
-                        .to_string(),
-                );
-            }
+            let skip_link = match name_of(k, "skip_link_is", "skip_link_contains", "keyboard")? {
+                Name::Any => None,
+                name => Some(name),
+            };
             let must_reach = get_strs(k, "must_reach")?;
             for target in &must_reach {
                 if !always_visible.iter().any(|a| &a.name == target) {
                     return Err(format!(
                         "keyboard: `{target}` is not an always-visible item"
                     ));
+                }
+            }
+            let focus_mark = match k.get("focus_mark") {
+                None => false,
+                Some(Value::Bool(b)) => *b,
+                Some(_) => return Err("keyboard: `focus_mark` is true or false".to_string()),
+            };
+            if k.get("activates")
+                .is_some_and(|a| !matches!(a, Value::List(_)))
+            {
+                return Err("keyboard: `activates` is a list of targets".to_string());
+            }
+            let activates = get_strs(k, "activates")?;
+            for (i, target) in activates.iter().enumerate() {
+                if !must_reach.contains(target) {
+                    return Err(format!(
+                        "keyboard: `activates` names `{target}`, which is not in `must_reach`"
+                    ));
+                }
+                if activates[..i].contains(target) {
+                    return Err(format!("keyboard: `activates` names `{target}` twice"));
                 }
             }
             let max_tabs = match k.get("max_tabs") {
@@ -878,6 +1145,8 @@ pub fn config(text: &str) -> Result<Config, String> {
                 skip_link,
                 must_reach,
                 max_tabs,
+                focus_mark,
+                activates,
                 modes: walk_modes,
                 viewports: walk_viewports,
                 focus_settle_ms: ms(k, "focus_settle_ms", 100)?,
@@ -1111,7 +1380,7 @@ pub fn page_result(config: &Config, page: &Value) -> Result<PageResult, String> 
                 result.keyboard.push(KeyboardUnit {
                     viewport: vp.name.clone(),
                     mode: walk.get_str("mode").unwrap_or_default().to_string(),
-                    result: keyboard(&raw, &k.skip_link, k.max_tabs),
+                    result: keyboard_of(&raw, k)?,
                 });
             }
         }

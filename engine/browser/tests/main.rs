@@ -10,6 +10,7 @@ mod checks;
 mod codec;
 mod evidence;
 mod json;
+mod keyboard;
 mod pool;
 mod ready;
 mod render;

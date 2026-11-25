@@ -18,6 +18,10 @@ use uxui_doc::yaml::Value;
 pub const NODE_PROBE: &str = include_str!("probes/node.js");
 pub const OVERFLOW_PROBE: &str = include_str!("probes/overflow.js");
 pub const CANDIDATE_PROBE: &str = include_str!("probes/candidate.js");
+/// The focused element's focus mark, as `checks::focus_marked` reads it.
+pub const FOCUS_MARK_PROBE: &str = include_str!("probes/focus-mark.js");
+/// The watch of an activation: `watch`, `mark`, `report` (`checks::acted`).
+pub const ACTIVATE_PROBE: &str = include_str!("probes/activate.js");
 pub const SHIFTS_INIT: &str = include_str!("probes/shifts.js");
 /// Waits for the page's ready condition (watched, not polled, up to the declared time), then fonts
 /// and two frames; answers what `checks::ready_time` reads.
@@ -395,9 +399,12 @@ fn visible_items(
     Ok(Value::List(out))
 }
 
-/// The keyboard walk of the first consumer: on a fresh load, the first Tab stop must be the skip
-/// link and Enter on it (or one more Tab) must put focus into its target; on another fresh load, up
-/// to `max_tabs` Tabs must reach each target. With a ready condition each fresh load waits for it.
+/// The keyboard walk (`docs/browser-adapter.md`, The keyboard walk): with a skip link, on a fresh
+/// load the first Tab stop must be the skip link and Enter on it (or one more Tab) must put focus
+/// into its target; on another fresh load, up to `max_tabs` Tabs must reach each target, and with
+/// `focus_mark` the focused element is read on the Tab that reaches one; then each reached target of
+/// `activates` is activated on a fresh load of its own. With a ready condition each fresh load waits
+/// for it.
 fn keyboard_walk(
     conn: &mut Conn,
     page: &Page,
@@ -412,23 +419,93 @@ fn keyboard_walk(
         }
         Ok(())
     };
-    fresh_load(conn)?;
-    page.press(conn, "Tab")?;
-    let active = page.eval(conn, ACTIVE_PROBE)?;
-    let label = active.get_str("label").unwrap_or_default().to_string();
-    let href = active.get_str("href").unwrap_or_default().to_string();
-    let mut after_enter = false;
-    let mut after_tab = Value::Null;
-    if k.skip_link.matches(&label) {
-        page.press(conn, "Enter")?;
-        page.wait(conn, k.focus_settle_ms)?;
-        after_enter = page.run(conn, PAST_PROBE, &[s(&href)])? == Value::Bool(true);
-        if !after_enter {
-            page.press(conn, "Tab")?;
-            after_tab = page.run(conn, PAST_PROBE, &[s(&href)])?;
+    let mut record = Vec::new();
+    if let Some(skip_link) = &k.skip_link {
+        fresh_load(conn)?;
+        page.press(conn, "Tab")?;
+        let active = page.eval(conn, ACTIVE_PROBE)?;
+        let label = active.get_str("label").unwrap_or_default().to_string();
+        let href = active.get_str("href").unwrap_or_default().to_string();
+        let mut after_enter = false;
+        let mut after_tab = Value::Null;
+        if skip_link.matches(&label) {
+            page.press(conn, "Enter")?;
+            page.wait(conn, k.focus_settle_ms)?;
+            after_enter = page.run(conn, PAST_PROBE, &[s(&href)])? == Value::Bool(true);
+            if !after_enter {
+                page.press(conn, "Tab")?;
+                after_tab = page.run(conn, PAST_PROBE, &[s(&href)])?;
+            }
         }
+        record.push(("first_label", s(&label)));
+        record.push(("after_enter", Value::Bool(after_enter)));
+        record.push(("after_tab", after_tab));
     }
     fresh_load(conn)?;
+    let targets = keyboard_targets(conn, page, config, k)?;
+    let mut reached: Vec<Option<usize>> = targets.iter().map(|_| None).collect();
+    let mut marks = Vec::new();
+    let mut tabs = Vec::new();
+    for press in 1..=k.max_tabs {
+        if targets
+            .iter()
+            .zip(&reached)
+            .all(|((_, object), r)| object.is_none() || r.is_some())
+        {
+            break;
+        }
+        page.press(conn, "Tab")?;
+        let mut here = Vec::new();
+        for (i, (name, object)) in targets.iter().enumerate() {
+            let Some(object) = object else { continue };
+            if reached[i].is_none()
+                && page.run_on(conn, object, FOCUS_WITHIN, &[])? == Value::Bool(true)
+            {
+                reached[i] = Some(press);
+                here.push(s(name));
+                if k.focus_mark {
+                    marks.push((name.clone(), page.eval(conn, FOCUS_MARK_PROBE)?));
+                }
+            }
+        }
+        tabs.push(Value::List(here));
+    }
+    let mut activations = Vec::new();
+    for (i, (name, _)) in targets.iter().enumerate() {
+        if let Some(presses) = reached[i]
+            && k.activates.contains(name)
+        {
+            fresh_load(conn)?;
+            activations.push((name.clone(), activate(conn, page, config, k, i, presses)?));
+        }
+    }
+    record.push((
+        "located",
+        Value::Map(
+            targets
+                .iter()
+                .map(|(n, o)| (n.clone(), Value::Bool(o.is_some())))
+                .collect(),
+        ),
+    ));
+    record.push(("tabs", Value::List(tabs)));
+    if k.focus_mark {
+        record.push(("marks", Value::Map(marks)));
+    }
+    if !k.activates.is_empty() {
+        record.push(("activations", Value::Map(activations)));
+    }
+    Ok(map(record))
+}
+
+/// The walk's targets on the loaded page, in `must_reach` order: each with the first visible
+/// candidate's remote object, or none.
+fn keyboard_targets(
+    conn: &mut Conn,
+    page: &Page,
+    config: &Config,
+    k: &KeyboardConfig,
+) -> Result<Vec<(String, Option<String>)>, String> {
     let tree = page.ax_tree(conn)?;
     let mut targets: Vec<(String, Option<String>)> = Vec::new();
     for name in &k.must_reach {
@@ -452,42 +529,110 @@ fn keyboard_walk(
         }
         targets.push((name.clone(), found));
     }
-    let mut reached: Vec<bool> = targets.iter().map(|_| false).collect();
-    let mut tabs = Vec::new();
-    for _ in 0..k.max_tabs {
-        if targets
-            .iter()
-            .zip(&reached)
-            .all(|((_, object), r)| object.is_none() || *r)
-        {
-            break;
-        }
-        page.press(conn, "Tab")?;
-        let mut here = Vec::new();
-        for (i, (name, object)) in targets.iter().enumerate() {
-            let Some(object) = object else { continue };
-            if !reached[i] && page.run_on(conn, object, FOCUS_WITHIN, &[])? == Value::Bool(true) {
-                reached[i] = true;
-                here.push(s(name));
-            }
-        }
-        tabs.push(Value::List(here));
+    Ok(targets)
+}
+
+/// The browser's events of a navigation of the page: a link followed, a form sent, a new hash.
+const NAVIGATION_EVENTS: [&str; 3] = [
+    "Page.frameRequestedNavigation",
+    "Page.frameStartedLoading",
+    "Page.navigatedWithinDocument",
+];
+
+/// How long a navigation an activation started may take to stop loading before the walk goes on.
+const NAVIGATION_SETTLE: Duration = Duration::from_secs(10);
+
+/// Whether the page reported a navigation since its events were last dropped. One that loads a
+/// document is waited for (`Page.frameStoppedLoading`, at most [`NAVIGATION_SETTLE`]), so that the
+/// page is not closed or loaded again while it loads.
+fn navigated(conn: &mut Conn, page: &Page) -> bool {
+    let seen: Vec<bool> = NAVIGATION_EVENTS
+        .iter()
+        .map(|e| {
+            conn.wait_event(Some(&page.session), e, Duration::ZERO)
+                .is_ok()
+        })
+        .collect();
+    if seen[0] || seen[1] {
+        // A load that does not stop in time is left to the next fresh load or to closing the page.
+        let _ = conn.wait_event(
+            Some(&page.session),
+            "Page.frameStoppedLoading",
+            NAVIGATION_SETTLE,
+        );
     }
-    Ok(map(vec![
-        ("first_label", s(&label)),
-        ("after_enter", Value::Bool(after_enter)),
-        ("after_tab", after_tab),
-        (
-            "located",
-            Value::Map(
-                targets
-                    .iter()
-                    .map(|(n, o)| (n.clone(), Value::Bool(o.is_some())))
-                    .collect(),
-            ),
-        ),
-        ("tabs", Value::List(tabs)),
-    ]))
+    seen.contains(&true)
+}
+
+/// One key on the focused target and what it did within `focus_settle_ms`.
+fn press_and_watch(
+    conn: &mut Conn,
+    page: &Page,
+    k: &KeyboardConfig,
+    key: &str,
+) -> Result<Value, Failure> {
+    conn.forget(Some(&page.session));
+    page.press(conn, key)?;
+    page.wait(conn, k.focus_settle_ms)?;
+    let went = || {
+        map(vec![
+            ("navigated", Value::Bool(true)),
+            ("focus_moved", Value::Bool(false)),
+            ("state_changed", Value::Bool(false)),
+            ("dom_changed", Value::Bool(false)),
+        ])
+    };
+    if navigated(conn, page) {
+        return Ok(went());
+    }
+    match page.run(conn, ACTIVATE_PROBE, &[s("report")]) {
+        // The probe's state is gone: a new document.
+        Ok(Value::Null) => Ok(went()),
+        Ok(facts) => Ok(facts),
+        // A navigation that began after the events were read destroys the page's context.
+        Err(_) if navigated(conn, page) => Ok(went()),
+        Err(e) => Err(Failure::Browser(e)),
+    }
+}
+
+/// The activation of target `i` on a fresh load: `presses` Tabs, focus on the target or inside it
+/// again, a quiet watch, Enter, and Space when Enter did not act (`probes/activate.js`).
+fn activate(
+    conn: &mut Conn,
+    page: &Page,
+    config: &Config,
+    k: &KeyboardConfig,
+    i: usize,
+    presses: usize,
+) -> Result<Value, Failure> {
+    let targets = keyboard_targets(conn, page, config, k)?;
+    for _ in 0..presses {
+        page.press(conn, "Tab")?;
+    }
+    let refocused = match &targets[i].1 {
+        Some(object) => page.run_on(conn, object, FOCUS_WITHIN, &[])? == Value::Bool(true),
+        None => false,
+    };
+    let mut out = vec![
+        ("refocused", Value::Bool(refocused)),
+        ("enter", Value::Null),
+        ("space", Value::Null),
+    ];
+    if !refocused {
+        return Ok(map(out));
+    }
+    page.run(conn, ACTIVATE_PROBE, &[s("watch")])?;
+    page.wait(conn, k.focus_settle_ms)?;
+    page.run(conn, ACTIVATE_PROBE, &[s("mark")])?;
+    let enter = press_and_watch(conn, page, k, "Enter")?;
+    let acted = checks::KeyFacts::from_value(&enter)
+        .map_err(Failure::Browser)?
+        .any();
+    out[1].1 = enter;
+    if !acted {
+        out[2].1 = press_and_watch(conn, page, k, "Space")?;
+    }
+    Ok(map(out))
 }
 
 /// A number the page returned.

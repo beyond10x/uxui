@@ -2,12 +2,16 @@
 format: aep.planning-md/3
 id: story:ux-browser-keyboard-declared-controls
 kind: story
-status: draft
+status: implemented
 title: Keyboard walk without a skip link, to declared controls, with a focus mark
 relations:
 - decomposes: epic:engine-slices
 - depends_on: story:ux-browser-values-output
-revision: 3
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T02:15:04Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"test_result":1}}}
+- {from: "proposed", to: "active", at: "2026-11-25T02:15:04Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"test_result":1}}}
+- {from: "active", to: "implemented", at: "2026-11-25T02:15:04Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1}}}
 ---
 # Story: Keyboard walk without a skip link, to declared controls, with a focus mark
 
