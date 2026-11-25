@@ -3,13 +3,17 @@
 //! `fixtures/partner-portal/` is ESS's example `examples/partner-portal` at tag 0.99.4 (its
 //! `README.md` gives each file's SHA-256). `fixtures/partner-portal.frontier.txt` is the climb's
 //! own output over it, written by `ux-search climb` (the command is in that test's message).
+//! `fixtures/studio.frontier.txt` is the same over the studio, `ess/ui/studio.ui.yaml` of this
+//! repository (`docs/studio-climb.md`).
 //!
 //! Budget: no test runs longer than 60 s; a climb over the fixture is 18 variants, each checked,
-//! opened once and drawn four times.
+//! opened once and drawn four times; the studio climb is 120 such variants, run once.
 
 mod climb;
 mod cost;
 mod rank;
+mod studio;
+mod studio_adversary;
 mod variant;
 
 use std::path::{Path, PathBuf};

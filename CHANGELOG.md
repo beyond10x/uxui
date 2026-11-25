@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `ux-search climb` climbs the studio: on `campaigns.climb` of `ess/ui/studio.ui.yaml` it permutes the
+  sections inside each layout column (the terminal renderer draws the columns as one stack), 120 variants;
+  the frontier of 42 trades a chart last in the main column (1 region below the fold, 2 cut) against the
+  step table last (20 below, 0 cut); the page as written ranks 72nd. A golden file holds the output.
+  Compact `columns:` lists and comments in `layout:` are read as YAML writes them. `docs/studio-climb.md`.
 - The engine's first search: `ux-search` (`engine/search`, a crate with its own workspace, the ESS
   crates by git tag 0.99.4) climbs exhaustively over theme x section order of one page on layout
   model v0, ESS's terminal renderer in process. Each variant is checked, opened fresh and drawn at
