@@ -12,7 +12,7 @@ inputs:
   profile: {type: path, local: true}
   values: {type: path, local: true}
   jobs: {type: integer, local: true}
-conditions: [viewports, modes, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude]
+conditions: [viewports, modes, ready, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude]
 coverage_unit: check
 coverage: [executed, skipped, not_run, unsupported, passed, failed]
 outputs:

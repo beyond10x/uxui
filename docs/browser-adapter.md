@@ -139,6 +139,8 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `modes` | `light`, `dark`, in order; the page loads in the first, the others are switched in place |
 | `mode_attribute` | the attribute of `<html>` that shows the applied mode (`data-theme`); a page that does not apply a mode within 5 s is incomplete |
 | `reduced_motion` | emulate `prefers-reduced-motion: reduce`; default true |
+| `ready` | the condition the page sets once its content is drawn, for a page that draws after its `load` event (from fetched data, say): `{selector: <css>}`, ready when an element matches it (`{selector: 'html[data-ready]'}` for an attribute the page sets, `{selector: 'main:has(.panel):not(:has([aria-busy=true]))'}` for every panel loaded), or `{global: <name>}`, ready when the page sets `window.<name>` to `true` (`window.name = true` or a top-level `var`; a `let` or `const` is no property of `window`). Default: none, ready at `load` as before (The checks) |
+| `ready_timeout_ms` | how long after `load` the page may take to set `ready`; default 10000; only with `ready`. A page that does not set it in time is incomplete |
 | `settle_ms`, `scroll_settle_ms`, `mode_settle_ms` | after ready (250), after the scroll to the bottom (200), after a mode switch (100) |
 | `always_visible` | `{name, role, name_is \| name_contains, css, scope, min_width, path_prefix}` each |
 | `keyboard` | `{skip_link_is \| skip_link_contains, must_reach, max_tabs, modes, viewports, focus_settle_ms}`; `modes` defaults to the last mode, `viewports` (names) to every viewport; each target is an always-visible item |
@@ -147,7 +149,7 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `layout` | the page-scroll slack and the overflow rule (below); optional, each key left out keeps its default |
 | `values` | how `ux-browser values` and `checks --values` turn the document into the consumer's values file (`ux-browser values`); optional |
 
-The `layout` section; the defaults are llm's rule, 0.3.0's (The checks):
+The `layout` section; the defaults are llm's rule, the one of 0.4.0 and before (The checks):
 
 | key | value |
 |---|---|
@@ -159,7 +161,7 @@ The `layout` section; the defaults are llm's rule, 0.3.0's (The checks):
 The elements and the exclusions are inputs of the in-page probe (`src/probes/overflow.js`): it
 measures the elements they name and reports, per item, the first exclusion it lies inside; it returns
 them with the geometry, and `checks::page_result` refuses a recording made with other ones (a capture
-of 0.3.0 reads as the defaults). The slack, the tolerance, the exclusion and the count are applied in
+of 0.4.0 or before reads as the defaults). The slack, the tolerance, the exclusion and the count are applied in
 Rust (`checks.rs`). A selector the browser does not parse makes the probe throw, and the run exits 3.
 With a slack above 0 a page-scroll finding names it: `the page scrolls 3 px sideways, past the slack
 of 1 px`. The document's conditions name every value used (Evidence).
@@ -211,12 +213,23 @@ mode]`, `/skip to (main )?content/i` is `[skip to content, skip to main content]
 ### The checks
 
 Per page and viewport, as llm's L2 spec does it: a fresh context in the first mode, the page loaded to
-its `load` event, ready (fonts loaded, two frames), the settle time, the layout shifts read; then per
-mode: scroll to the top, overflow and page scroll, the always-visible items, scroll to the bottom and
-the scroll settle time, the items again; the keyboard walk in the keyboard modes. A later mode is
-switched in place (`Emulation.setEmulatedMedia` on the loaded page, no reload); the run waits for the
-page to show it in `mode_attribute` (watched in the page, no polling), then the mode settle time. The
-only fixed waits are the declared settle times.
+its `load` event, ready (below), the settle time, the layout shifts read; then per mode: scroll to the
+top, overflow and page scroll, the always-visible items, scroll to the bottom and the scroll settle
+time, the items again; the keyboard walk in the keyboard modes. A later mode is switched in place
+(`Emulation.setEmulatedMedia` on the loaded page, no reload); the run waits for the page to show it in
+`mode_attribute` (watched in the page, no polling), then the mode settle time. The only fixed waits
+are the declared settle times.
+
+Ready is fonts loaded and two frames drawn after `load`. With `ready` declared it is the page's
+condition first, then fonts loaded and two frames drawn: a selector is watched with a
+`MutationObserver` on the document, a global through a property trap set on `window` before the
+page's own scripts, both for at most `ready_timeout_ms` after `load` (no polling, in the page or in
+the run). The ready time is the instant after the two frames, not the instant the condition held: the
+content a page draws in the task that sets its condition is laid out in the frame after, so counting
+from the condition would count that content's own shift as after ready. With `ready`, each fresh load
+of the keyboard walk waits for the same ready before its first Tab. A page that does not set its
+condition in time, or whose selector does not parse, has every result incomplete (Evidence), as a
+page that is not served.
 
 | result (`scope: page`) | per page | definition (llm's) |
 |---|---|---|
@@ -224,7 +237,7 @@ only fixed waits are the declared settle times.
 | `layout.overflow@1` (blocks) | sum | every non-blank text run (Range box) and every element of `layout.overflow.elements` (default `img, svg, video, canvas, iframe, input, select, textarea, table, pre`): overflow when its right edge passes the viewport or its nearest non-inline block by more than `layout.overflow.tolerance_px` (default 1); none under `position: fixed`, `overflow-x: auto \| scroll` or a clipping box, none inside a match of `layout.overflow.exclude` (default none); at most one per block |
 | `always_visible.misses@1` (items) | sum over viewport x mode x top and bottom | the first visible candidate in scope (role and name from the accessibility tree first, then CSS): missing, clipped (not wholly inside the viewport +-0.5 px) or covered (`elementFromPoint` of its centre is not it or inside it); an item outside its `min_width` or `path_prefix` is not checked |
 | `keyboard.misses@1` (checks) | sum over the walks | on a fresh load the first Tab is on the skip link; Enter (or one more Tab) puts focus into its target; on another fresh load up to `max_tabs` Tabs reach each target. A skip link that is not first misses both of its checks |
-| `layout_shift.after_ready@1` (score) | largest over the viewports | `layout-shift` entries without recent input after the ready time, summed, rounded to 4 places; read once per viewport, before the first mode switch |
+| `layout_shift.after_ready@1` (score) | largest over the viewports | `layout-shift` entries without recent input after the ready time (above), summed, rounded to 4 places; read once per viewport, before the first mode switch |
 | `layout_shift.load@1` (score), opt-in | largest over the viewports | every `layout-shift` entry without recent input since the navigation started (the observer is buffered and set before the page's own scripts), summed, rounded to 4 places; read in the same reading as after ready, after the settle time, so it holds the shifts after ready too. llm's round mode (`readShift().load` of its `ux/core/layout.ts` before 0.3.0): it varies with how fast fonts arrive, so llm reports it and does not ratchet it |
 
 `keyboard.viewports` limits the walk to some viewports, as llm's round walks only its gating ones.
@@ -252,13 +265,14 @@ As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
 | `evidence.inputs.config` | the configuration file, `{value: <path>, digest, digest_form: bytes}` |
 | `evidence.inputs.build` | `{value: <path>}` for a build under `--root`, absent for one outside it; no digest beside it, the candidate is its digest |
 | `evidence.inputs.pages` | `{value: <the --pages list>}` when the run measured a list and not the whole sitemap |
-| `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude}`: the rule values the run used, defaults included (`"0"`, `"1"`, the elements joined by `, `, the exclusions joined by `, ` or `""`) |
+| `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, ready, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude}`; `ready` is `load` without a ready condition, else `selector <css>` or `global <name>`. A document of 0.3.0 has no `ready`; its ready was `load`. The layout keys are the rule values the run used, defaults included (`"0"`, `"1"`, the elements joined by `, `, the exclusions joined by `, ` or `""`); a document of 0.4.0 or before has none, its rule was the default |
 | `run.local_inputs` | `jobs` (the value used), and `capture` and `profile` when given: they differ per machine and change no value, so they stay outside the evidence |
 | `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk (skip link first, its target, each target), and one counted layout-shift reading per viewport. A page that did not load is one `not_run` entry, id the page path |
 | `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks` |
 
-A page that is not served or does not apply a mode has every result incomplete with cause
-`incompatible_target` and no value.
+A page that is not served, does not apply a mode or does not set its ready condition in time has
+every result incomplete with cause `incompatible_target` and no value; the detail says why, and names
+the condition: ``ready: the page did not set `selector html[data-ready]` within 10000 ms``.
 
 **The build digest** (`evidence::build_digest`), the candidate of every run: SHA-256 over the text
 that has one line `<hex>  <path>\n` per file of the served directory, where `<hex>` is the SHA-256 of
@@ -284,7 +298,7 @@ digests and the same 1,234 values.
 | `command` | `ux-browser checks` |
 | `targets` | `[build, deployment]`: a served build (`--build`) or a running server (`--url`); no `target_input`, which only a `document` target has |
 | `inputs` | `config` (path, required), `build` (path) and `url` (text), of which a run gets exactly one (a choice of the usage; the format has no way to say so), `pages` (text: paths separated by commas), and the local inputs `capture`, `profile`, `values` (paths) and `jobs` (integer); `values` names a file the run writes and changes no value of the document, as `capture` |
-| `conditions` | `viewports`, `modes`, `settle_ms`, `reduced_motion`: the keys of `conditions.other` |
+| `conditions` | `viewports`, `modes`, `ready`, `settle_ms`, `reduced_motion`: the keys of `conditions.other` |
 | `coverage_unit`, `coverage` | `check`; all six counts |
 | `outputs` | the six numbers (`scope: page`; unit `units`, `blocks`, `items`, `checks`, `score`, `score`; the two layout shifts `sampled`, the others `exact`) and `findings` (`identity_key: [rule, node_path]`, `item_fields: [reason]`) |
 
@@ -368,7 +382,8 @@ beside it. PR #11 has no `--jobs`: it measures one pair at a time.
 | 2 | this | 2 | 5.6 | 64.0 s | 122.8 s | equal |
 | 2 | this | 4 | 17.4 | 42.2 s | 139.8 s | equal |
 
-The example document was written by a run with the default (4 on this host) at a load of 14.8: 31.7 s.
+The example document of that version was written by a run with the default (4 on this host) at a load
+of 14.8: 31.7 s.
 "Equal": all 162 results (numbers, findings, the per-viewport layout shifts) and the coverage counts of
 the 1,234 checks are the same. The time moves with the host's load more than with anything else; at a
 low load four workers take about 30 % of the wall time of one, for about 15 % more CPU time.
@@ -395,10 +410,12 @@ ms). Chromium 158.0.8127.18 (Playwright revision 1254) for both: ux-browser star
 
 ux-browser: 27 pages, 1,234 checks, 107 s at PR #11 (one pair at a time; now: Timings). Document:
 `engine/browser/examples/llm-docs.evidence.json`, rewritten by 0.3.0's run on a rebuild of the
-same commit: the same 1,234 values, the new target kind, another build digest. Rewritten again when
-the layout rule became configuration (Configuration, `layout`), by that change's run on the build of
-llm `6df5102cc`: the same 135 numbers and 1,234 checks (1,176 passed, 4 failed), another build
-digest, and the rule values in its conditions.
+same commit: the same 1,234 values, the new target kind, another build digest. Rewritten again on
+2026-11-25, when documents began to name their ready condition (`ready: load`), by a run on a build of
+llm `6df5102cc`: the same 135 numbers and findings and the same 1,234 checks; per-viewport details
+on every number, as written since 0.3.0. Rewritten again when the layout rule became configuration
+(Configuration, `layout`), by that change's run on the same build: the same 135 numbers and 1,234
+checks (1,176 passed, 4 failed), and the rule values in its conditions.
 
 Each cell: ux-browser / llm's `ux/baseline.json` / llm's own harness (`ux/tests/l2-layout.spec.ts`)
 run on the same build the same day.
@@ -450,3 +467,24 @@ run on the same build the same day.
   page scroll 4 / 4, overflow 14 / 14 (the same blocks), always-visible misses 12 / 12 (navbar, search
   and theme toggle clipped at the bottom, in all four units), keyboard 0 / 0, layout shift 0 / 0. The page
   was restored afterwards.
+
+## A page that draws from fetched data, 2026-11-25
+
+The second consumer, a control plane web application: a static snapshot of 11 pages, each drawing its
+panels and a header widget from JSON it fetches, after its `load` event; its configuration (5
+viewports, dark, settle 500 ms), served by `checks --build`. Five runs one after another per row,
+Chromium 158.0.8127.18.
+
+| site | ready | pages whose `layout_shift.after_ready` differed between the 5 runs | largest value |
+|---|---|---|---|
+| the snapshot | `load` (none declared) | 10 of 11 | 0.8892 |
+| the snapshot | a selector that matches once no panel is loading | 7 of 11 | 0.1781 |
+| a copy whose header widget also marks itself loading (one line) | `load` | 11 of 11 | 0.8871 |
+| the copy | the selector, covering the widget too | 0 of 11: every value 0; the 5 documents' values, findings and coverage equal | 0 |
+
+What moved after ready, read from the shift entries' sources (further runs: two of the first row, three
+of the second): without `ready`, mostly the header widget, whose text arrives late and moves the page
+below it by 21 px at three viewports, and in some runs a panel as the data above it arrived; with the
+panels' signal, the header widget alone. A ready condition is as good as what the page signals: a part
+that draws late and is not in the condition still counts after ready. Every other value (451 checks)
+was the same in all 20 runs.

@@ -3,7 +3,7 @@
   "product": {
     "name": "uxui",
     "mark": "Ux",
-    "eyebrow": "Measured UI improvement · plugin 0.3.0",
+    "eyebrow": "Measured UI improvement · plugin 0.4.0",
     "promise": [
       "Measure the UI.",
       "Never merge it worse."

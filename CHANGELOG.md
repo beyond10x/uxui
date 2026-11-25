@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+- The page-scroll slack and the overflow rule are configuration: `layout: {page_slack_px,
+  overflow: {tolerance_px, elements, exclude}}` in a `ux-browser-checks/1` file. A unit counts for
+  `layout.page_scroll` when the page scrolls sideways by more than `page_slack_px` (default 0); an
+  edge overflows when it passes the viewport or its block by more than `tolerance_px` (default 1);
+  `elements` are the CSS selectors measured besides the text runs (default 0.3.0's ten) and nothing
+  inside a match of an `exclude` selector is overflow (default none). The defaults are 0.4.0's rule:
+  the recorded pages give the same values, and on llm's documentation build the 135 numbers, results
+  and values file are byte for byte those of the probe before; on the second consumer's snapshot
+  page scroll and overflow are 0 / 0 on 55 units with its own slack of 1 px, as its own gate has
+  them. `examples/llm-docs.evidence.json` is rewritten by such a run. The overflow probe takes the
+  elements and exclusions as inputs, returns them with its geometry and reports per item the
+  exclusion it lies in; the rule is applied in Rust, and a capture made with other inputs does not
+  read back. The document's `conditions.other` names the values used (`page_slack_px`,
+  `overflow_tolerance_px`, `overflow_elements`, `overflow_exclude`), and the assessor declaration
+  lists them.
+
+## 0.4.0 — 2026-11-25
+
+- `ux-browser checks` waits for a ready condition the page sets, for a page that draws after its
+  `load` event: `ready: {selector: <css>}` (an element matches it) or `ready: {global: <name>}`
+  (`window.<name>` set to `true`), within `ready_timeout_ms` (default 10000). Ready is then the
+  condition, fonts loaded and two frames; `layout_shift.after_ready` counts from there, and each fresh
+  load of the keyboard walk waits for it too. The page is watched (a `MutationObserver`, a property
+  trap), not polled. A page that does not set its condition in time has every result incomplete
+  (`incompatible_target`, the detail names the condition). Without `ready` every value is 0.3.0's.
+- Every checks document names its ready condition in `evidence.conditions.other.ready` (`load`
+  without one) and the assessor declaration lists `ready` among its conditions; a 0.3.0 document has
+  no `ready`. `engine/browser/examples/llm-docs.evidence.json` is rewritten by such a run: the same
+  135 numbers, findings and 1,234 checks. On the second consumer's snapshot, 5 runs gave 5 equal
+  documents with a ready condition that covers everything the page draws late, where without one
+  `layout_shift.after_ready` differed between runs on 10 of 11 pages (`docs/browser-adapter.md`).
 - `ux-browser checks --url <origin[/path]>` measures a server the run did not start (a dev server,
   a preview, a deployed origin) in place of `--build`; exactly one of the two is given (both or
   neither: exit 2, as is a URL that is not `http(s)://host[:port][/path]`). Without a path a page is
@@ -16,21 +47,6 @@
 - The request guard lets only `GET` and `HEAD` reach the measured server, with `--url` and with
   `--build`, unless the configuration's new `request_methods` names more: a measurement does not
   change the state of the server it measures. Before, any method to the served build went on.
-- The page-scroll slack and the overflow rule are configuration: `layout: {page_slack_px,
-  overflow: {tolerance_px, elements, exclude}}` in a `ux-browser-checks/1` file. A unit counts for
-  `layout.page_scroll` when the page scrolls sideways by more than `page_slack_px` (default 0); an
-  edge overflows when it passes the viewport or its block by more than `tolerance_px` (default 1);
-  `elements` are the CSS selectors measured besides the text runs (default 0.3.0's ten) and nothing
-  inside a match of an `exclude` selector is overflow (default none). The defaults are 0.3.0's rule:
-  the recorded pages give the same values, and on llm's documentation build the 135 numbers, results
-  and values file are byte for byte those of the probe before; on the second consumer's snapshot
-  page scroll and overflow are 0 / 0 on 55 units with its own slack of 1 px, as its own gate has
-  them. `examples/llm-docs.evidence.json` is rewritten by this run. The overflow probe takes the
-  elements and exclusions as inputs, returns them with its geometry and reports per item the
-  exclusion it lies in; the rule is applied in Rust, and a capture made with other inputs does not
-  read back. The document's
-  `conditions.other` names the values used (`page_slack_px`, `overflow_tolerance_px`,
-  `overflow_elements`, `overflow_exclude`), and the assessor declaration lists them.
 
 ## 0.3.0 — 2026-11-24
 

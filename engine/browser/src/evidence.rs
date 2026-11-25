@@ -567,6 +567,7 @@ pub fn document(header: &Header, config: &Config, pages: &[PageResult]) -> Value
                         map(vec![
                             ("viewports", s(&viewports.join(" "))),
                             ("modes", s(&config.modes.join(" "))),
+                            ("ready", s(&checks::ready_condition(config))),
                             ("settle_ms", s(&config.settle_ms.to_string())),
                             ("reduced_motion", s(&config.reduced_motion.to_string())),
                             ("page_slack_px", s(&decimal(layout.page_slack_px, 2))),
