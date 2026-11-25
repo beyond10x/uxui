@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-25T03:23:47Z",
+  "actor": "human:operator",
+  "artifact": "story:ux-browser-chrome-pin",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check:pool exit 0: ux-browser 176 passed (168 before); live: build 1254 and version 158 pins exit 3 naming chromium-1228; build 1228, version 149 and UXUI_CHROME runs exit 0 with equal conditions and coverage"
+  }
+}

@@ -1001,6 +1001,8 @@ pub struct Config {
     pub clock: Option<Clock>,
     /// Switches Chromium starts with after the defaults (`chrome_args`, `chrome::switches`).
     pub chrome_args: Vec<String>,
+    /// The Chrome build the run uses (`chrome`, `chrome::find`); `None`: the newest.
+    pub chrome: Option<crate::chrome::Pin>,
 }
 
 /// The methods a page may send to the measured server unless the configuration names more: reads,
@@ -1053,6 +1055,7 @@ const TOP_KEYS: &[&str] = &[
     "layout",
     "clock",
     "chrome_args",
+    "chrome",
 ];
 
 /// The checks that run only when `opt_in` names them.
@@ -1330,6 +1333,7 @@ pub fn config(text: &str) -> Result<Config, String> {
         layout: layout_rule(&v)?,
         clock: clock_of(&v)?,
         chrome_args,
+        chrome: v.get("chrome").map(crate::chrome::pin).transpose()?,
     })
 }
 

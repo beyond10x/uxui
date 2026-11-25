@@ -281,6 +281,12 @@ fn checks_command(args: &[String]) -> ExitCode {
         Ok(c) => c,
         Err(e) => return fail(REFUSED, &format!("{config_path}: {e}")),
     };
+    // The browser, before the site is read or served: a pinned build that is missing ends the run
+    // here.
+    let chrome = match ux_browser::chrome::find(config.chrome) {
+        Ok(binary) => binary,
+        Err(e) => return fail(NOT_WRITTEN, &e),
+    };
     let values_out = get(&opts, "values");
     let values_inputs = match values_out {
         None => None,
@@ -350,7 +356,7 @@ fn checks_command(args: &[String]) -> ExitCode {
         .chain(&flag_switches)
         .cloned()
         .collect();
-    let mut browser = match Browser::start(&profile, &added) {
+    let mut browser = match Browser::start_binary(&chrome, &profile, &added) {
         Ok(b) => b,
         Err(e) => return fail(NOT_WRITTEN, &e),
     };
