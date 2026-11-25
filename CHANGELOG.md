@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 — 2026-11-25
 
 - ux-browser checks pages in states reached by steps, not only after load: a configuration may
   declare `journeys`, each a `page`, `steps` named by CSS selector (`click`, `type` with `text`,
