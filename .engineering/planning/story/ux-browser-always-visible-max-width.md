@@ -2,12 +2,16 @@
 format: aep.planning-md/3
 id: story:ux-browser-always-visible-max-width
 kind: story
-status: draft
+status: implemented
 title: Always-visible items limited to narrow viewports
 relations:
 - decomposes: epic:engine-slices
 - depends_on: story:ux-browser-always-visible-by-css
-revision: 2
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T03:12:02Z", actor: "human:operator", revision: 3}
+- {from: "proposed", to: "active", at: "2026-11-25T03:12:03Z", actor: "human:operator", revision: 4}
+- {from: "active", to: "implemented", at: "2026-11-25T03:20:41Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"test_result":1}}}
 ---
 # Story: Always-visible items limited to narrow viewports
 

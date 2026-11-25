@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- An always-visible item may set `max_width`: it is checked only at viewports with `min_width <=
+  width <= max_width`, and at a wider one it is not measured and counts nothing, as below its
+  `min_width`. A `max_width` that is not a whole number above 0, or that is below the item's
+  `min_width`, is refused with the item's name. An item a page shows only on narrow viewports (a
+  phone menu button) is declared with it: on the fixture page `tests/fixtures/checks/narrow-menu-site/`
+  "Open menu" with `max_width: 1023` counts 0 misses at 390 and at 1440 px, where 0.6.0 counted the
+  item missing at 1024 and 1440 px (2 each, top and bottom). The keyboard walk is unchanged: it
+  reaches for its targets at the viewports of `keyboard.viewports`. A configuration without
+  `max_width` gives 0.6.0's document: llm's documentation build, all 162 results equal to
+  `engine/browser/examples/llm-docs.evidence.json` byte for byte.
+
 ## 0.6.0 — 2026-11-25
 
 - The keyboard walk of `ux-browser checks` works without a skip link: `keyboard.skip_link_is` and
