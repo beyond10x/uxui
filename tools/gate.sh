@@ -29,8 +29,9 @@ step() {
 
 step sh tools/check-plugin.sh
 step sh tools/check-workflows.sh
+step sh tools/check-themes.sh
 step sh tools/docs.sh check
-for test in check-plugin release docs gate release-ready; do
+for test in check-plugin check-themes release docs gate release-ready; do
 	step timeout 60 sh "tools/$test.test.sh"
 done
 step cargo fmt --all --check
