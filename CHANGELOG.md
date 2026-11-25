@@ -15,6 +15,11 @@
   state after a click on its `summary`; an opened menu counts its covered item in its state only. A
   configuration without journeys writes the document it wrote before. `docs/browser-adapter.md`,
   Journeys.
+- When Chromium ends before it listens, or prints no DevTools endpoint within 30 s, the error (exit 3)
+  holds its last lines on stderr, at most 20, below the status; up to 0.9.1 it held the status only
+  (llm, run 45597987448: `signal: 6 (SIGABRT)` and nothing else). `docs/browser-adapter.md` says what a
+  consumer does on a hosted runner that refuses Chromium's sandbox: the defaults keep it,
+  `chrome_args: [--no-sandbox]` or allowing unprivileged user namespaces is the consumer's choice.
 - ux-browser's cover test samples five points of an always-visible item, not its centre only: the
   centre and the four corners, each 1 px inside the box and further in along the corner's diagonal
   by r (1 - 1/sqrt(2)) for its used `border-radius` r, so a point stays inside a rounded corner. The

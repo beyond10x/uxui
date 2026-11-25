@@ -361,6 +361,21 @@ Switches declared in `chrome_args` are also part of the configuration's bytes, s
 `evidence.inputs.config` differs from that of a configuration without them, as for any edit of the
 file. `ux-browser render` starts Chromium with `SWITCHES` alone.
 
+**When Chromium does not start.** The run ends with exit 3 and an error that names the exit status
+and Chromium's last lines on stderr, at most 20: `Chromium exited before it listened: signal: 6
+(SIGABRT) (core dumped); its last 20 lines on stderr:`, one line each below it. The same when
+Chromium prints no DevTools endpoint within 30 s. Up to 0.9.1 the error held the status only.
+
+**On a hosted CI runner.** The default switches keep Chromium's sandbox: there is no `--no-sandbox`
+in `SWITCHES`. The sandbox needs unprivileged user namespaces; a runner that refuses them (Ubuntu
+24.04 restricts them through AppArmor, `kernel.apparmor_restrict_unprivileged_userns=1`) makes
+Chromium abort before it listens. llm met a SIGABRT at the start on a GitHub `ubuntu-latest` runner
+(2026-11-25, run 45597987448) and reads it as this, not yet verified; the last lines now printed
+show the cause. The consumer chooses: allow
+the namespaces on the runner (`sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`), or
+start Chromium without its sandbox, `chrome_args: [--no-sandbox]`, for pages it trusts. ux-browser
+does not drop the sandbox on its own.
+
 **A low-load run.** On a workstation in use, measure one page and viewport at a time:
 
 ```sh

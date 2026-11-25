@@ -51,6 +51,15 @@ fn a_consumers_switches_come_after_the_defaults_in_their_order() {
     assert_eq!(chrome::switches(&[]).unwrap(), SWITCHES);
 }
 
+/// The defaults keep Chromium's sandbox; a consumer on a runner that refuses it may add
+/// `--no-sandbox` (docs/browser-adapter.md, "On a hosted CI runner").
+#[test]
+fn the_defaults_keep_the_sandbox_and_a_consumer_may_drop_it() {
+    assert!(!SWITCHES.iter().any(|s| s.contains("sandbox")));
+    let line = chrome::switches(&strings(&["--no-sandbox"])).unwrap();
+    assert_eq!(line.last().map(String::as_str), Some("--no-sandbox"));
+}
+
 #[test]
 fn a_switch_the_defaults_set_to_another_value_is_refused_by_its_name() {
     for switch in [
@@ -286,6 +295,88 @@ fn chromium_starts_with_the_defaults_then_the_added_switches() {
     want.push(format!("--user-data-dir={}", profile.display()));
     want.push("about:blank".to_string());
     assert_eq!(args, want);
+}
+
+/// A stand-in for Chromium that prints `l01` to `l25` on stderr and then runs `then`.
+fn talking_chrome(dir: &Path, then: &str) -> PathBuf {
+    let script = dir.join("chrome");
+    crate::executable(
+        &script,
+        &format!(
+            "#!/bin/sh\ni=1\nwhile [ $i -le 25 ]; do printf 'l%02d\\n' $i >&2; i=$((i + 1)); done\n{then}\n"
+        ),
+    );
+    script
+}
+
+/// The lines of an error after its first line.
+fn tail_lines(error: &str) -> Vec<String> {
+    error
+        .lines()
+        .skip(1)
+        .map(|l| l.trim().to_string())
+        .collect()
+}
+
+/// Chromium that aborts before it listens (a hosted runner that refuses its sandbox, llm's run
+/// 45597987448): the error names the status and Chromium's last 20 lines on stderr.
+#[test]
+fn chromium_that_ends_before_it_listens_is_reported_with_its_last_lines() {
+    let dir = scratch("aborts");
+    let binary = talking_chrome(&dir, "kill -ABRT $$");
+    let error = match chrome::Process::start(&binary, &dir.join("profile"), &[]) {
+        Ok(_) => panic!("a Chromium that aborts started"),
+        Err(e) => e,
+    };
+    let first = error.lines().next().unwrap();
+    assert!(
+        first.starts_with("Chromium exited before it listened: signal: 6"),
+        "{error}"
+    );
+    assert!(first.ends_with("its last 20 lines on stderr:"), "{error}");
+    let want: Vec<String> = (6..=25).map(|i| format!("l{i:02}")).collect();
+    assert_eq!(tail_lines(&error), want);
+}
+
+/// Chromium that prints no endpoint before the deadline: the error says so, with its last lines.
+#[test]
+fn chromium_that_prints_no_endpoint_in_time_is_reported_with_its_last_lines() {
+    let dir = scratch("silent");
+    let binary = talking_chrome(&dir, "exec sleep 30");
+    let started = std::time::Instant::now();
+    let error = match chrome::Process::start_within(
+        &binary,
+        &dir.join("profile"),
+        &[],
+        std::time::Duration::from_millis(500),
+    ) {
+        Ok(_) => panic!("a Chromium without an endpoint started"),
+        Err(e) => e,
+    };
+    assert!(started.elapsed() < std::time::Duration::from_secs(5));
+    let first = error.lines().next().unwrap();
+    assert_eq!(
+        first, "Chromium printed no DevTools endpoint within 0.5 s; its last 20 lines on stderr:",
+        "{error}"
+    );
+    let want: Vec<String> = (6..=25).map(|i| format!("l{i:02}")).collect();
+    assert_eq!(tail_lines(&error), want);
+}
+
+/// Chromium that ends without a word: the status alone, no empty list.
+#[test]
+fn chromium_that_ends_silently_is_reported_with_its_status_only() {
+    let dir = scratch("mute");
+    let binary = dir.join("chrome");
+    crate::executable(&binary, "#!/bin/sh\nexit 7\n");
+    let error = match chrome::Process::start(&binary, &dir.join("profile"), &[]) {
+        Ok(_) => panic!("a Chromium that exits started"),
+        Err(e) => e,
+    };
+    assert_eq!(
+        error,
+        "Chromium exited before it listened: exit status: 7; it printed nothing on stderr"
+    );
 }
 
 // ---------------------------------------------------------------- the Chrome build: `chrome`
