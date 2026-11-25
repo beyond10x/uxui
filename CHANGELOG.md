@@ -15,6 +15,20 @@
   135 numbers, findings and 1,234 checks. On the second consumer's snapshot, 5 runs gave 5 equal
   documents with a ready condition that covers everything the page draws late, where without one
   `layout_shift.after_ready` differed between runs on 10 of 11 pages (`docs/browser-adapter.md`).
+- `ux-browser checks --url <origin[/path]>` measures a server the run did not start (a dev server,
+  a preview, a deployed origin) in place of `--build`; exactly one of the two is given (both or
+  neither: exit 2, as is a URL that is not `http(s)://host[:port][/path]`). Without a path a page is
+  its configured path on that origin; a path is where the configuration's `base_path` lies on the
+  server. `pages.sitemap` is read from the server, under the base path, in the run's Chromium (not
+  answered with 200: exit 1). The document's target is `kind: deployment` with
+  `identifiers.environment_id` the normalized URL, and no `candidate` and no `selection`; the results
+  are those of the served build: on llm's documentation build 135 of 135 values equal, on the
+  second consumer's snapshot its 44 exact values equal (`docs/browser-adapter.md`, A running server).
+  The assessor declaration lists `targets: [build, deployment]` and the input `url`; `build` is no
+  longer required.
+- The request guard lets only `GET` and `HEAD` reach the measured server, with `--url` and with
+  `--build`, unless the configuration's new `request_methods` names more: a measurement does not
+  change the state of the server it measures. Before, any method to the served build went on.
 
 ## 0.3.0 — 2026-11-24
 

@@ -4,7 +4,7 @@
 
 use crate::checks::LLM_LIKE;
 use ux_browser::checks::{self, Ready};
-use ux_browser::evidence::{self, Header};
+use ux_browser::evidence::{self, Header, Target};
 use ux_browser::json;
 use ux_browser::measure::{self, Failure};
 use ux_browser::render::FileRef;
@@ -191,7 +191,7 @@ fn document(config: &checks::Config, pages: &[checks::PageResult]) -> Value {
         assessment: "a",
         class: "local",
         config: &file,
-        build: &build,
+        target: Target::Build(&build),
         pages: None,
         local_inputs: Vec::new(),
         browser: "Chrome/150.0.0.0",

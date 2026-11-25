@@ -22,8 +22,14 @@ fn text(items: &[&str]) -> Value {
     Value::List(items.iter().map(|s| Value::Str(s.to_string())).collect())
 }
 
-/// The `checks` part of the usage the binary prints: `(name, required)` per `--name`.
+/// The `checks` part of the usage the binary prints: `(name, required)` per `--name`. An argument
+/// of a choice, `(--a <x> | --b <y>)`, is not required by itself.
 fn checks_arguments() -> Vec<(String, bool)> {
+    checks_usage().0
+}
+
+/// The arguments of the `checks` usage, and its choices: the names of each `( | )` group.
+fn checks_usage() -> (Vec<(String, bool)>, Vec<Vec<String>>) {
     let help = Command::new(env!("CARGO_BIN_EXE_ux-browser"))
         .arg("--help")
         .output()
@@ -35,16 +41,34 @@ fn checks_arguments() -> Vec<(String, bool)> {
         .expect("the usage has a checks command")
         .1;
     let mut out = Vec::new();
+    let mut choices: Vec<Vec<String>> = Vec::new();
+    let mut in_choice = false;
     for token in checks.split_whitespace() {
         if token == "ux-browser" {
             break;
         }
-        let required = !token.starts_with('[');
-        if let Some(name) = token.trim_start_matches('[').strip_prefix("--") {
+        if token.starts_with('(') {
+            in_choice = true;
+            choices.push(Vec::new());
+        }
+        let required = !token.starts_with('[') && !in_choice;
+        if let Some(name) = token.trim_start_matches(['[', '(']).strip_prefix("--") {
             out.push((name.to_string(), required));
+            if in_choice {
+                choices.last_mut().unwrap().push(name.to_string());
+            }
+        }
+        if token.ends_with(')') {
+            in_choice = false;
         }
     }
-    out
+    (out, choices)
+}
+
+#[test]
+fn the_usage_names_build_and_url_as_one_choice() {
+    let (_, choices) = checks_usage();
+    assert_eq!(choices, [vec!["build".to_string(), "url".to_string()]]);
 }
 
 #[test]
@@ -60,7 +84,11 @@ fn the_declaration_names_the_assessor_its_target_kind_and_its_counts() {
         evidence::ASSESSOR
     );
     assert_eq!(decl.get_str("command"), Some("ux-browser checks"));
-    assert_eq!(decl.get("targets"), Some(&text(&["build"])));
+    assert_eq!(
+        decl.get("targets"),
+        Some(&text(&["build", "deployment"])),
+        "a served build, or a running server (`--url`)"
+    );
     assert_eq!(
         decl.get("target_input"),
         None,
@@ -113,6 +141,7 @@ fn the_declared_inputs_are_the_arguments_of_the_checks_command() {
     };
     assert_eq!(kind("config"), ("path".to_string(), false));
     assert_eq!(kind("build"), ("path".to_string(), false));
+    assert_eq!(kind("url"), ("string".to_string(), false));
     assert_eq!(kind("pages"), ("string".to_string(), false));
     assert_eq!(kind("capture"), ("path".to_string(), true));
     assert_eq!(kind("profile"), ("path".to_string(), true));
@@ -190,6 +219,7 @@ fn the_documents_write_every_declared_output_and_nothing_else() {
     let example = crate::fixture_json("../../examples/llm-docs.evidence.json");
     let mut written = agrees(&decl, &example);
     written.extend(agrees(&decl, &crate::evidence::document()));
+    written.extend(agrees(&decl, &crate::evidence::server_document()));
     written.extend(agrees(&decl, &crate::values::round_document()));
     for (name, _) in decl.get("outputs").unwrap().entries() {
         assert!(
@@ -229,4 +259,54 @@ fn jobs_is_a_whole_number_of_at_least_one() {
     assert_eq!(checks_call(&["--jobs", "0"]), Some(2));
     assert_eq!(checks_call(&["--jobs", "two"]), Some(2));
     assert_eq!(checks_call(&[]), Some(1));
+}
+
+/// `checks` with a configuration that does not exist, the target arguments `target` and `extra`:
+/// every call is refused before a browser starts or a socket opens.
+fn target_call(target: &[&str]) -> (Option<i32>, String) {
+    let missing = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/no-such-config.yaml");
+    let o = Command::new(env!("CARGO_BIN_EXE_ux-browser"))
+        .args(["checks", "--config"])
+        .arg(&missing)
+        .args(["--project", "p", "--assessment", "a"])
+        .args(target)
+        .output()
+        .unwrap();
+    (
+        o.status.code(),
+        String::from_utf8_lossy(&o.stderr).to_string(),
+    )
+}
+
+#[test]
+fn build_and_url_are_one_choice_of_exactly_one() {
+    let (code, stderr) = target_call(&["--build", "site", "--url", "http://127.0.0.1:9"]);
+    assert_eq!(code, Some(2), "both: {stderr}");
+    assert!(
+        stderr.contains("--build") && stderr.contains("--url"),
+        "{stderr}"
+    );
+    let (code, stderr) = target_call(&[]);
+    assert_eq!(code, Some(2), "neither: {stderr}");
+    let (code, stderr) = target_call(&["--url", "http://127.0.0.1:9"]);
+    assert_eq!(
+        code,
+        Some(1),
+        "a good --url reaches the missing configuration: {stderr}"
+    );
+    let (code, _) = target_call(&["--build", "site"]);
+    assert_eq!(code, Some(1));
+}
+
+#[test]
+fn a_url_that_is_not_an_origin_is_a_wrong_invocation() {
+    for url in [
+        "127.0.0.1:9",
+        "ftp://example.org",
+        "http://example.org/?q",
+        "",
+    ] {
+        let (code, stderr) = target_call(&["--url", url]);
+        assert_eq!(code, Some(2), "{url:?}: {stderr}");
+    }
 }

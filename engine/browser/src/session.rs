@@ -49,8 +49,8 @@ pub struct Setup<'a> {
     pub viewport: &'a Viewport,
     pub mode: &'a str,
     pub reduced_motion: bool,
-    /// Requests to anything but this origin fail.
-    pub origin: Option<&'a str>,
+    /// When set, it answers every request of the page (`cdp::Guard`).
+    pub guard: Option<&'a Guard>,
     /// Scripts that run before any script of each document.
     pub init_scripts: &'a [&'a str],
 }
@@ -112,10 +112,8 @@ impl Page {
             "Emulation.setFocusEmulationEnabled",
             map(vec![("enabled", Value::Bool(true))]),
         )?;
-        if let Some(origin) = setup.origin {
-            conn.guard = Some(Guard {
-                origin: origin.to_string(),
-            });
+        if let Some(guard) = setup.guard {
+            conn.guard = Some(guard.clone());
             page.call(
                 conn,
                 "Fetch.enable",

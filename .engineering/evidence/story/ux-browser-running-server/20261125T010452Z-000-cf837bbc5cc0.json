@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-25T01:04:52Z",
+  "actor": "human:operator",
+  "artifact": "story:ux-browser-running-server",
+  "kind": "story",
+  "revision": 2,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot task check:pool exit 0: ux-browser 106 passed (89 before); live --url vs --build 135/135 equal"
+  }
+}

@@ -1,13 +1,14 @@
 //! The runs that drive a browser: the render record of one URL, and the page checks of a built
-//! site. Everything they compute from what the browser returns lives in `render` and `checks`,
-//! where the tests reach it without a browser.
+//! site or a running server. Everything they compute from what the browser returns lives in
+//! `render` and `checks`, where the tests reach it without a browser.
 
-use crate::cdp::Connection;
+use crate::cdp::{Connection, Guard};
 use crate::checks::{
     self, AlwaysVisible, Candidate, Config, KeyboardConfig, NamedViewport, Pages, Ready,
 };
 use crate::render::{self, Declarations, FileRef, NodeRender, Record, Shot};
 use crate::session::{Browser, Conn, Page, READY, Setup};
+use crate::target::Site;
 use crate::value::{f64_of, map, s};
 use crate::ws::WebSocket;
 use std::path::Path;
@@ -89,6 +90,48 @@ pub fn pages(config: &Config, build: &Path) -> Result<Vec<String>, String> {
     }
 }
 
+/// The request guard of a run on `site`: its origin, with the configuration's methods.
+pub fn guard(config: &Config, site: &Site) -> Guard {
+    Guard::new(&site.origin, &config.request_methods)
+}
+
+/// Reads the text at `url` in a page of its own behind `guard`, on the browser's own connection:
+/// `Ok(Err)` when the server does not answer it with 200 (a refused input), `Err` when the browser
+/// failed. What a running server's sitemap is read with.
+pub fn fetch_text(
+    conn: &mut Conn,
+    guard: &Guard,
+    url: &str,
+) -> Result<Result<String, String>, String> {
+    let page = Page::open(
+        conn,
+        &Setup {
+            viewport: &render::Viewport {
+                width: 800,
+                height: 600,
+            },
+            mode: "light",
+            reduced_motion: true,
+            guard: Some(guard),
+            init_scripts: &[],
+        },
+    )?;
+    let result = (|| {
+        let status = page.navigate(conn, url)?;
+        if status != 200 {
+            return Ok(Err(format!("{url}: HTTP status {status}")));
+        }
+        // The document as the server sent it: the page itself may be a viewer's rendering of it.
+        let text = page.eval(
+            conn,
+            "fetch(location.href, { cache: 'no-store' }).then((r) => r.text())",
+        )?;
+        Ok(Ok(text.str().unwrap_or_default().to_string()))
+    })();
+    page.close(conn)?;
+    result
+}
+
 /// A page that could not be measured, as opposed to a browser that failed.
 #[derive(Debug)]
 pub enum Failure {
@@ -125,19 +168,19 @@ pub fn page_record(
     ]))
 }
 
-/// Runs the checks of `config` on every page of the site served at `origin` in one browser, up to
-/// `jobs` page and viewport pairs at a time, each worker on a DevTools connection of its own;
-/// returns one recorded page per path (what `checks::page_result` reads) and the browser's product.
+/// Runs the checks of `config` on every page of `site` in `browser`, up to `jobs` page and viewport
+/// pairs at a time, each worker on a DevTools connection of its own; returns one recorded page per
+/// path (what `checks::page_result` reads).
 pub fn check_pages(
+    browser: &Browser,
     config: &Config,
-    origin: &str,
+    site: &Site,
     paths: &[String],
-    profile: &Path,
     jobs: usize,
     mut progress: impl FnMut(&str, &Value),
-) -> Result<(Vec<Value>, String), String> {
-    let browser = Browser::start(profile)?;
+) -> Result<Vec<Value>, String> {
     let ws_url = browser.process.ws_url.clone();
+    let guard = guard(config, site);
     let viewports = config.viewports.len();
     let measured = crate::pool::run(
         jobs,
@@ -152,15 +195,13 @@ pub fn check_pages(
                 &config.viewports[item % viewports],
             );
             // A browser failure stops every worker; a page failure is the page's result.
-            match measure_viewport(conn, config, origin, path, vp) {
+            match measure_viewport(conn, config, site, &guard, path, vp) {
                 Err(Failure::Browser(e)) => Err(format!("{path} {}: {e}", vp.name)),
                 other => Ok(other),
             }
         },
         |mut conn: Conn| conn.transport_mut().close(),
     );
-    let product = browser.product.clone();
-    browser.close();
     let mut measured = measured?.into_iter();
     let mut out = Vec::new();
     for path in paths {
@@ -176,7 +217,7 @@ pub fn check_pages(
         progress(path, &page);
         out.push(page);
     }
-    Ok((out, product))
+    Ok(out)
 }
 
 /// Measures `path` at `vp` in a browser context of its own, as a fresh Playwright context: a page
@@ -185,10 +226,15 @@ pub fn check_pages(
 fn measure_viewport(
     conn: &mut Conn,
     config: &Config,
-    origin: &str,
+    site: &Site,
+    guard: &Guard,
     path: &str,
     vp: &NamedViewport,
 ) -> Result<Value, Failure> {
+    // A page with no place on the server (outside the base path, under a mount) is not served.
+    let url = site
+        .page_url(&config.base_path, path)
+        .map_err(Failure::Page)?;
     let first = &config.modes[0];
     let ready_init = ready_init(config);
     let mut init_scripts = vec![SHIFTS_INIT];
@@ -199,11 +245,11 @@ fn measure_viewport(
             viewport: &vp.viewport(),
             mode: first,
             reduced_motion: config.reduced_motion,
-            origin: Some(origin),
+            guard: Some(guard),
             init_scripts: &init_scripts,
         },
     )?;
-    let result = measure_open(conn, &page, config, origin, path, vp);
+    let result = measure_open(conn, &page, config, &url, path, vp);
     page.close(conn)?;
     result
 }
@@ -212,12 +258,11 @@ fn measure_open(
     conn: &mut Conn,
     page: &Page,
     config: &Config,
-    origin: &str,
+    url: &str,
     path: &str,
     vp: &NamedViewport,
 ) -> Result<Value, Failure> {
-    let url = format!("{origin}{path}");
-    let status = page.navigate(conn, &url)?;
+    let status = page.navigate(conn, url)?;
     if status != 200 {
         return Err(Failure::Page(format!("HTTP status {status}")));
     }
@@ -263,7 +308,7 @@ fn measure_open(
             && k.modes.contains(mode)
             && k.viewports.as_ref().is_none_or(|v| v.contains(&vp.name))
         {
-            let walk = keyboard_walk(conn, page, config, k, &url)?;
+            let walk = keyboard_walk(conn, page, config, k, url)?;
             walks.push(map(vec![("mode", s(mode)), ("walk", walk)]));
         }
     }
@@ -482,7 +527,7 @@ fn render_in(browser: &mut Browser, inputs: &RenderInputs) -> Result<Rendered, S
             viewport: &d.viewport,
             mode: &d.mode,
             reduced_motion: true,
-            origin: None,
+            guard: None,
             init_scripts: &[],
         },
     )?;
