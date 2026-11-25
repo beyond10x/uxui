@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 — 2026-11-25
 
 - `ux-browser --version` (and `-V`) prints `ux-browser <version>` and a newline and exits 0; it starts
   no browser and reads no file, and the version is the crate's, the one a run records as
