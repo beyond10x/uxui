@@ -10,7 +10,7 @@ custom_edit_url: null
 
 # Status
 
-3 items are shipped, 5 are decided and 6 are planned, as of 2026-11-24. **Shipped** means on `main` and usable today. **Decided** means designed and written down in the repository (documents and the ESS specification) with no code behind it. **Planned** means a step on the [Roadmap](./roadmap.md) that has not started. What the evidence does not show is on [Limitations](./limitations.md). This page is generated from `website/data/status.json`, the same file the landing page reads.
+3 items are shipped, 5 are decided and 6 are planned, as of 2026-11-25. **Shipped** means on `main` and usable today. **Decided** means designed and written down in the repository (documents and the ESS specification) with no code behind it. **Planned** means a step on the [Roadmap](./roadmap.md) that has not started. What the evidence does not show is on [Limitations](./limitations.md). This page is generated from `website/data/status.json`, the same file the landing page reads.
 
 ## Plugin
 
@@ -35,8 +35,8 @@ custom_edit_url: null
 | Item | Status | What it means |
 |---|---|---|
 | [Specification round 2](./roadmap.md) | ○ planned | Scenarios for the 156 outcomes, the 13 UNMAPPED markers resolved or moved to the gaps, an independent review. |
-| [Cost of one evaluation](./roadmap.md) | ○ planned | A spike that measures the per-state cost of a layout call. The design assumes 50 µs; nothing has measured it. |
+| [Cost of one evaluation](./roadmap.md) | ○ planned | A spike that measures the per-state cost of a layout call. The design assumes 50 µs. The tool ux-search cost is written; its first measurement is still to be made. |
 | [Static metrics slice ux-static@1](./roadmap.md) | ○ planned | Static metrics from an ess-ui/1 document, its journeys and its declarations, written as ratchet evidence. No browser, no layout model. |
-| [First climb on a toy](./roadmap.md) | ○ planned | Two axes on one example page, searched exhaustively, a ranked frontier printed as text; then the studio. |
+| [First climb on a toy](./roadmap.md) | ○ planned | Two axes on one example page, searched exhaustively, a ranked frontier printed as text; then the studio. The search ux-search climb is written for theme x section order on layout model v0; no UI state exploration, no studio climb. |
 | [Ratchet integration](./roadmap.md) | ○ planned | Presets, gates on merge and promote, and the first loop copy moved onto ratchet and uxui. |
 | [The skill on the engine](./roadmap.md) | ○ planned | ui-iteration-loop as a thin round on top of the engine: findings become ratchet requirements, taste stays with people. |

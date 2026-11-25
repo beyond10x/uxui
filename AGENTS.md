@@ -27,8 +27,9 @@ what is specific to uxui.
 | `website/` | the public documentation site, Docusaurus on the shared Docs System, served at `https://beyond10x.github.io/uxui/`; `website/README.md` lists what is generated |
 | `.github/workflows/` | `ci.yml` (`Gate`: `tools/gate.sh` on every pull request and push to `main`), `release.yml` (the same gate, then the release assets, on a tag), `pages.yml` (builds and checks the site, uploads it on `main`; no credential, no deploy step) and `b10x-docs-site.yml` (hands that artifact to the shared publisher) |
 | `generators/own/` | `uxui-gen`, the smallest own generator: one page of the studio document as static HTML and plain JS (`docs/own-generator.md`); Rust, no third-party crates; workspace `Cargo.toml` and `rust-toolchain.toml` at the root |
-| `engine/` | the engine, Rust, no third-party crates: `doc` (`uxui-doc`: the YAML subset reader, the JSON writer, SHA-256 and the node tree of an `ess-ui/1` document, shared with `uxui-gen`) and `static` (`ux-static@1`: static metrics as one `ratchet-evidence/1` document per run, `docs/ux-static.md`; its declarations file `docs/uxui-declarations.md`, the studio's `ess/ui/studio.uxui.yaml`) |
+| `engine/` | the engine, Rust, no third-party crates (`engine/search` excepted, its row below): `doc` (`uxui-doc`: the YAML subset reader, the JSON writer, SHA-256 and the node tree of an `ess-ui/1` document, shared with `uxui-gen`) and `static` (`ux-static@1`: static metrics as one `ratchet-evidence/1` document per run, `docs/ux-static.md`; its declarations file `docs/uxui-declarations.md`, the studio's `ess/ui/studio.uxui.yaml`) |
 | `engine/browser/` | `ux-browser@1`, the browser adapter (`docs/browser-adapter.md`): Chromium driven over its own DevTools-protocol client (WebSocket, JSON, no crate), a static server for a built site or a running server it did not start (`checks --url`), the render record `ux-browser-render/1` and the five shared page checks (and the opt-in `layout_shift.load`) as one `ratchet-evidence/1` document per run, and from it a consumer's values file `ux-browser-values/1` (`ux-browser values`, `checks --values`); `examples/` holds the declarations of the documentation landing page and of the first consumer's site; its tests start no browser and read geometry recorded from real runs (`tests/fixtures/`) |
+| `engine/search/` | `ux-search`, the engine's first search on layout model v0, ESS's terminal renderer driven in process: `ux-search cost` times one evaluation per UI state (`docs/cost-spike.md`), `ux-search climb` searches theme x section order of one page exhaustively and prints the ranked frontier; its tests climb ESS's partner-portal example (`tests/fixtures/`) against a golden frontier. A workspace of its own with its own `Cargo.lock`, outside the root workspace; `tools/gate.sh` runs its format, lint and test steps with `--manifest-path engine/search/Cargo.toml`. The one exception to "no third-party crates": its third-party crates come only through ESS (`ess-ui`, `ess-ui-check`, `ess-ui-tui` by git, `github.com/beyond10x/ess` tag `0.99.4`, and what they depend on: ratatui, crossterm, clap, serde, serde_json, serde_norway, sha2 and others, all listed in its `Cargo.lock`); its `Cargo.toml` names no other third-party crate, and no path into an ESS checkout |
 
 ## Direction
 
@@ -98,7 +99,9 @@ check`, the test scripts `tools/check-plugin.test.sh`, `tools/release.test.sh`, 
 of the tree (written under `target/`), `cargo fmt --all --check`, `cargo clippy --workspace --all-targets
 --locked -- -D warnings` (the forge installs both components in each gate job), and `cargo test
 --workspace --locked` (no browser starts in
-it; the real runs are measurements, `docs/browser-adapter.md`). The whole gate takes a few seconds
+it; the real runs are measurements, `docs/browser-adapter.md`), then the same three for
+`engine/search` with `--manifest-path engine/search/Cargo.toml` (its tests drive ESS's terminal
+renderer in process; no terminal, browser or network). The whole gate takes a few seconds
 once the crates are compiled. Building the site (`task docs-site`) is not part of the gate.
 
 The forge runs the same `tools/gate.sh` on `ubuntu-latest` with the toolchain of

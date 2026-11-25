@@ -166,9 +166,13 @@ workflows fail "the pull-request workflow does not run on a push to main" \
 workflows fail "the release gate installs no clippy and rustfmt" \
 	'sed "/^ *components: clippy, rustfmt\$/d" .github/workflows/release.yml >x && mv x .github/workflows/release.yml'
 
-# The gate holds the workspace's format and lints: tools/gate.sh runs both commands, and the format
-# check fails on a copy of the sources with one planted format diff (rustfmt compiles nothing).
-for want in 'cargo fmt --all --check' 'cargo clippy --workspace --all-targets --locked -- -D warnings'; do
+# The gate holds the workspace's format and lints, and engine/search's (a workspace of its own)
+# format, lints and tests: tools/gate.sh runs each command, and the format check fails on a copy
+# of the sources with one planted format diff (rustfmt compiles nothing).
+for want in 'cargo fmt --all --check' 'cargo clippy --workspace --all-targets --locked -- -D warnings' \
+	'cargo fmt --manifest-path engine/search/Cargo.toml --check' \
+	'cargo clippy --manifest-path engine/search/Cargo.toml --all-targets --locked -- -D warnings' \
+	'timeout 120 cargo test --manifest-path engine/search/Cargo.toml --locked --no-fail-fast'; do
 	if grep -qxF "step $want" "$root/tools/gate.sh"; then
 		ok "the gate runs $want"
 	else
