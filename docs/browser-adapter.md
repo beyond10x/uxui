@@ -143,7 +143,7 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `ready_timeout_ms` | how long after `load` the page may take to set `ready`; default 10000; only with `ready`. A page that does not set it in time is incomplete |
 | `settle_ms`, `scroll_settle_ms`, `mode_settle_ms` | after ready (250), after the scroll to the bottom (200), after a mode switch (100) |
 | `always_visible` | `{name, role, name_is \| name_contains, css, scope, current, min_width, path_prefix}` each; located by at least one of `role`, `css` and `current: true` (below) |
-| `keyboard` | `{skip_link_is \| skip_link_contains, must_reach, max_tabs, modes, viewports, focus_settle_ms}`; `modes` defaults to the last mode, `viewports` (names) to every viewport; each target is an always-visible item |
+| `keyboard` | `{skip_link_is \| skip_link_contains, must_reach, max_tabs, focus_mark, activates, modes, viewports, focus_settle_ms}`; the skip link is optional (without it the walk has no skip-link checks); `focus_mark` is `true` or `false` (default); `activates` lists targets of `must_reach`, each once (default none); `modes` defaults to the last mode, `viewports` (names) to every viewport; each target is an always-visible item (The keyboard walk) |
 | `opt_in` | checks that run only when named here: `layout_shift.load` (The checks); default none |
 | `request_methods` | the HTTP methods a page may send to the measured server, in capitals, each once, `GET` among them; default `[GET, HEAD]`. A request with another method fails as one to another origin does (A running server) |
 | `layout` | the page-scroll slack and the overflow rule (below); optional, each key left out keeps its default |
@@ -317,11 +317,75 @@ page that is not served.
 | `layout.page_scroll@1` (units) | sum over viewport x mode | 1 when `scrollingElement.scrollWidth - documentElement.clientWidth > layout.page_slack_px` (default 0) |
 | `layout.overflow@1` (blocks) | sum | every non-blank text run (Range box) and every element of `layout.overflow.elements` (default `img, svg, video, canvas, iframe, input, select, textarea, table, pre`): overflow when its right edge passes the viewport or its nearest non-inline block by more than `layout.overflow.tolerance_px` (default 1); none under `position: fixed`, `overflow-x: auto \| scroll` or a clipping box, none inside a match of `layout.overflow.exclude` (default none); at most one per block |
 | `always_visible.misses@1` (items) | sum over viewport x mode x top and bottom | the first visible candidate in scope (role and name from the accessibility tree first, then CSS; with `current`, only a current one; Configuration): missing, clipped (not wholly inside the viewport +-0.5 px) or covered (`elementFromPoint` of its centre is not it or inside it); an item outside its `min_width` or `path_prefix` is not checked |
-| `keyboard.misses@1` (checks) | sum over the walks | on a fresh load the first Tab is on the skip link; Enter (or one more Tab) puts focus into its target; on another fresh load up to `max_tabs` Tabs reach each target. A skip link that is not first misses both of its checks |
+| `keyboard.misses@1` (checks) | sum over the walks | with a skip link declared: on a fresh load the first Tab is on the skip link; Enter (or one more Tab) puts focus into its target; a skip link that is not first misses both of its checks. On another fresh load up to `max_tabs` Tabs reach each target; with `focus_mark`, each reached target shows a focus mark; each reached target of `activates` acts on Enter or Space (The keyboard walk) |
 | `layout_shift.after_ready@1` (score) | largest over the viewports | `layout-shift` entries without recent input after the ready time (above), summed, rounded to 4 places; read once per viewport, before the first mode switch |
 | `layout_shift.load@1` (score), opt-in | largest over the viewports | every `layout-shift` entry without recent input since the navigation started (the observer is buffered and set before the page's own scripts), summed, rounded to 4 places; read in the same reading as after ready, after the settle time, so it holds the shifts after ready too. llm's round mode (`readShift().load` of its `ux/core/layout.ts` before 0.3.0): it varies with how fast fonts arrive, so llm reports it and does not ratchet it |
 
 `keyboard.viewports` limits the walk to some viewports, as llm's round walks only its gating ones.
+
+### The keyboard walk
+
+One walk per page, viewport and keyboard mode. Its checks, each a miss or not, in this order (the
+node path of a miss is `<viewport>/<mode>/<check>`):
+
+| check | when | a miss |
+|---|---|---|
+| `skip-link-first` | a skip link is declared (`skip_link_is` or `skip_link_contains`) | on a fresh load, the label of the first Tab stop (its `aria-label`, else its text) is not the skip link's name |
+| `skip-link-moves-focus` | a skip link is declared | the skip link is not first, or neither Enter on it nor one more Tab puts focus on its target (the element its `href="#id"` names) or inside it |
+| `tab-reaches-<target>` | per target of `must_reach` | on another fresh load, no Tab of the first `max_tabs` puts focus on the target or inside it; a target with no visible candidate on the page is not reached |
+| `focus-mark-<target>` | `focus_mark: true`, per reached target | the element that has focus on the Tab that first reached the target shows no focus mark (below) |
+| `activates-<target>` | per reached target of `activates` | neither Enter nor Space on it acts (below) |
+
+Without a skip link the walk loads the page once, not twice, and has no skip-link check: a page that
+has none and declares none misses nothing for it. An unreached target is one miss, whatever
+`focus_mark` and `activates` say of it. A configuration of 0.5.0 (a skip link, no `focus_mark`, no
+`activates`) walks and counts as 0.5.0 and before did.
+
+**A focus mark.** On the Tab that first puts focus on a target or inside it, `probes/focus-mark.js`
+reads the focused element (`document.activeElement`): whether it matches `:focus-visible`, its
+computed `outline-style`, `outline-width` (px), `outline-color` and `box-shadow`, and a short
+description of it. The decision is the tool's (`checks::focus_marked`): the element matches
+`:focus-visible`, and its outline is drawn (`outline-style` not `none`, `outline-width` above 0,
+`outline-color` not fully transparent) or its `box-shadow` is not `none`. That is the second
+consumer's own rule (its focus-visible check) with one difference: an outline of a fully transparent
+colour is no mark here. A mark drawn only by a change of colour, background or border, or by a
+pseudo-element, is not seen; a page that marks focus so declares no `focus_mark`.
+
+**Enter or Space acts.** For each target of `activates` the walk reached on its `n`-th Tab: a fresh
+load, `n` Tabs (focus must be on the target or inside it again, else the check misses), a quiet watch
+of `focus_settle_ms` with nothing pressed, then Enter and a wait of `focus_settle_ms`; when Enter did
+not act, Space and the same wait. A key acts when, within its wait:
+
+- the page navigated: the browser reported `Page.frameRequestedNavigation`,
+  `Page.frameStartedLoading` or `Page.navigatedWithinDocument` (a link, a submitted form, a new hash,
+  `history.pushState`);
+- focus moved to another element;
+- the focused element changed its state: `aria-expanded`, `aria-pressed`, `aria-selected`,
+  `aria-checked`, or its `checked`, `value` or `open`;
+- the document changed where it had not changed in the quiet watch: an element was added or removed,
+  or `hidden`, `open`, `aria-hidden` or `disabled` changed on an element, on a node that did not change
+  during the watch (a ticking clock does not count, a dialog that opens does).
+
+`probes/activate.js` reports these facts per key; the decision is the tool's (`checks::acted`). Not
+seen: a key whose only effect is a change of text, a new window, or a change that comes after the wait
+(a slow request). A page that changes itself within the wait in one of these ways, on a node it did
+not change in the quiet watch, is taken to act. A configuration without `activates` presses neither
+key.
+
+The walk's record (`--capture`) keeps `located` and `tabs` as before; `first_label`, `after_enter`
+and `after_tab` only with a skip link; `marks` (per reached target the focus-mark probe's answer)
+only with `focus_mark`; and `activations` (per reached target `{refocused, enter, space}`, each key's
+facts or `null` for a key not pressed) only with `activates`.
+
+Measured 2026-11-25 with `--build`, Chrome/149.0.7827.55:
+
+| site and configuration | keyboard checks | `keyboard.misses@1` |
+|---|---|---|
+| the second consumer's snapshot (a control plane web application, 11 pages, walks at 2 viewports), its configuration without the skip link, with `focus_mark: true` and `activates: [screens]` | 66: reach, focus mark, Enter per walk | 0 on every page, as its own keyboard rule (Tab reaches the step's control within 250 presses, a visible focus mark, Enter or Space acts) has 0 on the same snapshot; 0.3.0 had 4 per page (2 skip-link checks per walk). Its 33 other exact values are unchanged |
+| the same, one page copied with `:focus, :focus-visible { outline: none !important; box-shadow: none !important; }` | 6 | 2: `focus-mark-screens` at each viewport, ``focused a "Outbox": outline none 3px ...`` |
+| the same snapshot with its 0.3.0 configuration (a skip link) | as 0.3.0 | 4 per page; all 55 exact results byte for byte those of its 0.3.0 document |
+| llm's documentation build, `examples/llm.checks.yaml` (a skip link, no `focus_mark`) | 1,234 checks in all | every one of the 162 results byte for byte that of `examples/llm-docs.evidence.json` (135 values) |
+| a test page of seven buttons and links (scratch, not committed), all seven in `activates` | 21 | 2, the two that do nothing on either key: a button, and a button beside a clock that redraws every 20 ms. Acted: an `aria-expanded` toggle (Enter), an element added (Enter), a modal dialog (Enter: focus moved), a `role=button` that acts on Space only, a link to `#out` (`Page.navigatedWithinDocument`) |
 
 Not covered: axe-core's rules (a third-party library; llm runs `@axe-core/playwright` 4.14.0), reading
 load and the screen-only user (llm's other checks), the scroll containers llm's round reports, and the
@@ -348,8 +412,8 @@ As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
 | `evidence.inputs.pages` | `{value: <the --pages list>}` when the run measured a list and not the whole sitemap |
 | `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, ready, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude, clock}`; `ready` is `load` without a ready condition, else `selector <css>` or `global <name>`. A document of 0.3.0 has no `ready`; its ready was `load`. The layout keys are the rule values the run used, defaults included (`"0"`, `"1"`, the elements joined by `, `, the exclusions joined by `, ` or `""`); a document of 0.4.0 or before has none, its rule was the default. `clock` is `real` without a clock, else `from <instant>` or `frozen at <instant>` in UTC (A fixed page clock); a document of 0.4.0 or before has none, its clock was the host's |
 | `run.local_inputs` | `jobs` (the value used), and `capture` and `profile` when given: they differ per machine and change no value, so they stay outside the evidence |
-| `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk (skip link first, its target, each target), and one counted layout-shift reading per viewport. A page that did not load is one `not_run` entry, id the page path |
-| `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks` |
+| `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk check (The keyboard walk: the skip link's two when declared, each target, each focus mark, each activation), and one counted layout-shift reading per viewport. A page that did not load is one `not_run` entry, id the page path |
+| `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks`: per walk `viewport`, `mode`, `skip_link_first` and `skip_moves_focus` (only with a skip link), `reached`, `focus_marks` (when a mark was judged) and `activates` (when an activation was judged), each a map of target to true or false. A keyboard finding's reason is `missed`, except a focus mark's (the focused element and what it showed) and an activation's (what failed) |
 
 A page that is not served, does not apply a mode or does not set its ready condition in time has
 every result incomplete with cause `incompatible_target` and no value; the detail says why, and names
@@ -430,7 +494,7 @@ A failure is a finding of an output named in `gates`, at a gating viewport. Its 
 | `layout.page_scroll@1` | `page-scroll` |
 | `layout.overflow@1` | `overflow:<block>` |
 | `always_visible.misses@1` | `<item>:<reason>@<top \| bottom>`; `<item>:missing` for a missing item |
-| `keyboard.misses@1` | `keyboard:<check>`; `skip-link-moves-focus` is left out in a unit where `skip-link-first` failed, as it follows from it |
+| `keyboard.misses@1` | `keyboard:<check>` (The keyboard walk: `keyboard:tab-reaches-<target>`, `keyboard:focus-mark-<target>`, ...); `skip-link-moves-focus` is left out in a unit where `skip-link-first` failed, as it follows from it |
 
 The key: `gate<N>|<page>|<viewport>|<mode>|<detail>`, with every `|` and `,` of the detail a space,
 so that a key splits on `|` and a `waives` line on `,`. llm's `core/findings.ts` writes the same form.

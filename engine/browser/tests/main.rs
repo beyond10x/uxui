@@ -12,6 +12,7 @@ mod clock;
 mod codec;
 mod evidence;
 mod json;
+mod keyboard;
 mod layout;
 mod pool;
 mod ready;

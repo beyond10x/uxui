@@ -339,40 +339,70 @@ fn page(p: &PageResult, coverage: &mut Coverage, load: bool) -> (Vec<Value>, Val
     for k in &p.keyboard {
         let at = format!("{}/{}", k.viewport, k.mode);
         let r = &k.result;
-        let mut checks_of = vec![
-            ("skip-link-first".to_string(), r.skip_link_first),
-            ("skip-link-moves-focus".to_string(), r.skip_moves_focus),
-        ];
+        let missed = || "missed".to_string();
+        let mut checks_of = Vec::new();
+        if r.skip_link {
+            checks_of.push(("skip-link-first".to_string(), r.skip_link_first, missed()));
+            checks_of.push((
+                "skip-link-moves-focus".to_string(),
+                r.skip_moves_focus,
+                missed(),
+            ));
+        }
         checks_of.extend(
             r.reached
                 .iter()
-                .map(|(n, ok)| (format!("tab-reaches-{n}"), *ok)),
+                .map(|(n, ok)| (format!("tab-reaches-{n}"), *ok, missed())),
         );
-        for (name, ok) in checks_of {
+        checks_of.extend(
+            r.focus_marks
+                .iter()
+                .map(|j| (format!("focus-mark-{}", j.target), j.ok, j.detail.clone())),
+        );
+        checks_of.extend(
+            r.activated
+                .iter()
+                .map(|j| (format!("activates-{}", j.target), j.ok, j.detail.clone())),
+        );
+        for (name, ok, reason) in checks_of {
             coverage.judged(ok);
             if !ok {
                 findings.push(Finding {
                     rule: checks::KEYBOARD,
                     node_path: format!("{at}/{name}"),
-                    reason: "missed".to_string(),
+                    reason,
                 });
             }
         }
-        walks.push(map(vec![
-            ("viewport", s(&k.viewport)),
-            ("mode", s(&k.mode)),
-            ("skip_link_first", Value::Bool(r.skip_link_first)),
-            ("skip_moves_focus", Value::Bool(r.skip_moves_focus)),
-            (
-                "reached",
-                Value::Map(
-                    r.reached
-                        .iter()
-                        .map(|(n, ok)| (n.clone(), Value::Bool(*ok)))
-                        .collect(),
-                ),
+        let by_target = |judged: &[checks::Judged]| {
+            Value::Map(
+                judged
+                    .iter()
+                    .map(|j| (j.target.clone(), Value::Bool(j.ok)))
+                    .collect(),
+            )
+        };
+        let mut walk = vec![("viewport", s(&k.viewport)), ("mode", s(&k.mode))];
+        if r.skip_link {
+            walk.push(("skip_link_first", Value::Bool(r.skip_link_first)));
+            walk.push(("skip_moves_focus", Value::Bool(r.skip_moves_focus)));
+        }
+        walk.push((
+            "reached",
+            Value::Map(
+                r.reached
+                    .iter()
+                    .map(|(n, ok)| (n.clone(), Value::Bool(*ok)))
+                    .collect(),
             ),
-        ]));
+        ));
+        if !r.focus_marks.is_empty() {
+            walk.push(("focus_marks", by_target(&r.focus_marks)));
+        }
+        if !r.activated.is_empty() {
+            walk.push(("activates", by_target(&r.activated)));
+        }
+        walks.push(map(walk));
     }
     for sh in &p.shifts {
         if sh.after_ready.is_some() {

@@ -1,0 +1,18 @@
+format: ux-browser-checks/1
+base_path: /
+pages:
+  paths: [/today.html]
+viewports:
+  - {name: 1366x768, width: 1366, height: 768}
+  - {name: 1280x720, width: 1280, height: 720}
+modes: [dark]
+reduced_motion: false
+settle_ms: 500
+always_visible:
+  - {name: screens, role: navigation, name_is: screens}
+keyboard:
+  must_reach: [screens]
+  max_tabs: 250
+  focus_mark: true
+  activates: [screens]
+  modes: [dark]

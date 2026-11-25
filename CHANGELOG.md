@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- The keyboard walk of `ux-browser checks` works without a skip link: `keyboard.skip_link_is` and
+  `skip_link_contains` are optional, and without them the walk has no skip-link checks (and loads the
+  page once, not twice); it checks that up to `max_tabs` Tabs reach each `must_reach` target. On the
+  second consumer's snapshot (a control plane web application without a skip link) that takes
+  `keyboard.misses@1` from 4 to 0 on each of its 11 pages, the value its own keyboard rule has.
+- `keyboard.focus_mark: true` checks, on the Tab that first reaches each target, that the focused
+  element shows a focus mark: it matches `:focus-visible` and draws an outline (a style, a width
+  above 0, a colour not fully transparent) or a box-shadow (`probes/focus-mark.js` reads the computed
+  style, `checks::focus_marked` decides). A reached target without one is a miss,
+  `focus-mark-<target>`, whose reason names the element and what it showed.
+- `keyboard.activates: [<target>, ...]` (targets of `must_reach`) checks that Enter, or else Space, on
+  a reached target acts within `focus_settle_ms`: the page navigated (the browser's navigation
+  events, a new hash included), focus moved, the focused element's `aria-expanded`, `aria-pressed`,
+  `aria-selected`, `aria-checked`, `checked`, `value` or `open` changed, or an element was added or
+  removed (or `hidden`, `open`, `aria-hidden`, `disabled` changed) on a node that did not change in a
+  quiet watch before the key. A miss is `activates-<target>`. A change of text only, a new window or
+  a change after the wait is not seen (`docs/browser-adapter.md`, The keyboard walk).
+- `keyboard.misses@1` keeps its name; its findings are `tab-reaches-<target>`,
+  `focus-mark-<target>`, `activates-<target>` and, with a skip link, the two skip-link checks, and
+  `details.walks` names only the checks the walk had. A configuration of 0.5.0 gives 0.5.0's
+  document: llm's documentation build, all 162 results equal to
+  `engine/browser/examples/llm-docs.evidence.json` byte for byte; the second consumer's 0.3.0
+  configuration, its 55 exact results equal to its 0.3.0 document.
 - A fixed page clock: `clock: {at: <RFC 3339 instant>, advance: true | false}` in a
   `ux-browser-checks/1` file. A script before the page's own sets `Date` (`Date()`, `new Date()`,
   `Date.now()`) to the declared instant plus the time since the document's time origin, or to the

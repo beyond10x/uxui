@@ -485,9 +485,12 @@ fn walk(viewport: &str, skip_first: bool) -> KeyboardUnit {
         viewport: viewport.to_string(),
         mode: "dark".to_string(),
         result: KeyboardResult {
+            skip_link: true,
             skip_link_first: skip_first,
             skip_moves_focus: skip_first,
             reached: Vec::new(),
+            focus_marks: Vec::new(),
+            activated: Vec::new(),
         },
     }
 }
