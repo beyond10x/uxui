@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-25T16:47:31Z",
+  "actor": "human:operator",
+  "artifact": "story:loop-process-improvements",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "acceptance probe 34 of 34 on SKILL.md and references/review-agents.md; adversary round 1 (1 blocker, 7 more) fixed; check-plugin, docs check, claude plugin validate 0. slot sh tools/gate.sh on wave/2026-11-25-1: every step passed (workspace 207 + 23 + 7, engine/search 20), 2026-11-25",
+    "reference": "plugin/skills/ui-iteration-loop/SKILL.md"
+  }
+}

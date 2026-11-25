@@ -16,8 +16,9 @@ with its fixtures and tests beside it.
 :::caution[Specification only]
 
 The studio application runs, but no engine runs behind it. Every value it shows comes from the
-document's fixtures: invented sample data and scripted live events. The engine that would produce
-real campaigns is a specification; see [Status](../status.md).
+document's fixtures: invented sample data and scripted live events. The engine's first search
+(`ux-search climb`, one toy page, a frontier printed as text) does not feed it; the engine that would
+produce real campaigns is a specification; see [Status](../status.md).
 
 :::
 

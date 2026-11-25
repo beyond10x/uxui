@@ -2,11 +2,17 @@
 format: aep.planning-md/3
 id: story:point-old-skill-copies-here
 kind: story
-status: draft
+status: active
 title: Point the older copies of the skill here
 relations:
 - decomposes: epic:skill
-revision: 2
+scope:
+- confidence: inferred
+  path: docs/roadmap.md
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 3, decided_on: {"recorded":{"review_outcome":1}}}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"review_outcome":1}}}
 ---
 # Story: Point the older copies of the skill here
 

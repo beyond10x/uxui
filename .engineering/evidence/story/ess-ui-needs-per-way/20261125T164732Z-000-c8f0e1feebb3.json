@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-25T16:47:32Z",
+  "actor": "human:operator",
+  "artifact": "story:ess-ui-needs-per-way",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "docs/ess-gaps.md Needs per way: every requirement maps to an ESS story; D1-D5 filed by ESS on branch plan/gap-reports-2026-11-24 at 44848bca2b (2026-11-25 15:33 CET); check 143 cases 0 failed",
+    "reference": "docs/ess-gaps.md"
+  }
+}

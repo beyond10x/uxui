@@ -11,12 +11,21 @@ are the risks in `docs/roadmap.md`, the critique `reviews/2026-11-23-ui-iteratio
 and the round report `reviews/2026-11-23-r01-explainer-round.md`; the reviews are in the
 [repository](https://github.com/beyond10x/uxui/tree/main/reviews).
 
-## The engine does not exist
+## The engine is a first search on a toy page
 
-Everything about the search engine on this site is a design. The ESS specification is valid and
-compiled, but has no scenarios, and no line of the engine is written. The numbers in the design
-(evaluation counts, seconds per stage) rest on an assumed 50 µs per layout call that nothing has
-measured; the roadmap's step 3 measures it.
+What exists of the search engine is one search on layout model v0, the terminal renderer of ESS
+driven in process: `ux-search climb` takes one page of an ESS example, writes every variant of two
+axes (theme and section order), checks, opens and draws each at two sizes, and prints a ranked
+frontier as text. Its terms are counts read from the drawing (check errors, regions below the fold,
+regions cut by the frame, rows above the primary action); themes tie, because the terminal renderer
+reads no theme. `ux-search cost` measures what one evaluation costs per UI state; its numbers are
+not measured yet.
+
+Everything else about the engine on this site is a design. No search explores UI states: each
+variant is its page as opened. No search runs in a browser, and no climb reaches the studio. The ESS
+specification is valid and compiled, but has no scenarios. The numbers in the design (evaluation
+counts, seconds per stage) rest on an assumed 50 µs per layout call and one measurement on a loaded
+host; the roadmap's step 3 replaces them.
 
 ## The plugin has been applied once
 

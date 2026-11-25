@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-11-24",
+  "asOf": "2026-11-25",
   "format": "b10x-status/1",
   "source": "website/data/status.json, written by hand from docs/roadmap.md",
   "items": [
@@ -70,7 +70,7 @@
       "area": "Search engine",
       "label": "Cost of one evaluation",
       "status": "planned",
-      "detail": "A spike that measures the per-state cost of a layout call. The design assumes 50 µs; nothing has measured it.",
+      "detail": "A spike that measures the per-state cost of a layout call. The design assumes 50 µs. The tool ux-search cost is written; its first measurement is still to be made.",
       "href": "/docs/roadmap"
     },
     {
@@ -84,7 +84,7 @@
       "area": "Search engine",
       "label": "First climb on a toy",
       "status": "planned",
-      "detail": "Two axes on one example page, searched exhaustively, a ranked frontier printed as text; then the studio.",
+      "detail": "Two axes on one example page, searched exhaustively, a ranked frontier printed as text; then the studio. The search ux-search climb is written for theme x section order on layout model v0; no UI state exploration, no studio climb.",
       "href": "/docs/roadmap"
     },
     {

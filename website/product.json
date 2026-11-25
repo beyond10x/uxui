@@ -8,7 +8,7 @@
       "Measure the UI.",
       "Never merge it worse."
     ],
-    "lede": "A plugin for Claude Code and Codex that improves a web UI in measured rounds and never merges it worse, usable today. And the specification of a UX search engine, not built yet.",
+    "lede": "A plugin for Claude Code and Codex that improves a web UI in measured rounds and never merges it worse, usable today. And a UX search engine, specified, whose first search runs on a toy page.",
     "actions": [
       {
         "label": "Install the plugin",

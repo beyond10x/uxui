@@ -37,3 +37,31 @@ tests:
       - open: targets.catalog
       - act: pages/targets.catalog/sections/list/rows/tg-02/row_actions/start
       - expect: {at: pages/campaigns.start/sections/target, text: Settings page}
+
+  - name: the budget reads as a map and the KPI values as a list
+    steps:
+      - open: {page: campaigns.climb, params: {campaign_id: cp-01}}
+      - expect: {at: pages/campaigns.climb/sections/summary, text: "max_variants: 400, max_wall_time_s: 3600"}
+      - expect: {at: pages/campaigns.climb/sections/frontier/rows/fe-01/columns/kpi_values, text: "kpi_id: kpi-effort, value: 6, kpi_id: kpi-glance, value: 2"}
+      - open: {page: campaigns.frontier, params: {campaign_id: cp-01}}
+      - expect: {at: pages/campaigns.frontier/sections/frontier/rows/fe-02/columns/kpi_values, text: "kpi_id: kpi-effort, value: 5, kpi_id: kpi-glance, value: 3"}
+
+  - name: the step table shows its rows by seq, a live step included
+    fixtures:
+      views:
+        uxsearch.search.Climb:
+          rows:
+            - {climb_point_id: pt-03, seq: 3, evaluated: 51, pruned: 14, insufficient: 2, frontier_size: 3, at: "2026-11-23T10:00:40Z"}
+            - {climb_point_id: pt-01, seq: 1, evaluated: 12, pruned: 3, insufficient: 1, frontier_size: 2, at: "2026-11-23T10:00:00Z"}
+            - {climb_point_id: pt-02, seq: 2, evaluated: 30, pruned: 9, insufficient: 2, frontier_size: 3, at: "2026-11-23T10:00:20Z"}
+      scripts:
+        climb:
+          session: {campaign_id: cp-01}
+          events:
+            - {at: 1s, event: uxsearch.search.CampaignProgressed, payload: {climb_point_id: pt-04, campaign_id: cp-01, seq: 4, evaluated: 70, pruned: 19, frontier_size: 3}}
+    steps:
+      - open: {page: campaigns.climb, params: {campaign_id: cp-01}}
+      - expect: {at: pages/campaigns.climb/sections/points, rows: [pt-01, pt-02, pt-03]}
+      - play: {event: uxsearch.search.CampaignProgressed, with: {climb_point_id: pt-04}}
+      - advance: 1s
+      - expect: {at: pages/campaigns.climb/sections/points, rows: [pt-01, pt-02, pt-03, pt-04]}

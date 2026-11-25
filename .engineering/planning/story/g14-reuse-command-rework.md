@@ -2,12 +2,32 @@
 format: aep.planning-md/3
 id: story:g14-reuse-command-rework
 kind: story
-status: draft
+status: active
 title: Decide the reuse-command rework of the uxsearch guards (G14)
 summary: Keep or drop the reuse-command rework, by synthesis time on the ESS release with the G14 fix
 relations:
 - decomposes: epic:ess-dependencies
-revision: 2
+scope:
+- confidence: inferred
+  path: ess/GAPS.md
+- confidence: cited
+  path: ess/components.yaml
+- confidence: cited
+  path: ess/domains/evaluation.yaml
+- confidence: cited
+  path: ess/domains/journeys.yaml
+- confidence: cited
+  path: ess/domains/promotion.yaml
+- confidence: cited
+  path: ess/scenarios/browser-target-from-patch-to-promotion.yaml
+- confidence: cited
+  path: ess/scenarios/evaluation-key-matches-its-inputs.yaml
+- confidence: cited
+  path: website/docs/reference/specification.md
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:14Z", actor: "human:operator", revision: 3}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:14Z", actor: "human:operator", revision: 4}
 ---
 # Story: Decide the reuse-command rework of the uxsearch guards (G14)
 
