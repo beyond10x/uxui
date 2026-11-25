@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- When Chromium ends before it listens, or prints no DevTools endpoint within 30 s, the error (exit 3)
+  holds its last lines on stderr, at most 20, below the status; up to 0.9.1 it held the status only
+  (llm, run 45597987448: `signal: 6 (SIGABRT)` and nothing else). `docs/browser-adapter.md` says what a
+  consumer does on a hosted runner that refuses Chromium's sandbox: the defaults keep it,
+  `chrome_args: [--no-sandbox]` or allowing unprivileged user namespaces is the consumer's choice.
+
 ## 0.9.1 — 2026-11-25
 
 - ux-static's two `--version` tests each run in a directory of their own. Both used
