@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:studio-stock-generator
 kind: story
-status: draft
+status: active
 title: 'Studio on the stock generator: fix what the studio document causes'
 relations:
 - decomposes: epic:generators-and-themes
@@ -12,7 +12,10 @@ scope:
   path: ess/ui/studio.ui.yaml
 - confidence: cited
   path: ess/ui/tests/studio.yaml
-revision: 4
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:16Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"review_outcome":2}}}
 ---
 # Story: Studio on the stock generator: fix what the studio document causes
 

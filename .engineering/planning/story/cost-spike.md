@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:cost-spike
 kind: story
-status: draft
+status: active
 title: 'Spike: measure the cost of one evaluation'
 tags:
 - roadmap-step-3
@@ -10,9 +10,20 @@ relations:
 - decomposes: epic:engine-slices
 - depends_on: story:own-generator-smallest
 scope:
+- confidence: cited
+  path: AGENTS.md
 - confidence: inferred
-  path: Cargo.toml
-revision: 5
+  path: docs/cost-spike.md
+- confidence: inferred
+  path: docs/state-space.md
+- confidence: cited
+  path: engine/search
+- confidence: cited
+  path: tools/gate.sh
+revision: 11
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:14Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:14Z", actor: "human:operator", revision: 7, decided_on: {"recorded":{"review_outcome":3}}}
 ---
 # Story: Spike: measure the cost of one evaluation
 
@@ -52,3 +63,36 @@ campaign: 10.5 ms per variant and size (`docs/campaign-2026-11-24-docs-landing.m
 
 Missing: the time of N steps between states (needs the UI state API, P0 1 of `docs/ess-gaps.md`),
 the memory, a measurement on an idle host, and a go or no-go per scope stated as such in one report.
+
+## Scope
+
+Derived 2026-11-25 by `story-scoper`, decided by the coordinating session the same day. Every line is
+**cited** (read from the story or the tree), **decided** (a choice the coordinator made, reversible)
+or **inferred** (a reading that could be wrong).
+
+- **Primary surface:** `engine/search/`, a new crate `ux-search` (lib, bin `ux-search`, one
+  `tests/main.rs`) with its own `[workspace]` table, so the root workspace (`Cargo.toml` members,
+  `cargo --workspace --locked` in `tools/gate.sh:37-39`) does not resolve it — decided; precedent
+  `tools/scaffold/cells/Cargo.toml` (own `[workspace]`)
+- **ESS dependency:** `ess-ui`, `ess-ui-check`, `ess-ui-tui` by git, `https://github.com/beyond10x/ess`,
+  tag `0.99.4` (public repository), not by path: a path `../ess` resolves neither in a managed worktree
+  nor on the forge — decided; API at the tag: `App::from_text` `app.rs:501`, `open_page` `:681`, `keys`
+  `:785`, `advance` `:798`, `regions` `:657` — cited (ESS read, 2026-11-25)
+- **Lock file:** `engine/search/Cargo.lock`, committed; the crate builds with `--locked` — decided
+- **Gate:** `tools/gate.sh` gains fmt, clippy and test steps with `--manifest-path
+  engine/search/Cargo.toml --locked`, so the forge Gate (`.github/workflows/ci.yml` runs `sh
+  tools/gate.sh`) runs them — decided
+- **Third-party crates:** only through ESS (ratatui 0.29.0, crossterm 0.28.1, clap, serde, serde_json,
+  `ess-ui-tui/Cargo.toml`); `AGENTS.md` names this exception for `engine/search` — decided
+- **Example page:** ESS `examples/partner-portal/ui.yaml` at tag 0.99.4 (themes light, dark, dense),
+  copied with its source tag and SHA-256 under `engine/search/tests/fixtures/` (ESS is Apache-2.0)
+  — inferred
+- **N steps:** without ESS's UI state API (`docs/ess-gaps.md` P0 1, open in ESS 0.99.4) a step is a key
+  replayed from `open`; the report says so — cited (ESS read, 2026-11-25)
+- **Documents:** `docs/cost-spike.md` (new), `docs/state-space.md` (the 50 µs assumption, lines 72, 80,
+  162) — inferred
+- **Confidence:** medium — the ESS API is read at the tag; the cost is not measured yet
+- **Would collide with:** `story:toy-climb` (same crate: one unit builds both, this story first), any
+  unit on `tools/gate.sh` or `AGENTS.md`
+- **Safety fact:** a crate with its own `[workspace]` is outside the root `cargo --workspace`, so no
+  existing crate and no existing gate step changes behaviour — unproven

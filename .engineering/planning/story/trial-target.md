@@ -2,14 +2,22 @@
 format: aep.planning-md/3
 id: story:trial-target
 kind: story
-status: draft
+status: active
 title: 'Trial target: an admin console page'
 tags:
 - roadmap-step-6
 relations:
 - decomposes: epic:targets
 - depends_on: story:toy-climb
-revision: 2
+scope:
+- confidence: inferred
+  path: docs/targets.md
+- confidence: inferred
+  path: tools/scaffold/campaign.mjs
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:16Z", actor: "human:operator", revision: 3, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:16Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"review_outcome":2}}}
 ---
 # Story: Trial target: an admin console page
 

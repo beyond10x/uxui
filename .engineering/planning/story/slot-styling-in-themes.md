@@ -2,14 +2,17 @@
 format: aep.planning-md/3
 id: story:slot-styling-in-themes
 kind: story
-status: draft
+status: active
 title: slot's styling and layout needs as uxui themes and templates
 relations:
 - decomposes: epic:generators-and-themes
 scope:
 - confidence: cited
   path: themes
-revision: 2
+revision: 4
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 3}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 4}
 ---
 # Story: slot's styling and layout needs as uxui themes and templates
 

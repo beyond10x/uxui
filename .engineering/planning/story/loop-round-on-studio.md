@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:loop-round-on-studio
 kind: story
-status: draft
+status: active
 title: 'Dogfooding: a loop round on the studio'
 relations:
 - decomposes: epic:bench
@@ -10,7 +10,10 @@ relations:
 scope:
 - confidence: cited
   path: ess/ui
-revision: 3
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"review_outcome":1}}}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"review_outcome":1}}}
 ---
 # Story: Dogfooding: a loop round on the studio
 

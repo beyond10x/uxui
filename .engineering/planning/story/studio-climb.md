@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:studio-climb
 kind: story
-status: draft
+status: active
 title: Climb the studio
 tags:
 - roadmap-step-5
@@ -13,7 +13,10 @@ relations:
 scope:
 - confidence: cited
   path: ess/ui/studio.ui.yaml
-revision: 3
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"review_outcome":2}}}
 ---
 # Story: Climb the studio
 

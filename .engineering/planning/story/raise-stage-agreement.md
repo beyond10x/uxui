@@ -2,12 +2,27 @@
 format: aep.planning-md/3
 id: story:raise-stage-agreement
 kind: story
-status: draft
+status: implemented
 title: Raise stage agreement on the docs-landing campaign
 relations:
 - decomposes: epic:engine-slices
 - depends_on: story:stage-agreement
-revision: 1
+scope:
+- confidence: cited
+  path: docs/campaign-2026-11-24-docs-landing.md
+- confidence: cited
+  path: tools/scaffold/agreement.mjs
+- confidence: cited
+  path: tools/scaffold/campaign.mjs
+- confidence: cited
+  path: tools/scaffold/lift/docs-landing/cells-model.mjs
+- confidence: cited
+  path: tools/scaffold/lift/docs-landing/space.json
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 2}
+- {from: "proposed", to: "active", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 3}
+- {from: "active", to: "implemented", at: "2026-11-25T14:06:36Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"test_result":1}}}
 ---
 # Story: Raise stage agreement on the docs-landing campaign
 
