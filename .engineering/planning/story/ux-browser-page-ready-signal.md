@@ -2,12 +2,16 @@
 format: aep.planning-md/3
 id: story:ux-browser-page-ready-signal
 kind: story
-status: draft
+status: implemented
 title: ux-browser waits for a ready condition the page sets
 relations:
 - decomposes: epic:engine-slices
 - depends_on: story:ux-browser-values-output
-revision: 2
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-25T01:10:41Z", actor: "human:operator", revision: 3, decided_on: {"recorded":{"test_result":1}}}
+- {from: "proposed", to: "active", at: "2026-11-25T01:10:42Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"test_result":1}}}
+- {from: "active", to: "implemented", at: "2026-11-25T01:10:42Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"test_result":1}}}
 ---
 # Story: ux-browser waits for a ready condition the page sets
 

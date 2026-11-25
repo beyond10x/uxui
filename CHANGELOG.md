@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- `ux-browser checks` waits for a ready condition the page sets, for a page that draws after its
+  `load` event: `ready: {selector: <css>}` (an element matches it) or `ready: {global: <name>}`
+  (`window.<name>` set to `true`), within `ready_timeout_ms` (default 10000). Ready is then the
+  condition, fonts loaded and two frames; `layout_shift.after_ready` counts from there, and each fresh
+  load of the keyboard walk waits for it too. The page is watched (a `MutationObserver`, a property
+  trap), not polled. A page that does not set its condition in time has every result incomplete
+  (`incompatible_target`, the detail names the condition). Without `ready` every value is 0.3.0's.
+- Every checks document names its ready condition in `evidence.conditions.other.ready` (`load`
+  without one) and the assessor declaration lists `ready` among its conditions; a 0.3.0 document has
+  no `ready`. `engine/browser/examples/llm-docs.evidence.json` is rewritten by such a run: the same
+  135 numbers, findings and 1,234 checks. On the second consumer's snapshot, 5 runs gave 5 equal
+  documents with a ready condition that covers everything the page draws late, where without one
+  `layout_shift.after_ready` differed between runs on 10 of 11 pages (`docs/browser-adapter.md`).
 - `ux-browser checks --url <origin[/path]>` measures a server the run did not start (a dev server,
   a preview, a deployed origin) in place of `--build`; exactly one of the two is given (both or
   neither: exit 2, as is a URL that is not `http(s)://host[:port][/path]`). Without a path a page is
