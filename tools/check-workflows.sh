@@ -1,6 +1,7 @@
 #!/bin/sh
 # Checks that the pull-request gate and the release gate are the same: both workflows have a job
-# `gate` that runs `sh tools/gate.sh` on the same runner image and nothing of the gate inline, the
+# `gate` that runs `sh tools/gate.sh` on the same runner image, with clippy and rustfmt installed,
+# and nothing of the gate inline, the
 # pull-request workflow runs on every pull request and on a push to main and asks
 # tools/prose-only.sh which files changed, every Rust toolchain a workflow installs is the one of
 # rust-toolchain.toml, and every action is pinned by a full commit id.
@@ -42,6 +43,8 @@ for f in "$ci" "$release"; do
 	gate=$(job "$f" gate)
 	[ -n "$gate" ] || { fail "$f: no job gate"; continue; }
 	printf '%s\n' "$gate" | grep -qE '^ +run: sh tools/gate\.sh$' || fail "$f: job gate does not run sh tools/gate.sh"
+	printf '%s\n' "$gate" | grep -qE '^ +components: clippy, rustfmt$' ||
+		fail "$f: job gate installs no clippy and rustfmt, which tools/gate.sh runs"
 	each "$f: job gate runs a check of tools/gate.sh itself" \
 		"$(printf '%s\n' "$gate" | grep -E 'cargo |check-plugin\.sh|docs\.sh' | sed 's/^ *//')"
 done

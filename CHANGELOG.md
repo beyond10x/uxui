@@ -9,6 +9,10 @@
   bar at one corner, or under a dialog short of its centre, now counts as covered; 0.9.1 counted it
   visible. The probe records the points that missed (`missed`) in a capture; the evidence is
   unchanged. `docs/browser-adapter.md`, The cover test, lists the points and the fixture's counts.
+- The workspace is formatted (`cargo fmt --all`) and clippy-clean with `-D warnings` on every target;
+  two lints in `uxui-gen` are fixed. `tools/gate.sh` runs both checks, so `task check:pool`, `Gate`
+  and the release gate fail on a format diff or a lint; both gate jobs install `clippy` and
+  `rustfmt`, and `tools/check-workflows.sh` fails a gate job that does not.
 
 ## 0.9.1 — 2026-11-25
 
