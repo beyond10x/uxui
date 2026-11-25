@@ -2,10 +2,11 @@ format: ratchet-assessor/1
 name: ux-browser
 version: "1"
 command: ux-browser checks
-targets: [build]
+targets: [build, deployment]
 inputs:
   config: {type: path, required: true}
-  build: {type: path, required: true}
+  build: {type: path}
+  url: {type: string}
   pages: {type: string}
   capture: {type: path, local: true}
   profile: {type: path, local: true}

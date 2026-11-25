@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use ux_browser::checks::{self, KeyboardResult, KeyboardUnit, PageResult, ShiftUnit, UnitResult};
-use ux_browser::evidence::{self, Header};
+use ux_browser::evidence::{self, Header, Target};
 use ux_browser::render::FileRef;
 use ux_browser::values;
 use uxui_doc::yaml::Value;
@@ -112,6 +112,29 @@ fn the_values_of_the_fixture_document_are_the_bytes_the_conversion_script_wrote(
     assert!(
         stderr
             .contains("waived: gate5|/llm/search|390x844|dark|keyboard:skip-link-first by UXF-005")
+    );
+}
+
+#[test]
+fn a_document_of_a_running_server_gives_the_same_values_file() {
+    let mut doc = crate::fixture_json("values/page-checks.evidence.json");
+    let Value::Map(top) = &mut doc else { panic!() };
+    let (_, e) = top.iter_mut().find(|(k, _)| k == "evidence").unwrap();
+    let Value::Map(fields) = e else { panic!() };
+    fields.retain(|(k, _)| k != "candidate" && k != "target");
+    let target = uxui_doc::yaml::parse(
+        "{kind: deployment, class: local, identifiers: {environment_id: 'http://127.0.0.1:4000'}}",
+    )
+    .unwrap();
+    fields.push(("target".to_string(), target));
+    let dir = scratch("server");
+    let evidence = dir.join("server.evidence.json");
+    std::fs::write(&evidence, uxui_doc::json::write(&doc)).unwrap();
+    let (code, written, stderr) = values_run(&tree(), &evidence, &dir.join("page-checks.json"));
+    assert_eq!(code, Some(1), "{stderr}");
+    assert_eq!(
+        written.as_deref(),
+        Some(golden("page-checks.json").as_str())
     );
 }
 
@@ -529,7 +552,7 @@ pub fn round_document() -> Value {
         assessment: "round",
         class: "local",
         config: &file,
-        build: &file,
+        target: Target::Build(&file),
         pages: None,
         local_inputs: Vec::new(),
         browser: "Chrome/150.0.0.0",

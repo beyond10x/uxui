@@ -144,15 +144,13 @@ fn a_call_with_no_answer_times_out() {
 #[test]
 fn the_guard_lets_its_origin_through_and_fails_everything_else() {
     let transport = script(&[
-        r#"{"method":"Fetch.requestPaused","params":{"requestId":"r1","request":{"url":"http://127.0.0.1:4000/llm/"}},"sessionId":"S"}"#,
-        r#"{"method":"Fetch.requestPaused","params":{"requestId":"r2","request":{"url":"https://fonts.example.org/a.woff2"}},"sessionId":"S"}"#,
-        r#"{"method":"Fetch.requestPaused","params":{"requestId":"r3","request":{"url":"data:image/png;base64,AA=="}},"sessionId":"S"}"#,
+        r#"{"method":"Fetch.requestPaused","params":{"requestId":"r1","request":{"url":"http://127.0.0.1:4000/llm/","method":"GET"}},"sessionId":"S"}"#,
+        r#"{"method":"Fetch.requestPaused","params":{"requestId":"r2","request":{"url":"https://fonts.example.org/a.woff2","method":"GET"}},"sessionId":"S"}"#,
+        r#"{"method":"Fetch.requestPaused","params":{"requestId":"r3","request":{"url":"data:image/png;base64,AA==","method":"GET"}},"sessionId":"S"}"#,
         r#"{"id":1,"result":{}}"#,
     ]);
     let mut conn = Connection::new(transport);
-    conn.guard = Some(Guard {
-        origin: "http://127.0.0.1:4000".to_string(),
-    });
+    conn.guard = Some(read_guard("http://127.0.0.1:4000"));
     conn.call(None, "Browser.getVersion", map(vec![])).unwrap();
     let sent: Vec<Value> = conn
         .transport()
@@ -189,11 +187,96 @@ fn the_guard_lets_its_origin_through_and_fails_everything_else() {
 
 #[test]
 fn an_origin_prefix_is_not_its_origin() {
-    let guard = Guard {
-        origin: "http://127.0.0.1:4000".to_string(),
-    };
+    let guard = read_guard("http://127.0.0.1:4000");
     assert!(guard.allows("http://127.0.0.1:4000/"));
     assert!(guard.allows("blob:http://127.0.0.1:4000/x"));
     assert!(!guard.allows("http://127.0.0.1:40001/"));
     assert!(!guard.allows("http://127.0.0.1:4000.example.org/"));
+}
+
+/// The guard of a run with the configuration's default methods.
+fn read_guard(origin: &str) -> Guard {
+    let methods: Vec<String> = ux_browser::checks::READ_METHODS
+        .iter()
+        .map(|m| m.to_string())
+        .collect();
+    Guard::new(origin, &methods)
+}
+
+#[test]
+fn the_guard_lets_reads_of_its_origin_through_and_fails_writes() {
+    let guard = read_guard("http://127.0.0.1:4000");
+    assert!(guard.admits("GET", "http://127.0.0.1:4000/api/runs"));
+    assert!(guard.admits("HEAD", "http://127.0.0.1:4000/"));
+    for method in ["POST", "PUT", "PATCH", "DELETE", "OPTIONS", "get", ""] {
+        assert!(
+            !guard.admits(method, "http://127.0.0.1:4000/api/runs"),
+            "{method:?} to the measured server fails"
+        );
+    }
+    assert!(
+        !guard.admits("GET", "https://api.example.org/runs"),
+        "another origin fails"
+    );
+    assert!(
+        guard.admits("POST", "data:text/plain,a"),
+        "a data URL reaches no server"
+    );
+    assert!(guard.admits("GET", "blob:http://127.0.0.1:4000/x"));
+    assert!(!guard.admits("GET", "blob:https://api.example.org/x"));
+}
+
+#[test]
+fn a_configuration_may_allow_more_methods_on_its_own_origin_only() {
+    let methods = ["GET".to_string(), "HEAD".to_string(), "POST".to_string()];
+    let guard = Guard::new("http://127.0.0.1:4000", &methods);
+    assert!(guard.admits("POST", "http://127.0.0.1:4000/api/search"));
+    assert!(!guard.admits("PUT", "http://127.0.0.1:4000/api/search"));
+    assert!(!guard.admits("POST", "https://api.example.org/search"));
+}
+
+#[test]
+fn a_write_to_the_measured_server_is_failed_and_recorded() {
+    let transport = script(&[
+        r#"{"method":"Fetch.requestPaused","params":{"requestId":"r1","request":{"url":"http://127.0.0.1:4000/api/runs","method":"GET"}},"sessionId":"S"}"#,
+        r#"{"method":"Fetch.requestPaused","params":{"requestId":"r2","request":{"url":"http://127.0.0.1:4000/api/runs","method":"POST"}},"sessionId":"S"}"#,
+        r#"{"method":"Fetch.requestPaused","params":{"requestId":"r3","request":{"url":"http://127.0.0.1:4000/api/runs"}},"sessionId":"S"}"#,
+        r#"{"id":1,"result":{}}"#,
+    ]);
+    let mut conn = Connection::new(transport);
+    conn.guard = Some(read_guard("http://127.0.0.1:4000"));
+    conn.call(None, "Browser.getVersion", map(vec![])).unwrap();
+    let answers: Vec<(String, String)> = conn
+        .transport()
+        .sent
+        .iter()
+        .map(|t| json::parse(t).unwrap())
+        .filter(|v| v.get_str("method").is_some_and(|m| m.starts_with("Fetch.")))
+        .map(|v| {
+            (
+                v.get_str("method").unwrap().to_string(),
+                v.get("params")
+                    .unwrap()
+                    .get_str("requestId")
+                    .unwrap()
+                    .to_string(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        answers,
+        [
+            ("Fetch.continueRequest".to_string(), "r1".to_string()),
+            ("Fetch.failRequest".to_string(), "r2".to_string()),
+            ("Fetch.failRequest".to_string(), "r3".to_string()),
+        ],
+        "a request without a method is no read"
+    );
+    assert_eq!(
+        conn.blocked,
+        [
+            "http://127.0.0.1:4000/api/runs",
+            "http://127.0.0.1:4000/api/runs"
+        ]
+    );
 }

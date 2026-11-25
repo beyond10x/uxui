@@ -82,14 +82,36 @@ impl<S: crate::ws::Stream> Transport for crate::ws::WebSocket<S> {
     }
 }
 
-/// Lets requests to one origin through (and `data:` and `blob:` URLs of it), fails every other:
-/// a measured page reaches nothing but the server of the build under test.
+/// Lets requests to one origin through (and `data:` URLs, and `blob:` URLs of it), fails every
+/// other: a measured page reaches nothing but the server under test. To that origin only the
+/// declared methods go (by default `GET` and `HEAD`): a measurement does not change the state of
+/// the server it measures.
+#[derive(Clone, Debug)]
 pub struct Guard {
     /// `scheme://host:port`, without a trailing slash.
     pub origin: String,
+    /// The HTTP methods a request to the origin may have.
+    pub methods: Vec<String>,
 }
 
 impl Guard {
+    pub fn new(origin: &str, methods: &[String]) -> Guard {
+        Guard {
+            origin: origin.to_string(),
+            methods: methods.to_vec(),
+        }
+    }
+
+    /// Whether a request with `method` to `url` goes on: a `data:` URL always; a URL of the origin
+    /// with a declared method; nothing else.
+    pub fn admits(&self, method: &str, url: &str) -> bool {
+        if url.starts_with("data:") {
+            return true;
+        }
+        self.allows(url) && self.methods.iter().any(|m| m == method)
+    }
+
+    /// Whether `url` is of the origin (or a `data:` URL), whatever its method.
     pub fn allows(&self, url: &str) -> bool {
         if url.starts_with("data:") {
             return true;
@@ -177,13 +199,16 @@ impl<T: Transport> Connection<T> {
             return Ok(());
         };
         let request_id = params.get_str("requestId").unwrap_or_default().to_string();
-        let url = params
-            .get("request")
+        let request = params.get("request");
+        let url = request
             .and_then(|r| r.get_str("url"))
             .unwrap_or_default()
             .to_string();
+        let request_method = request
+            .and_then(|r| r.get_str("method"))
+            .unwrap_or_default();
         let mut answer = vec![("requestId".to_string(), Value::Str(request_id))];
-        let method = if guard.allows(&url) {
+        let method = if guard.admits(request_method, &url) {
             "Fetch.continueRequest"
         } else {
             answer.push((

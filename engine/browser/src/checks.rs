@@ -533,6 +533,38 @@ pub struct Config {
     pub layout_shift_load: bool,
     /// How the values file is made from the document (`ux-browser values`).
     pub values: Option<crate::values::ValuesConfig>,
+    /// The HTTP methods a page may send to the measured server (`request_methods`); default
+    /// [`READ_METHODS`]. A request with another method fails, as one to another origin does.
+    pub request_methods: Vec<String>,
+}
+
+/// The methods a page may send to the measured server unless the configuration names more: reads,
+/// so that a measurement does not change the state of a server it did not start.
+pub const READ_METHODS: &[&str] = &["GET", "HEAD"];
+
+/// `request_methods`: a list of methods in capitals, each once, `GET` among them.
+fn request_methods(v: &Value) -> Result<Vec<String>, String> {
+    let Some(list) = v.get("request_methods") else {
+        return Ok(READ_METHODS.iter().map(|m| m.to_string()).collect());
+    };
+    if !matches!(list, Value::List(_)) {
+        return Err("`request_methods` is a list of HTTP methods".to_string());
+    }
+    let methods = get_strs(v, "request_methods")?;
+    for (i, m) in methods.iter().enumerate() {
+        if m.is_empty() || !m.chars().all(|c| c.is_ascii_uppercase()) {
+            return Err(format!(
+                "`request_methods`: `{m}` is not an HTTP method in capitals"
+            ));
+        }
+        if methods[..i].contains(m) {
+            return Err(format!("`request_methods`: `{m}` is named twice"));
+        }
+    }
+    if !methods.iter().any(|m| m == "GET") {
+        return Err("`request_methods` names `GET`: a page loads with it".to_string());
+    }
+    Ok(methods)
 }
 
 const TOP_KEYS: &[&str] = &[
@@ -550,6 +582,7 @@ const TOP_KEYS: &[&str] = &[
     "keyboard",
     "opt_in",
     "values",
+    "request_methods",
 ];
 
 /// The checks that run only when `opt_in` names them.
@@ -779,6 +812,7 @@ pub fn config(text: &str) -> Result<Config, String> {
         keyboard,
         layout_shift_load,
         values,
+        request_methods: request_methods(&v)?,
     })
 }
 

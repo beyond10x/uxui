@@ -1,20 +1,32 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use ux_browser::checks::Pages;
 use ux_browser::evidence::{self, Header};
 use ux_browser::measure::{self, RenderInputs};
 use ux_browser::render::{self, FileRef};
+use ux_browser::session::Browser;
+use ux_browser::target::Site;
 use ux_browser::values;
 
 const USAGE: &str = "usage:
   ux-browser render --declarations <ux-browser-render/1 file> --url <url, or a path with --serve> --out <record file>
                     [--screenshot <png file, default: the record file with .png>] [--serve <built site> --base-path <path>]
                     [--root <repository root, default .>] [--capture <file>] [--profile <dir>]
-  ux-browser checks --config <ux-browser-checks/1 file> --build <built site> --project <project> --assessment <assessment>
+  ux-browser checks --config <ux-browser-checks/1 file> --project <project> --assessment <assessment>
+                    (--build <built site> | --url <running server: http(s)://host[:port][/where the base path is]>)
                     [--root <repository root, default .>] [--out <file>] [--class <target class, default local>]
                     [--pages <path,path,...>] [--capture <dir>] [--profile <dir>]
                     [--jobs <pages measured at a time, default: the CPUs, at most 4>] [--values <values file>]
   ux-browser values --config <ux-browser-checks/1 file with a values section> --evidence <ratchet-evidence/1 file> --out <values file>
                     [--root <repository root, default .>]";
+
+/// Where a checks run measures.
+enum Place<'a> {
+    /// A built site the run serves itself (`--build`).
+    Build(&'a Path),
+    /// A running server the run did not start (`--url`).
+    Server(Site),
+}
 
 /// The target classes ratchet knows (`evidence.target.class`).
 const CLASSES: &[&str] = &["local", "ci", "ephemeral", "staging", "production"];
@@ -190,6 +202,7 @@ fn checks_command(args: &[String]) -> ExitCode {
     let known = [
         "config",
         "build",
+        "url",
         "project",
         "assessment",
         "root",
@@ -212,13 +225,27 @@ fn checks_command(args: &[String]) -> ExitCode {
             _ => return wrong(&format!("`--jobs {n}` is not a whole number of at least 1")),
         },
     };
-    let (Some(config_path), Some(build), Some(project), Some(assessment)) = (
+    let (Some(config_path), Some(project), Some(assessment)) = (
         get(&opts, "config"),
-        get(&opts, "build"),
         get(&opts, "project"),
         get(&opts, "assessment"),
     ) else {
-        return wrong("`--config`, `--build`, `--project` and `--assessment` are required");
+        return wrong(
+            "`--config`, `--project`, `--assessment` and one of `--build` and `--url` are required",
+        );
+    };
+    let place = match (get(&opts, "build"), get(&opts, "url")) {
+        (Some(_), Some(_)) => {
+            return wrong(
+                "`--build` and `--url` exclude each other: a built site the run serves, or a running server",
+            );
+        }
+        (None, None) => return wrong("one of `--build` and `--url` is required"),
+        (Some(build), None) => Place::Build(Path::new(build)),
+        (None, Some(url)) => match ux_browser::target::parse_url(url) {
+            Ok(site) => Place::Server(site),
+            Err(e) => return wrong(&format!("`--url`: {e}")),
+        },
     };
     if project.is_empty() || assessment.is_empty() {
         return wrong("`--project` and `--assessment` are not empty");
@@ -247,23 +274,44 @@ fn checks_command(args: &[String]) -> ExitCode {
             Err(code) => return code,
         },
     };
-    let build_dir = Path::new(build);
-    let build_digest = match evidence::build_digest(build_dir) {
-        Ok(d) => d,
-        Err(e) => return fail(REFUSED, &e),
+    // The site, the served build's file reference, and the pages: known before the browser starts,
+    // except a running server's sitemap, which the browser reads (`sitemap`).
+    let (site, build_file, known, sitemap) = match &place {
+        Place::Build(dir) => {
+            let digest = match evidence::build_digest(dir) {
+                Ok(d) => d,
+                Err(e) => return fail(REFUSED, &e),
+            };
+            let paths = match measure::pages(&config, dir) {
+                Ok(p) => p,
+                Err(e) => return fail(REFUSED, &e),
+            };
+            let server = match ux_browser::serve::start(dir, &config.base_path) {
+                Ok(s) => s,
+                Err(e) => return fail(REFUSED, &e),
+            };
+            let file = FileRef {
+                path: relative(&root, dir),
+                digest,
+            };
+            (Site::at(&server.origin), Some(file), Some(paths), None)
+        }
+        Place::Server(site) => match &config.pages {
+            Pages::Paths(paths) => (site.clone(), None, Some(paths.clone()), None),
+            Pages::Sitemap(file) => match site.sitemap_url(&config.base_path, file) {
+                Ok(url) => (site.clone(), None, None, Some(url)),
+                Err(e) => return fail(REFUSED, &format!("{config_path}: {e}")),
+            },
+        },
     };
-    let mut paths = match measure::pages(&config, build_dir) {
-        Ok(p) => p,
-        Err(e) => return fail(REFUSED, &e),
-    };
-    if let Some(only) = get(&opts, "pages") {
-        let wanted: Vec<&str> = only.split(',').collect();
-        paths.retain(|p| wanted.contains(&p.as_str()));
+    if let Some(paths) = &known
+        && let Some(e) = paths
+            .iter()
+            .find_map(|p| site.page_url(&config.base_path, p).err())
+    {
+        return fail(REFUSED, &format!("{config_path}: {e}"));
     }
-    let server = match ux_browser::serve::start(build_dir, &config.base_path) {
-        Ok(s) => s,
-        Err(e) => return fail(REFUSED, &e),
-    };
+    let only: Option<Vec<&str>> = get(&opts, "pages").map(|p| p.split(',').collect());
     let capture = get(&opts, "capture").map(PathBuf::from);
     if let Some(dir) = &capture
         && let Err(e) = std::fs::create_dir_all(dir)
@@ -280,11 +328,35 @@ fn checks_command(args: &[String]) -> ExitCode {
             let _ = std::fs::write(file, uxui_doc::json::write(page) + "\n");
         }
     };
-    let (recorded, product) =
-        match measure::check_pages(&config, &server.origin, &paths, &profile, jobs, progress) {
-            Ok(r) => r,
-            Err(e) => return fail(NOT_WRITTEN, &e),
+    let mut browser = match Browser::start(&profile) {
+        Ok(b) => b,
+        Err(e) => return fail(NOT_WRITTEN, &e),
+    };
+    let run = (|| {
+        let mut paths = match (known, &sitemap) {
+            (Some(paths), _) => paths,
+            (None, Some(url)) => {
+                let guard = measure::guard(&config, &site);
+                match measure::fetch_text(&mut browser.conn, &guard, url) {
+                    Ok(Ok(xml)) => ux_browser::checks::sitemap_paths(&xml),
+                    Ok(Err(e)) => return Err((REFUSED, format!("the sitemap: {e}"))),
+                    Err(e) => return Err((NOT_WRITTEN, e)),
+                }
+            }
+            (None, None) => unreachable!("a page list or a sitemap"),
         };
+        if let Some(wanted) = &only {
+            paths.retain(|p| wanted.contains(&p.as_str()));
+        }
+        measure::check_pages(&browser, &config, &site, &paths, jobs, progress)
+            .map_err(|e| (NOT_WRITTEN, e))
+    })();
+    let product = browser.product.clone();
+    browser.close();
+    let recorded = match run {
+        Ok(r) => r,
+        Err((code, e)) => return fail(code, &e),
+    };
     let mut pages = Vec::new();
     for page in &recorded {
         match ux_browser::checks::page_result(&config, page) {
@@ -301,9 +373,10 @@ fn checks_command(args: &[String]) -> ExitCode {
         path: relative(&root, Path::new(config_path)),
         digest: measure::digest(&bytes),
     };
-    let build_file = FileRef {
-        path: relative(&root, build_dir),
-        digest: build_digest,
+    let url = site.url();
+    let target = match &build_file {
+        Some(file) => evidence::Target::Build(file),
+        None => evidence::Target::Server(&url),
     };
     let mut local_inputs = vec![("jobs", jobs.to_string())];
     for name in ["capture", "profile", "values"] {
@@ -316,7 +389,7 @@ fn checks_command(args: &[String]) -> ExitCode {
         assessment,
         class,
         config: &config_file,
-        build: &build_file,
+        target,
         pages: get(&opts, "pages"),
         local_inputs,
         browser: &product,

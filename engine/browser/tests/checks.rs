@@ -298,6 +298,35 @@ fn refuses_a_configuration_that_does_not_hold_together() {
     }
 }
 
+#[test]
+fn a_page_may_send_reads_to_its_server_unless_the_configuration_allows_more() {
+    assert_eq!(checks::READ_METHODS, ["GET", "HEAD"]);
+    let c = checks::config(LLM_LIKE).unwrap();
+    assert_eq!(c.request_methods, ["GET", "HEAD"]);
+    let more = LLM_LIKE.replace(
+        "settle_ms: 250\n",
+        "settle_ms: 250\nrequest_methods: [GET, HEAD, POST]\n",
+    );
+    assert_eq!(
+        checks::config(&more).unwrap().request_methods,
+        ["GET", "HEAD", "POST"]
+    );
+    for wrong in [
+        "[HEAD]",
+        "[GET, post]",
+        "[GET, GET]",
+        "[]",
+        "GET",
+        "[GET, 'PO ST']",
+    ] {
+        let text = LLM_LIKE.replace(
+            "settle_ms: 250\n",
+            &format!("settle_ms: 250\nrequest_methods: {wrong}\n"),
+        );
+        assert!(checks::config(&text).is_err(), "request_methods: {wrong}");
+    }
+}
+
 fn llm_config() -> checks::Config {
     checks::config(&std::fs::read_to_string(crate::fixture("checks/llm.checks.yaml")).unwrap())
         .unwrap()
