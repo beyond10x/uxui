@@ -16,7 +16,7 @@ what is specific to uxui.
 | `plugin/.codex-plugin/plugin.json` | Codex manifest; `skills` points at `./skills/` |
 | `.claude-plugin/marketplace.json` | Claude Code marketplace `uxui` |
 | `.agents/plugins/marketplace.json` | Codex marketplace `uxui` |
-| `tools/` | the plugin check (`check-plugin.sh`), the docs generator and check (`docs.sh`) and their tests, POSIX sh |
+| `tools/` | the gate (`gate.sh`), the plugin check (`check-plugin.sh`), the workflow check (`check-workflows.sh`), the docs generator and check (`docs.sh`), the path list of planning and prose files (`prose-only.sh`), the release checks (`release-versions.sh`, `release-ready.sh`) and their tests, POSIX sh |
 | `research/` | research notes on making UI/UX quality machine-checkable from a specification |
 | `reviews/` | dated reviews of the skill and its approach (`<YYYY-MM-DD>-<topic>.md`) |
 | `ess/` | ESS specification `uxsearch` of the UX search engine: domains, the studio `ess-ui/1` document and its tests, `GAPS.md`; gate `ess specify validate --path ess`, `ess compile --path ess`, `ess ui check --path ess/ui/studio.ui.yaml --model ess`, `ess ui test --path ess/ui/studio.ui.yaml --model ess ess/ui/tests/studio.yaml` |
@@ -25,7 +25,7 @@ what is specific to uxui.
 | `.engineering/` | the AEP planning store and the backlog's one home (`aep plan artifact list`); it carries the work items of `docs/roadmap.md`, `docs/generator-round.md`, `docs/ess-gaps.md`, `docs/targets.md` and `docs/comparison.md`, which stay as design records |
 | `themes/` | themes: CSS over the variables the stock `ess-ui/1` generator writes, plus what they do not cover; every theme has a light and a dark mode, chosen by `theme-toggle.js` (system setting until a person picks one); `studio.css` is the studio's |
 | `website/` | the public documentation site, Docusaurus on the shared Docs System, served at `https://beyond10x.github.io/uxui/`; `website/README.md` lists what is generated |
-| `.github/workflows/` | `pages.yml` (builds and checks the site, uploads it on `main`; no credential, no deploy step) and `b10x-docs-site.yml` (hands that artifact to the shared publisher) |
+| `.github/workflows/` | `ci.yml` (`Gate`: `tools/gate.sh` on every pull request and push to `main`), `release.yml` (the same gate, then the release assets, on a tag), `pages.yml` (builds and checks the site, uploads it on `main`; no credential, no deploy step) and `b10x-docs-site.yml` (hands that artifact to the shared publisher) |
 | `generators/own/` | `uxui-gen`, the smallest own generator: one page of the studio document as static HTML and plain JS (`docs/own-generator.md`); Rust, no third-party crates; workspace `Cargo.toml` and `rust-toolchain.toml` at the root |
 | `engine/` | the engine, Rust, no third-party crates: `doc` (`uxui-doc`: the YAML subset reader, the JSON writer, SHA-256 and the node tree of an `ess-ui/1` document, shared with `uxui-gen`) and `static` (`ux-static@1`: static metrics as one `ratchet-evidence/1` document per run, `docs/ux-static.md`; its declarations file `docs/uxui-declarations.md`, the studio's `ess/ui/studio.uxui.yaml`) |
 | `engine/browser/` | `ux-browser@1`, the browser adapter (`docs/browser-adapter.md`): Chromium driven over its own DevTools-protocol client (WebSocket, JSON, no crate), a static server for a built site or a running server it did not start (`checks --url`), the render record `ux-browser-render/1` and the five shared page checks (and the opt-in `layout_shift.load`) as one `ratchet-evidence/1` document per run, and from it a consumer's values file `ux-browser-values/1` (`ux-browser values`, `checks --values`); `examples/` holds the declarations of the documentation landing page and of the first consumer's site; its tests start no browser and read geometry recorded from real runs (`tests/fixtures/`) |
@@ -89,20 +89,30 @@ fails on a page that names it.
 ## Gate
 
 `task check` must pass before every commit: `claude plugin validate --strict` on `plugin` and on
-the marketplace, `tools/check-plugin.sh` (manifests and marketplaces agree; every skill directory
-has a `SKILL.md` with `name` equal to the directory and a `description`; every `references/` path
-a skill names exists), `tools/docs.sh check`, `tools/check-plugin.test.sh`, `tools/release.test.sh` and `tools/docs.test.sh`,
-which prove the checks fail on broken copies of the tree (written under `target/`), `cargo test -p uxui-gen`,
-`cargo test -p ux-static` and `cargo test -p ux-browser` (no browser starts in it; the real runs are measurements, `docs/browser-adapter.md`). The whole gate takes a few seconds once the crates are compiled. Building the
-site (`task docs-site`) is not part of the gate.
+the marketplace, then `tools/gate.sh`, the checks that need no local login: `tools/check-plugin.sh`
+(manifests and marketplaces agree; every skill directory has a `SKILL.md` with `name` equal to the
+directory and a `description`; every `references/` path a skill names exists),
+`tools/check-workflows.sh` (the pull-request gate and the release gate are the same), `tools/docs.sh
+check`, the test scripts `tools/check-plugin.test.sh`, `tools/release.test.sh`, `tools/docs.test.sh`,
+`tools/gate.test.sh` and `tools/release-ready.test.sh`, which prove the checks fail on broken copies
+of the tree (written under `target/`), and `cargo test --workspace --locked` (no browser starts in
+it; the real runs are measurements, `docs/browser-adapter.md`). The whole gate takes a few seconds
+once the crates are compiled. Building the site (`task docs-site`) is not part of the gate.
+
+The forge runs the same `tools/gate.sh` on `ubuntu-latest` with the toolchain of
+`rust-toolchain.toml`: the workflow `Gate` (`.github/workflows/ci.yml`) on every pull request and
+every push to `main`, and the release workflow's Gate job on a tag. What the runner does
+differently is made the same in `tools/gate.sh`: it has no browser (the script hides the Playwright
+cache and `UXUI_CHROME`), and it builds with `--locked`. A pull request whose changed files are all
+planning or prose files ends `Gate` green without building; the one list of those paths is
+`tools/prose-only.sh`. Whether `Gate` is a required check is the owner's ruleset.
 
 On a host with a shared build pool the gate runs in two parts:
 
 - `task validate` runs on the host, without the pool. It needs the host's `claude` executable and
   its login, which the pool's nodes do not have, and it compiles nothing and starts no test runner.
   The operator's rule of 2026-11-24.
-- `slot task check:pool` runs the rest in the pool: the checks, the test scripts and the cargo
-  tests.
+- `slot task check:pool` runs the rest in the pool: `sh tools/gate.sh`.
 
 `task check` runs both parts in one process, for a checkout without a pool.
 
@@ -114,7 +124,11 @@ release without asking (the operator's order of 2026-11-24) and reports the fact
 1. One pull request: `version` of every crate under `engine/` and `generators/`, of
    `plugin/.claude-plugin/plugin.json` and the marketplaces; `CHANGELOG.md` entries move under
    `## <version> — <YYYY-MM-DD>`. `sh tools/release-versions.sh <version>` exits 0 on that commit.
-2. After the merge: an annotated tag on the merge commit as the bot,
+2. After the merge, wait until `task release:ready -- <sha>` (`tools/release-ready.sh`; `<sha>` the
+   full id of the merge commit) exits 0: it asks the forge for the runs on that commit and refuses,
+   naming each, while one of `Gate`, `Documentation validation` and `Documentation site` is absent,
+   pending or did not end `success`. No tag without it. Then an annotated tag on the merge commit
+   as the bot,
    `b10x-gates bot -- tag -a <version> -m "uxui <version>" <sha>`, pushed with
    `b10x-gates bot --repository beyond10x/uxui -- push origin refs/tags/<version>`
    (`b10x-gates publish` takes branch refs only).
