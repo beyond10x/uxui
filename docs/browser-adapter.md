@@ -23,7 +23,7 @@ It does three things for any page with a URL:
 | WebSocket | `src/ws.rs`, `src/base64.rs`, `src/sha1.rs` | RFC 6455 client: the opening handshake with its accept check, masked client frames, server frames of any length, fragments, ping and close |
 | JSON | `src/json.rs` | a reader into `uxui_doc::yaml::Value`; writing is `uxui_doc::json` |
 | protocol | `src/cdp.rs` | commands with ids, responses matched by id, events queued until asked for, flat sessions; a guard that answers every paused request: requests to the measured server with a declared method (`GET` and `HEAD` unless `request_methods` names more) go on, every other one fails (`BlockedByClient`) |
-| Chromium | `src/chrome.rs` | `UXUI_CHROME`, else the newest `chromium-<n>/chrome-linux*/chrome` under the Playwright cache (`PLAYWRIGHT_BROWSERS_PATH`, else `~/.cache/ms-playwright`); started headless with its own profile, `--remote-debugging-port=0`, and the switches of Playwright's headless Chromium that change what a page measures (`--hide-scrollbars`, the hover and pointer media of a headless device, sRGB); ended with `Browser.close`, then by its PID |
+| Chromium | `src/chrome.rs` | `UXUI_CHROME`, else the newest `chromium-<n>/chrome-linux*/chrome` under the Playwright cache (`PLAYWRIGHT_BROWSERS_PATH`, else `~/.cache/ms-playwright`); started headless with its own profile, `--remote-debugging-port=0`, the switches of Playwright's headless Chromium that change what a page measures (`--hide-scrollbars`, the hover and pointer media of a headless device, sRGB), no GPU process (`--disable-gpu`, `--in-process-gpu`), then a consumer's own switches (Chromium switches); ended with `Browser.close`, then by its PID |
 | pages | `src/session.rs` | one browser context per page and viewport (as a fresh Playwright context): viewport, `prefers-color-scheme`, `prefers-reduced-motion`, focus emulation, scripts before the page's own, navigation to the `load` event, keys, the accessibility tree, screenshots |
 | workers | `src/pool.rs`, `src/measure.rs` | a checks run starts one Chromium and measures up to `--jobs` page and viewport pairs at a time in it, each worker on a DevTools connection of its own; pairs are taken in order, results are put back in order, and the first browser failure stops the run |
 | server | `src/serve.rs`, `src/target.rs` | a static server for a built site under its base path on a free loopback port (file, file plus `.html`, `index.html`; else `404.html` with status 404); or, with `--url`, a running server: its origin and the URL of each page and of the sitemap on it |
@@ -33,7 +33,8 @@ It does three things for any page with a URL:
 The test step (`task test:ux-browser`, `cargo test -p ux-browser`) starts no browser and opens no
 socket: framing runs over an in-memory stream, the protocol client over a scripted transport, each
 check over geometry recorded from real runs (`tests/fixtures/`, written with `--capture`), the worker
-pool over plain functions, and the binary only with `--help`, `values` (which starts no browser) or an
+pool over plain functions, the start of Chromium over a shell script that stands in for it (it records
+its arguments), and the binary only with `--help`, `values` (which starts no browser) or an
 invocation it refuses before it starts a browser. Real browser runs are measurements, run by hand on a host with Chromium.
 
 ## `ux-browser render`
@@ -75,7 +76,7 @@ fixture `tests/fixtures/render/landing.capture.json`.
 ux-browser checks --config engine/browser/examples/llm.checks.yaml --build <llm>/website/build \
   --project llm-docs --assessment page-checks --out llm-docs.evidence.json \
   [--root .] [--class local] [--pages /llm/,/llm/search] [--capture <dir>] [--jobs 4] \
-  [--values page-checks.json]
+  [--values page-checks.json] [--chrome-arg <switch>]...
 ux-browser checks --config ux/ux-browser.checks.yaml --url http://127.0.0.1:4173 \
   --project my-app --assessment page-checks --out page-checks.evidence.json
 ```
@@ -149,6 +150,7 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `layout` | the page-scroll slack and the overflow rule (below); optional, each key left out keeps its default |
 | `values` | how `ux-browser values` and `checks --values` turn the document into the consumer's values file (`ux-browser values`); optional |
 | `clock` | the page's clock: `{at: <RFC 3339 instant>, advance: true \| false}`; every load starts its `Date` at `at`, running on from there (`advance`, default true) or standing still. Default: none, the host's clock (A fixed page clock) |
+| `chrome_args` | switches Chromium starts with after the defaults, a list: `[--enable-gpu]`; a switch the defaults set with another value is refused. Default: none (Chromium switches) |
 
 The `layout` section; the defaults are llm's rule, the one of 0.4.0 and before (The checks):
 
@@ -290,6 +292,80 @@ Measured 2026-11-26, Chrome/149.0.7827.55, `checks --build`:
 
 Its ages are drawn to the minute, inside boxes wide enough for them, so the clock changes its
 geometry and none of its values.
+
+### Chromium switches: `chrome_args` and `--chrome-arg`
+
+Chromium starts with the switches of `chrome::SWITCHES`: headless (`--headless=new`), the DevTools
+port (`--remote-debugging-port=0`), Playwright's switches that change what a page measures, the ones
+that keep the browser from reaching out on its own, and two that start no GPU process:
+
+- `--disable-gpu`: no GPU work, by the hardware or by SwiftShader; pages are drawn in software.
+- `--in-process-gpu`: what `--disable-gpu` still leaves to a GPU process (compositing) runs on a
+  thread of the browser process. With `--disable-gpu` alone Chromium 149 keeps a process of
+  `--type=gpu-process`.
+
+A consumer adds switches after these, in the configuration and on the command line:
+
+```yaml
+chrome_args: [--enable-gpu, '--use-gl=egl']
+```
+
+```sh
+ux-browser checks ... --chrome-arg --enable-gpu --chrome-arg '["--use-gl=egl", "--user-agent=probe"]'
+```
+
+`chrome_args` is a list of switches. `--chrome-arg` may be given more than once; each value is one
+switch, or a JSON list of them (how ratchet passes a list input). The configuration's switches come
+first, then the flag's, each in its order. A switch is `--<name>` or `--<name>=<value>`; one that
+`SWITCHES` sets with another value is refused and named (`--headless`, `--headless=old`,
+`--remote-debugging-port=9222`, `--force-color-profile=display-p3-d65`), as is `--user-data-dir`
+(the profile is `--profile`): from the configuration with exit 1, from the flag with exit 2, before
+a browser starts. One that `SWITCHES` sets with the same value adds nothing.
+
+Switches that undo the default are allowed. Chromium has no switch that cancels another, so
+`--enable-gpu` is read by ux-browser: with it among the added switches, Chromium starts without
+`--disable-gpu` and `--in-process-gpu`, with the GPU process and the GPU work of earlier versions, and gets
+`--enable-gpu` itself (which it ignores). Other GPU switches (`--use-gl=...`, `--use-angle=...`,
+`--enable-unsafe-swiftshader`) are passed as they are, after `--disable-gpu`; give `--enable-gpu` with
+them for them to reach a GPU process.
+
+The switches added appear in `run.local_inputs.chrome-arg`, a JSON list (`["--enable-gpu"]`),
+outside the evidence: two runs that differ only in switches give documents with the same evidence.
+Switches declared in `chrome_args` are also part of the configuration's bytes, so its digest under
+`evidence.inputs.config` differs from that of a configuration without them, as for any edit of the
+file. `ux-browser render` starts Chromium with `SWITCHES` alone.
+
+**A low-load run.** On a workstation in use, measure one page and viewport at a time:
+
+```sh
+ux-browser checks --config ux/ux-browser.checks.yaml --build website/build \
+  --project my-app --assessment page-checks --out page-checks.evidence.json --jobs 1
+```
+
+`--jobs 1` keeps one renderer busy instead of four; the values do not depend on it (Timings).
+
+Measured 2026-11-25, Chrome/149.0.7827.55, `checks --build`, on a shared 20-CPU workstation (1-minute
+load 7 to 11). Each run was sampled every 0.5 s: the CPU of every Chromium process of the run summed (peak:
+the highest sample; CPU: seconds over the run), and the `--type` of each Chromium process. Before:
+the switches of earlier versions; after: this version's default.
+
+| site | switches | `--jobs` | wall | peak | CPU | `--type=gpu-process` | values |
+|---|---|---|---|---|---|---|---|
+| llm's documentation build, `examples/llm.checks.yaml` | before | 4 | 27.4 s | 540 % | 79.9 s | in 52 samples, at most 20 % | all 162 results equal to `examples/llm-docs.evidence.json` |
+| the same | after | 4 | 29.5 s | 468 % | 86.7 s | none | 161 equal; `layout_shift.after_ready` of `/llm/docs/concepts/protocols` at 1440 x 900 0 instead of 0.0004 |
+| the same | after, `--chrome-arg --enable-gpu` | 4 | 35.0 s | 579 % | 125.5 s | in 66 samples, at most 96 % | all 162 equal; the evidence byte for byte; `run.local_inputs.chrome-arg` `["--enable-gpu"]` |
+| the same | after | 1 | 96.2 s | 165 % | 82.6 s | none | all 162 equal |
+| the second consumer's snapshot (a control plane web application), 11 pages x 5 viewports | before | 4 | 22.3 s | 566 % | 86.8 s | in 42 samples, at most 178 % | |
+| the same | after | 4 | 19.6 s | 485 % | 56.3 s | none | its 55 exact results and its 451 checks equal to the run before |
+
+The one value that moved is a sampled one: the shift of a web font's swap on one page, which a reused
+renderer also read as 0 (Timings). Over all runs on llm's build that day: with the switches of before
+(or `--enable-gpu`) 0 in 0 of 6 runs; with this version's default 0 in 2 of 5, and the other three
+equal to the example document's evidence byte for byte, so it stands; `--disable-gpu` alone 0 in 0 of
+2, `--in-process-gpu` alone 1 of 3. On llm's build the GPU process is light and the CPU goes to the
+renderers; on the second consumer's snapshot it was the busiest process, and the default takes about
+a third of the run's CPU off. `--jobs 1` takes the peak from about 5 CPUs to under 2, for over three
+times the wall time.
 
 ### The checks
 
@@ -447,7 +523,7 @@ As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
 | `evidence.inputs.build` | `{value: <path>}` for a build under `--root`, absent for one outside it; no digest beside it, the candidate is its digest |
 | `evidence.inputs.pages` | `{value: <the --pages list>}` when the run measured a list and not the whole sitemap |
 | `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, ready, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude, clock}`; `ready` is `load` without a ready condition, else `selector <css>` or `global <name>`. A document of 0.3.0 has no `ready`; its ready was `load`. The layout keys are the rule values the run used, defaults included (`"0"`, `"1"`, the elements joined by `, `, the exclusions joined by `, ` or `""`); a document of 0.4.0 or before has none, its rule was the default. `clock` is `real` without a clock, else `from <instant>` or `frozen at <instant>` in UTC (A fixed page clock); a document of 0.4.0 or before has none, its clock was the host's |
-| `run.local_inputs` | `jobs` (the value used), and `capture` and `profile` when given: they differ per machine and change no value, so they stay outside the evidence |
+| `run.local_inputs` | `jobs` (the value used), `capture` and `profile` when given, and `chrome-arg`, the switches added by `chrome_args` and `--chrome-arg` as a JSON list, when there are any: they differ per machine and change no value, so they stay outside the evidence |
 | `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk check (The keyboard walk: the skip link's two when declared, each target, each focus mark, each activation), and one counted layout-shift reading per viewport. A page that did not load is one `not_run` entry, id the page path |
 | `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks`: per walk `viewport`, `mode`, `skip_link_first` and `skip_moves_focus` (only with a skip link), `reached`, `focus_marks` (when a mark was judged) and `activates` (when an activation was judged), each a map of target to true or false. A keyboard finding's reason is `missed`, except a focus mark's (the focused element and what it showed) and an activation's (what failed) |
 
@@ -478,7 +554,7 @@ digests and the same 1,234 values.
 |---|---|
 | `command` | `ux-browser checks` |
 | `targets` | `[build, deployment]`: a served build (`--build`) or a running server (`--url`); no `target_input`, which only a `document` target has |
-| `inputs` | `config` (path, required), `build` (path) and `url` (text), of which a run gets exactly one (a choice of the usage; the format has no way to say so), `pages` (text: paths separated by commas), and the local inputs `capture`, `profile`, `values` (paths) and `jobs` (integer); `values` names a file the run writes and changes no value of the document, as `capture` |
+| `inputs` | `config` (path, required), `build` (path) and `url` (text), of which a run gets exactly one (a choice of the usage; the format has no way to say so), `pages` (text: paths separated by commas), and the local inputs `capture`, `profile`, `values` (paths), `jobs` (integer) and `chrome-arg` (a list of text: the added Chromium switches); `values` names a file the run writes and changes no value of the document, as `capture` |
 | `conditions` | `viewports`, `modes`, `ready`, `settle_ms`, `reduced_motion`, `page_slack_px`, `overflow_tolerance_px`, `overflow_elements`, `overflow_exclude`, `clock`: the keys of `conditions.other` |
 | `coverage_unit`, `coverage` | `check`; all six counts |
 | `outputs` | the six numbers (`scope: page`; unit `units`, `blocks`, `items`, `checks`, `score`, `score`; the two layout shifts `sampled`, the others `exact`) and `findings` (`identity_key: [rule, node_path]`, `item_fields: [reason]`) |

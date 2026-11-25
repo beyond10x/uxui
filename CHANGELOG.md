@@ -13,6 +13,27 @@
   `content-visibility: auto` below the fold still count (`docs/browser-adapter.md`, Content the
   page does not draw).
 
+## 0.7.0 — 2026-11-25
+
+- No GPU process by default: Chromium starts with `--disable-gpu` and `--in-process-gpu`
+  (`--disable-gpu` alone keeps a `--type=gpu-process` for compositing). A consumer adds its own
+  switches after the defaults with `chrome_args: [...]` in a `ux-browser-checks/1` file and the
+  repeatable `--chrome-arg <switch>` (or a JSON list of switches, as ratchet passes a list input). A
+  switch the defaults set with another value (`--headless=old`, `--remote-debugging-port=9222`) and
+  `--user-data-dir` are refused by name before a browser starts (exit 1 from the file, 2 from the
+  flag); `--enable-gpu` undoes the default, starting Chromium with the earlier switches. The added
+  switches are `run.local_inputs.chrome-arg`, a JSON list outside the evidence, and the assessor
+  declaration lists the local input `chrome-arg`. On the second consumer's snapshot the default took
+  the run from 86.8 to 56.3 CPU seconds (its GPU process had peaked at 178 %), with the same 55 exact
+  results. On llm's documentation build 3 of 5 runs gave `examples/llm-docs.evidence.json`'s evidence
+  byte for byte, which stands; 2 read `layout_shift.after_ready` of `/llm/docs/concepts/protocols` at
+  1440 x 900 as 0 instead of 0.0004 (a web font's swap; 0 of 6 runs with the earlier switches).
+- Limits: with the new default, 2 of 5 runs on llm's documentation build read one sampled value,
+  `layout_shift.after_ready` of `/llm/docs/concepts/protocols` at 1440 x 900, as 0 instead of 0.0004
+  (0 of 6 runs with the earlier switches). A consumer whose ratchet holds layout shift at 0 tolerance
+  can add `--chrome-arg --enable-gpu` to keep the earlier switches. This entry was merged under
+  0.6.0 by mistake on 2026-11-25 and is moved here; 0.6.0 does not contain it.
+
 ## 0.6.0 — 2026-11-25
 
 - The keyboard walk of `ux-browser checks` works without a skip link: `keyboard.skip_link_is` and
@@ -50,7 +71,6 @@
   without it. Every document names its clock in `evidence.conditions.other.clock` (`real` without
   the key, `from <instant>` or `frozen at <instant>` in UTC) and the assessor declaration lists
   `clock`; `examples/llm-docs.evidence.json` is rewritten by such a run with the same values.
-
 ## 0.5.0 — 2026-11-25
 
 - The page-scroll slack and the overflow rule are configuration: `layout: {page_slack_px,

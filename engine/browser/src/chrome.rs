@@ -1,18 +1,22 @@
 //! Finding and starting Chromium. The binary is `UXUI_CHROME`, else the newest
 //! `chromium-<n>/chrome-linux*/chrome` under the Playwright cache (`PLAYWRIGHT_BROWSERS_PATH`, else
 //! `~/.cache/ms-playwright`). It runs headless with a profile of its own, and is ended by its PID.
+//! It starts with [`SWITCHES`], then the switches a consumer adds ([`switches`]).
 
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
+use uxui_doc::yaml::Value;
 
 /// The switches a headless run starts with: those of Playwright's headless Chromium that change
 /// what a page measures (no scrollbars, the pointer and hover media of a touch-less headless
-/// device, sRGB), and those that keep the browser from reaching out on its own.
+/// device, sRGB), those that keep the browser from reaching out on its own, and [`NO_GPU`].
 pub const SWITCHES: &[&str] = &[
     "--headless=new",
+    "--disable-gpu",
+    "--in-process-gpu",
     "--remote-debugging-port=0",
     "--no-first-run",
     "--no-default-browser-check",
@@ -31,6 +35,83 @@ pub const SWITCHES: &[&str] = &[
     "--force-color-profile=srgb",
     "--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4",
 ];
+
+/// The switches of [`SWITCHES`] that start no GPU process: no GPU work (hardware or SwiftShader),
+/// and the compositing that `--disable-gpu` still leaves to a GPU process run on a thread of the
+/// browser process. Measured on Chromium 149: `--disable-gpu` alone keeps a `--type=gpu-process`.
+pub const NO_GPU: &[&str] = &["--disable-gpu", "--in-process-gpu"];
+
+/// An added switch that undoes [`NO_GPU`]: the line then starts without them, as earlier versions
+/// did. Chromium itself has no switch that cancels another.
+pub const ENABLE_GPU: &str = "--enable-gpu";
+
+/// The name of a switch, `--name` of `--name` and `--name=value`; `None` for what is not a switch.
+fn switch_name(arg: &str) -> Option<&str> {
+    let name = arg.split_once('=').map_or(arg, |(n, _)| n);
+    let bare = name.strip_prefix("--")?;
+    (!bare.is_empty() && !bare.starts_with('-')).then_some(name)
+}
+
+/// The command line's switches: [`SWITCHES`], then `added` in its order. An added switch that
+/// `SWITCHES` sets with another value (`--headless`, `--remote-debugging-port=9222`), the profile's
+/// `--user-data-dir`, and what is not a switch are refused, by name. One that `SWITCHES` sets with
+/// the same value adds nothing; [`ENABLE_GPU`] leaves out [`NO_GPU`].
+pub fn switches(added: &[String]) -> Result<Vec<String>, String> {
+    for arg in added {
+        let Some(name) = switch_name(arg) else {
+            return Err(format!(
+                "`{arg}` is not a Chromium switch: `--<name>` or `--<name>=<value>`"
+            ));
+        };
+        if name == "--user-data-dir" {
+            return Err(format!(
+                "Chromium switch `{arg}`: the profile directory is `--profile`"
+            ));
+        }
+        if let Some(set) = SWITCHES
+            .iter()
+            .find(|s| switch_name(s) == Some(name) && *s != arg)
+        {
+            return Err(format!(
+                "Chromium switch `{arg}`: ux-browser starts Chromium with `{set}`; an added switch may not change it"
+            ));
+        }
+    }
+    let undo_gpu = added.iter().any(|a| a == ENABLE_GPU);
+    Ok(SWITCHES
+        .iter()
+        .filter(|s| !(undo_gpu && NO_GPU.contains(s)))
+        .map(|s| s.to_string())
+        .chain(added.iter().cloned())
+        .collect())
+}
+
+/// The switches of one `--chrome-arg` value: one switch, or a JSON list of them (how ratchet passes
+/// a list input, and how [`local_input`] writes them).
+pub fn flag_switches(value: &str) -> Result<Vec<String>, String> {
+    if !value.trim_start().starts_with('[') {
+        return Ok(vec![value.to_string()]);
+    }
+    let list = crate::json::parse(value).map_err(|e| format!("`--chrome-arg {value}`: {e}"))?;
+    list.list()
+        .iter()
+        .map(|item| match item {
+            Value::Str(s) => Ok(s.clone()),
+            _ => Err(format!(
+                "`--chrome-arg {value}`: a list of switches is a JSON list of text"
+            )),
+        })
+        .collect()
+}
+
+/// `run.local_inputs.chrome-arg`: the switches added to [`SWITCHES`], as a JSON list; none without.
+pub fn local_input(added: &[String]) -> Option<String> {
+    (!added.is_empty()).then(|| {
+        uxui_doc::json::write(&Value::List(
+            added.iter().map(|s| Value::Str(s.clone())).collect(),
+        ))
+    })
+}
 
 /// The newest `chromium-<n>` build under `cache` that has a `chrome-linux*/chrome`.
 pub fn newest_in(cache: &Path) -> Option<PathBuf> {
@@ -95,10 +176,12 @@ pub struct Process {
 }
 
 impl Process {
-    pub fn start(binary: &Path, profile: &Path) -> Result<Process, String> {
+    /// Starts `binary` with [`switches`] of `added`, the profile and a blank page.
+    pub fn start(binary: &Path, profile: &Path, added: &[String]) -> Result<Process, String> {
+        let line = switches(added)?;
         std::fs::create_dir_all(profile).map_err(|e| format!("{}: {e}", profile.display()))?;
         let mut child = Command::new(binary)
-            .args(SWITCHES)
+            .args(&line)
             .arg(format!("--user-data-dir={}", profile.display()))
             .arg("about:blank")
             .stdin(Stdio::null())
