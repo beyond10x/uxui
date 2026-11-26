@@ -309,6 +309,13 @@ interpreted target passes them; the `wrong-state` branches are witnessed by the 
 that claim `<entity>/state/<State>/refuses/<command>`. No other command of `domains/` reads its
 own addressed row through `when_related`.
 
+The ESS maintainers confirmed the form on 2026-11-26: the row set that selects the row by its key
+is the supported one, a `when_subject` guard beside a row set is not planned, and a `when_subject`
+refusal answering before `wrong-state` is by design. One of the reductions sent with the report
+showed a defect in ESS: synthesis wrote a not-found scenario that the interpreted target fails. It
+is fixed on a branch of ESS and in no release yet (0.99.7 still has it). This specification does
+not use the form that reaches it.
+
 ## UNMAPPED markers left in `ess/`
 
 Every marker left after round 2, by file and line, with the gap that holds it or the question the

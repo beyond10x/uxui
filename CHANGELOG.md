@@ -7,6 +7,41 @@
   `PromotionNotFound` where it answered a state conflict. `ess verify conform synthesize --path ess
   --scenarios ess --suite-format 5` exits 0: 286 refusals, all 286 covered by the 50 authored
   scenarios.
+- The second round of the `ui-iteration-loop` skill on the studio is on record
+  (`ess/ui/rounds/R-02/`). It builds three changes of R-01's change set, each with a check that
+  failed before it: the five list filters of `ess/ui/studio.ui.yaml` match their rows (UXF-003), all
+  small text of `themes/studio.css` is 14 px and a toned badge has a text colour per mode
+  (UXF-017), and the gate decision of a promotion is a list row with the Owner's actions beside the
+  verdict (UXF-001, the yes side of `R-02/decision.md`, which has no answer yet). Against R-01:
+  scenarios not completed 6 to 5 of 11, missed expectations 22 to 16, looks 16 to 12,
+  always-visible misses 24 to 20, text under 14 px 0.564 to 0, low-contrast runs on the worst page
+  12 to 0. One value is above R-01's: the largest layout shift, 0.0151 to 0.0176, under the skill's
+  tolerance of 0.01 and unstable from run to run on unchanged input (new finding UXF-023). Gates 1,
+  2 and 3 still fail; 20 findings are open, 2 of them S1. New: `ess/ui/rounds/studio.audit.json`
+  (bars for the page audit, counted into `audit.cells_over_a_bar`), and `round.sh` gives only its
+  two compiling steps to a build pool and measures where it was started.
+- `ux-search campaign` runs a browser campaign whose target is a declaration file, so a page of
+  another repository is climbed without a change to the engine. The declaration
+  (`ux-search-campaign/1`) names the page and its ready selector, the environments (viewports;
+  modes by media, attribute or query), the axes (each value a list of custom-property values per
+  CSS selector, the shipped value named), the primary action, and the hard rules and ordered terms
+  by name from the engine's catalogue. `ux-search campaign run --declaration <file> --url <origin>
+  --out <measurements.json> [--shots <dir>]` renders every variant in every environment as an
+  injected style sheet and writes `ux-search-campaign-measurements/1`; `ux-search campaign report
+  --measurements <file>` ranks them with the landing campaign's ranking code and prints the
+  frontier, each frontier variant's patch and the shipped variant's rank. A run fails when the page
+  without the sheet differs from the shipped variant, when a set property is not read back, when a
+  selector matches nothing, and on any request that is not `GET` or `HEAD` on the page's origin.
+  An unknown key, rule or term, an empty axis and a property set twice are refused with the file
+  and the key path. Proven on the frontier page of the generated studio: 48 variants, 192 renders,
+  two runs with the same bytes; `tools/studio-campaign.sh` records it. On the theme of round R-02
+  the page as shipped has no low-contrast text and no text under 14 px, so only the spacing axis
+  separates the space: a frontier of 12, the page as shipped at rank 36 of 48
+  (`docs/campaign-2026-11-26-studio-engine.md`, with the recording on the theme before the round:
+  a frontier of 3, rank 42). There is no promotion step for a declared campaign yet. A change of
+  that document runs the gate (`tools/prose-only.sh`).
+- `website/data/status.json` and the limitations page no longer say the specification has no
+  scenarios.
 
 ## 0.11.0 — 2026-11-26
 

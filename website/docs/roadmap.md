@@ -93,6 +93,11 @@ second; the first code is a thin vertical slice that measures the assumption the
 6. **Trial target.** One page or component of an admin console generated from an `ess-ui/1` document (a
    private repository; its fixtures make it I/O-free). Results stay in that repository; only generic findings
    come back here.
+   Exists: `ux-search campaign` (`engine/search`), the campaign whose target is a declaration file (page,
+   environments, axes as custom-property values, hard rules and terms), so a page of another repository is
+   climbed without a change to the engine (`docs/targets.md`). Proven on a page of this repository's own
+   generated studio, served on its fixtures (`docs/campaign-2026-11-26-studio-engine.md`). Not yet: the run in
+   the private repository.
 7. **Ratchet integration.** When ratchet's format settles: presets from `presets/web-ux.ratchet.yaml`, gates on
    merge and promote, and the migration of one of the organization's seven UI-loop copies (each with its own
    baseline file) onto ratchet + uxui, the smallest first.
@@ -112,4 +117,7 @@ second; the first code is a thin vertical slice that measures the assumption the
 - Exhaustive search depends on step 2 (a) and on the cost measured in step 3.
 - The metrics rank what is declared; aesthetics and focus stay judgement. The original loop's own data shows
   hermetic metrics did not separate 28 design variants.
-- Two older copies of the skill exist outside this repository; until they point here, they drift.
+- Two older copies of the skill existed outside this repository. One, in the owner's user settings, was
+  replaced on 2026-11-26 by the plugin of release 0.11.0, installed from this repository's marketplace. The
+  other, in a private plugin, has an open change that removes it and names this marketplace; until that
+  change is merged, that copy drifts.
