@@ -3,8 +3,8 @@
 A copy of ESS's example `examples/partner-portal/` at tag `0.99.5` (commit
 `3cdf39f157acced18513d506e84fffd49a72d58c`, github.com/beyond10x/ess, Apache-2.0): the document
 and every file it needs to load. Unchanged; `ux-search` tests climb and measure its page
-`tickets.detail`. The files were copied at tag `0.99.4` and are the same bytes at `0.99.5`: the
-digests below match both tags.
+`tickets.detail`. The files were copied at an earlier tag and are the same bytes at this one: the
+digests below hold for both.
 
 | file | source | SHA-256 |
 |---|---|---|

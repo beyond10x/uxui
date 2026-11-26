@@ -8,18 +8,29 @@
   now, read at build time; the `shipped` field of the axes is gone) and writes one
   `ratchet-evidence/1` document: the SHA-256 of the measurements and of each source before and
   after, the adapter and browser, the chosen and the shipped variant with rank and terms, the size
-  of the frontier, the patch, and who chose. The same input gives the same bytes. It refuses, and
-  writes nothing, a variant outside the space or the measurements, one that breaks a hard rule or
-  is off the frontier, the shipped variant itself, and sources other than those the measurements
-  were recorded on; the four files are written all or none. Promoted evidence files live in
+  of the frontier, the patch, and who chose. It copies the measurements it read beside the evidence
+  (`<name>.measurements.json` for `<name>.evidence.json`), and the evidence names that copy and the
+  two sources by their paths from the working directory, however they were written; a file outside
+  it has no path, so the document holds no absolute one. The same input gives the same bytes. It
+  refuses, and writes nothing, a variant outside the space or the measurements, one that breaks a
+  hard rule or is off the frontier, the shipped variant itself, sources other than those the
+  measurements were recorded on, a place that is a directory or has no file name, and one file
+  named for two of its files by any spelling. The five files are written all or none: when a move
+  fails, the files already in place get their bytes back, and the staged files and the directories
+  made are removed. Without `--shipped-file` it says in one line that the shipped file was not
+  changed, and names it. `engine/search/ux-search.assessor.yaml` declares `ux-search@1`
+  (`ratchet-assessor/1`: inputs, outputs with scopes and units, coverage unit, conditions), and a
+  test holds the command line and the evidence documents to it. Promoted evidence files live in
   `docs/promotions/`. Operations for actions, section order and palette stay written against
-  `1+1`, `features-first` and `docs-system`; a promotion off those values prints a note.
+  `1+1`, `features-first` and `docs-system`; a promotion off those values prints a note. The tests
+  of the promotion compute the variant they promote, so a promotion leaves them standing.
   `docs/campaign-2026-11-26-docs-landing-engine.md`, Promotion.
 - `ux-search` builds on ESS 0.99.5, the newest release (was 0.99.4): the three ESS crates by that git
   tag, and `engine/search/Cargo.lock` moved with them. 0.99.5 changes no source of the crates it links,
   so both golden frontiers change in their first line only, which names the tag. `ux_search::ESS_TAG`
   is the one name of the tag in the source, and a test holds the manifest, the lock file, the reports,
-  the fixture's provenance and `AGENTS.md` to it. `docs/ess-gaps.md` is read against ESS's releases up
+  the fixture's provenance (every tag it names, and its commit against the lock file's) and
+  `AGENTS.md` to it. `docs/ess-gaps.md` is read against ESS's releases up
   to 0.99.5 and marks what a release closed: item 9 of 18 (for all over related rows), by a construct
   ESS has had since 0.63.0 and the specification already uses; the other 17 items are open in 0.99.5.
   Two needs of the generator round are closed by ESS 0.98.1, and `uxui-gen` follows the first: a live

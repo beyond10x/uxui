@@ -5,32 +5,140 @@
 //! directory for integration tests.
 //!
 //! `fixtures/docs-landing/promote.evidence.json` is the evidence document of promoting
-//! [`CHOSEN`] on the fixture's sources and measurements, with `{version}` where the version of
-//! this crate stands. `UX_SEARCH_BLESS=1` rewrites it: after a new campaign was recorded, or
-//! when the document's fields change.
+//! [`CHOSEN`] on the fixture's sources and measurements, every file named from the directory it
+//! lies in and the evidence beside the sources, with `{version}` where the version of this crate
+//! stands. `UX_SEARCH_BLESS=1` rewrites it: after a new campaign was recorded, or when the
+//! document's fields change.
+//!
+//! No test names a variant a promotion can make the shipped one: [`CHOSEN`] and the variants of
+//! [`on_the_frontier`] are worked out from the recorded campaign and the shipped file, and what
+//! a variant writes is read off its id ([`said_by`]).
 //!
 //! The repository has no reader of `ratchet-evidence/1` that checks a document's shape, so
 //! [`check_shape`] holds the document to the members and the rules 1, 2, 3, 5, 6 and 9 of
 //! ratchet's `docs/evidence-format.md`, revision 2, and to the members of ratchet's own example
-//! (`engine/static/tests/fixtures/ratchet-example/example.evidence.json`).
+//! (`engine/static/tests/fixtures/ratchet-example/example.evidence.json`). The module `assessor`
+//! holds it to the declaration of `ux-search@1`.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::LazyLock;
 
 use ux_search::landing::patch::{self, Value};
-use ux_search::landing::promote::{self, Options};
+use ux_search::landing::promote::{self, Options, Outcome};
 use ux_search::landing::record::{self, Recorded};
 use ux_search::landing::report;
 use ux_search::landing::space;
 
-/// A variant on the frontier of the recorded campaign that is not the page as shipped: it
-/// changes both sources.
-const CHOSEN: &str = "docs-system.centred.1+0.features-first.d85.h85";
+/// The variant the tests promote: the first of the recorded campaign's frontier that is not
+/// the page as shipped.
+pub static CHOSEN: LazyLock<String> = LazyLock::new(|| {
+    on_the_frontier(|_| true)
+        .expect("a variant on the frontier beside the shipped one")
+        .id
+});
 /// A variant no campaign has on its frontier: three links, the loosest density, the large
 /// heading.
 const OFF_THE_FRONTIER: &str = "docs-system.left.1+3.features-first.d115.h100";
 const CHOSEN_BY: &str = "the owner, 2026-11-26";
+
+/// The first variant of the recorded campaign's frontier, in rank order and the page as shipped
+/// left out, that `wanted` takes.
+fn on_the_frontier(wanted: impl Fn(&space::Variant) -> bool) -> Option<space::Variant> {
+    let variants = space::variants();
+    report::rank(&recorded())
+        .frontier
+        .iter()
+        .map(|&index| variants[index].clone())
+        .find(|variant| !variant.is_shipped() && wanted(variant))
+}
+
+/// What a variant's id says of the two sources, read off the id alone: the number of hero
+/// actions, whether the status section comes first, and the four custom properties of `:root`.
+fn said_by(id: &str) -> (usize, bool, [(&'static str, &'static str); 4]) {
+    let parts: Vec<&str> = id.split('.').collect();
+    assert_eq!(parts.len(), 6, "{id}");
+    let actions = match parts[2] {
+        "1+0" => 1,
+        "1+1" => 2,
+        "1+3" => 4,
+        other => panic!("{id}: actions `{other}`"),
+    };
+    let status_first = match parts[3] {
+        "features-first" => false,
+        "status-first" => true,
+        other => panic!("{id}: section order `{other}`"),
+    };
+    let (align, lede) = match parts[1] {
+        "left" => ("start", "0"),
+        "centred" => ("center", "auto"),
+        other => panic!("{id}: hero `{other}`"),
+    };
+    let density = match parts[4] {
+        "d85" => "0.85",
+        "d100" => "1",
+        "d115" => "1.15",
+        other => panic!("{id}: density `{other}`"),
+    };
+    let heading = match parts[5] {
+        "h85" => "0.85",
+        "h100" => "1",
+        other => panic!("{id}: heading scale `{other}`"),
+    };
+    (
+        actions,
+        status_first,
+        [
+            ("--uxui-density", density),
+            ("--uxui-heading-scale", heading),
+            ("--uxui-hero-align", align),
+            ("--uxui-hero-lede-inline", lede),
+        ],
+    )
+}
+
+/// Whether a variant changes `product.json` and `landing.css` of the page as shipped: the
+/// first when its actions or its section order are other ones, the second when its theme, hero,
+/// density or heading scale are.
+fn changes(id: &str) -> (bool, bool) {
+    let shipped = space::shipped().id;
+    let (own, shipped): (Vec<&str>, Vec<&str>) =
+        (id.split('.').collect(), shipped.split('.').collect());
+    let differs = |axes: &[usize]| axes.iter().any(|&at| own[at] != shipped[at]);
+    (differs(&[2, 3]), differs(&[0, 1, 4, 5]))
+}
+
+fn rename(from: &Path, to: &Path) -> std::io::Result<()> {
+    std::fs::rename(from, to)
+}
+
+/// Every entry under a directory: its path from there and, for a file, the digest of its bytes.
+fn tree(directory: &Path) -> BTreeMap<String, Option<String>> {
+    fn walk(root: &Path, at: &Path, out: &mut BTreeMap<String, Option<String>>) {
+        for entry in
+            std::fs::read_dir(at).unwrap_or_else(|error| panic!("{}: {error}", at.display()))
+        {
+            let path = entry.expect("an entry").path();
+            let name = path
+                .strip_prefix(root)
+                .expect("an entry under the root")
+                .to_string_lossy()
+                .into_owned();
+            if path.is_dir() {
+                out.insert(format!("{name}/"), None);
+                walk(root, &path, out);
+            } else {
+                let bytes = std::fs::read(&path)
+                    .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+                out.insert(name, Some(record::digest(&bytes)));
+            }
+        }
+    }
+    let mut out = BTreeMap::new();
+    walk(directory, directory, &mut out);
+    out
+}
 
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -51,17 +159,21 @@ fn recorded() -> Recorded {
 }
 
 /// Copies of the fixture's sources and measurements in a directory of the test's own, and the
-/// two files a promotion adds or rewrites there.
-struct Copies {
-    measurements: PathBuf,
-    product: PathBuf,
-    css: PathBuf,
-    evidence: PathBuf,
-    shipped: PathBuf,
+/// files a promotion adds or rewrites there: the evidence document and, beside it, the copy of
+/// the measurements, both in a directory `evidence/` that a promotion makes, and the shipped
+/// file.
+pub struct Copies {
+    pub directory: PathBuf,
+    pub measurements: PathBuf,
+    pub product: PathBuf,
+    pub css: PathBuf,
+    pub evidence: PathBuf,
+    pub kept: PathBuf,
+    pub shipped: PathBuf,
 }
 
 impl Copies {
-    fn options(&self, id: &str) -> Options {
+    pub fn options(&self, id: &str) -> Options {
         Options {
             measurements: self.measurements.clone(),
             variant: id.to_owned(),
@@ -71,6 +183,18 @@ impl Copies {
             chosen_by: Some(CHOSEN_BY.to_owned()),
             shipped_file: Some(self.shipped.clone()),
         }
+    }
+
+    /// The copies with the evidence beside the sources, so a promotion makes no directory.
+    pub fn beside(mut self) -> Copies {
+        self.evidence = self.directory.join("promotion.evidence.json");
+        self.kept = self.directory.join("promotion.measurements.json");
+        self
+    }
+
+    /// Promotes with the directory of the copies as the root the evidence names its files from.
+    pub fn promote(&self, options: &Options) -> Result<Outcome, String> {
+        promote::promote_in(&self.directory, options, &mut rename)
     }
 
     /// What a refused promotion must leave: the sources and the shipped file as they were, and
@@ -84,6 +208,7 @@ impl Copies {
             "{case}: the shipped file"
         );
         assert!(!self.evidence.exists(), "{case}: an evidence document");
+        assert!(!self.kept.exists(), "{case}: a copy of the measurements");
         let left: BTreeSet<String> = std::fs::read_dir(self.product.parent().expect("a parent"))
             .expect("the directory of the copies")
             .map(|entry| {
@@ -106,7 +231,7 @@ impl Copies {
     }
 }
 
-fn copies(test: &str) -> Copies {
+pub fn copies(test: &str) -> Copies {
     let directory = crate::state_dir(test);
     if directory.exists() {
         std::fs::remove_dir_all(&directory).expect("the last run's copies removed");
@@ -124,7 +249,9 @@ fn copies(test: &str) -> Copies {
         product: copy("product.json"),
         css: copy("landing.css"),
         evidence: directory.join("evidence/promotion.evidence.json"),
+        kept: directory.join("evidence/promotion.measurements.json"),
         shipped,
+        directory,
     }
 }
 
@@ -387,55 +514,94 @@ fn golden(text: &str) -> String {
 
 #[test]
 fn a_promotion_writes_both_sources_the_evidence_and_the_shipped_variant() {
+    let chosen = CHOSEN.as_str();
     let copies = copies("landing-promote");
     let (product, css) = (read(&copies.product), read(&copies.css));
-    let outcome =
-        promote::promote(&copies.options(CHOSEN)).unwrap_or_else(|error| panic!("{error}"));
+    let measurements = read(&copies.measurements);
+    let outcome = copies
+        .promote(&copies.options(chosen))
+        .unwrap_or_else(|error| panic!("{error}"));
 
     // The sources: what the variant's patch writes, applied here on its own.
-    let (patched_product, patched_css) = variant(CHOSEN)
+    let (patched_product, patched_css) = variant(chosen)
         .patch()
         .apply(&product, &css)
         .unwrap_or_else(|error| panic!("{error}"));
-    assert_ne!(patched_product, product, "the variant changes product.json");
-    assert_ne!(patched_css, css, "the variant changes landing.css");
+    assert_eq!(
+        (patched_product != product, patched_css != css),
+        changes(chosen),
+        "{chosen} against {}: which of product.json and landing.css it changes",
+        space::shipped().id
+    );
+    assert!(
+        patched_product != product || patched_css != css,
+        "{chosen} changes neither source"
+    );
     assert_eq!(read(&copies.product), patched_product);
     assert_eq!(read(&copies.css), patched_css);
     // And what its axis values say, read from the files.
+    let (actions, status_first, properties) = said_by(chosen);
     let written = json(&read(&copies.product));
-    let actions = written
+    let hero = written
         .get("product")
         .and_then(|product| product.get("actions"))
         .expect("/product/actions")
         .list();
-    assert_eq!(actions.len(), 1, "`1+0`: the primary action alone");
-    assert_eq!(actions[0].get_str("kind"), Some("primary"));
-    for (property, value) in [
-        ("--uxui-density", "0.85"),
-        ("--uxui-heading-scale", "0.85"),
-        ("--uxui-hero-align", "center"),
-        ("--uxui-hero-lede-inline", "auto"),
-    ] {
+    assert_eq!(hero.len(), actions, "{chosen}: the hero's actions");
+    assert_eq!(hero[0].get_str("kind"), Some("primary"));
+    let first_section = written
+        .get("sections")
+        .map(Value::list)
+        .and_then(|sections| sections.first())
+        .and_then(|section| section.get_str("kind"));
+    assert_eq!(
+        first_section == Some("status"),
+        status_first,
+        "{chosen}: the first section is {first_section:?}"
+    );
+    for (property, value) in properties {
         assert_eq!(
             patch::custom_property(&read(&copies.css), ":root", property).as_deref(),
             Some(value),
-            "{property}"
+            "{chosen}: {property}"
         );
     }
 
-    assert_eq!(read(&copies.shipped), format!("{CHOSEN}\n"));
+    assert_eq!(read(&copies.shipped), format!("{chosen}\n"));
     assert_eq!(
         outcome.written,
         [
             copies.product.clone(),
             copies.css.clone(),
             copies.evidence.clone(),
+            copies.kept.clone(),
             copies.shipped.clone()
         ]
     );
+    // The measurements the choice was made on: kept beside the evidence, the file itself left.
+    assert_eq!(read(&copies.kept), measurements);
+    assert_eq!(read(&copies.measurements), measurements);
+    assert_eq!(
+        tree(&copies.directory).into_keys().collect::<Vec<_>>(),
+        [
+            "evidence/",
+            "evidence/promotion.evidence.json",
+            "evidence/promotion.measurements.json",
+            "landing.css",
+            "measurements.json",
+            "product.json",
+            "shipped.txt"
+        ],
+        "the five files and nothing else, no staged file left"
+    );
 
-    // The evidence: the committed document, and the same bytes from fresh copies.
-    let text = read(&copies.evidence);
+    // The evidence: the committed document is the one of a promotion with the evidence beside
+    // the sources, and fresh copies in another directory give the same bytes.
+    let beside = self::copies("landing-promote-golden").beside();
+    beside
+        .promote(&beside.options(chosen))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let text = read(&beside.evidence);
     let path = fixture("promote.evidence.json");
     if std::env::var_os("UX_SEARCH_BLESS").is_some() {
         std::fs::write(&path, golden(&text)).expect("the golden document");
@@ -443,25 +609,39 @@ fn a_promotion_writes_both_sources_the_evidence_and_the_shipped_variant() {
     assert_eq!(
         golden(&text),
         read(&path),
-        "{} is not the evidence of promoting {CHOSEN}; UX_SEARCH_BLESS=1 rewrites it",
+        "{} is not the evidence of promoting {chosen}; UX_SEARCH_BLESS=1 rewrites it",
         path.display()
     );
-    let again = self::copies("landing-promote-again");
-    promote::promote(&again.options(CHOSEN)).unwrap_or_else(|error| panic!("{error}"));
+    let again = self::copies("landing-promote-again").beside();
+    again
+        .promote(&again.options(chosen))
+        .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(
         read(&again.evidence),
         text,
-        "a second run writes other bytes"
+        "a second run, in another directory, writes other bytes"
     );
     assert_eq!(read(&again.product), patched_product);
     assert_eq!(read(&again.css), patched_css);
+    // With the evidence in a directory of its own the document differs in one text: the path
+    // of the copy of the measurements.
+    assert_eq!(
+        read(&copies.evidence),
+        text.replace(
+            "\"value\":\"promotion.measurements.json\"",
+            "\"value\":\"evidence/promotion.measurements.json\""
+        )
+    );
 }
 
 #[test]
 fn the_evidence_names_the_campaign_the_variant_and_the_sources() {
+    let chosen = CHOSEN.as_str();
     let copies = copies("landing-promote-evidence");
     let (product, css) = (read(&copies.product), read(&copies.css));
-    promote::promote(&copies.options(CHOSEN)).unwrap_or_else(|error| panic!("{error}"));
+    copies
+        .promote(&copies.options(chosen))
+        .unwrap_or_else(|error| panic!("{error}"));
     let text = read(&copies.evidence);
     assert!(text.ends_with("}\n"), "{text}");
     let document = json(&text);
@@ -500,6 +680,26 @@ fn the_evidence_names_the_campaign_the_variant_and_the_sources() {
         input("measurements").get_str("digest"),
         Some(record::digest(read(&fixture("measurements.json")).as_bytes()).as_str())
     );
+    // Each file by its path from the root, and the measurements by the copy the promotion keeps
+    // beside the evidence: the file that is still there after the campaign is recorded again.
+    for (name, value) in [
+        ("measurements", "evidence/promotion.measurements.json"),
+        ("product", "product.json"),
+        ("css", "landing.css"),
+    ] {
+        assert_eq!(
+            keys(input(name)),
+            ["value", "digest", "digest_form"],
+            "{name}"
+        );
+        assert_eq!(input(name).get_str("value"), Some(value), "{name}");
+        assert_eq!(input(name).get_str("digest_form"), Some("bytes"), "{name}");
+    }
+    assert_eq!(
+        input("measurements").get_str("digest"),
+        Some(record::digest(read(&copies.kept).as_bytes()).as_str()),
+        "the digest is the copy's"
+    );
     let tools = evidence
         .get("conditions")
         .and_then(|conditions| conditions.get("tools"))
@@ -526,11 +726,11 @@ fn the_evidence_names_the_campaign_the_variant_and_the_sources() {
     );
 
     // The chosen variant and who chose it.
-    assert_eq!(input("variant").get_str("value"), Some(CHOSEN));
+    assert_eq!(input("variant").get_str("value"), Some(chosen));
     assert_eq!(input("chosen_by").get_str("value"), Some(CHOSEN_BY));
     let shipped = space::shipped().id;
     for (role, id, on_frontier) in [
-        ("chosen", CHOSEN, true),
+        ("chosen", chosen, true),
         ("shipped", shipped.as_str(), false),
     ] {
         let (rank, index) = place(id);
@@ -565,7 +765,7 @@ fn the_evidence_names_the_campaign_the_variant_and_the_sources() {
     let units: Vec<&str> = report::TERMS
         .iter()
         .map(|term| {
-            result(&document, &format!("landing.{term}@1"), Some(CHOSEN))
+            result(&document, &format!("landing.{term}@1"), Some(chosen))
                 .get_str("unit")
                 .expect("a unit")
         })
@@ -608,24 +808,30 @@ fn the_evidence_names_the_campaign_the_variant_and_the_sources() {
     let report_text = read(&fixture("report.txt"));
     let block: Vec<&str> = report_text
         .lines()
-        .skip_while(|line| !line.contains(&format!(" {CHOSEN} hard=")))
+        .skip_while(|line| !line.contains(&format!(" {chosen} hard=")))
         .skip(1)
         .take_while(|line| line.starts_with("     "))
         .map(str::trim_start)
         .collect();
-    assert!(!block.is_empty(), "the report prints no patch for {CHOSEN}");
+    assert!(!block.is_empty(), "the report prints no patch for {chosen}");
     let mut printed = Vec::new();
     let mut after = Vec::new();
-    for (name, flag, before, path) in [
-        ("product.json", "product", &product, &copies.product),
-        ("landing.css", "css", &css, &copies.css),
+    for (name, flag, before, path, changed) in [
+        (
+            "product.json",
+            "product",
+            &product,
+            &copies.product,
+            changes(chosen).0,
+        ),
+        ("landing.css", "css", &css, &copies.css, changes(chosen).1),
     ] {
         let found = result(&document, "landing.source@1", Some(name));
         assert_eq!(found.get_str("scope"), Some("source"));
         assert_eq!(found.get_str("value_type"), Some("digest"));
         let before = record::digest(before.as_bytes());
         let written = record::digest(read(path).as_bytes());
-        assert_ne!(before, written, "{name}");
+        assert_eq!(before != written, changed, "{name}: {chosen} changes it");
         assert_eq!(input(flag).get_str("digest"), Some(before.as_str()));
         assert_eq!(found.get_str("digest"), Some(written.as_str()));
         let details = found.get("details").expect("details");
@@ -664,14 +870,50 @@ fn a_promotion_without_a_name_or_a_shipped_file_leaves_both_out() {
     let options = Options {
         chosen_by: None,
         shipped_file: None,
-        ..copies.options(CHOSEN)
+        ..copies.options(CHOSEN.as_str())
     };
-    let outcome = promote::promote(&options).unwrap_or_else(|error| panic!("{error}"));
-    assert_eq!(outcome.written.len(), 3);
+    let outcome = copies
+        .promote(&options)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(
+        outcome.written,
+        [
+            copies.product.clone(),
+            copies.css.clone(),
+            copies.evidence.clone(),
+            copies.kept.clone()
+        ]
+    );
     assert_eq!(
         read(&copies.shipped),
         format!("{}\n", space::shipped().id),
         "the shipped file is not named, so it stays"
+    );
+    // And the promotion says so, with the file that names the shipped variant.
+    let said: Vec<&String> = outcome
+        .notes
+        .iter()
+        .filter(|note| note.contains("the shipped file was not changed"))
+        .collect();
+    assert_eq!(said.len(), 1, "{:?}", outcome.notes);
+    assert!(
+        said[0].contains("--shipped-file")
+            && said[0].contains("engine/search/src/landing/shipped.txt")
+            && said[0].contains(&space::shipped().id),
+        "{said:?}"
+    );
+    assert_eq!(
+        promote::SHIPPED_FILE,
+        "engine/search/src/landing/shipped.txt"
+    );
+    assert_eq!(
+        read(
+            &Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../..")
+                .join(promote::SHIPPED_FILE)
+        ),
+        format!("{}\n", space::shipped().id),
+        "the file the note names is the one the engine is built with"
     );
     let document = json(&read(&copies.evidence));
     check_shape(&document);
@@ -685,8 +927,9 @@ fn a_promotion_without_a_name_or_a_shipped_file_leaves_both_out() {
 
 #[test]
 fn a_refused_promotion_writes_nothing() {
+    let chosen = CHOSEN.as_str();
     let measurements = read(&fixture("measurements.json"));
-    let chosen_entry = format!("\"id\": \"{CHOSEN}\"");
+    let chosen_entry = format!("\"id\": \"{chosen}\"");
     assert_eq!(measurements.matches(&chosen_entry).count(), 1);
 
     // The record with the chosen variant scrolling sideways at 1440x900 light.
@@ -694,7 +937,7 @@ fn a_refused_promotion_writes_nothing() {
     let at = broken
         .variants
         .iter()
-        .position(|(id, _)| id == CHOSEN)
+        .position(|(id, _)| id == chosen)
         .expect("the chosen variant is recorded");
     broken.variants[at].1[0].h_scroll = true;
     // The record without the chosen variant.
@@ -765,7 +1008,7 @@ fn a_refused_promotion_writes_nothing() {
         ),
         (
             "another product.json",
-            CHOSEN,
+            chosen,
             None,
             |text| text.replace("Measure the UI.", "Measure the page."),
             same,
@@ -776,7 +1019,7 @@ fn a_refused_promotion_writes_nothing() {
         ),
         (
             "another landing.css",
-            CHOSEN,
+            chosen,
             None,
             same,
             |text| text.replace("3.5rem", "3.6rem"),
@@ -787,23 +1030,23 @@ fn a_refused_promotion_writes_nothing() {
         ),
         (
             "a hard rule broken",
-            CHOSEN,
+            chosen,
             Some(broken.text()),
             same,
             same,
-            &[CHOSEN, "breaks a hard rule", "hard=1"],
+            &[chosen, "breaks a hard rule", "hard=1"],
         ),
         (
             "not in the measurements",
-            CHOSEN,
+            chosen,
             Some(without.text()),
             same,
             same,
-            &[CHOSEN, "not in the measurements"],
+            &[chosen, "not in the measurements"],
         ),
         (
             "measurements of another format",
-            CHOSEN,
+            chosen,
             Some(measurements.replace(record::FORMAT, "ux-search-landing/0")),
             same,
             same,
@@ -825,7 +1068,7 @@ fn a_refused_promotion_writes_nothing() {
             product != read(&fixture("product.json")) || css != read(&fixture("landing.css"));
         assert_eq!(changed, case.starts_with("another"), "{case}");
 
-        let refused = match promote::promote(&copies.options(id)) {
+        let refused = match copies.promote(&copies.options(id)) {
             Ok(outcome) => panic!("{case}: promoted, wrote {:?}", outcome.written),
             Err(refused) => refused,
         };
@@ -840,6 +1083,10 @@ fn a_refused_promotion_writes_nothing() {
 /// writes it) refuses the promotion although the measurements name that very file.
 #[test]
 fn a_patch_that_does_not_apply_writes_nothing() {
+    // A variant that has operations on product.json: other actions or another section order.
+    let with_operations = on_the_frontier(|variant| changes(&variant.id).0)
+        .expect("a frontier variant that changes product.json")
+        .id;
     let copies = copies("landing-promote-unpatched");
     let product = read(&copies.product).replace("\n  \"sections\"", "\n\n  \"sections\"");
     assert_ne!(product, read(&copies.product));
@@ -848,7 +1095,9 @@ fn a_patch_that_does_not_apply_writes_nothing() {
     let mut recorded = recorded();
     recorded.product_digest = record::digest(product.as_bytes());
     std::fs::write(&copies.measurements, recorded.text()).expect("the measurements");
-    let refused = promote::promote(&copies.options(CHOSEN)).expect_err("the patch is refused");
+    let refused = copies
+        .promote(&copies.options(&with_operations))
+        .expect_err("the patch is refused");
     assert!(refused.contains("JSON.stringify"), "{refused}");
     copies.assert_untouched("another form of product.json", &product, &css);
 }
@@ -861,11 +1110,337 @@ fn an_evidence_file_that_cannot_be_written_leaves_the_sources() {
     let (product, css) = (read(&copies.product), read(&copies.css));
     let options = Options {
         evidence: copies.measurements.join("promotion.evidence.json"),
-        ..copies.options(CHOSEN)
+        ..copies.options(CHOSEN.as_str())
     };
-    let failed = promote::promote(&options).expect_err("the evidence cannot be written");
+    let failed = copies
+        .promote(&options)
+        .expect_err("the evidence cannot be written");
     assert!(failed.contains("promotion.evidence.json"), "{failed}");
     copies.assert_untouched("an evidence path under a file", &product, &css);
+}
+
+// All or none.
+
+/// What a failed promotion must leave: the directory of the copies as it was, entry for entry.
+fn assert_nothing_changed(
+    case: &str,
+    copies: &Copies,
+    before: &BTreeMap<String, Option<String>>,
+    failed: &str,
+) {
+    assert_eq!(
+        &tree(&copies.directory),
+        before,
+        "{case}: all or none; the promotion failed with: {failed}"
+    );
+}
+
+/// The move of a staged file to its place fails at the first, second, ... fifth file, after the
+/// earlier ones took their place: each of those is put back as it was, the evidence, the copy
+/// of the measurements and the directory made for them are removed, and no staged file stays.
+#[test]
+fn a_move_that_fails_puts_back_every_file_already_moved() {
+    let chosen = CHOSEN.as_str();
+    for fails_at in 1..=5 {
+        let case = format!("the move of file {fails_at}");
+        let copies = copies(&format!("landing-promote-rollback-{fails_at}"));
+        let before = tree(&copies.directory);
+        let mut moves = 0;
+        let mut failing = |from: &Path, to: &Path| {
+            moves += 1;
+            if moves == fails_at {
+                Err(std::io::Error::other("the move the test fails"))
+            } else {
+                std::fs::rename(from, to)
+            }
+        };
+        let failed =
+            match promote::promote_in(&copies.directory, &copies.options(chosen), &mut failing) {
+                Ok(outcome) => panic!("{case}: promoted, wrote {:?}", outcome.written),
+                Err(failed) => failed,
+            };
+        assert_eq!(moves, fails_at, "{case}: no move after the failed one");
+        assert!(
+            failed.contains("the move the test fails"),
+            "{case}: {failed}"
+        );
+        let target = [
+            &copies.product,
+            &copies.css,
+            &copies.evidence,
+            &copies.kept,
+            &copies.shipped,
+        ][fails_at - 1];
+        assert!(
+            failed.contains(&target.display().to_string()),
+            "{case}: the failure names {}: {failed}",
+            target.display()
+        );
+        assert!(failed.contains("nothing is changed"), "{case}: {failed}");
+        assert_nothing_changed(&case, &copies, &before, &failed);
+    }
+    // With no failure the same call promotes: the five moves are the whole of it.
+    let copies = copies("landing-promote-rollback-none");
+    let mut moves = 0;
+    let mut counting = |from: &Path, to: &Path| {
+        moves += 1;
+        std::fs::rename(from, to)
+    };
+    promote::promote_in(&copies.directory, &copies.options(chosen), &mut counting)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(moves, 5);
+}
+
+/// A shipped file that did not exist, in a directory that did not exist: after a failed move
+/// both are gone again, and so is a shipped file put in place before the failure.
+#[test]
+fn a_failed_promotion_removes_the_files_and_directories_it_made() {
+    let chosen = CHOSEN.as_str();
+    // The last move fails: the new shipped file's directory was made and is removed.
+    let copies = copies("landing-promote-rollback-new-shipped");
+    std::fs::remove_file(&copies.shipped).expect("no shipped file yet");
+    let before = tree(&copies.directory);
+    let options = Options {
+        shipped_file: Some(copies.directory.join("new/deeper/shipped.txt")),
+        ..copies.options(chosen)
+    };
+    let mut moves = 0;
+    let mut failing = |from: &Path, to: &Path| {
+        moves += 1;
+        if moves == 5 {
+            Err(std::io::Error::other("the move the test fails"))
+        } else {
+            std::fs::rename(from, to)
+        }
+    };
+    let failed = promote::promote_in(&copies.directory, &options, &mut failing)
+        .expect_err("the fifth move fails");
+    assert_nothing_changed("a new shipped file", &copies, &before, &failed);
+
+    // The evidence and the copy of the measurements are staged in a directory made for them,
+    // then the shipped file cannot be staged: a directory lies where its staged file goes.
+    let copies = self::copies("landing-promote-rollback-staging");
+    std::fs::create_dir(copies.directory.join(".shipped.txt.promote.tmp"))
+        .expect("a directory in the way of the staged shipped file");
+    let before = tree(&copies.directory);
+    let mut moves = 0;
+    let mut counting = |from: &Path, to: &Path| {
+        moves += 1;
+        std::fs::rename(from, to)
+    };
+    let failed = promote::promote_in(&copies.directory, &copies.options(chosen), &mut counting)
+        .expect_err("the shipped file cannot be staged");
+    assert!(failed.contains("shipped.txt"), "{failed}");
+    assert_eq!(moves, 0, "no file is moved before all are staged: {failed}");
+    assert_nothing_changed(
+        "a staged file that cannot be written",
+        &copies,
+        &before,
+        &failed,
+    );
+
+    // A shipped file under a file: found before a file is staged.
+    let copies = self::copies("landing-promote-rollback-under-a-file");
+    let before = tree(&copies.directory);
+    let options = Options {
+        shipped_file: Some(copies.measurements.join("shipped.txt")),
+        ..copies.options(chosen)
+    };
+    let failed = copies
+        .promote(&options)
+        .expect_err("the shipped file cannot be written");
+    assert!(failed.contains("shipped.txt"), "{failed}");
+    assert_nothing_changed("a shipped file under a file", &copies, &before, &failed);
+
+    // A staged file of an earlier run that broke off is no obstacle and does not stay.
+    let copies = self::copies("landing-promote-rollback-stale");
+    std::fs::write(
+        copies.directory.join(".product.json.promote.tmp"),
+        "left by a run that broke off",
+    )
+    .expect("a stale staged file");
+    copies
+        .promote(&copies.options(chosen))
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert!(!copies.directory.join(".product.json.promote.tmp").exists());
+}
+
+/// A target that is a directory, or has no file name, is refused before a file is staged.
+#[test]
+fn a_target_that_is_a_directory_is_refused_before_a_file_is_staged() {
+    type Case = (&'static str, fn(&Copies) -> Options, &'static str);
+    let cases: [Case; 4] = [
+        (
+            "the evidence is a directory",
+            |copies| Options {
+                evidence: copies.directory.join("there"),
+                ..copies.options(CHOSEN.as_str())
+            },
+            "is a directory",
+        ),
+        (
+            "the shipped file is a directory",
+            |copies| Options {
+                shipped_file: Some(copies.directory.join("there")),
+                ..copies.options(CHOSEN.as_str())
+            },
+            "is a directory",
+        ),
+        (
+            "the copy of the measurements would be a directory",
+            |copies| Options {
+                evidence: copies.directory.join("taken.evidence.json"),
+                ..copies.options(CHOSEN.as_str())
+            },
+            "is a directory",
+        ),
+        (
+            "the shipped file has no name",
+            |copies| Options {
+                shipped_file: Some(copies.directory.join("there").join("..")),
+                ..copies.options(CHOSEN.as_str())
+            },
+            "not a file",
+        ),
+    ];
+    for (at, (case, options, says)) in cases.into_iter().enumerate() {
+        let copies = copies(&format!("landing-promote-directory-{at}"));
+        std::fs::create_dir(copies.directory.join("there")).expect("a directory");
+        std::fs::create_dir(copies.directory.join("taken.measurements.json"))
+            .expect("a directory where the copy of the measurements goes");
+        let before = tree(&copies.directory);
+        let mut moves = 0;
+        let mut counting = |from: &Path, to: &Path| {
+            moves += 1;
+            std::fs::rename(from, to)
+        };
+        let refused = promote::promote_in(&copies.directory, &options(&copies), &mut counting)
+            .expect_err(case);
+        assert!(refused.contains(says), "{case}: {refused}");
+        assert_eq!(moves, 0, "{case}: {refused}");
+        assert_nothing_changed(case, &copies, &before, &refused);
+    }
+}
+
+/// One file named for two of the six files of a promotion, by whatever spelling, is refused:
+/// the measurements, the two sources, the evidence, the copy of the measurements beside it and
+/// the shipped file.
+#[test]
+fn one_file_named_twice_by_any_spelling_is_refused() {
+    let chosen = CHOSEN.as_str();
+    // The five paths a caller names, and the same file spelled through `..`.
+    let named = |copies: &Copies| {
+        [
+            copies.measurements.clone(),
+            copies.product.clone(),
+            copies.css.clone(),
+            copies.directory.join("promotion.evidence.json"),
+            copies.shipped.clone(),
+        ]
+    };
+    let options = |copies: &Copies, paths: &[PathBuf; 5]| Options {
+        measurements: paths[0].clone(),
+        product: paths[1].clone(),
+        css: paths[2].clone(),
+        evidence: paths[3].clone(),
+        shipped_file: Some(paths[4].clone()),
+        ..copies.options(chosen)
+    };
+    let again = |copies: &Copies, path: &Path| {
+        let directory = copies.directory.file_name().expect("the directory's name");
+        copies
+            .directory
+            .join("..")
+            .join(directory)
+            .join(".")
+            .join(path.file_name().expect("a file name"))
+    };
+    let roles = [
+        "the measurements",
+        "product.json",
+        "landing.css",
+        "the evidence",
+        "the shipped file",
+    ];
+    let mut cases = 0;
+    for first in 0..5 {
+        for second in first + 1..5 {
+            let case = format!("{} named for {}", roles[first], roles[second]);
+            let copies = copies(&format!("landing-promote-twice-{first}-{second}"));
+            let before = tree(&copies.directory);
+            let mut paths = named(&copies);
+            paths[second] = again(&copies, &paths[first]);
+            let refused = match copies.promote(&options(&copies, &paths)) {
+                Ok(outcome) => panic!("{case}: promoted, wrote {:?}", outcome.written),
+                Err(refused) => refused,
+            };
+            assert!(
+                refused.contains("named for two of the files of a promotion"),
+                "{case}: {refused}"
+            );
+            assert_nothing_changed(&case, &copies, &before, &refused);
+            cases += 1;
+        }
+    }
+    assert_eq!(cases, 10);
+
+    // The copy of the measurements goes beside the evidence: its place named for another file.
+    type Other = fn(&Copies) -> Options;
+    let more: [(&str, Other); 4] = [
+        (
+            "the shipped file is the copy of the measurements",
+            |copies| Options {
+                shipped_file: Some(copies.kept.clone()),
+                ..copies.options(CHOSEN.as_str())
+            },
+        ),
+        (
+            "the measurements are read where their copy goes",
+            |copies| {
+                std::fs::create_dir_all(copies.kept.parent().expect("a directory"))
+                    .expect("the directory of the evidence");
+                std::fs::rename(&copies.measurements, &copies.kept).expect("moved");
+                Options {
+                    measurements: copies.kept.clone(),
+                    ..copies.options(CHOSEN.as_str())
+                }
+            },
+        ),
+        (
+            "two files in a directory that does not exist yet, one spelled through `..`",
+            |copies| Options {
+                evidence: copies.directory.join("new/promotion.evidence.json"),
+                shipped_file: Some(
+                    copies
+                        .directory
+                        .join("new/other/../promotion.evidence.json"),
+                ),
+                ..copies.options(CHOSEN.as_str())
+            },
+        ),
+        ("the evidence is a link to product.json", |copies| {
+            let link = copies.directory.join("link.evidence.json");
+            std::os::unix::fs::symlink(&copies.product, &link).expect("a link");
+            Options {
+                evidence: link,
+                ..copies.options(CHOSEN.as_str())
+            }
+        }),
+    ];
+    for (at, (case, options)) in more.into_iter().enumerate() {
+        let copies = copies(&format!("landing-promote-twice-more-{at}"));
+        let options = options(&copies);
+        let before = tree(&copies.directory);
+        let refused = match copies.promote(&options) {
+            Ok(outcome) => panic!("{case}: promoted, wrote {:?}", outcome.written),
+            Err(refused) => refused,
+        };
+        assert!(
+            refused.contains("named for two of the files of a promotion"),
+            "{case}: {refused}"
+        );
+        assert_nothing_changed(case, &copies, &before, &refused);
+    }
 }
 
 // The shipped variant.
@@ -909,39 +1484,50 @@ fn the_shipped_variant_is_the_one_the_shipped_file_names() {
 /// for says so.
 #[test]
 fn a_promotion_off_the_anchored_values_is_noted() {
-    let copies = copies("landing-promote-note");
-    let outcome =
-        promote::promote(&copies.options(CHOSEN)).unwrap_or_else(|error| panic!("{error}"));
-    assert_eq!(outcome.notes.len(), 1, "{:?}", outcome.notes);
-    assert!(outcome.notes[0].contains("space.rs"), "{:?}", outcome.notes);
-
-    let copies = self::copies("landing-promote-no-note");
-    let anchored = report::rank(&recorded())
-        .frontier
-        .iter()
-        .map(|&index| space::variants()[index].clone())
-        .find(|variant| space::anchored(variant) && !variant.is_shipped());
-    let Some(anchored) = anchored else {
-        return;
-    };
-    let outcome =
-        promote::promote(&copies.options(&anchored.id)).unwrap_or_else(|error| panic!("{error}"));
-    assert!(outcome.notes.is_empty(), "{:?}", outcome.notes);
+    let off = on_the_frontier(|variant| !space::anchored(variant));
+    let on = on_the_frontier(space::anchored);
+    assert!(
+        off.is_some() || on.is_some(),
+        "the frontier holds a variant beside the shipped one"
+    );
+    if let Some(off) = off {
+        let copies = copies("landing-promote-note");
+        let outcome = copies
+            .promote(&copies.options(&off.id))
+            .unwrap_or_else(|error| panic!("{error}"));
+        assert_eq!(outcome.notes.len(), 1, "{:?}", outcome.notes);
+        assert!(outcome.notes[0].contains("space.rs"), "{:?}", outcome.notes);
+    }
+    if let Some(on) = on {
+        let copies = copies("landing-promote-no-note");
+        let outcome = copies
+            .promote(&copies.options(&on.id))
+            .unwrap_or_else(|error| panic!("{error}"));
+        assert!(outcome.notes.is_empty(), "{:?}", outcome.notes);
+    }
 }
 
 // The command.
 
+/// `ux-search landing promote` run in the directory of the copies, every file by its path from
+/// there, as the command is run in the repository's root.
 fn ux_search(copies: &Copies, id: &str, more: &[&str]) -> std::process::Output {
-    let path = |path: &Path| path.to_str().expect("a UTF-8 path").to_owned();
     Command::new(env!("CARGO_BIN_EXE_ux-search"))
-        .args(["landing", "promote", "--measurements"])
-        .arg(path(&copies.measurements))
-        .args(["--variant", id, "--product"])
-        .arg(path(&copies.product))
-        .arg("--css")
-        .arg(path(&copies.css))
-        .arg("--evidence")
-        .arg(path(&copies.evidence))
+        .current_dir(&copies.directory)
+        .args([
+            "landing",
+            "promote",
+            "--measurements",
+            "measurements.json",
+            "--variant",
+            id,
+            "--product",
+            "product.json",
+            "--css",
+            "landing.css",
+            "--evidence",
+            "evidence/promotion.evidence.json",
+        ])
         .args(more)
         .output()
         .expect("ux-search runs")
@@ -949,56 +1535,265 @@ fn ux_search(copies: &Copies, id: &str, more: &[&str]) -> std::process::Output {
 
 #[test]
 fn landing_promote_exits_0_and_says_what_it_wrote() {
+    let chosen = CHOSEN.as_str();
     let copies = copies("landing-promote-command");
-    let shipped = copies.shipped.to_str().expect("a UTF-8 path").to_owned();
     let output = ux_search(
         &copies,
-        CHOSEN,
-        &["--chosen-by", CHOSEN_BY, "--shipped-file", &shipped],
+        chosen,
+        &["--chosen-by", CHOSEN_BY, "--shipped-file", "shipped.txt"],
     );
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let ranked = report::rank(&recorded());
     let rank = ranked
         .ranking
         .iter()
-        .position(|&index| ranked.scored[index].id == CHOSEN)
+        .position(|&index| ranked.scored[index].id == chosen)
         .expect("ranked")
         + 1;
     assert_eq!(
         String::from_utf8_lossy(&output.stdout),
         format!(
-            "promoted {CHOSEN}: rank {rank} of 144, on the frontier of {}\n",
+            "promoted {chosen}: rank {rank} of 144, on the frontier of {}\n",
             ranked.frontier.len()
         )
     );
     let said = String::from_utf8_lossy(&output.stderr);
-    for path in [
-        &copies.product,
-        &copies.css,
-        &copies.evidence,
-        &copies.shipped,
-    ] {
-        assert!(
-            said.contains(&format!("ux-search: wrote {}\n", path.display())),
-            "{said}"
-        );
-    }
-    assert!(said.contains("ux-search: note: "), "{said}");
-
     let library = self::copies("landing-promote-command-library");
-    promote::promote(&library.options(CHOSEN)).unwrap_or_else(|error| panic!("{error}"));
+    let outcome = library
+        .promote(&library.options(chosen))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let mut lines: Vec<String> = [
+        "product.json",
+        "landing.css",
+        "evidence/promotion.evidence.json",
+        "evidence/promotion.measurements.json",
+        "shipped.txt",
+    ]
+    .iter()
+    .map(|path| format!("ux-search: wrote {path}"))
+    .collect();
+    lines.extend(
+        outcome
+            .notes
+            .iter()
+            .map(|note| format!("ux-search: note: {note}")),
+    );
+    assert_eq!(
+        said.lines().collect::<Vec<_>>(),
+        lines,
+        "the five files as they were named, then the notes"
+    );
+    assert!(!said.contains("the shipped file was not changed"), "{said}");
     for (written, expected) in [
         (&copies.product, &library.product),
         (&copies.css, &library.css),
         (&copies.evidence, &library.evidence),
+        (&copies.kept, &library.kept),
         (&copies.shipped, &library.shipped),
     ] {
         assert_eq!(read(written), read(expected), "{}", written.display());
     }
+
+    // Without --shipped-file the command says, in one line, that the shipped file stays and
+    // which file names the shipped variant.
+    let copies = self::copies("landing-promote-command-no-shipped-file");
+    let output = ux_search(&copies, chosen, &[]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let said = String::from_utf8_lossy(&output.stderr);
+    let about: Vec<&str> = said
+        .lines()
+        .filter(|line| line.contains("shipped file"))
+        .collect();
+    assert_eq!(
+        about,
+        [format!(
+            "ux-search: note: the shipped file was not changed (no --shipped-file): \
+             engine/search/src/landing/shipped.txt still names `{}` as the shipped variant",
+            space::shipped().id
+        )],
+        "{said}"
+    );
+    assert_eq!(
+        read(&copies.shipped),
+        format!("{}\n", space::shipped().id),
+        "the shipped file of the copies stays"
+    );
+}
+
+/// The usage names every argument of `landing promote`; `--chosen-by` takes who chose, the
+/// date being the commit's.
+#[test]
+fn the_usage_names_the_arguments_of_landing_promote() {
+    let help = Command::new(env!("CARGO_BIN_EXE_ux-search"))
+        .arg("--help")
+        .output()
+        .expect("ux-search runs");
+    assert_eq!(help.status.code(), Some(0));
+    let usage = String::from_utf8_lossy(&help.stdout);
+    assert!(
+        usage.contains(
+            "ux-search landing promote --measurements <measurements.json> --variant <variant id> \
+             --product <product.json> --css <landing.css> --evidence <evidence.json> \
+             [--chosen-by \"<who chose>\"] [--shipped-file <shipped.txt>]\n"
+        ),
+        "{usage}"
+    );
+}
+
+/// The evidence names a file by its path from the working directory, with `/`, when the file
+/// lies under it, however the path was written; a file outside it has no path in the document,
+/// its digest identifies it. So the document holds no absolute path, and the command run in
+/// the repository's root names the files of the tree as the tree does.
+#[test]
+fn the_evidence_names_each_file_by_its_path_from_the_working_directory() {
+    let chosen = CHOSEN.as_str();
+    let run = |directory: &Path, paths: [&str; 4]| {
+        let output = Command::new(env!("CARGO_BIN_EXE_ux-search"))
+            .current_dir(directory)
+            .args(["landing", "promote", "--variant", chosen])
+            .args(["--measurements", paths[0], "--product", paths[1]])
+            .args(["--css", paths[2], "--evidence", paths[3]])
+            .output()
+            .expect("ux-search runs");
+        assert_eq!(output.status.code(), Some(0), "{paths:?}: {output:?}");
+    };
+    let values = |evidence: &Path| -> Vec<Option<String>> {
+        let document = json(&read(evidence));
+        check_shape(&document);
+        ["measurements", "product", "css"]
+            .map(|name| {
+                let input = self::evidence(&document)
+                    .get("inputs")
+                    .and_then(|inputs| inputs.get(name))
+                    .unwrap_or_else(|| panic!("no input {name}"));
+                assert!(is_digest(input.get_str("digest").expect("a digest")));
+                input.get_str("value").map(str::to_owned)
+            })
+            .into()
+    };
+    let under = |measurements: &str| -> Vec<Option<String>> {
+        [measurements, "product.json", "landing.css"]
+            .map(|path| Some(path.to_owned()))
+            .into()
+    };
+
+    // As written, when the path is relative and stays under the working directory.
+    let copies = copies("landing-promote-paths-relative");
+    run(
+        &copies.directory,
+        [
+            "measurements.json",
+            "product.json",
+            "landing.css",
+            "evidence/promotion.evidence.json",
+        ],
+    );
+    assert_eq!(
+        values(&copies.evidence),
+        under("evidence/promotion.measurements.json")
+    );
+    let relative = read(&copies.evidence);
+
+    // The same paths written with `.` and `..`, and as absolute paths: the same document.
+    let copies = self::copies("landing-promote-paths-spelled");
+    std::fs::create_dir(copies.directory.join("elsewhere")).expect("a directory to step out of");
+    run(
+        &copies.directory,
+        [
+            "./measurements.json",
+            "elsewhere/../product.json",
+            "./././landing.css",
+            "./evidence/promotion.evidence.json",
+        ],
+    );
+    assert_eq!(read(&copies.evidence), relative);
+    let copies = self::copies("landing-promote-paths-absolute");
+    let absolute = |path: &Path| path.to_str().expect("a UTF-8 path").to_owned();
+    run(
+        &copies.directory,
+        [
+            &absolute(&copies.measurements),
+            &absolute(&copies.product),
+            &absolute(&copies.css),
+            &absolute(&copies.evidence),
+        ],
+    );
+    assert_eq!(read(&copies.evidence), relative);
+
+    // Files outside the working directory, by `..` and by absolute paths: no `value`.
+    for (case, spelled) in [("dots", false), ("absolute", true)] {
+        let copies = self::copies(&format!("landing-promote-paths-outside-{case}"));
+        let elsewhere = copies.directory.join("elsewhere");
+        std::fs::create_dir(&elsewhere).expect("a working directory beside the files");
+        let paths = if spelled {
+            [
+                absolute(&copies.measurements),
+                absolute(&copies.product),
+                absolute(&copies.css),
+                absolute(&copies.evidence),
+            ]
+        } else {
+            [
+                "../measurements.json".to_owned(),
+                "../product.json".to_owned(),
+                "../landing.css".to_owned(),
+                "../evidence/promotion.evidence.json".to_owned(),
+            ]
+        };
+        run(&elsewhere, paths.each_ref().map(String::as_str));
+        assert_eq!(values(&copies.evidence), [None, None, None], "{case}");
+        let text = read(&copies.evidence);
+        assert!(
+            !text.contains("elsewhere") && !text.contains("landing-promote-paths"),
+            "{case}: {text}"
+        );
+        // And only the paths are missing.
+        let mut without = relative.clone();
+        for value in [
+            "evidence/promotion.measurements.json",
+            "product.json",
+            "landing.css",
+        ] {
+            let member = format!("\"value\":\"{value}\",");
+            assert_eq!(without.matches(&member).count(), 1, "{member}");
+            without = without.replace(&member, "");
+        }
+        assert_eq!(text, without, "{case}");
+    }
+
+    // A sub-directory of the working directory is part of the path.
+    let copies = self::copies("landing-promote-paths-above");
+    let above = copies
+        .directory
+        .parent()
+        .expect("the directory above the copies");
+    let name = copies
+        .directory
+        .file_name()
+        .and_then(|name| name.to_str())
+        .expect("the directory's name");
+    run(
+        above,
+        [
+            &format!("{name}/measurements.json"),
+            &format!("{name}/product.json"),
+            &format!("{name}/landing.css"),
+            &format!("{name}/evidence/promotion.evidence.json"),
+        ],
+    );
+    assert_eq!(
+        values(&copies.evidence),
+        [
+            Some(format!("{name}/evidence/promotion.measurements.json")),
+            Some(format!("{name}/product.json")),
+            Some(format!("{name}/landing.css")),
+        ]
+    );
 }
 
 #[test]
 fn landing_promote_exits_1_on_a_refusal_and_2_on_a_wrong_invocation() {
+    let chosen = CHOSEN.as_str();
     let copies = copies("landing-promote-command-refused");
     let (product, css) = (read(&copies.product), read(&copies.css));
     let output = ux_search(&copies, OFF_THE_FRONTIER, &[]);
@@ -1017,10 +1812,10 @@ fn landing_promote_exits_1_on_a_refusal_and_2_on_a_wrong_invocation() {
     for more in [
         &["--allow-off-frontier", "true"][..],
         &["--chosen-by", ""],
-        &["--variant", CHOSEN],
+        &["--variant", chosen],
         &["--param", "a=b"],
     ] {
-        let output = ux_search(&copies, CHOSEN, more);
+        let output = ux_search(&copies, chosen, more);
         assert_eq!(output.status.code(), Some(2), "{more:?}: {output:?}");
         assert!(output.stdout.is_empty(), "{more:?}");
         assert!(
@@ -1030,7 +1825,7 @@ fn landing_promote_exits_1_on_a_refusal_and_2_on_a_wrong_invocation() {
         copies.assert_untouched("a wrong invocation", &product, &css);
     }
     let output = Command::new(env!("CARGO_BIN_EXE_ux-search"))
-        .args(["landing", "promote", "--variant", CHOSEN])
+        .args(["landing", "promote", "--variant", chosen])
         .output()
         .expect("ux-search runs");
     assert_eq!(output.status.code(), Some(2), "{output:?}");

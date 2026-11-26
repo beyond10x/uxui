@@ -222,7 +222,8 @@ together.
 ## Promotion
 
 `ux-search landing promote` makes one variant of the frontier the page as shipped
-(`engine/search/src/landing/promote.rs`). It starts no browser and builds no site.
+(`engine/search/src/landing/promote.rs`). It starts no browser and builds no site. Run it in the
+repository's root: the evidence names each file by its path from the working directory.
 
 ```console
 engine/search/target/debug/ux-search landing promote \
@@ -230,38 +231,70 @@ engine/search/target/debug/ux-search landing promote \
   --variant <variant id> \
   --product website/product.json --css website/src/css/landing.css \
   --evidence docs/promotions/<date>-docs-landing.evidence.json \
-  --chosen-by "<who chose, and when>" \
+  --chosen-by "<who chose>" \
   --shipped-file engine/search/src/landing/shipped.txt
 ```
 
-It refuses, with the reason on standard error and exit code 1, and writes nothing, when the id is
-no variant of the space, is the page as shipped, is not in the measurements, breaks a hard rule or
-is not on the frontier of the measurements (the message names a variant that dominates it), when
-one of the two files is not the source the measurements were recorded on (the measurements hold
-each file's SHA-256), or when the patch does not apply. A wrong invocation exits with 2. There is
-no flag that promotes a variant off the frontier.
+It refuses, with the reason on standard error and exit code 1, and writes nothing:
 
-Otherwise it writes four files, all of them or none (each is staged beside its place first):
+- when the id is no variant of the space, is the page as shipped, is not in the measurements,
+  breaks a hard rule or is not on the frontier of the measurements (the message names a variant
+  that dominates it);
+- when one of the two files is not the source the measurements were recorded on (the measurements
+  hold each file's SHA-256), or when the patch does not apply;
+- when a place it is to write is a directory or has no file name, and when two of its six files
+  (the measurements, the two sources, the evidence, the copy of the measurements, the shipped file)
+  are one file, by whatever spelling: `..`, an absolute path, a link.
+
+A wrong invocation exits with 2. There is no flag that promotes a variant off the frontier.
+
+Otherwise it writes five files, all of them or none:
 
 | file | what |
 |---|---|
 | `website/product.json`, `website/src/css/landing.css` | the two sources with the variant's patch applied |
 | the evidence file | one `ratchet-evidence/1` document, below |
-| `engine/search/src/landing/shipped.txt` | the variant's id: the one place that says which variant is shipped. `ux-search` reads it when it is built (the report's `shipped` line, the tests), so the next step is a build |
+| `<date>-docs-landing.measurements.json` beside the evidence file | a copy of the measurements the choice was made on, byte for byte: the name of the evidence file with `.measurements.json` for `.evidence.json`. The evidence names this copy, because the campaign's own `measurements.json` is replaced when the campaign is recorded again |
+| `engine/search/src/landing/shipped.txt` | the variant's id: the one place that says which variant is shipped. `ux-search` reads it when it is built (the report's `shipped` line, the tests), so the next step is a build. Without `--shipped-file` the file stays, and the command says so in one line that names it |
 
-The evidence document has no `run` member and no timestamp: the same measurements, variant and
-sources give the same bytes. Promoted evidence files live in `docs/promotions/`, named
-`<date>-docs-landing.evidence.json`.
+Each text is staged beside its place, and the files take their places only when all are staged.
+When a move fails after others were made, the files already in place get back the bytes they had
+(one that was not there is removed), and the staged files and the directories made for the
+promotion are removed; the message says that nothing is changed, or names what could not be put
+back. Two things stay as they are: a place that is a link is replaced by a file, and a rewritten
+file has the mode of a new file.
+
+The evidence document has no `run` member and no timestamp: the same measurements, variant,
+sources and paths give the same bytes. Promoted evidence files live in `docs/promotions/`, named
+`<date>-docs-landing.evidence.json`. The date of the choice is the commit's; `--chosen-by` says who
+chose.
 
 | member of `evidence` | holds |
 |---|---|
 | `candidate`, `target.identifiers.digest` | SHA-256 over the `sha256sum` lines of the two sources after the promotion |
-| `inputs` | the SHA-256 of the measurements file and of each source before the promotion, the variant id, and who chose it (`--chosen-by`, left out without the flag) |
+| `inputs` | `measurements`, `product`, `css`: each file's path (`value`) and SHA-256, the measurements as the copy beside the evidence, the sources as they were before the promotion; `variant`: the id; `chosen_by`: who chose it (`--chosen-by`, left out without the flag) |
 | `conditions` | `ux-search`, `ux-browser` and Chromium as the measurements name them, the measurements format, the page, the 6 environments |
 | `coverage` | the 144 variants, those with `hard` = 0 as `passed` |
 | `results` | for the chosen variant and for the page as shipped before: its rank (`landing.rank@1`, with the number of variants and whether it is on the frontier) and its six terms (`landing.<term>@1`); the size of the frontier with its ids in rank order (`landing.frontier_size@1`); per source file its SHA-256 after, with the SHA-256 before and the patch as the report prints it (`landing.source@1`) |
 
-After a promotion, in this order:
+A path is the file's path from the working directory, with `/`, however it was written (`./`, `..`
+or an absolute path to a file under it give the same text). A file outside the working directory
+has no `value`: its SHA-256 identifies it, as in `ux-static` (`docs/ux-static.md`, Evidence). So
+the document holds no absolute path, and run in the repository's root it names the files as the
+tree does.
+
+`engine/search/ux-search.assessor.yaml` is the declaration `ratchet-assessor/1` of `ux-search@1`:
+the arguments of the command as inputs, the outputs with their scopes (`variant`, `source`; the
+frontier's size has the scope `run`) and units, the coverage unit `variant` and the three
+conditions. `engine/search/tests/assessor.rs` holds the command line and the evidence documents to
+it. It names no `target_input`: the target is the two sources after the patch under one digest,
+not one input. The command takes `--evidence` where ratchet passes `--out`, and none of ratchet's
+other reserved arguments; it is run by hand.
+
+After a promotion, in this order. What is regenerated: the fixture's two sources, its patched pair
+when step 2 says so, the measurements, the report, the screenshots and the golden evidence of the
+tests. The tests name no variant a promotion can make the shipped one: the variant they promote is
+the first of the recorded frontier that is not the shipped one.
 
 1. Build `ux-search` again (`shipped.txt` is compiled in).
 2. Copy the two sources into the fixture (`engine/search/tests/fixtures/docs-landing/product.json`
@@ -270,12 +303,14 @@ After a promotion, in this order:
    (`variant=`) and in `engine/search/tests/landing.rs` (`FAR`), and write the fixture's
    `variant.product.json` and `variant.landing.css` from its patch. A test names what is missing.
 3. Record the campaign again on the new sources with `tools/docs-landing-campaign.sh` ("Run it
-   again"): the measurements, `report.txt` and the screenshots are replaced together. The evidence
-   file stays as written: it names the measurements the choice was made on.
-4. Write the golden evidence of the tests again:
+   again"): the fixture's `measurements.json`, `report.txt` and the screenshots are replaced
+   together. The evidence file and the copy of the measurements beside it stay as written: they
+   are the record of the choice.
+4. Write the golden evidence of the tests again
+   (`engine/search/tests/fixtures/docs-landing/promote.evidence.json`):
    `UX_SEARCH_BLESS=1 cargo test --manifest-path engine/search/Cargo.toml --locked landing_promote`.
 5. Commit the diff of the sources, the fixture, `shipped.txt` and the screenshots together with the
-   evidence file.
+   evidence file and the copy of the measurements.
 
 One limit. The operations for the actions, the section order and the studio palette are written
 against a shipped page with `1+1`, `features-first` and `docs-system`

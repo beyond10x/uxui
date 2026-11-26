@@ -14,12 +14,14 @@
 //! opened once and drawn four times; the studio climb is 120 such variants, run once. The module
 //! `landing` starts no browser and runs no campaign: it reads the recorded one.
 
+mod assessor;
 mod climb;
 mod cost;
 mod ess_tag;
 mod landing;
 mod landing_adversary;
 mod landing_promote;
+mod promote_adversary;
 mod rank;
 mod studio;
 mod studio_adversary;
