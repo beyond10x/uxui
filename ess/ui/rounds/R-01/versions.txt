@@ -1,0 +1,12 @@
+ess: ess 0.99.2
+node: v22.23.3
+npm: 10.9.9
+react: 19.3.1
+react-dom: 19.3.1
+esbuild: 0.28.2
+typescript: 5.9.3
+ux-browser: ux-browser 0.10.0
+chromium: Google Chrome for Testing 158.0.8127.18
+studio.ui.yaml: sha256:7addf7e5edea0518081b6e9eaf92d5e857f2f579a561bd74f23e01fefe05e628
+studio.css: sha256:70264204f9c92aa1a21309a4a8895cb6e028b4b42be11e595300da1d28b69536
+www: sha256:8e0daff98360241ee263bf6597fdb6aca84151aac350d8efa381d954d5a230df

@@ -1,0 +1,74 @@
+format: ux-browser-render/1
+viewport: {width: 1366, height: 768}
+mode: light
+settle_ms: 1500
+styles: [display, position, color, background-color, font-size, font-weight, line-height]
+nodes:
+  - name: document
+    selector: html
+  - name: body
+    selector: body
+  - name: navigation
+    selector: nav.ui-nav
+  - name: navigation heading
+    selector: nav.ui-nav h2
+  - name: navigation link
+    selector: nav.ui-nav a
+  - name: theme toggle
+    selector: .uxui-theme-toggle
+  - name: page
+    selector: main.ui-page
+  - name: page header
+    selector: header.ui-header
+  - name: page title
+    selector: main.ui-page h1
+  - name: live state
+    selector: .ui-live
+  - name: header action
+    selector: .ui-header-actions .ui-button
+  - name: section
+    selector: section.ui-section
+  - name: section title
+    selector: h2.ui-section-title
+  - name: search
+    selector: .ui-filter-bar input
+  - name: table
+    selector: table.ui-table
+  - name: column heading
+    selector: table.ui-table th
+  - name: cell value
+    selector: table.ui-table td .ui-field
+  - name: badge
+    selector: .ui-badge
+  - name: row action
+    selector: .ui-row-actions .ui-button
+  - name: record label
+    selector: .ui-record dt
+  - name: record value
+    selector: .ui-record dd .ui-field
+  - name: form label
+    selector: .ui-form-label
+  - name: form input
+    selector: .ui-form input
+  - name: form submit
+    selector: .ui-form button[type=submit]
+  - name: chart
+    selector: figure.ui-chart
+  - name: chart axis label
+    selector: .ui-chart-x-label
+  - name: chart legend entry
+    selector: .ui-legend-item
+  - name: always stop campaign
+    selector: '[data-ui-path="pages/campaigns.climb/header/actions/stop"]'
+  - name: always campaign state
+    selector: '[data-ui-path="pages/campaigns.climb/sections/summary/fields/state"]'
+  - name: always gate
+    selector: '[data-ui-path="pages/promotions.detail/sections/decision/columns/gate"]'
+  - name: budget
+    selector: '[data-ui-path="pages/campaigns.climb/sections/summary/fields/budget"]'
+  - name: steps
+    selector: '[data-ui-path="pages/campaigns.climb/sections/points"]'
+  - name: frontier now
+    selector: '[data-ui-path="pages/campaigns.climb/sections/frontier"]'
+  - name: gate decision
+    selector: '[data-ui-path="pages/promotions.detail/sections/decision"]'

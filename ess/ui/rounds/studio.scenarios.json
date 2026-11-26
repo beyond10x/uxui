@@ -1,0 +1,202 @@
+{
+  "about": "The scenario cards of a round on the studio, played by trial.mjs. The first seven follow the tests of ess/ui/tests/studio.yaml (source); the others are cards of this round. A step names its node by path (data-ui-path) or css. The anchors are the two cards every round plays first.",
+  "ready": "main.ui-page:not(:has([role=status][aria-label=Loading]))",
+  "scenarios": [
+    {
+      "name": "stop-campaign",
+      "card": "anchor",
+      "source": "stopping a running campaign asks first and sends the command",
+      "steps": [
+        {"open": "/campaigns/list"},
+        {"moment": "list"},
+        {"click": {"path": "pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop"}},
+        {"wait": {"css": "[role=dialog]"}},
+        {"moment": "confirm"},
+        {"click": {"css": "[role=dialog] .ui-confirm .ui-emphasis-danger"}},
+        {"moment": "stopped"},
+        {"absent": {"css": "[role=dialog]"}},
+        {"expect": {"path": "pages/campaigns.list/sections/list/rows/cp-01/columns/state", "text": "Stopped"}},
+        {"absent": {"path": "pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop"}}
+      ]
+    },
+    {
+      "name": "owner-trade-off",
+      "card": "anchor",
+      "source": "the owner sees what gets worse and is offered only the accept that applies",
+      "steps": [
+        {"open": "/promotions/detail/pr-02"},
+        {"moment": "gate-failed"},
+        {"expect": {"path": "pages/promotions.detail/sections/decision/rows/pr-02", "text": "attention.glance_cost"}},
+        {"expect": {"path": "pages/promotions.detail/sections/decision/rows/pr-02/row_actions/trade_off", "text": "Accept trade-off"}},
+        {"absent": {"path": "pages/promotions.detail/sections/decision/rows/pr-02/row_actions/accept"}},
+        {"click": {"path": "pages/promotions.detail/sections/decision/rows/pr-02/row_actions/trade_off"}},
+        {"wait": {"css": "[role=dialog]"}},
+        {"moment": "dialog"},
+        {"click": {"css": "[role=dialog] form button[type=submit]"}},
+        {"moment": "accepted"},
+        {"absent": {"css": "[role=dialog]"}},
+        {"expect": {"path": "pages/promotions.detail/sections/summary/fields/state", "text": "Accepted"}},
+        {"open": "/promotions/detail/pr-01"},
+        {"moment": "gate-passed"},
+        {"expect": {"path": "pages/promotions.detail/sections/decision/rows/pr-01/row_actions/accept", "text": "Accept"}},
+        {"expect": {"path": "pages/promotions.detail/sections/decision/rows/pr-01", "not_text": "Accept trade-off"}}
+      ]
+    },
+    {
+      "name": "live-climb",
+      "card": "rotating",
+      "source": "a progress event lands in the live climb; the step table shows its rows by seq, a live step included; the budget reads as a map and the KPI values as a list",
+      "steps": [
+        {"open": "/campaigns/climb/cp-01"},
+        {"wait": {"path": "pages/campaigns.climb/sections/points/rows/pt-04", "timeout_ms": 8000}, "optional": true},
+        {"expect": {"path": "pages/campaigns.climb/sections/points", "rows": ["pt-01", "pt-02", "pt-03", "pt-04"]}},
+        {"moment": "loaded"},
+        {"expect": {"path": "pages/campaigns.climb/header/actions/stop", "text": "Stop"}},
+        {"expect": {"path": "pages/campaigns.climb/sections/summary/fields/state", "text": "Running"}},
+        {"expect": {"path": "pages/campaigns.climb/sections/summary/fields/budget", "text": "max_variants: 400, max_wall_time_s: 3600"}},
+        {"expect": {"path": "pages/campaigns.climb/sections/frontier/rows/fe-01/columns/kpi_values", "text": "kpi_id: kpi-effort, value: 6, kpi_id: kpi-glance, value: 2"}},
+        {"click": {"path": "pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show"}},
+        {"moment": "kpi-picked"},
+        {"reveal": {"path": "pages/campaigns.climb/sections/points"}},
+        {"moment": "steps"},
+        {"reveal": {"path": "pages/campaigns.climb/sections/frontier"}},
+        {"moment": "frontier-now"},
+        {"wait": {"css": ".ui-live[data-lifecycle=reconnecting]", "timeout_ms": 12000}},
+        {"moment": "reconnecting-seen-from-below"},
+        {"reveal": {"css": "header.ui-header"}},
+        {"moment": "reconnecting"},
+        {"wait": {"css": ".ui-live[data-lifecycle=live]", "timeout_ms": 8000}},
+        {"moment": "live-again"}
+      ]
+    },
+    {
+      "name": "switch-axis",
+      "card": "rotating",
+      "source": "switching one axis of a variant sends the switch",
+      "steps": [
+        {"open": "/variants/detail/sha256%3Av-a1"},
+        {"moment": "variant"},
+        {"expect": {"path": "pages/variants.detail/sections/switches", "rows": ["sw-01"]}},
+        {"click": {"path": "pages/variants.detail/sections/axes/rows/av-04/row_actions/switch"}},
+        {"moment": "switch-sent"},
+        {"reveal": {"path": "pages/variants.detail/sections/switches"}},
+        {"moment": "switches"},
+        {"expect": {"path": "pages/variants.detail/sections/switches"}}
+      ]
+    },
+    {
+      "name": "start-campaign",
+      "card": "rotating",
+      "source": "starting a campaign from the catalog opens the form on that target",
+      "steps": [
+        {"open": "/targets/catalog"},
+        {"moment": "catalog"},
+        {"click": {"path": "pages/targets.catalog/sections/list/rows/tg-02/row_actions/start"}},
+        {"wait": {"path": "pages/campaigns.start/sections/target/fields/name"}},
+        {"expect": {"path": "pages/campaigns.start/sections/target", "text": "Settings page"}},
+        {"moment": "form"},
+        {"click": {"css": "[data-ui-path=\"pages/campaigns.start/sections/form\"] button[type=submit]"}},
+        {"moment": "submitted-empty"},
+        {"select": {"css": "[data-ui-path=\"pages/campaigns.start/sections/form/fields/design_space_id\"] select", "value": "ds-01"}},
+        {"click": {"css": "[data-ui-path=\"pages/campaigns.start/sections/form/fields/journeys\"] .ui-tag-suggestion"}},
+        {"click": {"css": "[data-ui-path=\"pages/campaigns.start/sections/form/fields/environments\"] .ui-tag-suggestion"}},
+        {"click": {"css": "[data-ui-path=\"pages/campaigns.start/sections/form/fields/kpis\"] .ui-tag-suggestion"}},
+        {"type": {"css": "[data-ui-path=\"pages/campaigns.start/sections/form/fields/strategy\"] input", "text": "beam"}},
+        {"moment": "filled"},
+        {"click": {"css": "[data-ui-path=\"pages/campaigns.start/sections/form\"] button[type=submit]"}},
+        {"moment": "started"}
+      ]
+    },
+    {
+      "name": "compare-and-judge",
+      "card": "rotating",
+      "source": "none: the studio document's compare and judgement pages have no test",
+      "steps": [
+        {"open": "/campaigns/frontier/cp-01"},
+        {"moment": "frontier"},
+        {"click": {"path": "pages/campaigns.frontier/sections/frontier/rows/fe-01/row_actions/pick"}},
+        {"moment": "picked"},
+        {"click": {"path": "pages/campaigns.frontier/sections/frontier/rows/fe-02/row_actions/compare"}},
+        {"wait": {"path": "pages/variants.compare/sections/summary"}},
+        {"moment": "compare"},
+        {"click": {"path": "pages/variants.compare/header/actions/judge"}},
+        {"wait": {"css": "[role=dialog]"}},
+        {"moment": "judge-drawer"},
+        {"click": {"css": "[role=dialog] form button[type=submit]"}},
+        {"moment": "judge-submitted"}
+      ]
+    },
+    {
+      "name": "compare-without-pick",
+      "card": "rotating",
+      "source": "none: a twist of compare-and-judge, the second step taken first",
+      "steps": [
+        {"open": "/campaigns/frontier/cp-01"},
+        {"click": {"path": "pages/campaigns.frontier/sections/frontier/rows/fe-01/row_actions/compare"}},
+        {"moment": "compared-with-nothing"},
+        {"expect": {"css": "main[data-ui-path=\"pages/campaigns.frontier\"], main[data-ui-path=\"pages/variants.compare\"]"}}
+      ]
+    },
+    {
+      "name": "propose-promotion",
+      "card": "rotating",
+      "source": "none: the propose overlay of the frontier has no test",
+      "steps": [
+        {"open": "/campaigns/frontier/cp-01"},
+        {"click": {"path": "pages/campaigns.frontier/sections/frontier/rows/fe-01/row_actions/promote"}},
+        {"wait": {"css": "[role=dialog]"}},
+        {"moment": "drawer"},
+        {"click": {"css": "[role=dialog] form button[type=submit]"}},
+        {"moment": "proposed"}
+      ]
+    },
+    {
+      "name": "filter-targets",
+      "card": "rotating",
+      "source": "none: the search of a list page has no test",
+      "steps": [
+        {"open": "/targets/catalog"},
+        {"type": {"css": "[data-ui-path=\"pages/targets.catalog/sections/filters\"] input[type=search]", "text": "form"}},
+        {"settle": 1500},
+        {"moment": "filtered"},
+        {"expect": {"path": "pages/targets.catalog/sections/list", "rows": ["tg-03"]}},
+        {"type": {"css": "[data-ui-path=\"pages/targets.catalog/sections/filters\"] input[type=search]", "text": "zzz"}},
+        {"moment": "no-match"}
+      ]
+    },
+    {
+      "name": "stop-campaign-keyboard",
+      "card": "rotating",
+      "source": "stopping a running campaign asks first and sends the command, by keyboard alone",
+      "steps": [
+        {"open": "/campaigns/list"},
+        {"tab_to": {"path": "pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop"}},
+        {"press": "Enter"},
+        {"wait": {"css": "[role=dialog]"}},
+        {"moment": "confirm"},
+        {"tab_to": {"css": "[role=dialog] .ui-confirm .ui-emphasis-danger"}},
+        {"press": "Enter"},
+        {"moment": "stopped"},
+        {"absent": {"css": "[role=dialog]"}},
+        {"expect": {"path": "pages/campaigns.list/sections/list/rows/cp-01/columns/state", "text": "Stopped"}}
+      ]
+    },
+    {
+      "name": "dismiss-confirm",
+      "card": "rotating",
+      "source": "none: a twist of stop-campaign, the person changes their mind",
+      "steps": [
+        {"open": "/campaigns/list"},
+        {"click": {"path": "pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop"}},
+        {"wait": {"css": "[role=dialog]"}},
+        {"press": "Escape"},
+        {"moment": "after-escape"},
+        {"absent": {"css": "[role=dialog]"}},
+        {"click": {"css": "[role=dialog] .ui-confirm .ui-button:not(.ui-emphasis-danger)"}, "optional": true},
+        {"moment": "after-cancel"},
+        {"absent": {"css": "[role=dialog]"}},
+        {"expect": {"path": "pages/campaigns.list/sections/list/rows/cp-01/columns/state", "text": "Running"}}
+      ]
+    }
+  ]
+}
