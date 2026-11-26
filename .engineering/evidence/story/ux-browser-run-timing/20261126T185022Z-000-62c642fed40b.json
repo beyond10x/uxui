@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-26T18:50:22Z",
+  "actor": "human:operator",
+  "artifact": "story:ux-browser-run-timing",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "ux-browser tests 207 -> 213 (tests/timing.rs 6: run.timing fields read from a real capture of the docs home page, loads equal to measure::planned_loads, evidence bytes unchanged by the times, walk plans and load counts: llm-like configuration 2 loads per page-viewport where 0.11.0 had 3); slot sh tools/gate.sh exit 0, every step passed (base a4c77ff); Chrome 149 headless runs, 0.11.0 against this change: llm docs build 54 pairs loads 162 -> 110, uxui docs build 30 pairs loads 90 -> 60, evidence byte-equal in every run (llm 1,234 checks, uxui 566) and on cover, hidden, journey, layout and narrow-menu fixture sites; wall --jobs 4 llm 27.9-30.4 s -> 26.2-34.5 s, --jobs 1 91.6-122.1 s -> 104.3-104.4 s (host load 6-16, within noise); run.timing: walk load mean 166 ms, reset 28 ms, saved loads about 7 % of pair time; docs/browser-adapter.md, The walk on the measured page"
+  }
+}

@@ -13,6 +13,11 @@
   and taken as fresh, else loaded. The Tab walk after the skip link's Enter, each activation and a
   second walk still load the page. llm's configuration (a skip link, the walk in dark) loads each page
   and viewport 2 times where 0.11.0 loaded it 3 times. `docs/browser-adapter.md`, The keyboard walk.
+  Measured on llm's documentation build (54 pairs) and this repository's (30): loads 162 to 110 and
+  90 to 60, the evidence of every run the same bytes as 0.11.0's, and on each fixture site; the
+  walk's saved loads are about 7 % of a run's pair time, within the wall time's noise on a loaded
+  host. Per pair the declared waits are close to half the time (`docs/browser-adapter.md`, The walk
+  on the measured page). Closes `story:ux-browser-run-timing`.
 - The documentation landing page ships the owner's pick from the frontier of the landing-page
   campaign: `docs-system.left.1+1.features-first.d85.h85`, applied by `ux-search landing promote`
   (`docs/promotions/2026-11-26-docs-landing.evidence.json`, with the copy of the measurements the

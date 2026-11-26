@@ -137,7 +137,10 @@ fn times_never_enter_the_evidence() {
 fn a_recorded_page_without_times_leaves_the_run_section_as_it_was() {
     let capture = crate::fixture_json("checks/llm-search.capture.json");
     let document = crate::evidence::document();
-    assert_eq!(evidence::with_timing(document.clone(), &[capture]), document);
+    assert_eq!(
+        evidence::with_timing(document.clone(), &[capture]),
+        document
+    );
 }
 
 #[test]
@@ -171,7 +174,7 @@ fn the_first_walk_of_a_page_starts_on_the_measured_page_and_a_skip_link_reloads_
     );
 }
 
-/// llm's configuration (a skip link, the walk in dark): up to 0.9.1 and on main before this change
+/// llm's configuration (a skip link, the walk in dark): up to 0.11.0
 /// each page and viewport loaded 3 times (the measured load, then a fresh load for the skip link
 /// and one for the Tab walk); now 2.
 #[test]
@@ -195,11 +198,9 @@ fn the_loads_count_each_walk_and_a_viewport_without_one() {
         4,
         "the measured load, the first walk's Tab walk, the second walk's two"
     );
-    let narrow = checks::config(&base.replace(
-        "  modes: [dark]",
-        "  modes: [dark]\n  viewports: [390x844]",
-    ))
-    .unwrap();
+    let narrow =
+        checks::config(&base.replace("  modes: [dark]", "  modes: [dark]\n  viewports: [390x844]"))
+            .unwrap();
     assert_eq!(measure::planned_loads(&narrow, "1440x900"), 1);
     assert_eq!(measure::planned_loads(&narrow, "390x844"), 2);
     let none = checks::config(&base[..base.find("keyboard:").unwrap()]).unwrap();

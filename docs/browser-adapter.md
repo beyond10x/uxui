@@ -587,7 +587,7 @@ link's Enter (focus moved, and the fragment set the point the next Tab starts fr
 and every check of a second walk on the same page and viewport (it starts where the first one left
 focus). With a ready condition a load waits for it. So a walk with a skip link loads the page once,
 a walk without one not at all, plus one load per activation (`measure::walk_plan`,
-`measure::planned_loads`; up to 0.9.1 every fresh page was a load: two and one).
+`measure::planned_loads`; up to 0.11.0 every fresh page was a load: two and one).
 
 Without a skip link the walk has no skip-link check: a page that
 has none and declares none misses nothing for it. An unreached target is one miss, whatever
@@ -935,6 +935,34 @@ run's wall time.
 
 A page that could not be measured has no entry; journeys are not timed. A capture
 (`--capture`) holds the same times under each viewport's `timing`.
+
+### The walk on the measured page, 2026-11-26
+
+Before: 0.11.0 (every fresh page of the walk a load); after: this change (the first walk starts on
+the measured page, The keyboard walk). The same Chromium (Chrome/149.0.7827.55), the same builds, on a
+shared 20-CPU workstation with other jobs running (1-minute load 6 to 16). Two sites: this
+repository's documentation build (15 pages, `tests/fixtures/checks/uxui-docs.checks.yaml`: a skip
+link, the walk in dark) and llm's (27 pages, `examples/llm.checks.yaml`, the same walk).
+
+| site | `--jobs` | page loads before / after | wall before (s) | wall after (s) |
+|---|---|---|---|---|
+| uxui docs, 30 pairs | 4 | 90 / 60 | 15.3, 16.6, 15.8 | 15.2, 14.9, 20.0 |
+| llm docs, 54 pairs | 4 | 162 / 110 | 30.4, 30.1, 27.9 | 26.2, 34.5, 27.0 |
+| llm docs, 54 pairs | 1 | 162 / 110 | 122.1, 91.6 | 104.4, 104.3 |
+
+Loads: 2 per pair after, where 3 before, except llm's `/llm/search`, whose query box takes focus on
+load: the reset finds focus and loads, so it stays at 3 (2 pairs). Results: every run's evidence,
+before and after, is the same bytes (llm 164 lines, 1,234 checks; uxui 92 lines, 566 checks), and so
+is each fixture site's (`cover`, `hidden`, `journey`, `layout`, `narrow-menu`; none walks).
+
+The wall times move with the host's load more than with the change. `run.timing` of the
+one-worker runs says what the change is worth: a walk's load took 166 ms on the mean, the reset that
+replaces it 28 ms, so the 52 loads saved are about 7 s of the run's 104 s of pair time (7 %). Where
+the rest goes, per pair (mean of 54, one worker): 1,920 ms in all; the declared waits 250 (settle),
+410 (two scroll settles), about 165 (the mode switch with its 100 ms settle) and the keyboard walk's
+100 ms focus settle; the walk itself 460 (its load, 9 Tabs with a probe per target after each); the
+measured load 235; the context 105. The waits a configuration declares are close to half of each
+pair; they, and `--jobs`, are what moves the wall time further.
 
 ## Comparison with llm, 2026-11-24
 

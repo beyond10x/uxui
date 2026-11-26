@@ -747,8 +747,8 @@ pub fn document_with_journeys(
 /// The document with `run.timing`, read from the recorded pages (`measure::check_pages`): per page
 /// and viewport measured, in the run's order, `path`, `viewport` and the recorded times
 /// (`docs/browser-adapter.md`, Evidence and Timings). The evidence is not touched. A recorded page
-/// without times (one that could not be measured, a capture of 0.9.1) adds nothing; with none the
-/// document is returned as it was.
+/// without times (one that could not be measured, a capture of 0.11.0 or before) adds nothing; with
+/// none the document is returned as it was.
 pub fn with_timing(mut document: Value, recorded: &[Value]) -> Value {
     let mut pages = Vec::new();
     for page in recorded {

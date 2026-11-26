@@ -446,7 +446,9 @@ pub fn planned_loads(config: &Config, viewport: &str) -> usize {
             .filter(|s| *s == Start::Load)
             .count()
     };
-    1 + (0..walks).map(|i| loads_of(walk_plan(k, i == 0))).sum::<usize>()
+    1 + (0..walks)
+        .map(|i| loads_of(walk_plan(k, i == 0)))
+        .sum::<usize>()
 }
 
 /// Makes the measured page the same as a fresh load for the walk, when the checks left it so: no

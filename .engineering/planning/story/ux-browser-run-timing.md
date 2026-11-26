@@ -2,14 +2,26 @@
 format: aep.planning-md/3
 id: story:ux-browser-run-timing
 kind: story
-status: active
+status: implemented
 title: Time per check in the run record, and the page loaded once where the checks allow it
 relations:
 - decomposes: epic:engine-slices
-revision: 3
+scope:
+- confidence: cited
+  path: docs/browser-adapter.md
+- confidence: cited
+  path: engine/browser/src/evidence.rs
+- confidence: cited
+  path: engine/browser/src/main.rs
+- confidence: cited
+  path: engine/browser/src/measure.rs
+- confidence: cited
+  path: engine/browser/tests/timing.rs
+revision: 5
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T12:58:46Z", actor: "human:operator", revision: 2}
 - {from: "proposed", to: "active", at: "2026-11-25T12:58:46Z", actor: "human:operator", revision: 3}
+- {from: "active", to: "implemented", at: "2026-11-26T18:50:22Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"test_result":1}}}
 ---
 # Story: Time per check in the run record, and the page loaded once where the checks allow it
 
