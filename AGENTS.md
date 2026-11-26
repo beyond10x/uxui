@@ -16,7 +16,7 @@ what is specific to uxui.
 | `plugin/.codex-plugin/plugin.json` | Codex manifest; `skills` points at `./skills/` |
 | `.claude-plugin/marketplace.json` | Claude Code marketplace `uxui` |
 | `.agents/plugins/marketplace.json` | Codex marketplace `uxui` |
-| `tools/` | the gate (`gate.sh`), the plugin check (`check-plugin.sh`), the workflow check (`check-workflows.sh`), the theme check (`check-themes.sh`: every theme has a light and a dark mode that set the same properties, no `var()` of an unset property, `themes/README.md` names every file, each fixture matches its sha256, and `dense.css` and `slot-jobs.css` declare what they promise, against slot's document in `themes/fixtures/`), the docs generator and check (`docs.sh`), the path list of planning and prose files (`prose-only.sh`), the release checks (`release-versions.sh`, `release-ready.sh`), the repeat of the test binaries (`repeat-tests.sh`) and their tests, and the two campaign recorders, which the gate does not run because each needs a browser (`docs-landing-campaign.sh`; `studio-campaign.sh` generates and serves the studio app, runs `ux-search campaign run` twice, compares the bytes and writes the measurements, the report, the screenshots and the tables of `docs/campaign-2026-11-26-studio-engine.md`: the one step after a change of `ess/ui/studio.ui.yaml` or `themes/studio.css`, `sh tools/studio-campaign.sh`, and on a host with a build pool `sh tools/studio-campaign.sh --pool`, which runs it as one job of the pool), POSIX sh |
+| `tools/` | the gate (`gate.sh`), the plugin check (`check-plugin.sh`), the workflow check (`check-workflows.sh`), the theme check (`check-themes.sh`: every theme has a light and a dark mode that set the same properties, no `var()` of an unset property, `themes/README.md` names every file, each fixture matches its sha256, and `dense.css` and `slot-jobs.css` declare what they promise, against slot's document in `themes/fixtures/`), the docs generator and check (`docs.sh`), the path list of planning and prose files (`prose-only.sh`), the release command (`release-set-version.sh`, § Release) and the release checks (`release-versions.sh`, which lists every file that carries the release's version, and `release-ready.sh`), the repeat of the test binaries (`repeat-tests.sh`) and their tests, and the two campaign recorders, which the gate does not run because each needs a browser (`docs-landing-campaign.sh` builds `ux-search` and the documentation site, builds the site of one variant in a copy of `website/`, runs `ux-search landing run` and writes the measurements, the report, the golden evidence of the tests and the screenshots: the one step after a change of `website/product.json` or `website/src/css/landing.css`, `sh tools/docs-landing-campaign.sh`, and on a host with a build pool `sh tools/docs-landing-campaign.sh --pool`; no release needs it; `studio-campaign.sh` generates and serves the studio app, runs `ux-search campaign run` twice, compares the bytes and writes the measurements, the report, the screenshots and the tables of `docs/campaign-2026-11-26-studio-engine.md`: the one step after a change of `ess/ui/studio.ui.yaml` or `themes/studio.css`, `sh tools/studio-campaign.sh`, and on a host with a build pool `sh tools/studio-campaign.sh --pool`, which runs it as one job of the pool), POSIX sh |
 | `research/` | research notes on making UI/UX quality machine-checkable from a specification |
 | `reviews/` | dated reviews of the skill and its approach (`<YYYY-MM-DD>-<topic>.md`) |
 | `ess/` | ESS specification `uxsearch` of the UX search engine: domains, the studio `ess-ui/1` document and its tests, `GAPS.md`; gate `ess specify validate --path ess`, `ess compile --path ess`, `ess ui check --path ess/ui/studio.ui.yaml --model ess`, `ess ui test --path ess/ui/studio.ui.yaml --model ess ess/ui/tests/studio.yaml`; `ess/ui/rounds/` holds the rounds of the `ui-iteration-loop` skill on the studio (the React app generated from the document on its fixtures, measured with `ux-browser`): the round command `sh ess/ui/rounds/round.sh <R-nn>`, its scenario cards and declarations, one directory per round (`report.md`, `round.json`, `triage.md`, shots) and `trend.md`; `ess/ui/findings/` holds one record per finding (`UXF-nnn.md`); a round is a measurement, not a gate step |
@@ -53,6 +53,21 @@ be the better path usually, but maybe things have changed".
 - The plugin version stands in three places and they agree: `plugin/.claude-plugin/plugin.json`,
   `plugin/.codex-plugin/plugin.json` and the plugin entry of `.claude-plugin/marketplace.json`.
   `CHANGELOG.md` has a `## <version> — <YYYY-MM-DD>` heading for it.
+- No version is edited by hand. Every file that carries the release's version is checked by
+  `tools/release-versions.sh` and written by `tools/release-set-version.sh`; a new place that names
+  the version goes into both and into the carrier list of `tools/release.test.sh`, which fails on
+  a place only one of them knows and on a file the command writes that is not on the list.
+- A recording keeps the tool version it was recorded with; no release rewrites it and no check
+  holds it to this build. That is one rule for a recorded campaign (its adapter line; the tests
+  hold the form `ux-browser <version>`) and for the two example documents of `ux-browser` in
+  `engine/browser/examples/`, each of a browser run. A new version there comes from a new run.
+- A file a test holds byte for byte carries no version of this build: a golden output has
+  `{version}` where the tool's version stands
+  (`engine/static/tests/fixtures/ratchet-example/golden.evidence.json`,
+  `engine/search/tests/fixtures/docs-landing/promote.evidence.json`; `task bless:static` and
+  `task bless:search` write them again through the tests' own switches); a source of a campaign
+  (`website/product.json`, `website/src/css/landing.css`) names no version, because its digest
+  is in the measurements.
 - Name, description, author, license and repository are the same in both manifests.
 - A skill's behaviour lives in its `SKILL.md` and `references/`, never only in a Claude Code
   `commands/` or `agents/` file: Codex loads skills only.
@@ -74,8 +89,9 @@ Docs System pinned by commit in `website/package.json`. The site build is the on
 `docs/`, `ess/` and `website/data/status.json`; never edit those by hand. A change to one of their
 sources is followed by `task docs-generate` in the same commit. `task docs-check` (a gate step)
 fails on a stale or edited generated page and on a page that breaks the page rules in
-`website/README.md`. A release or a roadmap change updates `website/data/status.json` and the
-eyebrow of `website/product.json`, which names the plugin version.
+`website/README.md`. A roadmap change updates `website/data/status.json` by hand. The plugin
+version in it and in `website/docs/index.md` is written by the release command (§ Release), never
+by hand. `website/product.json` names no version: the status page carries it.
 
 `.github/workflows/pages.yml` builds the site with `contents: read` and no credential, runs the
 docs check, binds the build to its commit with `sh tools/docs.sh provenance`, and on a push to
@@ -131,9 +147,27 @@ On a host with a shared build pool the gate runs in two parts:
 Bare SemVer tags (`0.2.0`). On a green `main` with entries under `## Unreleased`, the session cuts the
 release without asking (the operator's order of 2026-11-24) and reports the facts.
 
-1. One pull request: `version` of every crate under `engine/` and `generators/`, of
-   `plugin/.claude-plugin/plugin.json` and the marketplaces; `CHANGELOG.md` entries move under
-   `## <version> — <YYYY-MM-DD>`. `sh tools/release-versions.sh <version>` exits 0 on that commit.
+1. One pull request, made by one command: `sh tools/release-set-version.sh <version>`
+   (`task release:set-version -- <version>`; a date as second argument, else today). It writes the
+   version into every file that carries it: the two plugin manifests and the Claude marketplace,
+   every crate under `engine/` and `generators/` and this repository's packages in the two lock
+   files, the plugin version in `website/docs/index.md` and `website/data/status.json`, and the
+   current release in `docs/roadmap.md`. It moves the entries of `CHANGELOG.md` from
+   `## Unreleased` under a new `## <version> — <YYYY-MM-DD>` and keeps an empty `## Unreleased`
+   above it, regenerates the pages (`tools/docs.sh generate`) and ends with
+   `sh tools/release-versions.sh <version>`, which exits 0 on that commit. Nothing else is part of
+   a release: no browser run, no recording rewritten, no golden file blessed, no page edited by
+   hand; `sh tools/gate.sh` passes on what the command wrote.
+
+   `CHANGELOG.md` decides, before a file is written. The command refuses, naming `CHANGELOG.md`
+   and writing nothing: a release with no entry under `## Unreleased`; a version that is not
+   greater than every dated section, the three numbers compared as numbers; a date that is no
+   day of the calendar (exit 2). Two repeats are allowed. The version of the section directly
+   below `## Unreleased` again: entries written under `## Unreleased` since the cut move into
+   that section, in front of its own. The version of the second dated section, while the first is
+   greater and nothing stands under `## Unreleased`: the cut above is taken back, byte for byte,
+   its entries under `## Unreleased` again. The command does not know what is released: take a
+   cut back only before its tag.
 2. After the merge, wait until `task release:ready -- <sha>` (`tools/release-ready.sh`; `<sha>` the
    full id of the merge commit) exits 0: it asks the forge for the runs on that commit and refuses,
    naming each, while one of `Gate`, `Documentation validation` and `Documentation site` is absent,

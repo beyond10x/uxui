@@ -5,7 +5,8 @@
 //! examples were written from) and the three JSON blocks of ratchet `docs/evidence-format.md` § 6,
 //! revision 2, copied verbatim from branch `evidence-format-r2` at abde852: `example.evidence.json`,
 //! `example-incomplete.results.json` and `example-not-executed.json`. `golden.evidence.json` is
-//! ux-static's own output over those inputs; `UX_STATIC_BLESS=1` rewrites it.
+//! ux-static's own output over those inputs with `{version}` where the tool's version stands, so
+//! a release leaves it alone; `UX_STATIC_BLESS=1` rewrites it (`task bless:static`).
 
 use std::path::{Path, PathBuf};
 use ux_static::{Inputs, assess};
@@ -653,10 +654,18 @@ fn incomplete_results_and_not_executed_match_ratchets_examples() {
     );
 }
 
+/// The output as the golden file keeps it: `{version}` where the tool's version stands, which is
+/// the one place of the document that names this build.
+fn golden(text: &str) -> String {
+    let version = format!("\"ux-static\":\"{}\"", env!("CARGO_PKG_VERSION"));
+    assert_eq!(text.matches(&version).count(), 1, "{text}");
+    text.replace(&version, "\"ux-static\":\"{version}\"")
+}
+
 #[test]
 fn the_output_over_fixed_inputs_is_the_golden_file_byte_for_byte() {
     let fixtures = fixtures();
-    let text = ux_static::json(&run(&under(fixtures.clone())).unwrap());
+    let text = golden(&ux_static::json(&run(&under(fixtures.clone())).unwrap()));
     let golden = fixtures.join("golden.evidence.json");
     if std::env::var_os("UX_STATIC_BLESS").is_some() {
         std::fs::write(&golden, &text).unwrap();
@@ -778,7 +787,7 @@ fn the_binary_writes_one_document_and_the_same_bytes_every_time() {
     let text = once();
     assert_eq!(text, once(), "deterministic");
     assert_eq!(
-        text,
+        golden(&text),
         std::fs::read_to_string(fixtures.join("golden.evidence.json")).unwrap(),
         "the root defaults to the working directory"
     );

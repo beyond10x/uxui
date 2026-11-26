@@ -1430,12 +1430,46 @@ fn the_studio_record_is_of_the_committed_declaration() {
     );
     assert_eq!(recorded.variants.len(), declaration.variants().len());
     assert!(
-        recorded.adapter.starts_with("ux-browser "),
-        "{}",
+        crate::adapter_version(&recorded.adapter).is_some(),
+        "the adapter line `{}` is not `ux-browser <version>`",
         recorded.adapter
     );
     assert!(recorded.browser.contains("Chrome/"), "{}", recorded.browser);
     assert_eq!(recorded.text(), read(&studio("measurements.json")));
+}
+
+/// The studio campaign's files name versions in three places, and each is the version of the
+/// recording, not of this build, so a release changes none of them: the adapter line of the
+/// measurements (above), the report and the document's recorded block, which are printed from the
+/// measurements (`the_studio_report_is_the_committed_one_and_its_frontier_is_sound`,
+/// `the_campaign_document_holds_the_numbers_of_the_record`), and the engine line of the
+/// document's `versions` block, which the script writes from `ux-search --version` and which is
+/// held to that form here.
+#[test]
+fn the_campaign_document_names_the_engine_of_the_recording() {
+    let document = read(&repository(&format!("{SHOTS}.md")));
+    let made_with = document
+        .split_once("<!-- versions: begin -->\n")
+        .and_then(|(_, rest)| rest.split_once("<!-- versions: end -->"))
+        .map(|(block, _)| block)
+        .unwrap_or_else(|| panic!("{SHOTS}.md has no versions block"));
+    let engines: Vec<&str> = made_with
+        .lines()
+        .filter_map(|line| line.strip_prefix("| engine | `"))
+        .filter_map(|rest| rest.strip_suffix("` |"))
+        .collect();
+    assert_eq!(engines.len(), 1, "one engine line: {made_with}");
+    let version = engines[0].strip_prefix("ux-search ");
+    assert!(
+        version.is_some_and(crate::is_semver),
+        "the engine line `{}` is not `ux-search <version>`; record again: {RECORD}",
+        engines[0]
+    );
+    let adapter = format!("| adapter | `{}` |", studio_record().adapter);
+    assert!(
+        document.lines().any(|line| line == adapter),
+        "{SHOTS}.md has no line `{adapter}`"
+    );
 }
 
 #[test]

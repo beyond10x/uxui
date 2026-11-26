@@ -54,6 +54,25 @@ pub fn ticket_page() -> ux_search::drive::Target {
     }
 }
 
+/// Whether `text` is a bare SemVer: three numbers joined by dots, none with a leading zero.
+pub fn is_semver(text: &str) -> bool {
+    let parts: Vec<&str> = text.split('.').collect();
+    parts.len() == 3
+        && parts.iter().all(|part| {
+            !part.is_empty()
+                && part.bytes().all(|byte| byte.is_ascii_digit())
+                && (part.len() == 1 || !part.starts_with('0'))
+        })
+}
+
+/// The version in a record's adapter line, `ux-browser <version>`: the adapter the record was
+/// made with. No test compares it with the version of this build: a record says what it was
+/// recorded with, and a release records nothing again.
+pub fn adapter_version(line: &str) -> Option<&str> {
+    line.strip_prefix("ux-browser ")
+        .filter(|version| is_semver(version))
+}
+
 /// A state directory of the test's own under cargo's scratch directory for integration tests;
 /// nothing is written to it unless a key sets file-placed state.
 pub fn state_dir(test: &str) -> PathBuf {
