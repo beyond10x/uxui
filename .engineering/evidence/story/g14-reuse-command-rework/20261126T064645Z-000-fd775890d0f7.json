@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T06:46:45Z",
+  "actor": "human:operator",
+  "artifact": "story:g14-reuse-command-rework",
+  "kind": "story",
+  "revision": 8,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "2026-11-26: ess verify conform synthesize --path ess --scenarios ess --suite-format 5 on main (reuse-command form, merged by pull request 5): 23.2 to 24.2 s wall with ESS 0.99.2 and 0.99.5 at host load 5 to 10 (4 runs); after G20 was closed 32.2 and 33.1 s CPU with ESS 0.99.5 against 31.6 and 43.3 s CPU before it, alternating runs at load 36 to 64; all under the story's 60 s line. Decision: the reuse-command form stays; the story's section Decision on 2026-11-26 holds the table",
+    "reference": "ess/GAPS.md"
+  }
+}

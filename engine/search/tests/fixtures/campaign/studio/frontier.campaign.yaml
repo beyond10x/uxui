@@ -1,0 +1,79 @@
+# The campaign over the frontier page of the studio app this repository generates from
+# ess/ui/studio.ui.yaml, on its fixtures, with themes/studio.css linked
+# (docs/campaign-2026-11-26-studio-engine.md). Recorded by tools/studio-campaign.sh.
+#
+# Every property an axis sets is one themes/studio.css declares in `:root`; the shipped value of
+# every axis sets nothing, so the page as shipped is the page the theme gives, whatever its
+# values are on the day of a recording.
+format: ux-search-campaign/1
+page:
+  path: /campaigns/frontier/cp-01
+  # The page has left its loading state: no section shows the loading status any more.
+  ready: 'main.ui-page:not(:has([role=status][aria-label=Loading]))'
+  ready_timeout_ms: 10000
+  # The fixture channel goes from connecting to live after the first paint.
+  settle_ms: 750
+environments:
+  # The two gating viewports of the loop round on the studio (ess/ui/rounds/round.sh).
+  viewports: [1366x768, 1280x720]
+  # The theme follows prefers-color-scheme until a person picks a mode with the toggle.
+  modes:
+    - {name: light, media: light}
+    - {name: dark, media: dark}
+axes:
+  # The step between the parts of a page: the gap of the page's stack and the padding of a
+  # section.
+  - name: spacing
+    shipped: space-stock
+    values:
+      - id: space-tight
+        rules:
+          - {selector: ':root', set: {--ui-space-md: 0.8rem}}
+      - id: space-snug
+        rules:
+          - {selector: ':root', set: {--ui-space-md: 0.95rem}}
+      - id: space-stock
+      - id: space-roomy
+        rules:
+          - {selector: ':root', set: {--ui-space-md: 1.3rem}}
+  # The ink of the two status colours the page shows: the live indicator (success) and the
+  # badge of a running campaign (info). In dark mode the theme's inks are kept.
+  - name: status-ink
+    shipped: ink-stock
+    values:
+      - id: ink-stock
+      - id: ink-mid
+        rules:
+          - {selector: ':root', mode: light, set: {--ui-color-success: '#1c7f53', --ui-color-info: '#3467cf'}}
+      - id: ink-deep
+        rules:
+          - {selector: ':root', mode: light, set: {--ui-color-success: '#14633f', --ui-color-info: '#2a55b3'}}
+  # The fill behind those two inks, nearer to the surface it lies on. The theme sets its dark
+  # values under `:root:not([data-uxui-mode="light"])`, so a dark value is set there too.
+  - name: status-fill
+    shipped: fill-stock
+    values:
+      - id: fill-stock
+      - id: fill-pale
+        rules:
+          - {selector: ':root', mode: light, set: {--ui-color-success_fill: '#f2fbf6', --ui-color-info_fill: '#f3f6fe'}}
+          - {selector: ':root:not([data-uxui-mode="light"])', mode: dark, set: {--ui-color-success_fill: '#172a26', --ui-color-info_fill: '#1a2340'}}
+  # The ink of the group headings of the navigation, on the sidebar. In light mode every value
+  # keeps the theme's ink.
+  - name: nav-head
+    shipped: head-stock
+    values:
+      - id: head-stock
+      - id: head-light
+        rules:
+          - {selector: ':root:not([data-uxui-mode="light"])', mode: dark, set: {--uxui-nav-head: '#8b90b3'}}
+# The action the page is for: proposing a variant of the frontier for promotion (the first row's).
+primary: 'button[data-ui-path$="/row_actions/promote"]'
+regions: '.ui-region-navigation, header.ui-header, section.ui-section'
+always_visible:
+  - {name: navigation, selector: 'nav.ui-nav'}
+  - {name: view switch, selector: 'nav.ui-switch'}
+# WCAG 2.2 2.5.8, the size the loop round's audit counts small controls by.
+small_target_px: 24
+hard: [primary_in_view, no_h_scroll, named]
+terms: [low_contrast, overflow, always_visible_misses, small_targets, primary_px, text_under_14, regions]

@@ -3,17 +3,20 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use ux_search::landing::{promote, record::Recorded, report, run};
-use ux_search::{climb, cost, drive};
+use ux_search::{campaign, climb, cost, drive};
 
 const USAGE: &str = "usage: ux-search climb --doc <ui.yaml> --page <page> [--param <name>=<value>]... [--sizes <W>x<H>[,<W>x<H>]...] [--cap <1-8>] [--state-dir <dir>]
        ux-search cost --doc <ui.yaml> --page <page> [--param <name>=<value>]... [--keys <key spec>] [--size <W>x<H>] [--repeat <n>] [--format text|json] [--state-dir <dir>]
        ux-search landing run --build <built site> --product <product.json> --css <landing.css> --out <dir> [--jobs <n>] [--profile <dir>] [--rebuilt <variant id>=<built site>]
        ux-search landing report --measurements <measurements.json>
        ux-search landing promote --measurements <measurements.json> --variant <variant id> --product <product.json> --css <landing.css> --evidence <evidence.json> [--chosen-by \"<who chose>\"] [--shipped-file <shipped.txt>]
+       ux-search campaign run --declaration <campaign.yaml> --url <origin> --out <measurements.json> [--shots <dir>] [--jobs <n>] [--profile <dir>]
+       ux-search campaign report --measurements <measurements.json> [--format text|markdown] [--links <prefix>]
        ux-search -V | --version
        ux-search -h | --help
 defaults: --sizes 120x40,48x40, --cap 5, --keys <tab><tab><tab><tab><tab>, --size 120x40, --repeat 5, --format text, --state-dir target/ux-search/state, --jobs the CPUs (at most 4), --profile target/ux-search/profile-<pid>
-landing run renders the 144 variants of the documentation landing page in 6 environments in Chromium (UXUI_CHROME, else the Playwright cache), writes <dir>/measurements.json and two screenshots per frontier variant, and prints the report; landing report prints the report of a measurements file; landing promote applies the patch of one variant of that file's frontier to the two sources in place and writes, all or none, one ratchet-evidence/1 document that names the campaign, a copy of the measurements beside it (<name>.measurements.json beside <name>.evidence.json) and, with --shipped-file, the variant's id to that file; the document names each file by its path from the working directory; it refuses, and writes nothing, a variant off the frontier, sources the measurements were not recorded on, a place that is a directory and one file named twice";
+landing run renders the 144 variants of the documentation landing page in 6 environments in Chromium (UXUI_CHROME, else the Playwright cache), writes <dir>/measurements.json and two screenshots per frontier variant, and prints the report; landing report prints the report of a measurements file; landing promote applies the patch of one variant of that file's frontier to the two sources in place and writes, all or none, one ratchet-evidence/1 document that names the campaign, a copy of the measurements beside it (<name>.measurements.json beside <name>.evidence.json) and, with --shipped-file, the variant's id to that file; the document names each file by its path from the working directory; it refuses, and writes nothing, a variant off the frontier, sources the measurements were not recorded on, a place that is a directory and one file named twice
+campaign run reads a declaration ux-search-campaign/1 (the page, the environments, the axes of custom-property values per selector, the hard rules and the ordered terms), loads the page from the server at <origin> (an origin, with a path when the page's paths lie under one), renders every variant in every environment in Chromium as an injected style sheet, writes the measurements file and, with --shots, two screenshots per frontier variant, and prints the report; it reaches only that origin, with GET and HEAD, and refuses a declaration it cannot read (naming the file and the key), a selector that matches nothing and a property that is not in force; campaign report prints the report of a measurements file, with --format markdown the run and the frontier as two tables whose screenshot links start with <prefix>; it refuses a file whose content is not what its digest names";
 
 /// 1: the inputs are refused (a document that does not load, a page it lacks); nothing printed.
 const REFUSED: u8 = 1;
@@ -57,6 +60,12 @@ fn main() -> ExitCode {
             Some("promote") => promote_landing(&args[2..]),
             Some(other) => wrong(&format!("unknown command `landing {other}`")),
             None => wrong("landing needs `run`, `report` or `promote`"),
+        },
+        Some("campaign") => match args.get(1).map(String::as_str) {
+            Some("run") => run_campaign(&args[2..]),
+            Some("report") => report_campaign(&args[2..]),
+            Some(other) => wrong(&format!("unknown command `campaign {other}`")),
+            None => wrong("campaign needs `run` or `report`"),
         },
         Some(other) => wrong(&format!("unknown command `{other}`")),
         None => wrong("no command"),
@@ -290,6 +299,116 @@ fn report_landing(args: &[String]) -> ExitCode {
         .map_err(|error| format!("{measurements}: {error}"))
         .and_then(|text| Recorded::parse(&text).map_err(|why| format!("{measurements}: {why}")))
         .and_then(|recorded| report::report(&recorded));
+    match text {
+        Ok(text) => {
+            print!("{text}");
+            ExitCode::SUCCESS
+        }
+        Err(message) => refused(&message),
+    }
+}
+
+fn run_campaign(args: &[String]) -> ExitCode {
+    let parsed = match parse(
+        args,
+        &[
+            "--declaration",
+            "--url",
+            "--out",
+            "--shots",
+            "--jobs",
+            "--profile",
+        ],
+    ) {
+        Ok(parsed) if parsed.params.is_empty() => parsed,
+        Ok(_) => return wrong("campaign run takes no --param"),
+        Err(message) => return wrong(&message),
+    };
+    let jobs = match parsed.get("--jobs").map(str::parse::<usize>) {
+        None => ux_browser::pool::default_jobs(ux_browser::pool::cpus()),
+        Some(Ok(jobs)) if jobs > 0 => jobs,
+        Some(_) => return wrong("--jobs is not a positive whole number"),
+    };
+    let (Some(declaration), Some(url), Some(out)) = (
+        parsed.get("--declaration"),
+        parsed.get("--url"),
+        parsed.get("--out"),
+    ) else {
+        return wrong("campaign run needs --declaration, --url and --out");
+    };
+    let site = match ux_browser::target::parse_url(url) {
+        Ok(site) => site,
+        Err(message) => return wrong(&format!("--url {message}")),
+    };
+    let options = campaign::run::Options {
+        declaration: PathBuf::from(declaration),
+        site,
+        out: PathBuf::from(out),
+        shots: parsed.get("--shots").map(PathBuf::from),
+        profile: parsed.get("--profile").map_or_else(
+            || PathBuf::from(format!("target/ux-search/profile-{}", std::process::id())),
+            PathBuf::from,
+        ),
+        jobs,
+    };
+    let started = std::time::Instant::now();
+    let outcome = match campaign::run::run(&options) {
+        Ok(outcome) => outcome,
+        Err(message) => return refused(&message),
+    };
+    let text = match campaign::report::report(&outcome.recorded) {
+        Ok(text) => text,
+        Err(message) => return refused(&message),
+    };
+    for note in &outcome.notes {
+        eprintln!("ux-search: hard rule: {note}");
+    }
+    for check in &outcome.checks {
+        eprintln!("ux-search: checked: {check}");
+    }
+    for path in &outcome.written {
+        eprintln!("ux-search: wrote {}", path.display());
+    }
+    eprintln!(
+        "ux-search: {} renders in {}, {:.1} s with {} pages at once",
+        outcome.renders,
+        outcome.recorded.browser,
+        started.elapsed().as_secs_f64(),
+        options.jobs
+    );
+    print!("{text}");
+    ExitCode::SUCCESS
+}
+
+fn report_campaign(args: &[String]) -> ExitCode {
+    let parsed = match parse(args, &["--measurements", "--format", "--links"]) {
+        Ok(parsed) if parsed.params.is_empty() => parsed,
+        Ok(_) => return wrong("campaign report takes no --param"),
+        Err(message) => return wrong(&message),
+    };
+    let Some(measurements) = parsed.get("--measurements") else {
+        return wrong("campaign report needs --measurements");
+    };
+    let markdown = match parsed.get("--format") {
+        None | Some("text") => false,
+        Some("markdown") => true,
+        Some(other) => return wrong(&format!("--format `{other}` is not text or markdown")),
+    };
+    if !markdown && parsed.get("--links").is_some() {
+        return wrong("--links goes with --format markdown");
+    }
+    let text = std::fs::read_to_string(measurements)
+        .map_err(|error| format!("{measurements}: {error}"))
+        .and_then(|text| {
+            campaign::record::Recorded::parse(&text).map_err(|why| format!("{measurements}: {why}"))
+        })
+        .and_then(|recorded| {
+            if markdown {
+                campaign::report::markdown(&recorded, parsed.get("--links").unwrap_or_default())
+            } else {
+                campaign::report::report(&recorded)
+            }
+        });
     match text {
         Ok(text) => {
             print!("{text}");

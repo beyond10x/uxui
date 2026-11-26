@@ -21,6 +21,10 @@
   --ui-color-warning_fill: #fcefd6;
   --ui-color-danger: #c63d4b;
   --ui-color-danger_fill: #fbe1e4;
+  --ui-tone-info-text: #2a57b8;
+  --ui-tone-success-text: #146b45;
+  --ui-tone-warning-text: #8a5300;
+  --ui-tone-danger-text: #ad2f3d;
   --ui-color-backdrop: rgb(10 12 24 / 0.35);
   --uxui-glow: #e9e8ff;
   --uxui-nav-bg: #11142a;
@@ -54,11 +58,15 @@
     --ui-color-warning_fill: #3a2c12;
     --ui-color-danger: #ff7a85;
     --ui-color-danger_fill: #43202a;
+    --ui-tone-info-text: #7aa5ff;
+    --ui-tone-success-text: #4cc38a;
+    --ui-tone-warning-text: #f0b55a;
+    --ui-tone-danger-text: #ff7a85;
     --ui-color-backdrop: rgb(0 0 0 / 0.55);
     --uxui-glow: #1f1f4a;
     --uxui-nav-bg: #0a0c19;
     --uxui-nav-text: #c9cde6;
-    --uxui-nav-head: #6f7598;
+    --uxui-nav-head: #8b90b3;
     --uxui-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px -14px rgb(0 0 0 / 0.6);
     --uxui-section-border: rgb(255 255 255 / 0.06);
     --uxui-series-0: #8b8bff;
@@ -85,11 +93,15 @@
   --ui-color-warning_fill: #3a2c12;
   --ui-color-danger: #ff7a85;
   --ui-color-danger_fill: #43202a;
+  --ui-tone-info-text: #7aa5ff;
+  --ui-tone-success-text: #4cc38a;
+  --ui-tone-warning-text: #f0b55a;
+  --ui-tone-danger-text: #ff7a85;
   --ui-color-backdrop: rgb(0 0 0 / 0.55);
   --uxui-glow: #1f1f4a;
   --uxui-nav-bg: #0a0c19;
   --uxui-nav-text: #c9cde6;
-  --uxui-nav-head: #6f7598;
+  --uxui-nav-head: #8b90b3;
   --uxui-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px -14px rgb(0 0 0 / 0.6);
   --uxui-section-border: rgb(255 255 255 / 0.06);
   --uxui-series-0: #8b8bff;
@@ -98,7 +110,8 @@
   --uxui-series-3: #3dd6c1;
 }
 
-/* Values both modes share (the sidebar is dark in both). */
+/* Values both modes share (the sidebar is dark in both). The smallest text is 14 px: --uxui-text-small
+   times the root size (0.925 x 15.2 px = 14.06 px), for every caption, badge, label and table head. */
 :root {
   --uxui-nav-hover: rgb(255 255 255 / 0.06);
   --uxui-nav-current: rgb(124 124 255 / 0.22);
@@ -113,7 +126,10 @@
   --ui-type-body-family: Inter, "Segoe UI", system-ui, sans-serif;
   --ui-type-caption-family: Inter, "Segoe UI", system-ui, sans-serif;
   --ui-type-heading-family: Inter, "Segoe UI", system-ui, sans-serif;
-  --ui-type-caption-size: 0.78rem;
+  --uxui-text-small: 0.925rem;
+  --ui-type-caption-size: var(--uxui-text-small);
+  --ui-size-text-small: var(--uxui-text-small);
+  --ui-size-text-tiny: var(--uxui-text-small);
   --ui-type-mono-family: "JetBrains Mono", ui-monospace, monospace;
   -webkit-font-smoothing: antialiased;
   font-size: 0.95rem;
@@ -123,20 +139,26 @@ body { background: radial-gradient(1200px 500px at 70% -10%, var(--uxui-glow) 0%
 
 .ui-shell > .ui-region-navigation { position: sticky; top: 0; align-self: start; min-height: 100vh; box-sizing: border-box; background: var(--uxui-nav-bg); color: var(--uxui-nav-text); border-right: 0; padding: 1.25rem 0.9rem; }
 .ui-shell > .ui-region-navigation::before { content: "◆ uxui studio"; display: block; font-weight: 700; letter-spacing: 0.02em; color: #fff; margin: 0 0 1.4rem 0.4rem; }
-.ui-nav h2, .ui-nav h3, .ui-nav-section > :first-child { color: var(--uxui-nav-head); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.08em; font-weight: 600; }
+.ui-nav h2, .ui-nav h3, .ui-nav-section > :first-child { color: var(--uxui-nav-head); text-transform: uppercase; font-size: var(--uxui-text-small); letter-spacing: 0.06em; font-weight: 600; }
 .ui-nav a { color: var(--uxui-nav-text); padding: 0.45rem 0.6rem; transition: background 120ms; }
 .ui-nav a:hover { background: var(--uxui-nav-hover); }
 .ui-nav a[aria-current="page"] { background: var(--uxui-nav-current); color: #fff; }
 
-.ui-region-page_outlet { padding: 1.5rem 2rem; }
+.ui-region-page_outlet { padding: 1.25rem 2rem; }
 h1 { font-size: 1.55rem; letter-spacing: -0.01em; }
 .ui-section { border: 1px solid var(--uxui-section-border); box-shadow: var(--uxui-shadow); }
-.ui-section h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ui-color-muted); }
+.ui-section h2 { font-size: var(--uxui-text-small); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ui-color-muted); }
 
-.ui-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ui-color-muted); font-weight: 600; border-bottom-width: 2px; }
+.ui-table th { font-size: var(--uxui-text-small); color: var(--ui-color-muted); font-weight: 600; border-bottom-width: 2px; }
 .ui-table tbody tr { transition: background 120ms; }
 .ui-table tbody tr:hover { background: var(--ui-color-focus); }
-.ui-table td { padding-top: 0.6rem; padding-bottom: 0.6rem; }
+.ui-table th, .ui-table td { padding-left: 0.4rem; padding-right: 0.4rem; }
+.ui-table td { padding-top: 0.45rem; padding-bottom: 0.45rem; }
+
+/* A collection drawn as a list (style: list): the fields of a row stand in columns, so the row and its
+   actions beside it stay in one view. */
+.ui-list-item > .ui-row-body > dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); column-gap: var(--ui-space-md); }
+.ui-list-item:last-child { border-bottom: 0; padding-bottom: 0; }
 
 .ui-button { color: var(--ui-color-text); transition: background 120ms, border-color 120ms, box-shadow 120ms; font-weight: 500; }
 .ui-button:hover:not(:disabled) { border-color: var(--ui-color-accent); color: var(--ui-color-accent); }
@@ -147,7 +169,7 @@ input, select { font: inherit; color: var(--ui-color-text); padding: 0.4rem 0.6r
 .ui-segment { color: var(--ui-color-text); }
 
 .ui-badge { font-weight: 600; letter-spacing: 0.01em; }
-.ui-live[data-lifecycle="live"] { color: var(--ui-color-success); font-weight: 600; }
+.ui-live[data-lifecycle="live"] { color: var(--ui-tone-success-text); font-weight: 600; }
 .ui-live[data-lifecycle="live"]::before { content: ""; display: inline-block; width: 0.45rem; height: 0.45rem; margin-right: 0.35rem; border-radius: 50%; background: var(--ui-color-success); animation: uxui-pulse 1.4s ease-in-out infinite; vertical-align: 0.05rem; }
 @keyframes uxui-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
 @media (prefers-reduced-motion: reduce) { .ui-live[data-lifecycle="live"]::before { animation: none; } }
@@ -166,6 +188,6 @@ input, select { font: inherit; color: var(--ui-color-text); padding: 0.4rem 0.6r
 .ui-chart-x-label { color: var(--ui-color-muted); }
 
 /* The mode toggle (themes/theme-toggle.js). */
-.uxui-theme-toggle { position: fixed; left: 1rem; bottom: 1rem; z-index: 40; font: inherit; font-size: 0.8rem; color: var(--uxui-nav-text); background: var(--uxui-nav-hover); border: 1px solid rgb(255 255 255 / 0.12); border-radius: 999px; padding: 0.35rem 0.75rem; cursor: pointer; }
+.uxui-theme-toggle { position: fixed; left: 1rem; bottom: 1rem; z-index: 40; font: inherit; font-size: var(--uxui-text-small); color: var(--uxui-nav-text); background: var(--uxui-nav-hover); border: 1px solid rgb(255 255 255 / 0.12); border-radius: 999px; padding: 0.35rem 0.75rem; cursor: pointer; }
 .uxui-theme-toggle:hover { background: var(--uxui-nav-current); }
 .uxui-theme-toggle:focus-visible { outline: 2px solid var(--ui-color-accent); outline-offset: 2px; }

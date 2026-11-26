@@ -8,8 +8,14 @@ relations:
 - decomposes: epic:skill
 scope:
 - confidence: inferred
+  path: .claude-plugin/marketplace.json
+- confidence: cited
   path: docs/roadmap.md
-revision: 5
+- confidence: inferred
+  path: plugin/.claude-plugin/plugin.json
+- confidence: inferred
+  path: plugin/.codex-plugin/plugin.json
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 3, decided_on: {"recorded":{"review_outcome":1}}}
 - {from: "proposed", to: "active", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"review_outcome":1}}}

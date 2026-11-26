@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T07:14:53Z",
+  "actor": "human:operator",
+  "artifact": "story:studio-loop-round-2",
+  "kind": "story",
+  "revision": 6,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "sh ess/ui/rounds/round.sh R-02: scenarios not completed 6 to 5 of 11, always-visible misses on a promotion 20 to 0, text under 14 px 0.564 to 0, low-contrast runs 12 to 0; ess ui test 7 passed (2 failed on the base); layout shift 0.0151 to 0.0176, under the tolerance 0.01 (Decision on 2026-11-26)",
+    "reference": "ess/ui/rounds/R-02/round.json"
+  }
+}

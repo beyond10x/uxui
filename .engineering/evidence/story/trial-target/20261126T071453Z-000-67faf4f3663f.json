@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T07:14:53Z",
+  "actor": "human:operator",
+  "artifact": "story:trial-target",
+  "kind": "story",
+  "revision": 8,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "unit 1 of 3: ux-search campaign on a declaration file; engine/search tests 108 to 143 passed; the studio's frontier page as proof (docs/campaign-2026-11-26-studio-engine.md). The run in the private repository is open.",
+    "reference": "engine/search/tests/fixtures/campaign/studio/report.txt"
+  }
+}

@@ -73,6 +73,8 @@ paths gate "docs/brief.md, a source of a generated page" 'docs/brief.md
 '
 paths gate "docs/roadmap.md, a source of a generated page" 'docs/roadmap.md
 '
+paths gate "the studio campaign's document, which tools/studio-campaign.sh writes and a test reads" 'docs/campaign-2026-11-26-studio-engine.md
+'
 paths gate "a Markdown test fixture" 'engine/browser/tests/fixtures/values/findings/UXF-005.md
 '
 paths gate "an image beside the design documents" 'docs/campaign-2026-11-24/chosen-dark-390.png

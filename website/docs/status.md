@@ -26,7 +26,7 @@ custom_edit_url: null
 |---|---|---|
 | [Concept and state spaces](./concepts/search-engine.md) | ◐ decided | The engine, target scopes from component to product, the two spaces, the layout-model contract, bounds and search strategies. |
 | [Metric catalogue](./reference/metrics.md) | ◐ decided | 47 metrics: 16 hard rules, 17 KPI candidates, 14 diagnostics, each with a formula, unit, direction and counterweight. |
-| [ESS specification uxsearch v1](./reference/specification.md) | ◐ decided | Eight domains, valid and compiled (216 declarations). No scenarios yet: 156 outcomes have none. |
+| [ESS specification uxsearch v1](./reference/specification.md) | ◐ decided | Eight domains, valid and compiled (254 declarations). 50 authored scenarios cover all 286 refusals of its commands and pass on ESS's interpreted target. No implementation is held to it yet. |
 | [Studio](./concepts/studio.md) | ◐ decided | The live view of a search, written as an ess-ui/1 document and generated into an application that runs on fixtures and scripted live events. No engine behind it. |
 | [Ratchet preset family web-ux@1](./concepts/search-engine.md) | ◐ decided | A draft preset family for the metric catalogue, waiting for ratchet's format to settle. |
 
@@ -34,7 +34,7 @@ custom_edit_url: null
 
 | Item | Status | What it means |
 |---|---|---|
-| [Specification round 2](./roadmap.md) | ○ planned | Scenarios for the 156 outcomes, the 13 UNMAPPED markers resolved or moved to the gaps, an independent review. |
+| [Specification round 2](./roadmap.md) | ○ planned | Done: 50 authored scenarios, every refusal covered. Open: 19 UNMAPPED markers, each listed with its gap or its question to the owner, and an independent review. |
 | [Cost of one evaluation](./roadmap.md) | ○ planned | A spike that measures the per-state cost of a layout call. The design assumes 50 µs. The tool ux-search cost is written; its first measurement is still to be made. |
 | [Static metrics slice ux-static@1](./roadmap.md) | ○ planned | Static metrics from an ess-ui/1 document, its journeys and its declarations, written as ratchet evidence. No browser, no layout model. |
 | [First climb on a toy](./roadmap.md) | ○ planned | Two axes on one example page, searched exhaustively, a ranked frontier printed as text; then the studio. The search ux-search climb is written for theme x section order on layout model v0; it also climbs the studio's live climb page (120 section orders, frontier 42); no UI state exploration. The engine ran its first campaign on the browser adapter over the documentation landing page (144 variants, 864 renders, frontier 16, the page as shipped ranks 35th); a person's pick promoted as a pull request is not there yet. |

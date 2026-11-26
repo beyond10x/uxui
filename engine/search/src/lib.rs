@@ -7,7 +7,9 @@
 //!
 //! A second backend is the browser adapter (`ux_browser`, `engine/browser`): [`landing`] runs
 //! one campaign over the documentation landing page in Chromium and ranks its record with
-//! [`rank`]. Only `landing::run` starts a browser.
+//! [`rank`], and [`campaign`] runs a campaign whose page, environments, axes and terms a
+//! declaration file names, on a server somebody else started. Only `landing::run` and
+//! `campaign::run` start a browser.
 //!
 //! - [`variant`]: the design space as text: a page's sections in another order, the theme
 //!   chosen; the section orders as permutations.
@@ -17,7 +19,10 @@
 //! - [`cost`]: the cost of one evaluation per UI state (`ux-search cost`).
 //! - [`landing`]: the campaign over the documentation landing page on the browser adapter
 //!   (`ux-search landing run`, `ux-search landing report`).
+//! - [`campaign`]: a declared campaign on the browser adapter, over custom properties of any
+//!   served page (`ux-search campaign run`, `ux-search campaign report`).
 
+pub mod campaign;
 pub mod climb;
 pub mod cost;
 pub mod drive;

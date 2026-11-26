@@ -151,6 +151,14 @@ an input an invariant bounds, and `DeclareJourney/script-refused`); the refusals
 back) and 46.3 s at the end of the round. The 50 authored scenarios are validated, compiled and
 run on the interpreted target in about 1 s.
 
+Closing G20 (2026-11-26, ess 0.99.2) rewrites ten guards over a command's own row as row sets
+that select the row by its key, the construct the first paragraph names as the cost. Synthesis
+time did not move with them. On one host, each measured once:
+`ess verify conform synthesize --path ess --scenarios ess --suite-format 5` took 27.9 s before
+and 24.9 s after; the same command writing the suite with `--out` took 64.8 s before and 46.6 s
+after; `ess specify validate --format json` took 57.5 s before and 47.9 s after. The refusals
+go from 291 to 286 and the synthesized scenarios stay 171.
+
 ### G15. Fixtures are not typed against the model
 
 `ess ui check --model` and `ess ui test --model` pass fixtures whose rows contradict the view
@@ -185,23 +193,28 @@ The steps of a journey's script are the same shape: what the browser adapter ref
 rule over each struct of `JourneyScript.steps`. `DeclareJourney` answers it as the `external`
 branch `script-refused`; the adapter's reader (docs/browser-adapter.md, Journeys) is the check.
 
-### G19. The completeness count reads no authored scenario
+### G19. The completeness count reads no authored scenario (intended)
 
 `ess specify validate --format json` reports `completeness.unscenarioed`: the constructs synthesis
 gives no scenario. An authored scenario that reaches such a construct and names it under `covers:`
 (`ess-scenario/7`) does not lower the count. Measured with ess 0.99.2: 289 with the 13 scenarios
 before round 2 and 289 with 46; 291 with the 50 at the end of round 2, whose refusing branches
-below add constructs synthesis reaches no route to.
+below add constructs synthesis reaches no route to; 286 once G20 was closed.
+
+The ESS maintainers answered that this is by design: `validate` does not read authored scenarios.
+Not a gap to close in ESS; kept here because the count is not the measure of this specification.
 
 The count that reads `covers:` is the last line of
-`ess verify conform synthesize --path ess --scenarios ess --suite-format 5`:
+`ess verify conform synthesize --path ess --scenarios ess --suite-format 5`, which exits 0 when
+authored scenarios cover every refusal:
 
 ```
-221 selected scenario(s), 50 authored source(s), 291 refusal occurrence(s), 286 covered by authored
+221 selected scenario(s), 50 authored source(s), 286 refusal occurrence(s), 286 covered by authored
 ```
 
-Instead: round 2 is measured by that line. The 291 refusals name 291 constructs; authored
-scenarios cover 286 of them. The 5 left are the branches of G20.
+Instead: round 2 is measured by that line. The 286 refusals name 286 constructs, and authored
+scenarios cover all of them. Before G20 was closed the line read 291 refusals with 286 covered,
+and the command exited 1.
 
 Nine refusals `ESS-SYNTH-025` were open in the model before, not gaps of ESS: a branch copied an
 input into a row, no guard kept the input inside an invariant of the entity, and the command
@@ -214,7 +227,9 @@ domain (`MeasureNotPositive` in `DeclareEnvironment`; `InvalidVersion` in `Defin
 `ESS-SYNTH-025` is left. Synthesis writes the scenarios of five of the sixteen branches itself;
 authored scenarios witness all sixteen.
 
-### G20. A missing-row branch that validation demands and no input reaches
+### G20. A missing-row branch that validation demands and no input reaches (closed in the model)
+
+Closed on 2026-11-26 with ess 0.99.2, by the form at the end of this section. What was open:
 
 A command that moves the row its input key addresses and guards on that row's fields
 (`when_related: {via: input.<key>, predicate: ...}`) must declare the branch for a missing row.
@@ -235,11 +250,71 @@ in for the demanded branch (the refusal above stays), and not beside it on one b
 [conflicting_declaration] command.uxsearch.journeys.CompleteStateSpace.outcomes.no-state-space.when_related: outcome `no-state-space` declares `when_related` beside `unknown_instance`; a branch has one selection authority (hint: keep the related guard and an optional `when:` over the input, or the other key)
 ```
 
-Instead: five branches stay as validation demands them and have no scenario:
-`CompleteStateSpace/no-state-space`, `TruncateStateSpace/no-state-space`,
-`RecordGateDecision/no-promotion`, `AcceptPromotion/no-promotion` and
-`AcceptTradeOff/no-promotion`. A caller that names an unknown key gets `StateSpaceStateConflict` or
-`PromotionStateConflict`, not the not-found error the branch declares.
+Five branches were declared that way and had no scenario: `CompleteStateSpace/no-state-space`,
+`TruncateStateSpace/no-state-space`, `RecordGateDecision/no-promotion`,
+`AcceptPromotion/no-promotion` and `AcceptTradeOff/no-promotion`. A caller that named an unknown
+key got `StateSpaceStateConflict` or `PromotionStateConflict`, not the not-found error the branch
+declares, and the synthesized suite said so: its scenario `<command>/outcome/wrong-state` sent "an
+identity no record carries" and expected `wrong-state`.
+
+The ESS maintainers' answer: the model can reach the not-found outcome. The command reads its own
+addressed row through `when_related`; write that read as `when_subject: {predicate: ...}` and
+declare `unknown_instance: true` in place of the `exists: false` branch. On a reduction with one
+entity and one guard over the addressed row this holds with 0.99.2: the model validates, synthesis
+writes the not-found scenario and the interpreted target passes it. Two things keep that form out
+of these five commands:
+
+- Each of the five also guards on a row set (`count-below-recorded`, `unevaluable`,
+  `evidence-of-another-variant`, `hard-rule-traded`, `not-on-frontier`, `hard-rule-not-passed`,
+  `hard-rule-unchecked`), and a `when_subject` guard beside a row set is refused:
+
+  ```
+  error[ESS-COMMAND-009]: `uxsearch.journeys.CompleteStateSpace` selects on a row set (`when_related: {entity, where, …}`) and on a `when_subject` guard; one command reads one kind of related row in this cut
+    help: guard the command on the row set alone, or move the other guard to a command of its own
+  ```
+
+- A `when_subject` refusal answers before `wrong-state`. On the reduction a closed row sent a
+  count over its bound answered the bound error, where the `when_related` form answered
+  `wrong-state`. The scenarios `state-space-closes-once`,
+  `accepted-promotion-is-applied-as-the-next-revision` and
+  `promotion-is-rejected-or-superseded-once` claim the state conflict there. Naming the source
+  state in the predicate (`all: [state == Enumerating, ...]`) keeps the order.
+
+Instead, the form the refusal's help names: each of the five commands declares
+`unknown_instance: true` for a key no row has, and each of its guards over the addressed row is a
+row set over the row's entity that selects the row by its key:
+
+```yaml
+      - name: no-promotion
+        unknown_instance: true
+        error: uxsearch.promotion.PromotionNotFound
+      - name: variant-mismatch
+        when_related:
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - variant_digest != input.variant_digest
+          exists: true
+        error: uxsearch.promotion.VariantMismatch
+```
+
+Ten guards changed (`over-bound` twice, `variant-mismatch` three times, `trade-off`,
+`gate-not-passed` twice, `not-a-trade-off`, `no-gains`). No outcome and no error changed its name.
+A key no row has now answers `no-state-space` with `StateSpaceNotFound` or `no-promotion` with
+`PromotionNotFound`; a row set answers after `wrong-state`, so a closed state space and a decided
+promotion answer their state conflict first, as before. Synthesis writes the five not-found
+scenarios itself, in place of the five `<command>/outcome/wrong-state` scenarios above, and the
+interpreted target passes them; the `wrong-state` branches are witnessed by the authored scenarios
+that claim `<entity>/state/<State>/refuses/<command>`. No other command of `domains/` reads its
+own addressed row through `when_related`.
+
+The ESS maintainers confirmed the form on 2026-11-26: the row set that selects the row by its key
+is the supported one, a `when_subject` guard beside a row set is not planned, and a `when_subject`
+refusal answering before `wrong-state` is by design. One of the reductions sent with the report
+showed a defect in ESS: synthesis wrote a not-found scenario that the interpreted target fails. It
+is fixed on a branch of ESS and in no release yet (0.99.7 still has it). This specification does
+not use the form that reaches it.
 
 ## UNMAPPED markers left in `ess/`
 

@@ -42,7 +42,7 @@
       "area": "Search engine design",
       "label": "ESS specification uxsearch v1",
       "status": "decided",
-      "detail": "Eight domains, valid and compiled (216 declarations). No scenarios yet: 156 outcomes have none.",
+      "detail": "Eight domains, valid and compiled (254 declarations). 50 authored scenarios cover all 286 refusals of its commands and pass on ESS's interpreted target. No implementation is held to it yet.",
       "href": "/docs/reference/specification"
     },
     {
@@ -63,7 +63,7 @@
       "area": "Search engine",
       "label": "Specification round 2",
       "status": "planned",
-      "detail": "Scenarios for the 156 outcomes, the 13 UNMAPPED markers resolved or moved to the gaps, an independent review.",
+      "detail": "Done: 50 authored scenarios, every refusal covered. Open: 19 UNMAPPED markers, each listed with its gap or its question to the owner, and an independent review.",
       "href": "/docs/roadmap"
     },
     {

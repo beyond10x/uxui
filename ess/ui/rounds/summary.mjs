@@ -1,14 +1,18 @@
-// summary.mjs <round id> <evidence dir> <round.json to write>
+// summary.mjs <round id> <evidence dir> <round.json to write> [<audit bars file>]
 // Reads what round.sh left in the evidence dir (versions.txt, page-checks.evidence.json, trial/,
 // audit/) and writes the round's numbers as one file: the round.json of plugin/skills/
 // ui-iteration-loop § 3.2. Deterministic code, no model, no browser. Every count is over the gating
 // viewports and both modes unless its key says otherwise.
+// With an audit bars file (studio.audit.json: `bars`, the most one cell of the page audit may show
+// per key) it also counts the cells over a bar: `audit.cells_over_a_bar` and `audit_bars`. A cell is
+// one page at one viewport in one mode. It prints one line per bar and never fails on one: a round
+// is a measurement.
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const [round, dir, target] = process.argv.slice(2);
+const [round, dir, target, barsFile] = process.argv.slice(2);
 if (!round || !dir || !target) {
-  console.error('usage: summary.mjs <round id> <evidence dir> <round.json to write>');
+  console.error('usage: summary.mjs <round id> <evidence dir> <round.json to write> [<audit bars file>]');
   process.exit(2);
 }
 
@@ -69,6 +73,19 @@ for (const a of audits) {
 const cells = Object.values(pages).flatMap((page) => Object.values(page));
 const pagesWhere = (test) => Object.entries(pages).filter(([, page]) => Object.values(page).some(test)).map(([path]) => path);
 
+// The audit against its bars: per key the cells over the bar, and the worst of them.
+const bars = barsFile ? json(barsFile).bars : null;
+const auditBars = {};
+for (const [key, bar] of Object.entries(bars ?? {})) {
+  const over = Object.entries(pages).flatMap(([path, page]) => Object.entries(page).filter(([, cell]) => cell[key] > bar).map(([cell, values]) => ({ page: path, cell, value: values[key] })));
+  if (cells.some((cell) => typeof cell[key] !== 'number')) {
+    console.error(`summary: ${barsFile}: the page audit has no number "${key}"`);
+    process.exit(2);
+  }
+  auditBars[key] = { bar, cells: cells.length, cells_over: over.length, worst: max(cells.map((cell) => cell[key])), over };
+  console.log(`summary: bar ${key} <= ${bar}: ${over.length === 0 ? 'held' : 'missed'}, ${over.length} of ${cells.length} cells over it, worst ${auditBars[key].worst}`);
+}
+
 const runs = list('trial');
 const scenarios = {};
 for (const run of runs) {
@@ -110,6 +127,7 @@ const summary = {
     'audit.inputs_placeholder_only.pages': pagesWhere((c) => c.inputs_placeholder_only > 0).length,
     'audit.tab_stops_unmarked.max': max(cells.map((c) => c.tab_stops_unmarked)),
     'audit.pages_tab_starts_outside_navigation': pagesWhere((c) => c.tab_first_region !== 'nav').length,
+    ...(bars ? { 'audit.cells_over_a_bar': sum(Object.values(auditBars).map((b) => b.cells_over)) } : {}),
     'trial.scenarios': names.length,
     'trial.scenarios_not_completed': notCompleted.length,
     'trial.runs_failed': runs.filter((r) => r.failed).length,
@@ -119,6 +137,7 @@ const summary = {
   },
   page_checks: outputs,
   page_check_misses: misses,
+  ...(bars ? { audit_bars: auditBars } : {}),
   audit: pages,
   trial: scenarios,
 };

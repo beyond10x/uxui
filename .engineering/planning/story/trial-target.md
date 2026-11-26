@@ -11,10 +11,32 @@ relations:
 - depends_on: story:toy-climb
 scope:
 - confidence: inferred
+  path: AGENTS.md
+- confidence: cited
+  path: docs/roadmap.md
+- confidence: inferred
   path: docs/targets.md
 - confidence: inferred
-  path: tools/scaffold/campaign.mjs
-revision: 5
+  path: engine/search/Cargo.toml
+- confidence: inferred
+  path: engine/search/src/campaign
+- confidence: inferred
+  path: engine/search/src/lib.rs
+- confidence: inferred
+  path: engine/search/src/main.rs
+- confidence: inferred
+  path: engine/search/src/probes/campaign.js
+- confidence: inferred
+  path: engine/search/tests/campaign.rs
+- confidence: inferred
+  path: engine/search/tests/fixtures/campaign
+- confidence: inferred
+  path: engine/search/tests/main.rs
+- confidence: inferred
+  path: website/data/status.json
+- confidence: inferred
+  path: website/docs/roadmap.md
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T13:54:16Z", actor: "human:operator", revision: 3, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-25T13:54:16Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"review_outcome":2}}}

@@ -39,7 +39,10 @@ always_visible:
     css: '[data-ui-path="pages/campaigns.climb/sections/summary/fields/state"]'
     path_prefix: /campaigns/climb
   - name: gate
-    css: '[data-ui-path="pages/promotions.detail/sections/decision/columns/gate"]'
+    css: '[data-ui-path^="pages/promotions.detail/sections/decision/"][data-ui-path$="/columns/gate"]'
+    path_prefix: /promotions/detail
+  - name: owner action
+    css: '[data-ui-path^="pages/promotions.detail/sections/decision/rows/"][data-ui-path*="/row_actions/"]'
     path_prefix: /promotions/detail
 keyboard:
   must_reach: [navigation, theme toggle]

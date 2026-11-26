@@ -21,20 +21,31 @@ regions cut by the frame, rows above the primary action); themes tie, because th
 reads no theme. `ux-search cost` measures what one evaluation costs per UI state; its numbers are
 not measured yet.
 
-One campaign has run in a browser: the engine's first on the browser adapter, over this site's
-landing page (144 variants, 864 renders, a frontier of 16; the page as shipped ranks 35th). A
-person's pick promoted as a pull request does not exist yet.
+Two campaigns have run in a browser. The first is compiled into the engine, over this site's
+landing page (144 variants, 864 renders, a frontier of 16; the page as shipped ranks 35th). The
+second takes its target from a declaration file, over one page of the generated studio (48
+variants, 192 renders, a frontier of 12; the page as shipped ranks 36th); on the current theme
+three of its four axes move no term, and its variants set custom properties only: none reorders
+or removes anything. A person's pick promoted as a pull request does not exist yet, and no
+campaign has run on a page outside this repository.
 
 Everything else about the engine on this site is a design. No search explores UI states: each
-variant is its page as opened. No climb reaches the studio. The ESS
-specification is valid and compiled, but has no scenarios. The numbers in the design (evaluation
+variant is its page as opened. The ESS specification is valid and compiled, and 50 authored
+scenarios cover every refusal of its commands on ESS's interpreted target, but no implementation
+is held to it: the engine that exists was not generated from it. The numbers in the design (evaluation
 counts, seconds per stage) rest on an assumed 50 µs per layout call and one measurement on a loaded
 host; the roadmap's step 3 replaces them.
 
-## The plugin has been applied once
+## The plugin has been applied twice, without a person
 
-The skill has run one round, on its own explainer page (R-01), with the hermetic levels and two AI
-reviewers only: no person, no questionnaire, no keyed replay. What that round showed:
+The skill has run two rounds on the studio this repository generates (`ess/ui/rounds/R-01/` and
+`R-02/`), with scripted scenarios, page checks and a page audit: no person, no questionnaire, no
+keyed replay, no axe-core, no screen-only user. After the second round its hard gates 1, 2 and 3
+still fail on the studio and 20 findings are open. The two rounds were measured on two machines
+with one browser build, and pixel values of unchanged input differed between them by up to 40 px.
+
+Before that the skill ran one round on its own explainer page (R-01 there), with the hermetic
+levels and two AI reviewers only. What that round showed:
 
 - **Trade-offs are blocked.** A navigation the reviewers asked for cut one value from 23 to 0 and
   made 20 of 168 gating values worse. It landed only through a decision id: the ratchet treats a
