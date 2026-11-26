@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T05:55:40Z",
+  "actor": "human:operator",
+  "artifact": "story:track-ess-gaps",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "2026-11-26: ESS 0.99.5 adopted in engine/search (tag held in one place by tests/ess_tag.rs); docs/ess-gaps.md read against ESS releases up to 0.99.5: 1 of 18 gaps closed (item 9, by ESS 0.63.0, adopted in uxui pull request 1), 17 open with no release closing them; two needs of the generator round closed by ESS 0.98.1, one adopted in generators/own/assets/runtime.js; engine/search tests 108 passed; sh tools/gate.sh: every step passed. The story stays active",
+    "reference": "docs/ess-gaps.md"
+  }
+}
