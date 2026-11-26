@@ -39,8 +39,8 @@ Recommendation: B, from step 2.
 Default if unanswered by the next round: B, because the order recommends it and B makes no key
 worse. The round was ordered with yes as its default.
 
-Answer: none yet. B is built in the change of this round. An answer A takes it back: remove
-`style: list` from the section, and UXF-001 is open again.
+Answer: B, the owner, 2026-11-26 (D13). B is built in the change of this round and stays. An answer
+A would have taken it back: remove `style: list` from the section, and UXF-001 is open again.
 
 ## How the table was filled
 
