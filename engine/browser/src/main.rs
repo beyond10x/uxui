@@ -470,7 +470,10 @@ fn checks_command(args: &[String]) -> ExitCode {
         started_at,
         ended_at: evidence::now(),
     };
-    let document = evidence::document_with_journeys(&header, &config, &pages, &journeys);
+    let document = evidence::with_timing(
+        evidence::document_with_journeys(&header, &config, &pages, &journeys),
+        &recorded,
+    );
     let text = evidence::text(&document);
     match get(&opts, "out") {
         Some(out) => {

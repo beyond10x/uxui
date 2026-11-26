@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- ux-browser checks writes where it spent its time: `run.timing`, outside the evidence, holds per
+  page and viewport the milliseconds of the browser context, the measured load with its ready
+  condition, the settle wait, and per mode the switch, the overflow probe, the always-visible items at
+  the top, the scroll settle, the items at the bottom and the keyboard walk (its reset, each of its
+  loads, its Tab presses), with the number of page loads. The evidence of the same measurements is
+  the same bytes. `docs/browser-adapter.md`, The run's times.
+- The first keyboard walk of a page and viewport starts on the page the checks just measured, which
+  they only scrolled and read: with no element focused and nothing selected it is scrolled to the top
+  and taken as fresh, else loaded. The Tab walk after the skip link's Enter, each activation and a
+  second walk still load the page. llm's configuration (a skip link, the walk in dark) loads each page
+  and viewport 2 times where 0.11.0 loaded it 3 times. `docs/browser-adapter.md`, The keyboard walk.
 - The documentation landing page ships the owner's pick from the frontier of the landing-page
   campaign: `docs-system.left.1+1.features-first.d85.h85`, applied by `ux-search landing promote`
   (`docs/promotions/2026-11-26-docs-landing.evidence.json`, with the copy of the measurements the
