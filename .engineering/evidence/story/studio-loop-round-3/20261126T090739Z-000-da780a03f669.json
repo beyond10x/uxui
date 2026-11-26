@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T09:07:39Z",
+  "actor": "human:operator",
+  "artifact": "story:studio-loop-round-3",
+  "kind": "story",
+  "revision": 16,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "sh ess/ui/rounds/round.sh R-03: always-visible misses 20 to 0, pages without a title 4 to 0, scenarios not completed 5 to 4 of 11; the notice expectation missed in 28 of 44 runs",
+    "reference": "ess/ui/rounds/R-03/round.json"
+  }
+}

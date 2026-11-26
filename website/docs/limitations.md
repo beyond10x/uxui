@@ -21,13 +21,18 @@ regions cut by the frame, rows above the primary action); themes tie, because th
 reads no theme. `ux-search cost` measures what one evaluation costs per UI state; its numbers are
 not measured yet.
 
-Two campaigns have run in a browser. The first is compiled into the engine, over this site's
+Three campaigns have run in a browser. The first is compiled into the engine, over this site's
 landing page (144 variants, 864 renders, a frontier of 16; the page as shipped ranks 35th). The
 second takes its target from a declaration file, over one page of the generated studio (48
 variants, 192 renders, a frontier of 12; the page as shipped ranks 36th); on the current theme
 three of its four axes move no term, and its variants set custom properties only: none reorders
-or removes anything. A person's pick promoted as a pull request does not exist yet, and no
-campaign has run on a page outside this repository.
+or removes anything. The third is the same command on one list page of an admin console in a
+private repository, on its fixtures (32 variants, 192 renders, a frontier of 6; the page as
+shipped ranks 28th). Its first run measured the page with a navigation open under the resting
+pointer and no check caught it; the engine parks the pointer since. On that page neither the
+viewport nor the mode moved a number, and the terms have nothing to say about rows in view, which
+is what a list page is for. A person's pick promoted as a pull request does not exist yet, for any
+of the three.
 
 Everything else about the engine on this site is a design. No search explores UI states: each
 variant is its page as opened. The ESS specification is valid and compiled, and 50 authored
@@ -36,13 +41,17 @@ is held to it: the engine that exists was not generated from it. The numbers in 
 counts, seconds per stage) rest on an assumed 50 µs per layout call and one measurement on a loaded
 host; the roadmap's step 3 replaces them.
 
-## The plugin has been applied twice, without a person
+## The plugin has been applied three times, without a person
 
-The skill has run two rounds on the studio this repository generates (`ess/ui/rounds/R-01/` and
-`R-02/`), with scripted scenarios, page checks and a page audit: no person, no questionnaire, no
-keyed replay, no axe-core, no screen-only user. After the second round its hard gates 1, 2 and 3
-still fail on the studio and 20 findings are open. The two rounds were measured on two machines
-with one browser build, and pixel values of unchanged input differed between them by up to 40 px.
+The skill has run three rounds on the studio this repository generates (`ess/ui/rounds/R-01/` to
+`R-03/`), with scripted scenarios, page checks and a page audit: no person, no questionnaire, no
+keyed replay, no axe-core, no screen-only user. After the third round hard gate 2 passes; gates 1
+and 3 still fail on the studio and 20 findings are open, none of the highest severity. Two of the
+findings cannot be closed in the studio: the generated app writes a notice from its command's name
+and draws a list of records as JSON. The first two rounds were measured on two machines with one
+browser build, and pixel values of unchanged input differed between them by up to 40 px. The
+largest layout shift of one page changes from run to run on unchanged input, between 0.003 and
+0.0284, so a round cannot hold that value against the round before.
 
 Before that the skill ran one round on its own explainer page (R-01 there), with the hermetic
 levels and two AI reviewers only. What that round showed:

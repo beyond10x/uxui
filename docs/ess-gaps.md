@@ -167,6 +167,24 @@ this section are slot's (its `docs/design/ess-ui-gaps.md`), not those of `ess/GA
   `a-list-field-names-the-text-that-joins-its-items-in-every-renderer.md` (both `active`). The words the
   request asks for (`effort.actions 6`) need text composed from chosen members: D5, filed as a need of
   `a-ui-expression-joins-texts.md` (`draft`, its fit review owed).
+  Found again in loop round R-03 on the studio (2026-11-26, ESS 0.99.2; UXF-005, UXF-025): no `as` of a
+  field draws a list of records or a map as words in the generated React app (`formatValue` joins list
+  entries with ", " and writes every object as JSON). A field path with a dot reads a member there, and
+  through a list the member of every entry (`losses.requirement_id`); the terminal renderer reads a member
+  through an object but prints nothing for a path through a list, and the reference defines `field` as a
+  name, not a path. The studio declares each list of a promotion's decision twice and hides one in its
+  theme. Missing: one rendering of a list of records that both renderers share (one row per record, its
+  members as columns, a tone per member), or a field path through a list that both resolve the same way.
+  Not sent yet as a request of its own.
+- **A notice's words** (loop round R-03, 2026-11-26, ESS 0.99.2; UXF-010). An action, a confirm and a form
+  of an `ess-ui/1` document cannot name the text of the notice their command answers with. The generated
+  React runtime writes it in one place (`src/runtime/actions.tsx`, `runCommand`) from the command's
+  qualified name: `<command> done`, `<command> sent`, `<command> failed: <reason>` and `<command> done in
+  fixture mode; its effect was not applied: <reason>`. Missing: a key per outcome on the action, the
+  confirm and the form, with the row's fields at hand, so that the studio can say "Campaign cp-01
+  stopped". Until then every notice of the studio reads `uxsearch.search.StopCampaign done`; the round
+  counts it as `trial.runs_notice_expectation_missed`, 28 of 44 runs. Sent to the ESS maintainers on
+  2026-11-26; no story of ESS named yet.
 - **A cell that opens a page** (C4). `as: link` takes the value as an external address and `act` on a cell
   is refused. D3, filed as `a-column-or-record-field-opens-a-page-of-the-document-and-a-test-acts-on-that-cell.md`
   (`draft`, accepted in its fit review; the key would be `navigate`).

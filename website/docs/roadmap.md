@@ -96,8 +96,11 @@ second; the first code is a thin vertical slice that measures the assumption the
    Exists: `ux-search campaign` (`engine/search`), the campaign whose target is a declaration file (page,
    environments, axes as custom-property values, hard rules and terms), so a page of another repository is
    climbed without a change to the engine (`docs/targets.md`). Proven on a page of this repository's own
-   generated studio, served on its fixtures (`docs/campaign-2026-11-26-studio-engine.md`). Not yet: the run in
-   the private repository.
+   generated studio, served on its fixtures (`docs/campaign-2026-11-26-studio-engine.md`). Run on 2026-11-26
+   on one list page of the admin console, on its fixtures: 32 variants, 192 renders, a frontier of 6, the
+   page as shipped at rank 28; the first run measured the page with a navigation open under the pointer, and
+   the engine was changed before the second (`docs/trial-2026-11-26-outside-target.md`, the generic
+   findings). Not yet: a term for a list page (rows in view), and a promotion step for a declared campaign.
 7. **Ratchet integration.** When ratchet's format settles: presets from `presets/web-ux.ratchet.yaml`, gates on
    merge and promote, and the migration of one of the organization's seven UI-loop copies (each with its own
    baseline file) onto ratchet + uxui, the smallest first.

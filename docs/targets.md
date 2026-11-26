@@ -131,13 +131,16 @@ A number is of the page in one state. The run sets that state the same way for e
   it. `measurements.json` holds the position per environment (`pointer`). A page whose chrome is driven by
   hover names a pointer position over neutral ground; to measure the hovered state, name a position on the
   element.
-- **Focus**: the run focuses nothing and emulates no focus. What the page focuses itself when it loads stays
-  focused.
+- **Focus**: the run focuses no element. The browser adapter turns focus emulation on for every page
+  (`Emulation.setFocusEmulationEnabled`), so a page is drawn as one in a focused window although the
+  browser is headless. What the page focuses itself when it loads stays focused.
 - **Motion**: `prefers-reduced-motion: reduce` is emulated, and after a style sheet is injected every running
   animation and transition is taken to its end before the page is measured.
 - **Mode**: `media` emulates `prefers-color-scheme`; a mode without `media` is rendered with the scheme
   `light`. `attribute` is set on the root element before the page's scripts run and again when the page is
-  ready, and must still be there at every measurement; a page that sets the attribute itself is refused.
+  ready, and must still be there at every measurement. A page that writes the attribute itself when it
+  starts is measured with the declared value, because the run writes it again when the page is ready; a
+  page that changes it after that is refused.
   `query` is the query of the page's URL, and what it does is up to the page. `expect` is the read-back: an
   attribute of the root element with its value, a selector that matches at least one element, or both, read
   in every render of the mode. A miss is refused with the mode, the environment and what was read. A mode by
@@ -151,16 +154,19 @@ A number is of the page in one state. The run sets that state the same way for e
 ### A private target
 
 `measurements.json` holds the declaration's whole text (the page's path, its selectors), and the report
-prints the page's path in its first line. For a target that is private, both files and the screenshots are
-as private as the target: they stay in its repository or outside any repository, and no document of this
-repository names its page, its selectors or its product.
+prints the page's path in its first line. The notes behind the counts hold the first 40 characters of each
+named element's visible text, in `measurements.json` and in the report with `--notes`. For a target that is
+private, both files and the screenshots are as private as the target: they stay in its repository or
+outside any repository, and no document of this repository names its page, its selectors or its product.
 
 ### Checklist: a target outside this repository
 
 1. A build of the app with fixture data and no backend: the page asks for nothing but its own origin, with
    `GET` and `HEAD`. A request the run's guard fails ends the run.
 2. A static server with a single-page fallback, so a deep link answers 200 with the app's `index.html`. A
-   server without it answers 404 on the page's path, and the run stops there.
+   server without it answers 404 on the page's path, and the run stops there. When the build ran on another
+   machine and the server is the app's own (a bundler's), the app's packages are installed on the machine
+   that serves as well.
 3. A free loopback port: start the server on port 0, read the port it took from its log, and end the server
    by its PID when the run is over.
 4. Look at the page and its data in a browser before the run: the fixture data shows what a visitor sees
@@ -168,7 +174,9 @@ repository names its page, its selectors or its product.
    the ready selector matches only when the data is drawn.
 5. Hover-driven chrome: when a navigation or a toolbar opens under the pointer, name `page.pointer` over a
    place that opens nothing, and check the first screenshot.
-6. A mode by query or by attribute gets an `expect`, and the screenshots of both modes are looked at.
+6. A mode by query or by attribute gets an `expect`, and the screenshots of both modes are looked at. A
+   miss is refused at the first measurement of that mode, which can be after the renders of the modes
+   before it; no file is written.
 7. Read the run's lines per axis: an axis that changes nothing on this page is dropped from the declaration
    or pointed at a property the page reads.
 8. Run `campaign report --notes` and look at the named elements before a count is taken as a finding.

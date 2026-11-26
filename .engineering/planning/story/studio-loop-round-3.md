@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:studio-loop-round-3
 kind: story
-status: draft
+status: implemented
 title: 'Studio loop round 3: the live climb, titles, notices and values as text'
 summary: Fix UXF-004, UXF-002, UXF-008, UXF-010 and UXF-005 on the studio and measure round R-03 against R-02
 relations:
@@ -10,16 +10,30 @@ relations:
 - depends_on: story:studio-loop-round-2
 scope:
 - confidence: cited
+  path: docs/ess-gaps.md
+- confidence: cited
   path: ess/ui/findings
 - confidence: cited
   path: ess/ui/rounds
+- confidence: cited
+  path: ess/ui/rounds/R-03
+- confidence: cited
+  path: ess/ui/rounds/round.sh
+- confidence: cited
+  path: ess/ui/rounds/summary.mjs
+- confidence: cited
+  path: ess/ui/rounds/trial.mjs
 - confidence: cited
   path: ess/ui/studio.ui.yaml
 - confidence: cited
   path: ess/ui/tests/studio.yaml
 - confidence: cited
   path: themes/studio.css
-revision: 8
+revision: 17
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T07:26:33Z", actor: "human:operator", revision: 9}
+- {from: "proposed", to: "active", at: "2026-11-26T07:26:33Z", actor: "human:operator", revision: 10}
+- {from: "active", to: "implemented", at: "2026-11-26T10:00:59Z", actor: "human:operator", revision: 17, decided_on: {"recorded":{"test_result":1}}}
 ---
 # Story: Studio loop round 3: the live climb, titles, notices and values as text
 
@@ -77,3 +91,29 @@ round.
 
 Drafted on 2026-11-26 from `ess/ui/rounds/R-02/triage.md` and the order of that day on UXF-005, given
 on the owner's delegation.
+
+## Decision on 2026-11-26
+
+Round R-03 is on record in `ess/ui/rounds/R-03/`. Against the acceptance:
+
+- always-visible misses on the live climb: 0 (20 in R-02). Met.
+- pages without a title: 0 (4 in R-02). Met.
+- no JSON object in the gate decision of a promotion: met, held by two expectations of the card
+  `owner-trade-off` that were missed in 4 of 4 runs before the change.
+- no notice contains a command's name: **not met, and not reachable in this repository.** The words of
+  a notice are written by the generated runtime from the command's qualified name; an `ess-ui/1`
+  action, confirm or form has no key for them (ESS 0.99.2). The expectation exists and fails (28 of 44
+  runs, `trial.runs_notice_expectation_missed`). By the skill's triage rule 5 the finding (UXF-010) is
+  a known loss; the need is in `docs/ess-gaps.md` ("A notice's words") and was sent to the ESS
+  maintainers on 2026-11-26. The line was written into this story before anyone had looked at where
+  the words come from.
+- no metric of R-02 worse beyond the tolerance: every count is equal or better. One value is over:
+  `page_checks.layout_shift.max`, 0.0176 to 0.0284, 0.0008 past the tolerance of 0.01. It is the start
+  form's value, which changes from run to run on unchanged input (UXF-023): 0.003 to 0.0284 in 7 runs
+  on R-02's theme, 0.0062 to 0.0284 in 10 runs on this round's, with the same largest value. Read as
+  in round R-02: not a movement of this round.
+- each closed finding names its regression asset: met (UXF-004, UXF-002, UXF-008).
+
+The story is closed on that reading. What it leaves: UXF-010 until ESS has the key; UXF-005 for the
+maps and the other lists; UXF-026 (the live climb still scrolls, gate 1); a stable measure of the
+layout shift (UXF-023), without which the line "no metric worse" cannot be held for that value.
