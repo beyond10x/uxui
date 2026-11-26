@@ -1,0 +1,142 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.rules.DeclareRule/outcome/hard-unbound
+  - uxsearch.rules.DeclareRule/outcome/hard-metric-role
+  - uxsearch.rules.DeclareRule/outcome/soft-metric-role
+domain: uxsearch.rules
+scenario: rule-strength-matches-its-metric-and-requirement
+# Story spec-round-2-scenarios; docs/concept.md § 4, docs/ratchet.md. A hard rule prunes, so it
+# names the requirement its violation would break and reads a metric of role hard_rule. A soft
+# rule scores, so it names no requirement and reads a metric that is not a hard rule's.
+summary: A hard rule is bound to a requirement and a hard_rule metric; a soft rule to neither
+arrange:
+  - instance: page
+    entity: uxsearch.design.Target
+    setup:
+      identity: 00000000-0000-4000-8000-000000000001
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        name: settings page
+        scope: page
+        node_path: pages/settings
+        members: []
+        host_slot: false
+        harness_widths_px: []
+        adapter: ess-ui
+      state: Declared
+  - instance: visible
+    entity: uxsearch.metrics.MetricDefinition
+    setup:
+      identity: attention.visible_required
+      fields:
+        summary: Required nodes inside the viewport
+        unit: ratio
+        direction: higher_is_better
+        scope: state
+        kind: exact
+        timing: static
+        role: hard_rule
+        target_scopes: [page]
+        preset_family: attention
+        version: 1
+      state: Active
+  - instance: density
+    entity: uxsearch.metrics.MetricDefinition
+    setup:
+      identity: layout.density
+      fields:
+        summary: Occupied share of the viewport
+        unit: ratio
+        direction: lower_is_better
+        scope: page
+        kind: exact
+        timing: static
+        role: kpi_candidate
+        target_scopes: [page]
+        preset_family: layout
+        version: 1
+      state: Active
+  - instance: visible-requirement
+    entity: uxsearch.ratchet.RequirementBinding
+    setup:
+      identity: settings.visible_required
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        metric_key: attention.visible_required
+      state: Bound
+  - instance: density-requirement
+    entity: uxsearch.ratchet.RequirementBinding
+    setup:
+      identity: settings.density
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        metric_key: layout.density
+      state: Bound
+  - {instance: rule, entity: uxsearch.rules.DesignRule}
+timeline:
+  # A hard rule without a requirement would prune with nothing to answer for.
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.rules.DeclareRule
+    actor: uxsearch.rules.RuleAuthor
+    input:
+      target_id: {$instance: page}
+      name: required nodes visible
+      strength: hard
+      scope: page
+      check: required_visible
+      node_paths: []
+      metric_key: {$instance: visible}
+    outcome: hard-unbound
+    error: {name: uxsearch.rules.HardRuleUnbound, fields: {strength: hard}}
+    no_events: [uxsearch.rules.RuleDeclared]
+  # A hard rule over a metric that is a KPI candidate.
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.rules.DeclareRule
+    actor: uxsearch.rules.RuleAuthor
+    input:
+      target_id: {$instance: page}
+      name: density limit
+      strength: hard
+      scope: page
+      check: density
+      node_paths: []
+      metric_key: {$instance: density}
+      requirement_id: {$instance: density-requirement}
+    outcome: hard-metric-role
+    error: {name: uxsearch.rules.MetricRoleMismatch, fields: {metric_key: layout.density}}
+    no_events: [uxsearch.rules.RuleDeclared]
+  # A soft rule over a metric of role hard_rule.
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.rules.DeclareRule
+    actor: uxsearch.rules.RuleAuthor
+    input:
+      target_id: {$instance: page}
+      name: required nodes visible, scored
+      strength: soft
+      scope: page
+      check: required_visible
+      node_paths: []
+      metric_key: {$instance: visible}
+    outcome: soft-metric-role
+    error: {name: uxsearch.rules.MetricRoleMismatch, fields: {metric_key: attention.visible_required}}
+    no_events: [uxsearch.rules.RuleDeclared]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.rules.DeclareRule
+    actor: uxsearch.rules.RuleAuthor
+    input:
+      target_id: {$instance: page}
+      name: required nodes visible
+      strength: hard
+      scope: page
+      check: required_visible
+      node_paths: []
+      metric_key: {$instance: visible}
+      requirement_id: {$instance: visible-requirement}
+    outcome: declared
+    capture: {instance: rule, event: uxsearch.rules.RuleDeclared, field: rule_id}
+    events: [{event: uxsearch.rules.RuleDeclared, payload: {target_id: 00000000-0000-4000-8000-000000000001, strength: hard}}]
+assert:
+  - view: uxsearch.rules.Rules
+    contains: {rule_id: {$instance: rule}, strength: hard, metric_key: attention.visible_required, requirement_id: settings.visible_required, state: Active}
+  - view: uxsearch.rules.Rules
+    counts: {at_least: 1, at_most: 1}

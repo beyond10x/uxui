@@ -1,0 +1,191 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.journeys.RecordUiState/outcome/negative-seq
+  - uxsearch.journeys.RecordUiState/outcome/negative-virtual-time
+  - uxsearch.journeys.RecordUiState/outcome/negative-depth
+  - uxsearch.journeys.CompleteStateSpace/outcome/negative-count
+  - uxsearch.journeys.TruncateStateSpace/outcome/negative-count
+  - uxsearch.journeys.StateSpace/invariant/after/uxsearch.journeys.CompleteStateSpace/completed
+  - uxsearch.journeys.StateSpace/invariant/after/uxsearch.journeys.TruncateStateSpace/truncated
+  - uxsearch.journeys.UiState/invariant/after/uxsearch.journeys.RecordUiState/recorded
+domain: uxsearch.journeys
+scenario: state-space-inputs-stay-in-range
+# Story spec-round-2-scenarios; docs/state-space.md. A state space is never of the `static`
+# stage (a static evaluation reads the document alone), its count of states is 0 or above, and a
+# UI state's sequence number, virtual time and depth are 0 or above (the invariants of StateSpace
+# and UiState). An input outside its range is refused with the name of that input, while the
+# enumeration runs too, and nothing is written; the same calls inside the ranges are taken.
+summary: A state space or UI state with a static stage or a number below 0 is refused by the name of that input
+arrange:
+  - instance: journey
+    entity: uxsearch.journeys.Journey
+    setup:
+      identity: 00000000-0000-4000-8000-000000000030
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: change the email
+        test_file: tests/settings.yaml
+        test_name: change the email
+        required_nodes: []
+        required_selectors: []
+        bounds: {max_states: 3, max_depth: 2, max_virtual_time_ms: 1000}
+      state: Active
+  - instance: variant
+    entity: uxsearch.design.Variant
+    setup:
+      identity: "sha256:variant-a"
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        target_id: 00000000-0000-4000-8000-000000000001
+        first_route: {design_space_id: 00000000-0000-4000-8000-000000000020, origin: search, choices: [], applications: []}
+        routes: []
+      state: Candidate
+  - instance: space
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-a"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-a"
+        stage: full
+        bounds: {max_states: 3, max_depth: 2, max_virtual_time_ms: 1000}
+        states_count: 0
+      state: Enumerating
+  - instance: other
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-b"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-a"
+        stage: journey_paths
+        bounds: {max_states: 3, max_depth: 2, max_virtual_time_ms: 1000}
+        states_count: 0
+      state: Enumerating
+timeline:
+  # A key no state space has, a journey and a variant that exist: only the stage is refused.
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.journeys.EnumerateStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: "sha256:space-static"
+      journey_id: {$instance: journey}
+      variant_digest: {$instance: variant}
+      stage: static
+    outcome: static-stage
+    error: {name: uxsearch.journeys.ValueOutOfRange, fields: {value: enumeration_stage}}
+    no_events: [uxsearch.journeys.StateSpaceStarted]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      seq: -1
+      state_digest: "sha256:state-0"
+      page: pages/settings
+      selection: []
+      virtual_time_ms: 0
+      depth: 0
+      evaluable: true
+    outcome: negative-seq
+    error: {name: uxsearch.journeys.ValueOutOfRange, fields: {value: sequence_number}}
+    no_events: [uxsearch.journeys.UiStateReached]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      seq: 0
+      state_digest: "sha256:state-0"
+      page: pages/settings
+      selection: []
+      virtual_time_ms: -1
+      depth: 0
+      evaluable: true
+    outcome: negative-virtual-time
+    error: {name: uxsearch.journeys.ValueOutOfRange, fields: {value: virtual_time}}
+    no_events: [uxsearch.journeys.UiStateReached]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      seq: 0
+      state_digest: "sha256:state-0"
+      page: pages/settings
+      selection: []
+      virtual_time_ms: 0
+      depth: -1
+      evaluable: true
+    outcome: negative-depth
+    error: {name: uxsearch.journeys.ValueOutOfRange, fields: {value: state_depth}}
+    no_events: [uxsearch.journeys.UiStateReached]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.journeys.CompleteStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      states_count: -1
+    outcome: negative-count
+    error: {name: uxsearch.journeys.ValueOutOfRange, fields: {value: count_of_states}}
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.journeys.TruncateStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: other}
+      states_count: -1
+      bound_hit: max_states
+    outcome: negative-count
+    error: {name: uxsearch.journeys.ValueOutOfRange, fields: {value: count_of_states}}
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  # Inside the ranges: the state is recorded and the space closes with its count.
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      seq: 0
+      state_digest: "sha256:state-0"
+      page: pages/settings
+      selection: []
+      virtual_time_ms: 0
+      depth: 0
+      evaluable: true
+    outcome: recorded
+    events: [{event: uxsearch.journeys.UiStateReached}]
+  - at: 2026-01-05T09:00:07Z
+    command: uxsearch.journeys.CompleteStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      states_count: 1
+    outcome: completed
+    events: [{event: uxsearch.journeys.StateSpaceClosed}]
+  # A count of 0 is in range: the other enumeration hit its time bound before its first state.
+  - at: 2026-01-05T09:00:08Z
+    command: uxsearch.journeys.TruncateStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: other}
+      states_count: 0
+      bound_hit: max_virtual_time
+    outcome: truncated
+    events: [{event: uxsearch.journeys.StateSpaceClosed}]
+assert:
+  - view: uxsearch.journeys.StateSpaces
+    contains: {state_space_key: "sha256:space-a", states_count: 1, state: Complete}
+  - view: uxsearch.journeys.StateSpaces
+    contains: {state_space_key: "sha256:space-b", states_count: 0, state: Truncated}
+  - view: uxsearch.journeys.StateSpaces
+    excludes: {state_space_key: "sha256:space-static"}
+  - view: uxsearch.journeys.StateSpaces
+    satisfies: states_count >= 0
+  - view: uxsearch.journeys.UiStates
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.journeys.UiStates
+    satisfies: seq >= 0
+  - view: uxsearch.journeys.UiStates
+    satisfies: virtual_time_ms >= 0
+  - view: uxsearch.journeys.UiStates
+    satisfies: depth >= 0

@@ -1,4 +1,7 @@
-type: ess-scenario/6
+type: ess-scenario/7
+covers:
+  - uxsearch.ratchet.RecordMetricEvidence/outcome/value-mismatch
+  - uxsearch.ratchet.RecordMetricEvidence/outcome/observed
 domain: uxsearch.ratchet
 scenario: evidence-copies-its-evaluation
 # Hardening target 6 (R9): a value the evaluation did not compute is refused, and observed

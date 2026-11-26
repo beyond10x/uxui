@@ -145,7 +145,7 @@ entities:
         type: uxsearch.metrics.Aggregation
       # UNMAPPED: each term's metric must be in the catalogue, not deprecated, not a diagnostic, and
       # valid for the target's scope; a guard over the metric keys inside a list of structs is not
-      # expressible (GAPS.md), so DeclareKpi checks it as an external cause.
+      # expressible (GAPS.md G18), so DeclareKpi checks it as an external cause.
       - name: terms
         type: List<uxsearch.metrics.KpiTerm>
       - name: direction
@@ -242,6 +242,12 @@ errors:
       - name: weight
         type: Decimal
 
+  - name: uxsearch.metrics.InvalidVersion
+    summary: A metric's version is not at least 1.
+    fields:
+      - name: version
+        type: Integer
+
 commands:
   - name: uxsearch.metrics.DefineMetric
     naming:
@@ -271,6 +277,15 @@ commands:
       - name: version
         type: Integer
     outcomes:
+      # A metric's version starts at 1 (the entity's invariant).
+      - name: invalid-version
+        when: version < 1
+        error: uxsearch.metrics.InvalidVersion
+        payload:
+          uxsearch.metrics.InvalidVersion:
+            version: input.version
+        summary: Nothing was defined.
+
       - name: defined
         unknown_instance: true
         creates: uxsearch.metrics.MetricDefinition

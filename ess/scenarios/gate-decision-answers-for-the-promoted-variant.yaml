@@ -1,0 +1,193 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.promotion.RecordGateDecision/outcome/variant-mismatch
+  - uxsearch.promotion.RecordGateDecision/outcome/evidence-of-another-variant
+  - uxsearch.promotion.RecordGateDecision/outcome/hard-rule-traded
+  - uxsearch.promotion.RecordGateDecision/outcome/recorded-insufficient-evidence
+  - uxsearch.promotion.Promotion/transition/record_gate/by/uxsearch.promotion.RecordGateDecision/recorded-insufficient-evidence
+  - uxsearch.promotion.Promotion/invariant/after/uxsearch.promotion.RecordGateDecision/recorded-insufficient-evidence
+  - uxsearch.promotion.Promotion/invariant/after/uxsearch.promotion.RecordGateDecision/recorded-fail
+  - uxsearch.promotion.Promotion/invariant/after/uxsearch.promotion.RecordGateDecision/recorded-pass
+domain: uxsearch.promotion
+scenario: gate-decision-answers-for-the-promoted-variant
+# Story spec-round-2-scenarios; docs/ratchet.md § 5. The gate decides about the variant the
+# promotion names, on evidence of that variant. A requirement an Active hard rule answers for is
+# never among the losses of a trade-off. A promotion stays Proposed through every decision, and
+# the latest one stands; it is marked a trade-off only together with a fail.
+summary: A gate decision is recorded for the promotion's own variant and evidence, and never trades a hard rule's requirement
+arrange:
+  - instance: promotion
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000070
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-a"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: fewer actions, one more glance
+        gate: pending
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: []
+        losses: []
+        gains: []
+      state: Proposed
+  - instance: evidence
+    entity: uxsearch.ratchet.EvidenceRecord
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000e0
+      fields:
+        requirement_id: settings.actions
+        metric_key: effort.actions
+        metric_version: 1
+        unit: actions
+        scope: journey
+        kind: exact
+        variant_digest: "sha256:variant-a"
+        stage: full
+        base_revision: rev-1
+        ess_version: 0.98.0
+        assessor: engine
+        status: observed
+        observed: 5
+        findings: []
+      state: Recorded
+  - instance: evidence-of-b
+    entity: uxsearch.ratchet.EvidenceRecord
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000e1
+      fields:
+        requirement_id: settings.actions
+        metric_key: effort.actions
+        metric_version: 1
+        unit: actions
+        scope: journey
+        kind: exact
+        variant_digest: "sha256:variant-b"
+        stage: full
+        base_revision: rev-1
+        ess_version: 0.98.0
+        assessor: engine
+        status: observed
+        observed: 4
+        findings: []
+      state: Recorded
+  - instance: hard-rule
+    entity: uxsearch.rules.DesignRule
+    setup:
+      identity: 00000000-0000-4000-8000-000000000080
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: required nodes visible
+        strength: hard
+        scope: journey
+        check: required_visible
+        node_paths: []
+        metric_key: attention.visible_required
+        requirement_id: settings.visible_required
+      state: Active
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-b"
+      verdict: pass
+      policy_revision: policy-7
+      evidence_ids: [{$instance: evidence-of-b}]
+      requirement_verdicts: [{requirement_id: settings.actions, verdict: pass}]
+      trade_off_only: false
+      losses: []
+      gains: []
+    outcome: variant-mismatch
+    error: {name: uxsearch.promotion.VariantMismatch, fields: {promotion_id: 00000000-0000-4000-8000-000000000070}}
+    no_events: [uxsearch.promotion.GateDecided]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-a"
+      verdict: pass
+      policy_revision: policy-7
+      evidence_ids: [{$instance: evidence}, {$instance: evidence-of-b}]
+      requirement_verdicts: [{requirement_id: settings.actions, verdict: pass}]
+      trade_off_only: false
+      losses: []
+      gains: []
+    outcome: evidence-of-another-variant
+    error: {name: uxsearch.promotion.EvidenceOfAnotherVariant, fields: {promotion_id: 00000000-0000-4000-8000-000000000070}}
+    no_events: [uxsearch.promotion.GateDecided]
+  # The loss named is the requirement of an Active hard rule.
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-a"
+      verdict: fail
+      policy_revision: policy-7
+      evidence_ids: [{$instance: evidence}]
+      requirement_verdicts: [{requirement_id: settings.visible_required, verdict: fail}]
+      trade_off_only: true
+      losses: [{requirement_id: settings.visible_required, reference: 1, candidate: 0.8}]
+      gains: [{requirement_id: settings.actions, reference: 8, candidate: 5}]
+    outcome: hard-rule-traded
+    error: {name: uxsearch.promotion.HardRuleTraded, fields: {promotion_id: 00000000-0000-4000-8000-000000000070}}
+    no_events: [uxsearch.promotion.GateDecided]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-a"
+      verdict: insufficient_evidence
+      policy_revision: policy-7
+      evidence_ids: []
+      requirement_verdicts: [{requirement_id: settings.actions, verdict: insufficient_evidence}]
+      trade_off_only: false
+      losses: []
+      gains: []
+    outcome: recorded-insufficient-evidence
+    events: [{event: uxsearch.promotion.GateDecided, payload: {promotion_id: 00000000-0000-4000-8000-000000000070, verdict: insufficient_evidence, trade_off_only: false}}]
+  # A fail that is only a trade-off on a requirement no hard rule answers for.
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-a"
+      verdict: fail
+      policy_revision: policy-7
+      evidence_ids: [{$instance: evidence}]
+      requirement_verdicts: [{requirement_id: settings.glance_cost, verdict: fail}, {requirement_id: settings.actions, verdict: pass}]
+      trade_off_only: true
+      losses: [{requirement_id: settings.glance_cost, reference: 2, candidate: 3}]
+      gains: [{requirement_id: settings.actions, reference: 8, candidate: 5}]
+    outcome: recorded-fail
+    events: [{event: uxsearch.promotion.GateDecided, payload: {promotion_id: 00000000-0000-4000-8000-000000000070, verdict: fail, trade_off_only: true}}]
+  # The glance cost was fixed and assessed again: the latest decision stands.
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-a"
+      verdict: pass
+      policy_revision: policy-7
+      evidence_ids: [{$instance: evidence}]
+      requirement_verdicts: [{requirement_id: settings.glance_cost, verdict: pass}, {requirement_id: settings.actions, verdict: pass}]
+      trade_off_only: false
+      losses: []
+      gains: [{requirement_id: settings.actions, reference: 8, candidate: 5}]
+    outcome: recorded-pass
+    events: [{event: uxsearch.promotion.GateDecided, payload: {promotion_id: 00000000-0000-4000-8000-000000000070, verdict: pass, trade_off_only: false}}]
+assert:
+  - view: uxsearch.promotion.PromotionById
+    params: {promotion_id: {$instance: promotion}}
+    contains: {gate: pass, gate_trade_off_only: false, gate_policy_revision: policy-7, gate_evidence_ids: [{$instance: evidence}], losses: [], state: Proposed}
+  - view: uxsearch.promotion.Promotions
+    satisfies: {any: [gate_trade_off_only == false, gate == fail]}

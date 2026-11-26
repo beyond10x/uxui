@@ -73,9 +73,11 @@ canonical byte form). Marked UNMAPPED in `domains/design.yaml`.
 
 ### G8. A guard two relations away
 
-`AddAxisValue` should be refused when the axis's design space is `Frozen` (AxisValue → Axis →
-DesignSpace). `when_related` reads one hop. Marked UNMAPPED; the Frozen space is enforced at
-`AddAxis`, `BindComponent` and `StartCampaign` only.
+`when_related: {via: ...}` reads one hop. `AddAxisValue` on an axis of a `Frozen` design space
+(AxisValue → Axis → DesignSpace) is closed: it is a row set over `DesignSpace` whose `where` holds
+an `exists` over `Axis` (outcome `frozen`, scenario `axis-value-is-added-while-the-space-is-open`).
+Kept here because the earlier text said the Frozen space was enforced at `AddAxis`,
+`BindComponent` and `StartCampaign` only.
 
 Round 3 (the target adapter) has two more checks that sit two or three relations away, each an
 `external` branch the engine answers:
@@ -84,6 +86,10 @@ Round 3 (the target adapter) has two more checks that sit two or three relations
   patches on an `ess-ui` target (AxisValue → Axis → DesignSpace → Target).
 - `RequestEvaluation/renderer-of-another-adapter`: the renderer (`LayoutModel.adapter`) is not the
   adapter of the environment's target (Environment → Target).
+
+One check is not made at all: `RecordMetricEvidence` does not compare the requirement's target
+with the target of the evaluated variant (Evaluation → Variant → Target). The engine binds
+requirements per target (UNMAPPED in `domains/ratchet.yaml`).
 
 ### G9. Preconditions over the document
 
@@ -138,6 +144,13 @@ behind routes that were refused before (`AddAxis/added`, `RequestEvaluation/requ
 input; synthesis then reached no `registered` branch, refused every route behind it and took 24 s.
 The lift registration became its own command (`RegisterLiftedDocument`), as the cache lookups did.
 
+Round 2 (scenarios, 2026-11-26, ess 0.99.2) adds 37 scenarios and 17 refusing branches (16 over
+an input an invariant bounds, and `DeclareJourney/script-refused`); the refusals go from 289 to
+291. The time of `ess specify validate --format json` stays inside the spread of one loaded host:
+44.9 s and 51.8 s on the model before, 46.5 s with the first 33 scenarios (three runs back to
+back) and 46.3 s at the end of the round. The 50 authored scenarios are validated, compiled and
+run on the interpreted target in about 1 s.
+
 ### G15. Fixtures are not typed against the model
 
 `ess ui check --model` and `ess ui test --model` pass fixtures whose rows contradict the view
@@ -150,6 +163,115 @@ A promotion holds one `SourceDiff` per source file. Refusing a second diff of th
 the same promotion needs a row-set guard over `SourceDiff` (`promotion_id` and `path` equal to the
 input), the construct G14 names as the cost of synthesis. `RecordSourceDiff` does not refuse it;
 the engine writes each file once.
+
+### G17. An aggregation over the rows a list names
+
+`FrontierEntry.kpi_values` should hold, for each KPI of the campaign, the KPI's aggregation over
+the metric values of the evaluations `evaluation_keys` names. No expression computes a value from
+the rows a list of references names. The Searcher supplies the values; `AdmitToFrontier` refuses a
+`kpi_values` that misses a KPI of the campaign (UNMAPPED in `domains/search.yaml`). Carried over
+from the marker; not probed against the CLI in round 2.
+
+### G18. A guard over a key inside each struct of a list
+
+`Kpi.terms` is a list of structs, each naming a metric key. Every term's metric should be in the
+catalogue, not deprecated, not a diagnostic, and valid for the target's scope. A list-of-references
+guard reads a list of keys, not a key inside each struct of a list. `DeclareKpi` answers it as the
+`external` branch `unknown-metric` (UNMAPPED in `domains/metrics.yaml`). Carried over from the
+marker; not probed against the CLI in round 2.
+
+The steps of a journey's script are the same shape: what the browser adapter refuses in a script
+(no `state` step, a state named twice, a `type` step without text, a key it does not press) is a
+rule over each struct of `JourneyScript.steps`. `DeclareJourney` answers it as the `external`
+branch `script-refused`; the adapter's reader (docs/browser-adapter.md, Journeys) is the check.
+
+### G19. The completeness count reads no authored scenario
+
+`ess specify validate --format json` reports `completeness.unscenarioed`: the constructs synthesis
+gives no scenario. An authored scenario that reaches such a construct and names it under `covers:`
+(`ess-scenario/7`) does not lower the count. Measured with ess 0.99.2: 289 with the 13 scenarios
+before round 2 and 289 with 46; 291 with the 50 at the end of round 2, whose refusing branches
+below add constructs synthesis reaches no route to.
+
+The count that reads `covers:` is the last line of
+`ess verify conform synthesize --path ess --scenarios ess --suite-format 5`:
+
+```
+221 selected scenario(s), 50 authored source(s), 291 refusal occurrence(s), 286 covered by authored
+```
+
+Instead: round 2 is measured by that line. The 291 refusals name 291 constructs; authored
+scenarios cover 286 of them. The 5 left are the branches of G20.
+
+Nine refusals `ESS-SYNTH-025` were open in the model before, not gaps of ESS: a branch copied an
+input into a row, no guard kept the input inside an invariant of the entity, and the command
+declared no refusal for it. The interpreted target ended such a call as an error (`ESS-CF-TARGET`,
+"the model's own outcome leaves ... violating its invariant"), not as a refusal. Round 2 closed
+them: every input an invariant bounds has a refusing branch that names it, under one error per
+domain (`MeasureNotPositive` in `DeclareEnvironment`; `InvalidVersion` in `DefineMetric`;
+`ValueOutOfRange` in `EnumerateStateSpace`, `RecordUiState`, `CompleteStateSpace` and
+`TruncateStateSpace`; `NegativeCount` in `RecordProgress` and `RecordClimbReading`). No
+`ESS-SYNTH-025` is left. Synthesis writes the scenarios of five of the sixteen branches itself;
+authored scenarios witness all sixteen.
+
+### G20. A missing-row branch that validation demands and no input reaches
+
+A command that moves the row its input key addresses and guards on that row's fields
+(`when_related: {via: input.<key>, predicate: ...}`) must declare the branch for a missing row.
+Without it:
+
+```
+error[ESS-COMMAND-005]: `uxsearch.journeys.CompleteStateSpace` reads the related row's fields, and a missing row makes every predicate over it unknown: no branch answers when the row does not exist
+  help: declare the branch taken when it does not: `when_related: {via: input.state_space_key, exists: false}`
+```
+
+The interpreted target (`ess verify conform run --target interpreted`, 0.99.2) never takes that
+branch: for a key no row has, the command answers `wrong-state` with the entity's state-conflict
+error before it reads a related row. `unknown_instance: true` is the branch that answers there
+(`ReuseStateSpace/no-state-space`, `PinPolicy/no-campaign`, `ReweighKpi/no-kpi`). It does not stand
+in for the demanded branch (the refusal above stays), and not beside it on one branch:
+
+```
+[conflicting_declaration] command.uxsearch.journeys.CompleteStateSpace.outcomes.no-state-space.when_related: outcome `no-state-space` declares `when_related` beside `unknown_instance`; a branch has one selection authority (hint: keep the related guard and an optional `when:` over the input, or the other key)
+```
+
+Instead: five branches stay as validation demands them and have no scenario:
+`CompleteStateSpace/no-state-space`, `TruncateStateSpace/no-state-space`,
+`RecordGateDecision/no-promotion`, `AcceptPromotion/no-promotion` and
+`AcceptTradeOff/no-promotion`. A caller that names an unknown key gets `StateSpaceStateConflict` or
+`PromotionStateConflict`, not the not-found error the branch declares.
+
+## UNMAPPED markers left in `ess/`
+
+Every marker left after round 2, by file and line, with the gap that holds it or the question the
+owner answers. Round 2 resolved six from the repository's documents and code: the binding table
+(one selector and one element per node), the base of a `browser` target (the source files the
+design space patches), the `composition` scope, the page of a browser state (its URL path), the
+source patch (`SourcePatch` follows the engine's patch: RFC 6902 operations on a JSON source,
+custom-property values per selector on a CSS source) and the scripted journey (`JourneyScript`
+follows the browser adapter: a page, its steps and a wait limit).
+
+| marker | what is open | held by |
+|---|---|---|
+| `domains/design.yaml:78` | the canonical form of an ess-ui/1 document | G7 |
+| `domains/design.yaml:442` | what locates a section or a component of a `browser` target on its page | owner |
+| `domains/design.yaml:501` | the top-k frontier entries of a source campaign become an axis and its values at `FreezeDesignSpace` | G2 |
+| `domains/design.yaml:587` | an operator's preconditions over the document, held as text | G9 |
+| `domains/metrics.yaml:78` | `MetricValue.at` holds four kinds of subject in one String | owner |
+| `domains/metrics.yaml:146` | every term of a KPI names a usable metric | G18 |
+| `domains/promotion.yaml:157` | the form of one file's diff | owner |
+| `domains/promotion.yaml:159` | `Promotion.diff` and the one `SourceDiff` of an `ess-ui` target state one change twice | owner |
+| `domains/promotion.yaml:236` | who authorizes an acceptance policy, and for which targets | owner |
+| `domains/ratchet.yaml:559` | the requirement's target is the evaluated variant's target | G8 |
+| `domains/rules.yaml:27` | the rule catalogue: its checks and their arguments | owner |
+| `domains/search.yaml:242` | each KPI value is the KPI's aggregation over the evaluations | G17 |
+| `domains/search.yaml:666` | a journey, environment or KPI the input names exists (`unknown-member`) | G1 |
+| `domains/search.yaml:1173` | an evaluation key exists and is of the campaign's journeys and environments (`evaluation-missing`) | G1 |
+| `domains/search.yaml:1185` | one evaluation per journey and environment (`evidence-incomplete`) | G12 |
+| `domains/search.yaml:1197` | no OnFrontier entry dominates the variant (`dominated`) | G5 |
+| `ui/studio.ui.yaml:175` | no view lists only the campaign's KPIs (a filter over a list field) | this table; the Studio section below has no entry for it yet |
+| `ui/studio.ui.yaml:270` | no view lists the axis values of the design space a variant was reached in | Studio document, below |
+| `ui/studio.ui.yaml:309` | no view holds a variant's laid-out result per UI state and environment | Studio document, below |
 
 ## Studio document (ess/ui/studio.ui.yaml)
 

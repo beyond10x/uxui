@@ -1,0 +1,177 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.evaluation.RequestEvaluation/outcome/no-environment
+  - uxsearch.evaluation.RequestEvaluation/outcome/no-layout-model
+  - uxsearch.evaluation.RequestEvaluation/outcome/state-space-open
+  - uxsearch.evaluation.RequestEvaluation/outcome/variant-pruned
+  - uxsearch.evaluation.RequestEvaluation/outcome/renderer-of-another-adapter
+  - uxsearch.evaluation.RequestEvaluation/outcome/requested
+domain: uxsearch.evaluation
+scenario: evaluation-is-requested-over-a-closed-state-space
+# Story spec-round-2-scenarios; docs/state-space.md, docs/concept.md § 4. An evaluation names an
+# environment and a layout model that exist and a state space whose enumeration has ended. A
+# variant a hard rule pruned is not evaluated. Whether the renderer fits the adapter of the
+# environment's target is the engine's answer. The evaluation copies what the state space ended
+# with, so its reader knows over how many states, and in which end state, it was computed.
+summary: An evaluation is requested over a closed state space of a variant no hard rule pruned
+arrange:
+  - instance: environment
+    entity: uxsearch.evaluation.Environment
+    setup:
+      identity: 00000000-0000-4000-8000-000000000040
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: Desktop light
+        viewport_width_px: 1280
+        viewport_height_px: 800
+        theme_mode: light
+        input_mode: pointer
+        text_scale_percent: 100
+        reduced_motion: false
+        environment_digest: "sha256:env"
+      state: Declared
+  - instance: layout
+    entity: uxsearch.evaluation.LayoutModel
+    setup:
+      identity: layout-model/0
+      fields:
+        summary: terminal renderer
+        adapter: ess-ui
+        geometry: cells
+      state: Available
+  - instance: space
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-a"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-a"
+        stage: full
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 4
+      state: Complete
+  - instance: running
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-running"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000031
+        variant_digest: "sha256:variant-a"
+        stage: full
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 0
+      state: Enumerating
+  # A state space enumerated before a hard rule found its variant in violation.
+  - instance: pruned-space
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-pruned"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-pruned"
+        stage: full
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 4
+      state: Complete
+  - instance: violation
+    entity: uxsearch.rules.RuleVerdict
+    setup:
+      identity: 00000000-0000-4000-8000-000000000090
+      fields:
+        rule_id: 00000000-0000-4000-8000-000000000080
+        variant_digest: "sha256:variant-pruned"
+        target_id: 00000000-0000-4000-8000-000000000001
+        strength: hard
+        requirement_id: settings.visible_required
+        stage: full
+        verdict: violated
+        findings: []
+      state: Recorded
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.evaluation.RequestEvaluation
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: "sha256:eval-1"
+      variant_digest: "sha256:variant-a"
+      state_space_key: {$instance: space}
+      environment_id: 00000000-0000-4000-8000-0000000000ff
+      layout_model_version: {$instance: layout}
+      catalogue_digest: "sha256:catalogue"
+    outcome: no-environment
+    error: {name: uxsearch.evaluation.EnvironmentNotFound, fields: {environment_id: 00000000-0000-4000-8000-0000000000ff}}
+    no_events: [uxsearch.evaluation.EvaluationRequested]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.evaluation.RequestEvaluation
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: "sha256:eval-1"
+      variant_digest: "sha256:variant-a"
+      state_space_key: {$instance: space}
+      environment_id: {$instance: environment}
+      layout_model_version: layout-model/9
+      catalogue_digest: "sha256:catalogue"
+    outcome: no-layout-model
+    error: {name: uxsearch.evaluation.LayoutModelNotFound, fields: {version: layout-model/9}}
+    no_events: [uxsearch.evaluation.EvaluationRequested]
+  # The enumeration still runs.
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.evaluation.RequestEvaluation
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: "sha256:eval-1"
+      variant_digest: "sha256:variant-a"
+      state_space_key: {$instance: running}
+      environment_id: {$instance: environment}
+      layout_model_version: {$instance: layout}
+      catalogue_digest: "sha256:catalogue"
+    outcome: state-space-open
+    error: {name: uxsearch.evaluation.StateSpaceOpen, fields: {state_space_key: "sha256:space-running"}}
+    no_events: [uxsearch.evaluation.EvaluationRequested]
+  # A hard rule's recorded violation prunes the variant.
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.evaluation.RequestEvaluation
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: "sha256:eval-pruned"
+      variant_digest: "sha256:variant-pruned"
+      state_space_key: {$instance: pruned-space}
+      environment_id: {$instance: environment}
+      layout_model_version: {$instance: layout}
+      catalogue_digest: "sha256:catalogue"
+    outcome: variant-pruned
+    error: {name: uxsearch.evaluation.VariantPruned, fields: {variant_digest: "sha256:variant-pruned"}}
+    no_events: [uxsearch.evaluation.EvaluationRequested]
+  # The renderer is not one of the adapter of the environment's target: the engine's answer.
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.evaluation.RequestEvaluation
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: "sha256:eval-1"
+      variant_digest: "sha256:variant-a"
+      state_space_key: {$instance: space}
+      environment_id: {$instance: environment}
+      layout_model_version: {$instance: layout}
+      catalogue_digest: "sha256:catalogue"
+    outcome: renderer-of-another-adapter
+    error: {name: uxsearch.evaluation.RendererMismatch, fields: {version: layout-model/0}}
+    no_events: [uxsearch.evaluation.EvaluationRequested]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.evaluation.RequestEvaluation
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: "sha256:eval-1"
+      variant_digest: "sha256:variant-a"
+      state_space_key: {$instance: space}
+      environment_id: {$instance: environment}
+      layout_model_version: {$instance: layout}
+      catalogue_digest: "sha256:catalogue"
+    outcome: requested
+    events: [{event: uxsearch.evaluation.EvaluationRequested, payload: {evaluation_key: "sha256:eval-1", variant_digest: "sha256:variant-a"}}]
+assert:
+  - view: uxsearch.evaluation.Evaluations
+    contains: {evaluation_key: "sha256:eval-1", variant_digest: "sha256:variant-a", state_space_key: "sha256:space-a", stage: full, state_space_state: Complete, environment_id: {$instance: environment}, layout_model_version: layout-model/0, result_digest: null, state: Requested}
+  - view: uxsearch.evaluation.Evaluations
+    excludes: {evaluation_key: "sha256:eval-pruned"}
+  - view: uxsearch.evaluation.Evaluations
+    counts: {at_least: 1, at_most: 1}

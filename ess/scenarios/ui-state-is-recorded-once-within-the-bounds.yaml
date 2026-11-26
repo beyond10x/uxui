@@ -1,0 +1,166 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.journeys.RecordUiState/outcome/not-enumerating
+  - uxsearch.journeys.RecordUiState/outcome/beyond-bounds
+  - uxsearch.journeys.RecordUiState/outcome/duplicate-state
+  - uxsearch.journeys.RecordUiState/outcome/recorded
+domain: uxsearch.journeys
+scenario: ui-state-is-recorded-once-within-the-bounds
+# Story spec-round-2-scenarios; docs/state-space.md. A UI state is recorded while its state space
+# is Enumerating, inside each of the three bounds the space copied from its journey (states,
+# depth, virtual time), and once: neither its digest nor its sequence number is recorded twice.
+summary: A UI state is recorded once, inside the bounds, while the enumeration runs
+arrange:
+  - instance: space
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-a"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-a"
+        stage: full
+        bounds: {max_states: 3, max_depth: 2, max_virtual_time_ms: 1000}
+        states_count: 0
+      state: Enumerating
+  - instance: closed
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-closed"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-b"
+        stage: full
+        bounds: {max_states: 3, max_depth: 2, max_virtual_time_ms: 1000}
+        states_count: 1
+      state: Complete
+  - instance: state0
+    entity: uxsearch.journeys.UiState
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000b0
+      fields:
+        state_space_key: "sha256:space-a"
+        seq: 0
+        state_digest: "sha256:state-0"
+        page: pages/settings
+        selection: []
+        virtual_time_ms: 0
+        depth: 0
+        evaluable: true
+      state: Reached
+timeline:
+  # The enumeration of this space has ended.
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: closed}
+      seq: 1
+      state_digest: "sha256:state-late"
+      page: pages/settings
+      selection: []
+      virtual_time_ms: 100
+      depth: 1
+      evaluable: true
+    outcome: not-enumerating
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.UiStateReached]
+  # Sequence numbers start at 0, so number 3 is a fourth state where the bound is 3.
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      seq: 3
+      state_digest: "sha256:state-3"
+      page: pages/settings
+      selection: []
+      virtual_time_ms: 100
+      depth: 1
+      evaluable: true
+    outcome: beyond-bounds
+    error: {name: uxsearch.journeys.BeyondBounds, fields: {state_space_key: "sha256:space-a"}}
+    no_events: [uxsearch.journeys.UiStateReached]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      seq: 1
+      state_digest: "sha256:state-deep"
+      page: pages/settings
+      selection: []
+      virtual_time_ms: 100
+      depth: 3
+      evaluable: true
+    outcome: beyond-bounds
+    error: {name: uxsearch.journeys.BeyondBounds, fields: {state_space_key: "sha256:space-a"}}
+    no_events: [uxsearch.journeys.UiStateReached]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      seq: 1
+      state_digest: "sha256:state-slow"
+      page: pages/settings
+      selection: []
+      virtual_time_ms: 1001
+      depth: 1
+      evaluable: true
+    outcome: beyond-bounds
+    error: {name: uxsearch.journeys.BeyondBounds, fields: {state_space_key: "sha256:space-a"}}
+    no_events: [uxsearch.journeys.UiStateReached]
+  # Sequence number 0 is taken.
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      seq: 0
+      state_digest: "sha256:state-1"
+      page: pages/settings
+      selection: []
+      virtual_time_ms: 100
+      depth: 1
+      evaluable: true
+    outcome: duplicate-state
+    error: {name: uxsearch.journeys.DuplicateState, fields: {state_space_key: "sha256:space-a"}}
+    no_events: [uxsearch.journeys.UiStateReached]
+  # The state with this digest is recorded already.
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      seq: 1
+      state_digest: "sha256:state-0"
+      page: pages/settings
+      selection: []
+      virtual_time_ms: 100
+      depth: 1
+      evaluable: true
+    outcome: duplicate-state
+    error: {name: uxsearch.journeys.DuplicateState, fields: {state_space_key: "sha256:space-a"}}
+    no_events: [uxsearch.journeys.UiStateReached]
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.journeys.RecordUiState
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      seq: 1
+      state_digest: "sha256:state-1"
+      page: pages/settings
+      overlay: pages/settings/dialogs/confirm
+      selection: []
+      virtual_time_ms: 100
+      depth: 1
+      evaluable: true
+    outcome: recorded
+    events: [{event: uxsearch.journeys.UiStateReached, payload: {state_space_key: "sha256:space-a", evaluable: true}}]
+assert:
+  - view: uxsearch.journeys.UiStates
+    contains: {state_space_key: {$instance: space}, seq: 1, state_digest: "sha256:state-1", overlay: pages/settings/dialogs/confirm, depth: 1, evaluable: true, state: Reached}
+  - view: uxsearch.journeys.UiStates
+    excludes: {state_space_key: {$instance: closed}}
+  - view: uxsearch.journeys.UiStates
+    counts: {at_least: 2, at_most: 2}

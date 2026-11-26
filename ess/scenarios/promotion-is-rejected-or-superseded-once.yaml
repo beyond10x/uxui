@@ -1,0 +1,234 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.promotion.RejectPromotion/outcome/rejected
+  - uxsearch.promotion.SupersedePromotion/outcome/superseded
+  - uxsearch.promotion.Promotion/transition/reject/by/uxsearch.promotion.RejectPromotion/rejected
+  - uxsearch.promotion.Promotion/transition/supersede/by/uxsearch.promotion.SupersedePromotion/superseded
+  - uxsearch.promotion.Promotion/invariant/after/uxsearch.promotion.RejectPromotion/rejected
+  - uxsearch.promotion.Promotion/invariant/after/uxsearch.promotion.SupersedePromotion/superseded
+  - uxsearch.promotion.Promotion/state/Rejected/refuses/uxsearch.promotion.AcceptPromotion
+  - uxsearch.promotion.Promotion/state/Rejected/refuses/uxsearch.promotion.AcceptTradeOff
+  - uxsearch.promotion.Promotion/state/Rejected/refuses/uxsearch.promotion.ApplyPromotion
+  - uxsearch.promotion.Promotion/state/Rejected/refuses/uxsearch.promotion.RecordGateDecision
+  - uxsearch.promotion.Promotion/state/Rejected/refuses/uxsearch.promotion.RejectPromotion
+  - uxsearch.promotion.Promotion/state/Rejected/refuses/uxsearch.promotion.SupersedePromotion
+  - uxsearch.promotion.Promotion/state/Superseded/refuses/uxsearch.promotion.AcceptPromotion
+  - uxsearch.promotion.Promotion/state/Superseded/refuses/uxsearch.promotion.AcceptTradeOff
+  - uxsearch.promotion.Promotion/state/Superseded/refuses/uxsearch.promotion.ApplyPromotion
+  - uxsearch.promotion.Promotion/state/Superseded/refuses/uxsearch.promotion.RecordGateDecision
+  - uxsearch.promotion.Promotion/state/Superseded/refuses/uxsearch.promotion.RejectPromotion
+  - uxsearch.promotion.Promotion/state/Superseded/refuses/uxsearch.promotion.SupersedePromotion
+domain: uxsearch.promotion
+scenario: promotion-is-rejected-or-superseded-once
+# Story spec-round-2-scenarios; docs/concept.md § 6. A person rejects a Proposed promotion with a
+# reason; a newer proposal or base-document revision supersedes one that was not applied yet,
+# even an Accepted one. Both are final: a Rejected or Superseded promotion is not accepted, gated,
+# applied, rejected or superseded afterwards.
+summary: A promotion is rejected by its owner or superseded before it is applied, and stays that way
+arrange:
+  - instance: next
+    entity: uxsearch.design.BaseDocument
+    setup:
+      identity: 00000000-0000-4000-8000-000000000011
+      fields:
+        path: ess/ui/app.ui.yaml
+        app: settings
+        document_digest: "sha256:doc-1"
+        adapter: ess-ui
+        supersedes: 00000000-0000-4000-8000-000000000010
+      state: Registered
+  - instance: unwanted
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000070
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-a"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: fewer actions
+        gate: pass
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: [{requirement_id: settings.actions, verdict: pass}]
+        losses: []
+        gains: [{requirement_id: settings.actions, reference: 8, candidate: 5}]
+      state: Proposed
+  # Accepted, and then the base document moved on before it was applied.
+  - instance: overtaken
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000071
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-b"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: less scrolling
+        gate: pass
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: []
+        losses: []
+        gains: []
+        accepted_by: owner-1
+      state: Accepted
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.promotion.RejectPromotion
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: unwanted}
+      reason: the owner wants the old order
+    outcome: rejected
+    events: [{event: uxsearch.promotion.PromotionRejected, payload: {promotion_id: 00000000-0000-4000-8000-000000000070}}]
+  # Rejected is final.
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.promotion.AcceptPromotion
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: unwanted}
+      variant_digest: "sha256:variant-a"
+    outcome: wrong-state
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.PromotionAccepted]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.promotion.AcceptTradeOff
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: unwanted}
+      variant_digest: "sha256:variant-a"
+    outcome: wrong-state
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.PromotionAccepted]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.promotion.ApplyPromotion
+    actor: uxsearch.design.Engine
+    input:
+      promotion_id: {$instance: unwanted}
+      base_document_id: {$instance: next}
+    outcome: wrong-state
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.PromotionApplied]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: unwanted}
+      variant_digest: "sha256:variant-a"
+      verdict: pass
+      policy_revision: policy-8
+      evidence_ids: []
+      requirement_verdicts: [{requirement_id: settings.actions, verdict: pass}]
+      trade_off_only: false
+      losses: []
+      gains: []
+    outcome: wrong-state
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.GateDecided]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.promotion.RejectPromotion
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: unwanted}
+      reason: a second reason
+    outcome: wrong-state
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.PromotionRejected]
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.promotion.SupersedePromotion
+    actor: uxsearch.design.Designer
+    input:
+      promotion_id: {$instance: unwanted}
+      reason: a newer proposal
+    outcome: wrong-state
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.PromotionSuperseded]
+  # An Accepted promotion that was not applied is superseded.
+  - at: 2026-01-05T09:00:07Z
+    command: uxsearch.promotion.SupersedePromotion
+    actor: uxsearch.design.Designer
+    input:
+      promotion_id: {$instance: overtaken}
+      reason: the base document has a newer revision
+    outcome: superseded
+    events: [{event: uxsearch.promotion.PromotionSuperseded, payload: {promotion_id: 00000000-0000-4000-8000-000000000071}}]
+  # Superseded is final.
+  - at: 2026-01-05T09:00:08Z
+    command: uxsearch.promotion.AcceptPromotion
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: overtaken}
+      variant_digest: "sha256:variant-b"
+    outcome: wrong-state
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.PromotionAccepted]
+  - at: 2026-01-05T09:00:09Z
+    command: uxsearch.promotion.AcceptTradeOff
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: overtaken}
+      variant_digest: "sha256:variant-b"
+    outcome: wrong-state
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.PromotionAccepted]
+  - at: 2026-01-05T09:00:10Z
+    command: uxsearch.promotion.ApplyPromotion
+    actor: uxsearch.design.Engine
+    input:
+      promotion_id: {$instance: overtaken}
+      base_document_id: {$instance: next}
+    outcome: wrong-state
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.PromotionApplied]
+  - at: 2026-01-05T09:00:11Z
+    command: uxsearch.promotion.RecordGateDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      promotion_id: {$instance: overtaken}
+      variant_digest: "sha256:variant-b"
+      verdict: pass
+      policy_revision: policy-8
+      evidence_ids: []
+      requirement_verdicts: []
+      trade_off_only: false
+      losses: []
+      gains: []
+    outcome: wrong-state
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.GateDecided]
+  - at: 2026-01-05T09:00:12Z
+    command: uxsearch.promotion.RejectPromotion
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: overtaken}
+      reason: too late
+    outcome: wrong-state
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.PromotionRejected]
+  - at: 2026-01-05T09:00:13Z
+    command: uxsearch.promotion.SupersedePromotion
+    actor: uxsearch.design.Designer
+    input:
+      promotion_id: {$instance: overtaken}
+      reason: a second replacement
+    outcome: wrong-state
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.PromotionSuperseded]
+assert:
+  - view: uxsearch.promotion.Promotions
+    contains: {promotion_id: {$instance: unwanted}, accepted_by: null, rejection_reason: the owner wants the old order, state: Rejected}
+  - view: uxsearch.promotion.PromotionById
+    params: {promotion_id: {$instance: overtaken}}
+    contains: {accepted_by: owner-1, applied_as: null, superseded_reason: the base document has a newer revision, state: Superseded}
+  - view: uxsearch.promotion.Promotions
+    satisfies: {any: [gate_trade_off_only == false, gate == fail]}

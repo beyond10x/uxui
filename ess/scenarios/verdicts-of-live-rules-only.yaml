@@ -1,4 +1,9 @@
-type: ess-scenario/6
+type: ess-scenario/7
+covers:
+  - uxsearch.journeys.EnumerateStateSpace/outcome/variant-pruned
+  - uxsearch.rules.RecordRuleVerdict/outcome/rule-retired
+  - uxsearch.rules.RecordRuleVerdict/outcome/rule-of-another-target
+  - uxsearch.rules.RetireRule/outcome/retired
 domain: uxsearch.rules
 scenario: verdicts-of-live-rules-only
 # Hardening target 5 (R6): a retired rule or another target's rule records no verdict; retiring

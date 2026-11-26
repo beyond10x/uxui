@@ -1,0 +1,99 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.journeys.TruncateStateSpace/outcome/over-bound
+  - uxsearch.journeys.TruncateStateSpace/outcome/count-below-recorded
+  - uxsearch.journeys.TruncateStateSpace/outcome/truncated
+  - uxsearch.journeys.StateSpace/transition/truncate/by/uxsearch.journeys.TruncateStateSpace/truncated
+domain: uxsearch.journeys
+scenario: truncation-names-the-bound-it-hit
+# Story spec-round-2-scenarios; docs/state-space.md. An enumeration that hits a bound closes
+# Truncated and names the bound. The count it closes with is held to the same two rules as a
+# completion: not above the bound on states, and not below the states already recorded.
+summary: A state space truncates with the count of its recorded states and the bound that was hit
+arrange:
+  - instance: space
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-a"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-a"
+        stage: full
+        bounds: {max_states: 3, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 0
+      state: Enumerating
+  - instance: state0
+    entity: uxsearch.journeys.UiState
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000b0
+      fields:
+        state_space_key: "sha256:space-a"
+        seq: 0
+        state_digest: "sha256:state-0"
+        page: pages/settings
+        selection: []
+        virtual_time_ms: 0
+        depth: 0
+        evaluable: true
+      state: Reached
+  - instance: state1
+    entity: uxsearch.journeys.UiState
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000b1
+      fields:
+        state_space_key: "sha256:space-a"
+        seq: 1
+        state_digest: "sha256:state-1"
+        page: pages/settings
+        selection: []
+        virtual_time_ms: 100
+        depth: 1
+        evaluable: true
+      state: Reached
+  - instance: state2
+    entity: uxsearch.journeys.UiState
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000b2
+      fields:
+        state_space_key: "sha256:space-a"
+        seq: 2
+        state_digest: "sha256:state-2"
+        page: pages/settings
+        selection: []
+        virtual_time_ms: 200
+        depth: 2
+        evaluable: true
+      state: Reached
+timeline:
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.journeys.TruncateStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      states_count: 4
+      bound_hit: max_states
+    outcome: over-bound
+    error: {name: uxsearch.journeys.BeyondBounds, fields: {state_space_key: "sha256:space-a"}}
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.journeys.TruncateStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      states_count: 2
+      bound_hit: max_states
+    outcome: count-below-recorded
+    error: {name: uxsearch.journeys.CountMismatch, fields: {state_space_key: "sha256:space-a"}}
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.journeys.TruncateStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      states_count: 3
+      bound_hit: max_states
+    outcome: truncated
+    events: [{event: uxsearch.journeys.StateSpaceClosed, payload: {state_space_key: "sha256:space-a", states_count: 3, truncated: true}}]
+assert:
+  - view: uxsearch.journeys.StateSpaces
+    contains: {state_space_key: {$instance: space}, states_count: 3, bound_hit: max_states, state: Truncated}

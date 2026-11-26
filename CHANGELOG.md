@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- The specification has 50 authored scenarios (13 before): 286 of the 291 refusals that synthesis
+  cannot reach are covered by one (`ess verify conform synthesize --path ess --scenarios ess
+  --suite-format 5`), and all 50 pass on the interpreted target. The 5 left are not-found outcomes
+  no command sequence reaches (`ess/GAPS.md`, G20). `SourcePatch` is now the engine's patch (RFC
+  6902 operations and custom-property values per selector) and `ScriptedStep` the browser adapter's
+  journey step; sixteen refusing branches guard the entity invariants that had none. 19 UNMAPPED
+  markers are left, each listed in `ess/GAPS.md`.
 - `ux-search` gets a second backend, the browser adapter (`ux_browser`, by path), and runs its first
   campaign on it: the documentation landing page `/uxui/`, 144 variants (palette x hero alignment x
   hero actions x section order x density x heading scale) in 6 environments, 864 renders in 6 page

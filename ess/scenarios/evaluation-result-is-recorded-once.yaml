@@ -1,0 +1,174 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.evaluation.RecordEvaluationResult/outcome/computed
+  - uxsearch.evaluation.RecordEvaluationResult/outcome/bound-hit
+  - uxsearch.evaluation.RecordEvaluationResult/outcome/abandoned
+  - uxsearch.evaluation.RecordEvaluationResult/outcome/refused
+  - uxsearch.evaluation.RecordEvaluationResult/outcome/already-recorded
+  - uxsearch.evaluation.RecordEvaluationResult/outcome/not-deterministic
+  - uxsearch.evaluation.Evaluation/transition/compute/by/uxsearch.evaluation.RecordEvaluationResult/computed
+  - uxsearch.evaluation.Evaluation/transition/insufficient/by/uxsearch.evaluation.RecordEvaluationResult/bound-hit
+  - uxsearch.evaluation.Evaluation/transition/insufficient/by/uxsearch.evaluation.RecordEvaluationResult/abandoned
+  - uxsearch.evaluation.Evaluation/transition/insufficient/by/uxsearch.evaluation.RecordEvaluationResult/refused
+  - uxsearch.evaluation.Evaluation/state/Computed/refuses/uxsearch.evaluation.RecordEvaluationResult
+  - uxsearch.evaluation.Evaluation/state/Insufficient/refuses/uxsearch.evaluation.RecordEvaluationResult
+domain: uxsearch.evaluation
+scenario: evaluation-result-is-recorded-once
+# Story spec-round-2-scenarios; docs/ratchet.md § 4, docs/state-space.md. An evaluation is
+# Computed only over a Complete state space with no refusal. A Truncated or Abandoned state space,
+# or a layout or step refusal, makes it Insufficient with the reason, never a pass. A result is
+# recorded once: the same digest again changes nothing, and another digest for the same key means
+# the evaluation is not deterministic.
+summary: An evaluation ends Computed or Insufficient once, and a second result with another digest is refused
+arrange:
+  - instance: complete
+    entity: uxsearch.evaluation.Evaluation
+    setup:
+      identity: "sha256:eval-complete"
+      fields:
+        variant_digest: "sha256:variant-a"
+        state_space_key: "sha256:space-a"
+        journey_id: 00000000-0000-4000-8000-000000000030
+        state_space_state: Complete
+        stage: full
+        states_count: 3
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        values: []
+      state: Requested
+  - instance: truncated
+    entity: uxsearch.evaluation.Evaluation
+    setup:
+      identity: "sha256:eval-truncated"
+      fields:
+        variant_digest: "sha256:variant-b"
+        state_space_key: "sha256:space-b"
+        journey_id: 00000000-0000-4000-8000-000000000030
+        state_space_state: Truncated
+        stage: full
+        states_count: 10
+        bound_hit: max_states
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        values: []
+      state: Requested
+  - instance: abandoned
+    entity: uxsearch.evaluation.Evaluation
+    setup:
+      identity: "sha256:eval-abandoned"
+      fields:
+        variant_digest: "sha256:variant-c"
+        state_space_key: "sha256:space-c"
+        journey_id: 00000000-0000-4000-8000-000000000030
+        state_space_state: Abandoned
+        stage: full
+        states_count: 0
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        values: []
+      state: Requested
+  - instance: unrenderable
+    entity: uxsearch.evaluation.Evaluation
+    setup:
+      identity: "sha256:eval-unrenderable"
+      fields:
+        variant_digest: "sha256:variant-d"
+        state_space_key: "sha256:space-d"
+        journey_id: 00000000-0000-4000-8000-000000000030
+        state_space_state: Complete
+        stage: full
+        states_count: 3
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        values: []
+      state: Requested
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.evaluation.RecordEvaluationResult
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: {$instance: complete}
+      result_digest: "sha256:result-1"
+      values: [{metric_key: effort.actions, at: journey, value: 5}]
+    outcome: computed
+    events: [{event: uxsearch.evaluation.EvaluationComputed, payload: {evaluation_key: "sha256:eval-complete", result_digest: "sha256:result-1"}}]
+  # The same result again: nothing changes and nothing is announced.
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.evaluation.RecordEvaluationResult
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: {$instance: complete}
+      result_digest: "sha256:result-1"
+      values: [{metric_key: effort.actions, at: journey, value: 5}]
+    outcome: already-recorded
+    no_events: [uxsearch.evaluation.EvaluationComputed, uxsearch.evaluation.EvaluationInsufficient]
+  # Another result for the same key.
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.evaluation.RecordEvaluationResult
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: {$instance: complete}
+      result_digest: "sha256:result-2"
+      values: [{metric_key: effort.actions, at: journey, value: 6}]
+    outcome: not-deterministic
+    error: {name: uxsearch.evaluation.NotDeterministic, fields: {evaluation_key: "sha256:eval-complete"}}
+    no_events: [uxsearch.evaluation.EvaluationComputed, uxsearch.evaluation.EvaluationInsufficient]
+  # The state space hit a bound.
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.evaluation.RecordEvaluationResult
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: {$instance: truncated}
+      result_digest: "sha256:result-3"
+      values: [{metric_key: effort.actions, at: journey, value: 7}]
+    outcome: bound-hit
+    events: [{event: uxsearch.evaluation.EvaluationInsufficient, payload: {evaluation_key: "sha256:eval-truncated", because: bound_hit}}]
+    no_events: [uxsearch.evaluation.EvaluationComputed]
+  # An Insufficient evaluation keeps its result too.
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.evaluation.RecordEvaluationResult
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: {$instance: truncated}
+      result_digest: "sha256:result-3"
+      values: [{metric_key: effort.actions, at: journey, value: 7}]
+    outcome: already-recorded
+    no_events: [uxsearch.evaluation.EvaluationComputed, uxsearch.evaluation.EvaluationInsufficient]
+  # The enumeration was abandoned.
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.evaluation.RecordEvaluationResult
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: {$instance: abandoned}
+      result_digest: "sha256:result-4"
+      values: []
+    outcome: abandoned
+    events: [{event: uxsearch.evaluation.EvaluationInsufficient, payload: {evaluation_key: "sha256:eval-abandoned", because: enumeration_abandoned}}]
+    no_events: [uxsearch.evaluation.EvaluationComputed]
+  # The state space is Complete, but the layout model refused a node.
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.evaluation.RecordEvaluationResult
+    actor: uxsearch.evaluation.Evaluator
+    input:
+      evaluation_key: {$instance: unrenderable}
+      result_digest: "sha256:result-5"
+      values: []
+      refused: layout_refused
+    outcome: refused
+    events: [{event: uxsearch.evaluation.EvaluationInsufficient, payload: {evaluation_key: "sha256:eval-unrenderable", because: layout_refused}}]
+    no_events: [uxsearch.evaluation.EvaluationComputed]
+assert:
+  - view: uxsearch.evaluation.Evaluations
+    contains: {evaluation_key: {$instance: complete}, result_digest: "sha256:result-1", insufficient_because: null, state: Computed}
+  - view: uxsearch.evaluation.Evaluations
+    contains: {evaluation_key: {$instance: truncated}, result_digest: "sha256:result-3", insufficient_because: bound_hit, state: Insufficient}
+  - view: uxsearch.evaluation.Evaluations
+    contains: {evaluation_key: {$instance: abandoned}, insufficient_because: enumeration_abandoned, state: Insufficient}
+  - view: uxsearch.evaluation.Evaluations
+    contains: {evaluation_key: {$instance: unrenderable}, insufficient_because: layout_refused, state: Insufficient}
+  - view: uxsearch.evaluation.Evaluations
+    excludes: {state: Requested}

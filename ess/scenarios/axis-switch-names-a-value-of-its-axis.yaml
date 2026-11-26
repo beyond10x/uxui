@@ -1,0 +1,99 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.design.RequestAxisSwitch/outcome/no-variant
+  - uxsearch.design.RequestAxisSwitch/outcome/value-of-another-axis
+  - uxsearch.design.RequestAxisSwitch/outcome/operator-refused
+  - uxsearch.design.RequestAxisSwitch/outcome/requested
+domain: uxsearch.design
+scenario: axis-switch-names-a-value-of-its-axis
+# Story spec-round-2-scenarios. A person switches one axis of one variant by hand: the variant
+# exists, the value exists and belongs to the named axis. Whether the axis is of the variant's
+# design space, and whether the value's operators accept the variant, is the engine's answer.
+summary: A by-hand switch names an existing variant and a value of the axis it names
+arrange:
+  - instance: variant
+    entity: uxsearch.design.Variant
+    setup:
+      identity: "sha256:variant-a"
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        target_id: 00000000-0000-4000-8000-000000000001
+        first_route: {design_space_id: 00000000-0000-4000-8000-000000000021, origin: base, choices: [], applications: []}
+        routes: []
+      state: Candidate
+  - instance: order
+    entity: uxsearch.design.Axis
+    setup:
+      identity: 00000000-0000-4000-8000-000000000022
+      fields:
+        design_space_id: 00000000-0000-4000-8000-000000000021
+        name: section order
+        kind: layout
+        at: pages/settings/sections
+      state: Declared
+  - instance: theme
+    entity: uxsearch.design.Axis
+    setup:
+      identity: 00000000-0000-4000-8000-000000000023
+      fields:
+        design_space_id: 00000000-0000-4000-8000-000000000021
+        name: theme
+        kind: theme
+      state: Declared
+  - instance: dark
+    entity: uxsearch.design.AxisValue
+    setup:
+      identity: 00000000-0000-4000-8000-000000000025
+      fields:
+        axis_id: 00000000-0000-4000-8000-000000000023
+        name: dark
+        applications: [{operator: select_theme, at: theme, args: {theme: dark}}]
+        patches: []
+      state: Declared
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.design.RequestAxisSwitch
+    actor: uxsearch.design.Designer
+    input:
+      from_variant: "sha256:variant-unknown"
+      axis_id: {$instance: theme}
+      axis_value_id: {$instance: dark}
+    outcome: no-variant
+    error: {name: uxsearch.design.VariantNotFound, fields: {variant_digest: "sha256:variant-unknown"}}
+    no_events: [uxsearch.design.AxisSwitchRequested]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.design.RequestAxisSwitch
+    actor: uxsearch.design.Designer
+    input:
+      from_variant: "sha256:variant-a"
+      axis_id: {$instance: order}
+      axis_value_id: {$instance: dark}
+    outcome: value-of-another-axis
+    error: {name: uxsearch.design.ValueOfAnotherAxis, fields: {axis_value_id: 00000000-0000-4000-8000-000000000025}}
+    no_events: [uxsearch.design.AxisSwitchRequested]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.design.RequestAxisSwitch
+    actor: uxsearch.design.Designer
+    input:
+      from_variant: "sha256:variant-a"
+      axis_id: {$instance: theme}
+      axis_value_id: {$instance: dark}
+    outcome: operator-refused
+    error: {name: uxsearch.design.OperatorRefused}
+    no_events: [uxsearch.design.AxisSwitchRequested]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.design.RequestAxisSwitch
+    actor: uxsearch.design.Designer
+    input:
+      from_variant: "sha256:variant-a"
+      axis_id: {$instance: theme}
+      axis_value_id: {$instance: dark}
+    outcome: requested
+    events: [{event: uxsearch.design.AxisSwitchRequested, payload: {from_variant: "sha256:variant-a"}}]
+assert:
+  - view: uxsearch.design.AxisSwitches
+    contains: {from_variant: "sha256:variant-a", axis_id: {$instance: theme}, axis_value_id: {$instance: dark}, reached: null, failure: null, state: Requested}
+  - view: uxsearch.design.AxisSwitches
+    excludes: {axis_id: {$instance: order}}
+  - view: uxsearch.design.AxisSwitches
+    excludes: {from_variant: "sha256:variant-unknown"}

@@ -1,4 +1,9 @@
-type: ess-scenario/6
+type: ess-scenario/7
+covers:
+  - uxsearch.promotion.RecordGateDecision/outcome/trade-off-inconsistent
+  - uxsearch.promotion.RecordGateDecision/outcome/pass-inconsistent
+  - uxsearch.promotion.AcceptTradeOff/outcome/gate-not-passed
+  - uxsearch.promotion.AcceptTradeOff/outcome/not-a-trade-off
 domain: uxsearch.promotion
 scenario: trade-off-needs-a-clean-fail
 # Hardening target 2 (R2): a trade-off marked beside a verdict other than fail, or with no loss,

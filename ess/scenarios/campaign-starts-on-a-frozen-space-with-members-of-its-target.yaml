@@ -1,0 +1,430 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.search.StartCampaign/outcome/beam-width-missing
+  - uxsearch.search.StartCampaign/outcome/no-members
+  - uxsearch.search.StartCampaign/outcome/no-target
+  - uxsearch.search.StartCampaign/outcome/host-slot
+  - uxsearch.search.StartCampaign/outcome/design-space-open
+  - uxsearch.search.StartCampaign/outcome/design-space-of-another-target
+  - uxsearch.search.StartCampaign/outcome/journey-outside-target
+  - uxsearch.search.StartCampaign/outcome/environment-outside-target
+  - uxsearch.search.StartCampaign/outcome/kpi-outside-target
+  - uxsearch.search.StartCampaign/outcome/journey-retired
+  - uxsearch.search.StartCampaign/outcome/kpi-retired
+  - uxsearch.search.StartCampaign/outcome/unknown-member
+  - uxsearch.search.StartCampaign/outcome/started
+  - uxsearch.search.Budget/invariant/at/uxsearch.search.Campaigns/budget
+  - uxsearch.search.Budget/invariant/at/uxsearch.search.CampaignById/budget
+domain: uxsearch.search
+scenario: campaign-starts-on-a-frozen-space-with-members-of-its-target
+# Story spec-round-2-scenarios; docs/concept.md § 3 and § 5, docs/targets.md. A campaign searches
+# one target through one Frozen design space of that target, over journeys, environments and KPIs
+# that are all declared on that target and still live. A beam search names its width, a host slot
+# is not searched, and a member that does not exist is the engine's answer. The campaign keeps the
+# budget it was started with.
+summary: A campaign starts on a Frozen design space of its target with live journeys, environments and KPIs of that target
+arrange:
+  - instance: page
+    entity: uxsearch.design.Target
+    setup:
+      identity: 00000000-0000-4000-8000-000000000001
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        name: settings page
+        scope: page
+        node_path: pages/settings
+        members: []
+        host_slot: false
+        harness_widths_px: []
+        adapter: ess-ui
+      state: Declared
+  - instance: billing
+    entity: uxsearch.design.Target
+    setup:
+      identity: 00000000-0000-4000-8000-000000000002
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        name: billing page
+        scope: page
+        node_path: pages/billing
+        members: []
+        host_slot: false
+        harness_widths_px: []
+        adapter: ess-ui
+      state: Declared
+  - instance: slot
+    entity: uxsearch.design.Target
+    setup:
+      identity: 00000000-0000-4000-8000-000000000003
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        name: map slot
+        scope: component
+        node_path: pages/partners.detail/sections/map
+        members: []
+        host_slot: true
+        harness_widths_px: [320, 640]
+        adapter: ess-ui
+      state: Declared
+  - instance: frozen
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000020
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: settings page
+        component_treatment: fixed
+        space_digest: "sha256:space-settings"
+      state: Frozen
+  - instance: draft
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000021
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: settings page, draft
+        component_treatment: fixed
+      state: Open
+  - instance: billing-space
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000022
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000002
+        name: billing page
+        component_treatment: fixed
+        space_digest: "sha256:space-billing"
+      state: Frozen
+  - instance: slot-space
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000023
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000003
+        name: map slot
+        component_treatment: fixed
+        space_digest: "sha256:space-slot"
+      state: Frozen
+  - instance: journey
+    entity: uxsearch.journeys.Journey
+    setup:
+      identity: 00000000-0000-4000-8000-000000000030
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: change the email
+        test_file: tests/settings.yaml
+        test_name: change the email
+        required_nodes: []
+        required_selectors: []
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+      state: Active
+  - instance: billing-journey
+    entity: uxsearch.journeys.Journey
+    setup:
+      identity: 00000000-0000-4000-8000-000000000031
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000002
+        name: pay an invoice
+        test_file: tests/billing.yaml
+        test_name: pay an invoice
+        required_nodes: []
+        required_selectors: []
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+      state: Active
+  - instance: old-journey
+    entity: uxsearch.journeys.Journey
+    setup:
+      identity: 00000000-0000-4000-8000-000000000032
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: change the email, old flow
+        test_file: tests/settings.yaml
+        test_name: change the email, old flow
+        required_nodes: []
+        required_selectors: []
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+      state: Retired
+  - instance: desktop
+    entity: uxsearch.evaluation.Environment
+    setup:
+      identity: 00000000-0000-4000-8000-000000000040
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: Desktop light
+        viewport_width_px: 1280
+        viewport_height_px: 800
+        theme_mode: light
+        input_mode: pointer
+        text_scale_percent: 100
+        reduced_motion: false
+        environment_digest: "sha256:env-settings"
+      state: Declared
+  - instance: billing-desktop
+    entity: uxsearch.evaluation.Environment
+    setup:
+      identity: 00000000-0000-4000-8000-000000000041
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000002
+        name: Desktop light
+        viewport_width_px: 1280
+        viewport_height_px: 800
+        theme_mode: light
+        input_mode: pointer
+        text_scale_percent: 100
+        reduced_motion: false
+        environment_digest: "sha256:env-billing"
+      state: Declared
+  - instance: effort
+    entity: uxsearch.metrics.Kpi
+    setup:
+      identity: 00000000-0000-4000-8000-000000000060
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: effort
+        aggregation: weighted_sum
+        terms: [{metric_key: effort.actions, weight: 1}]
+        direction: lower_is_better
+        weight: 1
+      state: Active
+  - instance: billing-effort
+    entity: uxsearch.metrics.Kpi
+    setup:
+      identity: 00000000-0000-4000-8000-000000000061
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000002
+        name: effort
+        aggregation: weighted_sum
+        terms: [{metric_key: effort.actions, weight: 1}]
+        direction: lower_is_better
+        weight: 1
+      state: Active
+  - instance: old-effort
+    entity: uxsearch.metrics.Kpi
+    setup:
+      identity: 00000000-0000-4000-8000-000000000062
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: effort, old weights
+        aggregation: weighted_sum
+        terms: [{metric_key: effort.actions, weight: 2}]
+        direction: lower_is_better
+        weight: 1
+      state: Retired
+  - {instance: campaign, entity: uxsearch.search.Campaign}
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: {$instance: page}
+      design_space_id: {$instance: frozen}
+      journeys: [{$instance: journey}]
+      environments: [{$instance: desktop}]
+      kpis: [{$instance: effort}]
+      strategy: beam
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: beam-width-missing
+    error: {name: uxsearch.search.BeamWidthMissing, fields: {strategy: beam}}
+    no_events: [uxsearch.search.CampaignStarted]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: {$instance: page}
+      design_space_id: {$instance: frozen}
+      journeys: [{$instance: journey}]
+      environments: [{$instance: desktop}]
+      kpis: []
+      strategy: exhaustive
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: no-members
+    error: {name: uxsearch.search.NoMembers, fields: {target_id: 00000000-0000-4000-8000-000000000001}}
+    no_events: [uxsearch.search.CampaignStarted]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: 00000000-0000-4000-8000-0000000000ff
+      design_space_id: {$instance: frozen}
+      journeys: [{$instance: journey}]
+      environments: [{$instance: desktop}]
+      kpis: [{$instance: effort}]
+      strategy: exhaustive
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: no-target
+    error: {name: uxsearch.search.TargetNotFound, fields: {target_id: 00000000-0000-4000-8000-0000000000ff}}
+    no_events: [uxsearch.search.CampaignStarted]
+  # A host slot is drawn by its host: it is not searched.
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: {$instance: slot}
+      design_space_id: {$instance: slot-space}
+      journeys: [{$instance: journey}]
+      environments: [{$instance: desktop}]
+      kpis: [{$instance: effort}]
+      strategy: exhaustive
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: host-slot
+    error: {name: uxsearch.search.HostSlotNotSearchable, fields: {target_id: 00000000-0000-4000-8000-000000000003}}
+    no_events: [uxsearch.search.CampaignStarted]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: {$instance: page}
+      design_space_id: {$instance: draft}
+      journeys: [{$instance: journey}]
+      environments: [{$instance: desktop}]
+      kpis: [{$instance: effort}]
+      strategy: exhaustive
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: design-space-open
+    error: {name: uxsearch.search.DesignSpaceNotFrozen, fields: {design_space_id: 00000000-0000-4000-8000-000000000021}}
+    no_events: [uxsearch.search.CampaignStarted]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: {$instance: page}
+      design_space_id: {$instance: billing-space}
+      journeys: [{$instance: journey}]
+      environments: [{$instance: desktop}]
+      kpis: [{$instance: effort}]
+      strategy: exhaustive
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: design-space-of-another-target
+    error: {name: uxsearch.search.DesignSpaceOfAnotherTarget, fields: {design_space_id: 00000000-0000-4000-8000-000000000022}}
+    no_events: [uxsearch.search.CampaignStarted]
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: {$instance: page}
+      design_space_id: {$instance: frozen}
+      journeys: [{$instance: journey}, {$instance: billing-journey}]
+      environments: [{$instance: desktop}]
+      kpis: [{$instance: effort}]
+      strategy: exhaustive
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: journey-outside-target
+    error: {name: uxsearch.search.OutsideTarget, fields: {target_id: 00000000-0000-4000-8000-000000000001}}
+    no_events: [uxsearch.search.CampaignStarted]
+  - at: 2026-01-05T09:00:07Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: {$instance: page}
+      design_space_id: {$instance: frozen}
+      journeys: [{$instance: journey}]
+      environments: [{$instance: billing-desktop}]
+      kpis: [{$instance: effort}]
+      strategy: exhaustive
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: environment-outside-target
+    error: {name: uxsearch.search.OutsideTarget, fields: {target_id: 00000000-0000-4000-8000-000000000001}}
+    no_events: [uxsearch.search.CampaignStarted]
+  - at: 2026-01-05T09:00:08Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: {$instance: page}
+      design_space_id: {$instance: frozen}
+      journeys: [{$instance: journey}]
+      environments: [{$instance: desktop}]
+      kpis: [{$instance: effort}, {$instance: billing-effort}]
+      strategy: exhaustive
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: kpi-outside-target
+    error: {name: uxsearch.search.OutsideTarget, fields: {target_id: 00000000-0000-4000-8000-000000000001}}
+    no_events: [uxsearch.search.CampaignStarted]
+  - at: 2026-01-05T09:00:09Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: {$instance: page}
+      design_space_id: {$instance: frozen}
+      journeys: [{$instance: old-journey}]
+      environments: [{$instance: desktop}]
+      kpis: [{$instance: effort}]
+      strategy: exhaustive
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: journey-retired
+    error: {name: uxsearch.search.MemberRetired, fields: {target_id: 00000000-0000-4000-8000-000000000001}}
+    no_events: [uxsearch.search.CampaignStarted]
+  - at: 2026-01-05T09:00:10Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: {$instance: page}
+      design_space_id: {$instance: frozen}
+      journeys: [{$instance: journey}]
+      environments: [{$instance: desktop}]
+      kpis: [{$instance: old-effort}]
+      strategy: exhaustive
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: kpi-retired
+    error: {name: uxsearch.search.MemberRetired, fields: {target_id: 00000000-0000-4000-8000-000000000001}}
+    no_events: [uxsearch.search.CampaignStarted]
+  # A journey id nothing was declared under: the engine's answer.
+  - at: 2026-01-05T09:00:11Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: {$instance: page}
+      design_space_id: {$instance: frozen}
+      journeys: [{$instance: journey}, 00000000-0000-4000-8000-0000000000fe]
+      environments: [{$instance: desktop}]
+      kpis: [{$instance: effort}]
+      strategy: exhaustive
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: unknown-member
+    error: {name: uxsearch.search.UnknownMember}
+    no_events: [uxsearch.search.CampaignStarted]
+  - at: 2026-01-05T09:00:12Z
+    command: uxsearch.search.StartCampaign
+    actor: uxsearch.search.Operator
+    input:
+      target_id: {$instance: page}
+      design_space_id: {$instance: frozen}
+      journeys: [{$instance: journey}]
+      environments: [{$instance: desktop}]
+      kpis: [{$instance: effort}]
+      strategy: beam
+      beam_width: 4
+      seed: 1
+      budget: {max_variants: 100, max_wall_time_s: 600}
+    outcome: started
+    capture: {instance: campaign, event: uxsearch.search.CampaignStarted, field: campaign_id}
+    events: [{event: uxsearch.search.CampaignStarted, payload: {target_id: 00000000-0000-4000-8000-000000000001, strategy: beam}}]
+assert:
+  - view: uxsearch.search.Campaigns
+    contains: {campaign_id: {$instance: campaign}, target_id: {$instance: page}, design_space_id: {$instance: frozen}, strategy: beam, seed: 1, budget: {max_variants: 100, max_wall_time_s: 600}, ended_because: null, state: Running}
+  - view: uxsearch.search.Campaigns
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.search.Campaigns
+    satisfies: budget.max_variants > 0
+  - view: uxsearch.search.Campaigns
+    satisfies: budget.max_wall_time_s > 0
+  - view: uxsearch.search.CampaignById
+    params: {campaign_id: {$instance: campaign}}
+    contains: {journeys: [{$instance: journey}], environments: [{$instance: desktop}], kpis: [{$instance: effort}], budget: {max_variants: 100, max_wall_time_s: 600}, policy_digest: null, state: Running}
+  - view: uxsearch.search.CampaignById
+    params: {campaign_id: {$instance: campaign}}
+    satisfies: budget.max_variants > 0
+  - view: uxsearch.search.CampaignById
+    params: {campaign_id: {$instance: campaign}}
+    satisfies: budget.max_wall_time_s > 0

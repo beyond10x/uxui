@@ -1,4 +1,10 @@
-type: ess-scenario/6
+type: ess-scenario/7
+covers:
+  - uxsearch.journeys.CompleteStateSpace/outcome/unevaluable
+  - uxsearch.journeys.StateSpace/transition/complete_incomplete/by/uxsearch.journeys.CompleteStateSpace/unevaluable
+  - uxsearch.evaluation.RecordEvaluationResult/outcome/state-not-evaluable
+  - uxsearch.evaluation.Evaluation/transition/insufficient/by/uxsearch.evaluation.RecordEvaluationResult/state-not-evaluable
+  - uxsearch.journeys.StateSpace/invariant/after/uxsearch.journeys.CompleteStateSpace/unevaluable
 domain: uxsearch.journeys
 scenario: unevaluable-state-is-insufficient
 # Hardening target 3 (R3): a state space holding a state that is not evaluable closes Incomplete,
@@ -66,5 +72,7 @@ timeline:
 assert:
   - view: uxsearch.journeys.StateSpaces
     contains: {state_space_key: {$instance: space}, states_count: 1, state: Incomplete}
+  - view: uxsearch.journeys.StateSpaces
+    satisfies: states_count >= 0
   - view: uxsearch.evaluation.Evaluations
     contains: {evaluation_key: {$instance: evaluation}, insufficient_because: state_not_evaluable, state: Insufficient}

@@ -1,10 +1,13 @@
-type: ess-scenario/6
+type: ess-scenario/7
+covers:
+  - uxsearch.promotion.RecordSourceDiff/outcome/recorded
 domain: uxsearch.design
 scenario: browser-target-from-patch-to-promotion
 # Round 3 (story spec-round-3-target-adapter; docs/targets.md:9-30, 77-85): a target that is not
 # an ess-ui/1 document. The documentation site's landing page is a `browser` target with a base
-# URL and a build command; an axis value patches a named source file (a JSON pointer into
-# `website/product.json`, a CSS variable in the theme); a journey is scripted steps, not a model;
+# URL and a build command; an axis value patches named source files (RFC 6902 operations on
+# `website/product.json`, a custom property of a rule in the theme CSS); a journey is a script of
+# the adapter's steps, not a model;
 # the evaluation is keyed by the browser renderer, never answered from the cell model; and the
 # promotion is recorded as one diff per source file.
 #
@@ -115,7 +118,8 @@ timeline:
     outcome: added
     events: [{event: uxsearch.design.AxisAdded}]
     capture: {instance: axis, event: uxsearch.design.AxisAdded, field: axis_id}
-  # The value is two patches to named source files, and no ess-ui/1 operator application.
+  # The value is one patch per source file, and no ess-ui/1 operator application: operations on
+  # the JSON source, opened by a `test` of what they change, and a custom property of `:root`.
   - at: 2026-01-05T09:00:04Z
     command: uxsearch.design.AddAxisValue
     actor: uxsearch.design.Designer
@@ -124,8 +128,15 @@ timeline:
       name: dark
       applications: []
       patches:
-        - {file: website/product.json, kind: json_pointer, at: /theme/default, value: dark}
-        - {file: website/src/css/custom.css, kind: css_variable, at: --ifm-background-color, value: "#111318"}
+        - file: website/product.json
+          operations:
+            - {op: test, path: /theme/default, value: light}
+            - {op: replace, path: /theme/default, value: dark}
+          rules: []
+        - file: website/src/css/custom.css
+          operations: []
+          rules:
+            - {selector: ":root", values: [{name: --ifm-background-color, value: "#111318"}]}
     outcome: added
     events: [{event: uxsearch.design.AxisValueAdded}]
     capture: {instance: dark, event: uxsearch.design.AxisValueAdded, field: axis_value_id}
@@ -149,7 +160,8 @@ timeline:
         choices: [{axis_id: {$instance: axis}, axis_value_id: {$instance: dark}}]
         applications: []
     outcome: new
-  # A journey of scripted steps: no ess-ui-test/1 test, so its states are the steps it walks.
+  # A scripted journey: no ess-ui-test/1 test. Its states are the `state` steps it names, each a
+  # state of the page it starts on.
   - at: 2026-01-05T09:00:07Z
     command: uxsearch.journeys.DeclareJourney
     actor: uxsearch.journeys.JourneyAuthor
@@ -157,9 +169,12 @@ timeline:
       target_id: {$instance: landing}
       name: install the plugin
       script:
+        page: /uxui/
         steps:
-          - {action: visit, target: /uxui/}
+          - {action: state, target: landed}
           - {action: click, target: "a[href$='install']"}
+          - {action: wait, target: "main h1"}
+          - {action: state, target: at the install page}
       required_nodes: []
       required_selectors: []
       bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 0}
@@ -195,7 +210,7 @@ timeline:
       state_space_key: "sha256:space-install"
       seq: 1
       state_digest: "sha256:step-1"
-      page: /uxui/docs/install
+      page: /uxui/
       selection: []
       virtual_time_ms: 0
       depth: 1
@@ -285,15 +300,25 @@ assert:
     contains:
       axis_value_id: {$instance: dark}
       patches:
-        - {file: website/product.json, kind: json_pointer, at: /theme/default, value: dark}
-        - {file: website/src/css/custom.css, kind: css_variable, at: --ifm-background-color, value: "#111318"}
+        - file: website/product.json
+          operations:
+            - {op: test, path: /theme/default, value: light}
+            - {op: replace, path: /theme/default, value: dark}
+          rules: []
+        - file: website/src/css/custom.css
+          operations: []
+          rules:
+            - {selector: ":root", values: [{name: --ifm-background-color, value: "#111318"}]}
   - view: uxsearch.journeys.Journeys
     contains:
       journey_id: {$instance: journey}
       script:
+        page: /uxui/
         steps:
-          - {action: visit, target: /uxui/}
+          - {action: state, target: landed}
           - {action: click, target: "a[href$='install']"}
+          - {action: wait, target: "main h1"}
+          - {action: state, target: at the install page}
   - view: uxsearch.evaluation.Evaluations
     contains: {evaluation_key: "sha256:eval-dark", layout_model_version: browser/1, state: Computed}
   - view: uxsearch.promotion.SourceDiffsOfPromotion

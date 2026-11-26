@@ -1,4 +1,6 @@
-type: ess-scenario/6
+type: ess-scenario/7
+covers:
+  - uxsearch.design.MaterializeVariant/outcome/known
 domain: uxsearch.design
 scenario: variant-keeps-every-route
 # Hardening target 10 (R13): a new variant records the route that first reached it; reaching the
