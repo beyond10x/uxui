@@ -18,8 +18,15 @@ tests:
       - expect: {at: pages/campaigns.climb/sections/points/rows/pt-04, text: "70"}
 
   - name: switching one axis of a variant sends the switch
+    fixtures:
+      views:
+        uxsearch.design.AxisSwitches:
+          rows:
+            - {axis_switch_id: sw-01, from_variant: "sha256:v-a1", axis_id: ax-layout, axis_value_id: av-04, reached: "sha256:v-b2", failure: null, state: Resolved}
+            - {axis_switch_id: sw-02, from_variant: "sha256:v-b2", axis_id: ax-theme, axis_value_id: av-02, reached: "sha256:v-c3", failure: null, state: Resolved}
     steps:
       - open: {page: variants.detail, params: {variant_digest: "sha256:v-a1"}}
+      - expect: {at: pages/variants.detail/sections/switches, rows: [sw-01]}
       - act: pages/variants.detail/sections/axes/rows/av-04/row_actions/switch
       - expect_command: {command: uxsearch.design.RequestAxisSwitch, input: {from_variant: "sha256:v-a1", axis_id: ax-layout, axis_value_id: av-04}}
 
@@ -34,7 +41,8 @@ tests:
 
   - name: starting a campaign from the catalog opens the form on that target
     steps:
-      - open: targets.catalog
+      - open: {page: targets.catalog, state: {search: page}}
+      - expect: {at: pages/targets.catalog/sections/list, rows: [tg-02]}
       - act: pages/targets.catalog/sections/list/rows/tg-02/row_actions/start
       - expect: {at: pages/campaigns.start/sections/target, text: Settings page}
 

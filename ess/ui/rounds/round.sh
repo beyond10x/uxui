@@ -10,8 +10,12 @@
 # (trial/, shots/, audit/), and round.json (summary.mjs). Nothing under ess/ui/ is written: the round's
 # report takes its numbers from round.json, which is copied into ess/ui/rounds/<round id>/.
 #
-# It compiles (cargo, tsc, esbuild) and then measures, in one job: on a host with a build pool,
-#   slot --timeout 25m --fetch target/loop-round/R-01 sh ess/ui/rounds/round.sh R-01
+# It compiles (tsc, esbuild, cargo) and then measures. On a host with a build pool (`slot` on PATH)
+# the round starts without the pool, and its two steps that compile each run as a job of the pool,
+# which hands their output back (`--fetch`); the measuring runs where the round was started.
+# R-01 ran as one job of the pool, measuring included; R-02 and later measure outside it.
+# `sh ess/ui/rounds/round.sh --app` is the first of those steps alone: the app generated, themed and
+# built into <target dir>/loop-round/app.
 set -eu
 
 round=${1:?usage: sh ess/ui/rounds/round.sh <round id>}
@@ -25,8 +29,44 @@ app=$work/app
 out=$work/$round
 config=ess/ui/rounds/studio.checks.yaml
 render=ess/ui/rounds/studio.render.yaml
+bars=ess/ui/rounds/studio.audit.json
 # The gating viewports of the round (the skill's adapter table); the checks file measures three more.
 gating='1366x768 1280x720'
+
+# The app: generated, themed, built. It notes the tools it was built with, for versions.txt.
+build_app() {
+	rm -rf "$app"
+	mkdir -p "$work"
+	ess generate ui --target react --path ess/ui/studio.ui.yaml --model ess --fixtures --out "$app"
+	# The theme is linked by an edit of the generated index.html (docs/change-list.md, the theme row).
+	cp themes/studio.css themes/theme-toggle.js "$app/www/"
+	sed -e 's|<link rel="stylesheet" href="/assets/main.css" />|&\
+    <link rel="stylesheet" href="/studio.css" />\
+    <script src="/theme-toggle.js"></script>|' "$app/www/index.html" >"$app/www/index.html.new"
+	mv "$app/www/index.html.new" "$app/www/index.html"
+	grep -q 'studio.css' "$app/www/index.html" || {
+		echo "round: the theme was not linked into www/index.html" >&2
+		exit 1
+	}
+	(cd "$app" && npm install --no-audit --no-fund && npm run build) >&2
+	{
+		printf 'ess: %s\n' "$(ess --version)"
+		printf 'node: %s\n' "$(node --version)"
+		printf 'npm: %s\n' "$(npm --version)"
+	} >"$app/built-with.txt"
+}
+
+if [ "$round" = --app ]; then
+	build_app
+	exit 0
+fi
+
+# A job of the pool cannot start another: a round started inside one builds in that job. The pool
+# hands back paths under the tree's own target directory, so another target directory builds here.
+pool=
+if [ -z "${SLOT_JOB:-}" ] && [ "$target" = "$root/target" ] && command -v slot >/dev/null 2>&1; then
+	pool=slot
+fi
 
 if [ -z "${UXUI_CHROME:-}" ]; then
 	cache=${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}
@@ -41,27 +81,18 @@ export UXUI_CHROME
 rm -rf "$app" "$out"
 mkdir -p "$out/render" "$out/dom" "$out/capture" "$work/decl"
 
-# 1. The app: generated, themed, built.
-ess generate ui --target react --path ess/ui/studio.ui.yaml --model ess --fixtures --out "$app"
-# The theme is linked by an edit of the generated index.html (docs/change-list.md, the theme row).
-cp themes/studio.css themes/theme-toggle.js "$app/www/"
-sed -e 's|<link rel="stylesheet" href="/assets/main.css" />|&\
-    <link rel="stylesheet" href="/studio.css" />\
-    <script src="/theme-toggle.js"></script>|' "$app/www/index.html" >"$app/www/index.html.new"
-mv "$app/www/index.html.new" "$app/www/index.html"
-grep -q 'studio.css' "$app/www/index.html" || {
-	echo "round: the theme was not linked into www/index.html" >&2
-	exit 1
-}
-(cd "$app" && npm install --no-audit --no-fund && npm run build) >&2
-
-cargo build --locked -p ux-browser >&2
+# 1. The app and the browser adapter: the two steps that compile.
+if [ -n "$pool" ]; then
+	"$pool" --fetch target/loop-round/app sh ess/ui/rounds/round.sh --app >&2
+	"$pool" --fetch target/debug/ux-browser cargo build --locked -p ux-browser >&2
+else
+	build_app
+	cargo build --locked -p ux-browser >&2
+fi
 bin=$target/debug/ux-browser
 
 {
-	printf 'ess: %s\n' "$(ess --version)"
-	printf 'node: %s\n' "$(node --version)"
-	printf 'npm: %s\n' "$(npm --version)"
+	cat "$app/built-with.txt"
 	for package in react react-dom esbuild typescript; do
 		printf '%s: %s\n' "$package" "$(node -p "require('$app/node_modules/$package/package.json').version")"
 	done
@@ -124,5 +155,5 @@ node ess/ui/rounds/trial.mjs "$origin" ess/ui/rounds/studio.scenarios.json "$out
 rm -rf "$work"/trial-profile-*
 
 # 6. The numbers of the round as one file (the round.json of § 3.2), for the round directory.
-node ess/ui/rounds/summary.mjs "$round" "$out" "$out/round.json"
+node ess/ui/rounds/summary.mjs "$round" "$out" "$out/round.json" "$bars"
 echo "round: $round written to $out"
