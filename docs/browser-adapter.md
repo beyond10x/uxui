@@ -573,13 +573,23 @@ node path of a miss is `<viewport>/<mode>/<check>`):
 
 | check | when | a miss |
 |---|---|---|
-| `skip-link-first` | a skip link is declared (`skip_link_is` or `skip_link_contains`) | on a fresh load, the label of the first Tab stop (its `aria-label`, else its text) is not the skip link's name |
+| `skip-link-first` | a skip link is declared (`skip_link_is` or `skip_link_contains`) | on a fresh page, the label of the first Tab stop (its `aria-label`, else its text) is not the skip link's name |
 | `skip-link-moves-focus` | a skip link is declared | the skip link is not first, or neither Enter on it nor one more Tab puts focus on its target (the element its `href="#id"` names) or inside it |
-| `tab-reaches-<target>` | per target of `must_reach` | on another fresh load, no Tab of the first `max_tabs` puts focus on the target or inside it; a target with no visible candidate on the page is not reached |
+| `tab-reaches-<target>` | per target of `must_reach` | on another fresh page, no Tab of the first `max_tabs` puts focus on the target or inside it; a target with no visible candidate on the page is not reached |
 | `focus-mark-<target>` | `focus_mark: true`, per reached target | the element that has focus on the Tab that first reached the target shows no focus mark (below) |
 | `activates-<target>` | per reached target of `activates` | neither Enter nor Space on it acts (below) |
 
-Without a skip link the walk loads the page once, not twice, and has no skip-link check: a page that
+**A fresh page.** The first walk of a page and viewport starts on the page the checks just measured:
+they only scrolled it and read it. When no element has focus (`document.activeElement` is the body)
+and nothing is selected, the walk scrolls it to the top, waits for fonts and two frames, and takes it
+as fresh; else it loads the page. Every other fresh page is a load: the Tab walk after the skip
+link's Enter (focus moved, and the fragment set the point the next Tab starts from), each activation,
+and every check of a second walk on the same page and viewport (it starts where the first one left
+focus). With a ready condition a load waits for it. So a walk with a skip link loads the page once,
+a walk without one not at all, plus one load per activation (`measure::walk_plan`,
+`measure::planned_loads`; up to 0.11.0 every fresh page was a load: two and one).
+
+Without a skip link the walk has no skip-link check: a page that
 has none and declares none misses nothing for it. An unreached target is one miss, whatever
 `focus_mark` and `activates` say of it. A configuration of 0.5.0 (a skip link, no `focus_mark`, no
 `activates`) walks and counts as 0.5.0 and before did. A target's `min_width`, `max_width` and
@@ -765,6 +775,7 @@ As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
 | `evidence.inputs.pages` | `{value: <the --pages list>}` when the run measured a list and not the whole sitemap |
 | `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, ready, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude, clock}`; `ready` is `load` without a ready condition, else `selector <css>` or `global <name>`. A document of 0.3.0 has no `ready`; its ready was `load`. The layout keys are the rule values the run used, defaults included (`"0"`, `"1"`, the elements joined by `, `, the exclusions joined by `, ` or `""`); a document of 0.4.0 or before has none, its rule was the default. `clock` is `real` without a clock, else `from <instant>` or `frozen at <instant>` in UTC (A fixed page clock); a document of 0.4.0 or before has none, its clock was the host's |
 | `run.local_inputs` | `jobs` (the value used), `capture` and `profile` when given, and `chrome-arg`, the switches added by `chrome_args` and `--chrome-arg` as a JSON list, when there are any: they differ per machine and change no value, so they stay outside the evidence |
+| `run.timing` | where the run spent its time (Timings, The run's times): `{unit: ms, pages: [...]}`, one entry per page and viewport measured. Outside the evidence: the evidence of the same measurements is the same bytes with and without it. Absent when no page was measured |
 | `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk check (The keyboard walk: the skip link's two when declared, each target, each focus mark, each activation), and one counted layout-shift reading per viewport; per state of a journey and its viewport and mode, page scroll, overflow and each applicable item once. A page that did not load is one `not_run` entry, id the page path; a state a run did not reach is one, id `journey/<journey>/<state>/<viewport>/<mode>` (Journeys) |
 | `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks`: per walk `viewport`, `mode`, `skip_link_first` and `skip_moves_focus` (only with a skip link), `reached`, `focus_marks` (when a mark was judged) and `activates` (when an activation was judged), each a map of target to true or false. A keyboard finding's reason is `missed`, except a focus mark's (the focused element and what it showed) and an activation's (what failed). After the pages' numbers and before their sets: per state of a journey three numbers and a set, scope `state`, item `<journey>/<state>` (Journeys) |
 
@@ -902,6 +913,56 @@ origin's storage cleared between paths (the server sends every file with `no-sto
 before this change, and each run above) read 0.0004. Not isolated; the shift is likely the swap of a web
 font that a reused renderer already holds. So each pair keeps a context of its own, as a fresh
 Playwright context does.
+
+### The run's times
+
+`run.timing` (outside the evidence) says where a checks run spent its time: `unit` (`ms`) and
+`pages`, one entry per page and viewport measured, in the run's order, one per line of the document.
+Whole milliseconds of the worker's clock; workers overlap, so the entries add up to more than the
+run's wall time.
+
+| key | what |
+|---|---|
+| `path`, `viewport` | the page and the viewport |
+| `loads` | the page loads of the pair: the measured one and each walk's (`measure::planned_loads`, plus one per activation and one where a reset found focus on the page) |
+| `open` | the browser context and its page, created and set up |
+| `load` | the measured load: navigation to the `load` event, then the ready condition, or fonts and two frames without one |
+| `settle` | the `settle_ms` wait |
+| `modes` | per mode, in order: `mode`; `switch` (the media switch, the wait for `mode_attribute`, `mode_settle_ms` and the check that the mode applied; for the first mode the check only); `overflow` (the overflow probe); `top` (the always-visible items at the top: the accessibility tree and each candidate); `scroll_settle` (the scroll to the bottom and `scroll_settle_ms`); `bottom` (the items at the bottom and the scroll back); and `keyboard` in a keyboard mode |
+| `modes[].keyboard` | `ms` the whole walk; `reset` the reset of the measured page when the walk started on it (The keyboard walk, A fresh page); `loads` each load of the walk; `tabs` its Tab presses (the skip link's, the walk's, each activation's) |
+| `close` | the context disposed |
+| `total` | from the start of `open` to the end of `close` |
+
+A page that could not be measured has no entry; journeys are not timed. A capture
+(`--capture`) holds the same times under each viewport's `timing`.
+
+### The walk on the measured page, 2026-11-26
+
+Before: 0.11.0 (every fresh page of the walk a load); after: this change (the first walk starts on
+the measured page, The keyboard walk). The same Chromium (Chrome/149.0.7827.55), the same builds, on a
+shared 20-CPU workstation with other jobs running (1-minute load 6 to 16). Two sites: this
+repository's documentation build (15 pages, `tests/fixtures/checks/uxui-docs.checks.yaml`: a skip
+link, the walk in dark) and llm's (27 pages, `examples/llm.checks.yaml`, the same walk).
+
+| site | `--jobs` | page loads before / after | wall before (s) | wall after (s) |
+|---|---|---|---|---|
+| uxui docs, 30 pairs | 4 | 90 / 60 | 15.3, 16.6, 15.8 | 15.2, 14.9, 20.0 |
+| llm docs, 54 pairs | 4 | 162 / 110 | 30.4, 30.1, 27.9 | 26.2, 34.5, 27.0 |
+| llm docs, 54 pairs | 1 | 162 / 110 | 122.1, 91.6 | 104.4, 104.3 |
+
+Loads: 2 per pair after, where 3 before, except llm's `/llm/search`, whose query box takes focus on
+load: the reset finds focus and loads, so it stays at 3 (2 pairs). Results: every run's evidence,
+before and after, is the same bytes (llm 164 lines, 1,234 checks; uxui 92 lines, 566 checks), and so
+is each fixture site's (`cover`, `hidden`, `journey`, `layout`, `narrow-menu`; none walks).
+
+The wall times move with the host's load more than with the change. `run.timing` of the
+one-worker runs says what the change is worth: a walk's load took 166 ms on the mean, the reset that
+replaces it 28 ms, so the 52 loads saved are about 7 s of the run's 104 s of pair time (7 %). Where
+the rest goes, per pair (mean of 54, one worker): 1,920 ms in all; the declared waits 250 (settle),
+410 (two scroll settles), about 165 (the mode switch with its 100 ms settle) and the keyboard walk's
+100 ms focus settle; the walk itself 460 (its load, 9 Tabs with a probe per target after each); the
+measured load 235; the context 105. The waits a configuration declares are close to half of each
+pair; they, and `--jobs`, are what moves the wall time further.
 
 ## Comparison with llm, 2026-11-24
 

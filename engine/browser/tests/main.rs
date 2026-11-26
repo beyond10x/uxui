@@ -21,6 +21,7 @@ mod pool;
 mod ready;
 mod render;
 mod target;
+mod timing;
 mod values;
 mod version;
 mod ws;

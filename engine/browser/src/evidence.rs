@@ -744,7 +744,46 @@ pub fn document_with_journeys(
     ])
 }
 
-/// The document as JSON: compact, one result per line, a newline at the end.
+/// The document with `run.timing`, read from the recorded pages (`measure::check_pages`): per page
+/// and viewport measured, in the run's order, `path`, `viewport` and the recorded times
+/// (`docs/browser-adapter.md`, Evidence and Timings). The evidence is not touched. A recorded page
+/// without times (one that could not be measured, a capture of 0.11.0 or before) adds nothing; with
+/// none the document is returned as it was.
+pub fn with_timing(mut document: Value, recorded: &[Value]) -> Value {
+    let mut pages = Vec::new();
+    for page in recorded {
+        let Some(path) = page.get_str("path") else {
+            continue;
+        };
+        for vp in page.get("viewports").map(Value::list).unwrap_or_default() {
+            let (Some(viewport), Some(Value::Map(times))) = (vp.get("viewport"), vp.get("timing"))
+            else {
+                continue;
+            };
+            let mut entry = vec![
+                ("path".to_string(), s(path)),
+                ("viewport".to_string(), viewport.clone()),
+            ];
+            entry.extend(times.iter().cloned());
+            pages.push(Value::Map(entry));
+        }
+    }
+    if pages.is_empty() {
+        return document;
+    }
+    if let Value::Map(top) = &mut document
+        && let Some((_, Value::Map(run))) = top.iter_mut().find(|(k, _)| k == "run")
+    {
+        run.push((
+            "timing".to_string(),
+            map(vec![("unit", s("ms")), ("pages", Value::List(pages))]),
+        ));
+    }
+    document
+}
+
+/// The document as JSON: compact, one result per line (and one page and viewport of `run.timing`
+/// per line), a newline at the end.
 pub fn text(document: &Value) -> String {
     let mut out = String::new();
     put(document, &mut out);
@@ -765,7 +804,7 @@ fn put(value: &Value, out: &mut String) {
         out.push_str(&uxui_doc::json::string(key));
         out.push(':');
         match item {
-            Value::List(results) if key == "results" && !results.is_empty() => {
+            Value::List(results) if (key == "results" || key == "pages") && !results.is_empty() => {
                 out.push('[');
                 for (j, result) in results.iter().enumerate() {
                     out.push_str(if j > 0 { ",\n" } else { "\n" });

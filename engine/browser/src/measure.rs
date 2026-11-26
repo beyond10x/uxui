@@ -13,7 +13,7 @@ use crate::target::Site;
 use crate::value::{f64_of, map, s};
 use crate::ws::WebSocket;
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use uxui_doc::yaml::Value;
 
 pub const NODE_PROBE: &str = include_str!("probes/node.js");
@@ -257,6 +257,7 @@ fn measure_viewport(
     let mut init_scripts: Vec<&str> = clock_init.as_deref().into_iter().collect();
     init_scripts.push(SHIFTS_INIT);
     init_scripts.extend(ready_init.as_deref());
+    let start = Instant::now();
     let page = Page::open(
         conn,
         &Setup {
@@ -267,11 +268,21 @@ fn measure_viewport(
             init_scripts: &init_scripts,
         },
     )?;
-    let result = measure_open(conn, &page, config, &url, path, vp);
+    let mut timing = vec![("open", ms(start))];
+    let result = measure_open(conn, &page, config, &url, path, vp, &mut timing);
+    let closing = Instant::now();
     page.close(conn)?;
-    result
+    timing.push(("close", ms(closing)));
+    timing.push(("total", ms(start)));
+    let mut record = result?;
+    if let Value::Map(entries) = &mut record {
+        entries.push(("timing".to_string(), map(timing)));
+    }
+    Ok(record)
 }
 
+/// The checks of `path` at `vp` on an open page; the milliseconds of each phase go to `timing`
+/// (`run.timing`, `docs/browser-adapter.md`).
 fn measure_open(
     conn: &mut Conn,
     page: &Page,
@@ -279,18 +290,26 @@ fn measure_open(
     url: &str,
     path: &str,
     vp: &NamedViewport,
+    timing: &mut Vec<(&'static str, Value)>,
 ) -> Result<Value, Failure> {
+    let t = Instant::now();
     let status = page.navigate(conn, url)?;
     if status != 200 {
         return Err(Failure::Page(format!("HTTP status {status}")));
     }
     let ready = ready(conn, page, config)?;
+    let load = ms(t);
+    let t = Instant::now();
     page.wait(conn, config.settle_ms)?;
+    let settle = ms(t);
     let entries = page.eval(conn, "window.__uxbShifts")?;
     let shifts = map(vec![("ready", ready), ("entries", entries)]);
     let mut units = Vec::new();
     let mut walks = Vec::new();
+    let mut loads = 1;
+    let mut mode_times = Vec::new();
     for (i, mode) in config.modes.iter().enumerate() {
+        let t = Instant::now();
         if i > 0 {
             page.set_mode(conn, mode, config.reduced_motion)?;
             if let Some(attr) = &config.mode_attribute {
@@ -306,6 +325,8 @@ fn measure_open(
             Some(attr) => mode_of(conn, page, attr)?.as_deref() == Some(mode.as_str()),
             None => true,
         };
+        let mut times = vec![("mode", s(mode)), ("switch", ms(t))];
+        let t = Instant::now();
         page.eval(conn, "window.scrollTo(0, 0)")?;
         let strs = |l: &[String]| Value::List(l.iter().map(|e| s(e)).collect());
         let rule = &config.layout.overflow;
@@ -314,14 +335,21 @@ fn measure_open(
             OVERFLOW_PROBE,
             &[strs(&rule.elements), strs(&rule.exclude)],
         )?;
+        times.push(("overflow", ms(t)));
+        let t = Instant::now();
         let top = visible_items(conn, page, config, path, vp)?;
+        times.push(("top", ms(t)));
+        let t = Instant::now();
         page.eval(
             conn,
             "window.scrollTo(0, document.documentElement.scrollHeight)",
         )?;
         page.wait(conn, config.scroll_settle_ms)?;
+        times.push(("scroll_settle", ms(t)));
+        let t = Instant::now();
         let bottom = visible_items(conn, page, config, path, vp)?;
         page.eval(conn, "window.scrollTo(0, 0)")?;
+        times.push(("bottom", ms(t)));
         units.push(map(vec![
             ("mode", s(mode)),
             ("mode_applied", Value::Bool(applied)),
@@ -329,19 +357,116 @@ fn measure_open(
             ("visible", map(vec![("top", top), ("bottom", bottom)])),
         ]));
         if let Some(k) = &config.keyboard
-            && k.modes.contains(mode)
-            && k.viewports.as_ref().is_none_or(|v| v.contains(&vp.name))
+            && walks_at(k, mode, &vp.name)
         {
-            let walk = keyboard_walk(conn, page, config, k, url)?;
+            let t = Instant::now();
+            let plan = walk_plan(k, walks.is_empty());
+            let mut walk_times = WalkTimes::default();
+            let walk = keyboard_walk(conn, page, config, k, url, &plan, &mut walk_times)?;
             walks.push(map(vec![("mode", s(mode)), ("walk", walk)]));
+            loads += walk_times.loads.len();
+            let mut kt = vec![("ms", ms(t))];
+            kt.extend(walk_times.reset.map(|r| ("reset", r)));
+            kt.push(("loads", Value::List(walk_times.loads)));
+            kt.push(("tabs", Value::Int(walk_times.tabs)));
+            times.push(("keyboard", map(kt)));
         }
+        mode_times.push(map(times));
     }
+    timing.push(("loads", Value::Int(loads as i64)));
+    timing.push(("load", load));
+    timing.push(("settle", settle));
+    timing.push(("modes", Value::List(mode_times)));
     Ok(map(vec![
         ("viewport", s(&vp.name)),
         ("shifts", shifts),
         ("units", Value::List(units)),
         ("keyboard", Value::List(walks)),
     ]))
+}
+
+/// How a check of the keyboard walk starts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Start {
+    /// On the page as the checks left it, made the same as a fresh load.
+    Reset,
+    /// On a new load of the page.
+    Load,
+}
+
+/// How the checks of one walk start; each activation starts on a load of its own.
+#[derive(Debug, PartialEq, Eq)]
+pub struct WalkPlan {
+    pub skip_link: Option<Start>,
+    pub tabs: Start,
+}
+
+/// The plan of a walk. The `first` walk of a page and viewport starts on the page the checks just
+/// measured, which they only scrolled and read: its first check (the skip link's, else the Tab walk)
+/// starts on a reset (`RESET_PROBE`). Every other start is a load: the Tab walk after the skip
+/// link's Enter (focus moved, and the fragment set the browser's starting point of the next Tab), and
+/// each check of a walk after another walk.
+pub fn walk_plan(k: &KeyboardConfig, first: bool) -> WalkPlan {
+    let start = if first { Start::Reset } else { Start::Load };
+    match k.skip_link {
+        Some(_) => WalkPlan {
+            skip_link: Some(start),
+            tabs: Start::Load,
+        },
+        None => WalkPlan {
+            skip_link: None,
+            tabs: start,
+        },
+    }
+}
+
+/// Whether the walk runs in `mode` at the viewport named `viewport`.
+fn walks_at(k: &KeyboardConfig, mode: &str, viewport: &str) -> bool {
+    k.modes.iter().any(|m| m == mode)
+        && k.viewports
+            .as_ref()
+            .is_none_or(|v| v.iter().any(|n| n == viewport))
+}
+
+/// The page loads of one page at the viewport named `viewport` as the run plans them: the measured
+/// load and the loads of each walk's plan ([`walk_plan`]). Not counted, because the page decides
+/// them: one more per activated target, and one where a reset finds focus or a selection on the
+/// page (a page that focuses an element itself) and loads instead.
+pub fn planned_loads(config: &Config, viewport: &str) -> usize {
+    let Some(k) = &config.keyboard else { return 1 };
+    let walks = config
+        .modes
+        .iter()
+        .filter(|m| walks_at(k, m, viewport))
+        .count();
+    let loads_of = |plan: WalkPlan| {
+        plan.skip_link
+            .into_iter()
+            .chain([plan.tabs])
+            .filter(|s| *s == Start::Load)
+            .count()
+    };
+    1 + (0..walks)
+        .map(|i| loads_of(walk_plan(k, i == 0)))
+        .sum::<usize>()
+}
+
+/// Makes the measured page the same as a fresh load for the walk, when the checks left it so: no
+/// element has focus and nothing is selected (the checks only scroll and read). Then it scrolls to
+/// the top and answers true; else it changes nothing and answers false, and the walk loads the page.
+const RESET_PROBE: &str = "(() => { const a = document.activeElement; const sel = window.getSelection(); const clean = (a === null || a === document.body) && (!sel || sel.rangeCount === 0); if (clean) window.scrollTo(0, 0); return clean; })()";
+
+/// Milliseconds since `t`.
+fn ms(t: Instant) -> Value {
+    Value::Int(t.elapsed().as_millis() as i64)
+}
+
+/// The times of one walk (`run.timing`): its loads, its reset and its Tab presses.
+#[derive(Default)]
+struct WalkTimes {
+    loads: Vec<Value>,
+    reset: Option<Value>,
+    tabs: i64,
 }
 
 /// The element a `click` or `type` step acts on (`probes/step-target.js`).
@@ -685,29 +810,46 @@ fn visible_items(
 }
 
 /// The keyboard walk (`docs/browser-adapter.md`, The keyboard walk): with a skip link, on a fresh
-/// load the first Tab stop must be the skip link and Enter on it (or one more Tab) must put focus
-/// into its target; on another fresh load, up to `max_tabs` Tabs must reach each target, and with
+/// page the first Tab stop must be the skip link and Enter on it (or one more Tab) must put focus
+/// into its target; on another fresh page, up to `max_tabs` Tabs must reach each target, and with
 /// `focus_mark` the focused element is read on the Tab that reaches one; then each reached target of
-/// `activates` is activated on a fresh load of its own. With a ready condition each fresh load waits
-/// for it.
+/// `activates` is activated on a fresh load of its own. A fresh page is a load, or the measured page
+/// reset where `plan` says so ([`walk_plan`]). With a ready condition each load waits for it.
 fn keyboard_walk(
     conn: &mut Conn,
     page: &Page,
     config: &Config,
     k: &KeyboardConfig,
     url: &str,
+    plan: &WalkPlan,
+    times: &mut WalkTimes,
 ) -> Result<Value, Failure> {
-    let fresh_load = |conn: &mut Conn| -> Result<(), Failure> {
+    let fresh_load = |conn: &mut Conn, times: &mut WalkTimes| -> Result<(), Failure> {
+        let t = Instant::now();
         page.navigate(conn, url)?;
         if config.ready.is_some() {
             ready(conn, page, config)?;
         }
+        times.loads.push(ms(t));
         Ok(())
+    };
+    let fresh = |conn: &mut Conn, start: Start, times: &mut WalkTimes| -> Result<(), Failure> {
+        if start == Start::Reset {
+            let t = Instant::now();
+            if page.eval(conn, RESET_PROBE)? == Value::Bool(true) {
+                // The scroll's handlers run, as a load's scripts have run before its first Tab.
+                page.eval(conn, READY)?;
+                times.reset = Some(ms(t));
+                return Ok(());
+            }
+        }
+        fresh_load(conn, times)
     };
     let mut record = Vec::new();
     if let Some(skip_link) = &k.skip_link {
-        fresh_load(conn)?;
+        fresh(conn, plan.skip_link.unwrap_or(Start::Load), times)?;
         page.press(conn, "Tab")?;
+        times.tabs += 1;
         let active = page.eval(conn, ACTIVE_PROBE)?;
         let label = active.get_str("label").unwrap_or_default().to_string();
         let href = active.get_str("href").unwrap_or_default().to_string();
@@ -719,6 +861,7 @@ fn keyboard_walk(
             after_enter = page.run(conn, PAST_PROBE, &[s(&href)])? == Value::Bool(true);
             if !after_enter {
                 page.press(conn, "Tab")?;
+                times.tabs += 1;
                 after_tab = page.run(conn, PAST_PROBE, &[s(&href)])?;
             }
         }
@@ -726,7 +869,7 @@ fn keyboard_walk(
         record.push(("after_enter", Value::Bool(after_enter)));
         record.push(("after_tab", after_tab));
     }
-    fresh_load(conn)?;
+    fresh(conn, plan.tabs, times)?;
     let targets = keyboard_targets(conn, page, config, k)?;
     let mut reached: Vec<Option<usize>> = targets.iter().map(|_| None).collect();
     let mut marks = Vec::new();
@@ -740,6 +883,7 @@ fn keyboard_walk(
             break;
         }
         page.press(conn, "Tab")?;
+        times.tabs += 1;
         let mut here = Vec::new();
         for (i, (name, object)) in targets.iter().enumerate() {
             let Some(object) = object else { continue };
@@ -760,7 +904,8 @@ fn keyboard_walk(
         if let Some(presses) = reached[i]
             && k.activates.contains(name)
         {
-            fresh_load(conn)?;
+            fresh_load(conn, times)?;
+            times.tabs += presses as i64;
             activations.push((name.clone(), activate(conn, page, config, k, i, presses)?));
         }
     }
