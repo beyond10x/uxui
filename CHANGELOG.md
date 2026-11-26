@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- `ux-search landing promote` makes one variant of the landing-page campaign the page as shipped:
+  it applies the variant's patch to `website/product.json` and `website/src/css/landing.css`, names
+  the variant in `engine/search/src/landing/shipped.txt` (the one place the shipped variant stands
+  now, read at build time; the `shipped` field of the axes is gone) and writes one
+  `ratchet-evidence/1` document: the SHA-256 of the measurements and of each source before and
+  after, the adapter and browser, the chosen and the shipped variant with rank and terms, the size
+  of the frontier, the patch, and who chose. The same input gives the same bytes. It refuses, and
+  writes nothing, a variant outside the space or the measurements, one that breaks a hard rule or
+  is off the frontier, the shipped variant itself, and sources other than those the measurements
+  were recorded on; the four files are written all or none. Promoted evidence files live in
+  `docs/promotions/`. Operations for actions, section order and palette stay written against
+  `1+1`, `features-first` and `docs-system`; a promotion off those values prints a note.
+  `docs/campaign-2026-11-26-docs-landing-engine.md`, Promotion.
 - `ux-search` gets a second backend, the browser adapter (`ux_browser`, by path), and runs its first
   campaign on it: the documentation landing page `/uxui/`, 144 variants (palette x hero alignment x
   hero actions x section order x density x heading scale) in 6 environments, 864 renders in 6 page

@@ -17,6 +17,7 @@ mod climb;
 mod cost;
 mod landing;
 mod landing_adversary;
+mod landing_promote;
 mod rank;
 mod studio;
 mod studio_adversary;
