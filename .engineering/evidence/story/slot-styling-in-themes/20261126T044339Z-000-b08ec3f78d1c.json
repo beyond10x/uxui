@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T04:43:39Z",
+  "actor": "human:operator",
+  "artifact": "story:slot-styling-in-themes",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "beyond10x/slot#121 merged 2026-11-26 as 0a82c18c71ea28adf8a7c87fa36a29f2b19c233a: slot's job list and job detail take column widths, one-line cells, class hooks, labels beside values and a colour per value from themes/dense.css and themes/slot-jobs.css (copied unedited from uxui 478644f into ui/src/uxui/), with no ess-ui/1 key added; on its head ef9dcab slot's UX gate ran 145 Playwright tests, all passed, and its UX ratchet exited 0 with the baseline unchanged; both theme files read on slot main at 0a82c18",
+    "reference": "themes/slot-jobs.md"
+  }
+}
