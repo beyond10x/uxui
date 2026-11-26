@@ -15,6 +15,8 @@
 //                                   one render, what the mode's expectation reads on the page,
 //                                   the first elements behind four of the counts, and a digest
 //                                   of every element's box and colours
+//   __uxuiCampaign.still()          hides the caret before a screenshot, and lets what that
+//                                   starts come to rest
 (() => {
   if (window.__uxuiCampaign) return true;
   const STYLE_ID = 'uxui-campaign-css';
@@ -456,6 +458,23 @@
     return true;
   }
 
+  // Before a screenshot: a caret blinks in a field the page focused, on in one shot and off in
+  // the next, so it is hidden. Nothing else of the page is changed, and no number is measured
+  // after it.
+  const STILL_ID = 'uxui-campaign-still';
+  async function still() {
+    if (!document.getElementById(STILL_ID)) {
+      const style = document.createElement('style');
+      style.id = STILL_ID;
+      style.textContent = '*, *::before, *::after { caret-color: transparent !important; }';
+      document.head.append(style);
+    }
+    settle();
+    await frames();
+    settle();
+    return true;
+  }
+
   // `config`: primary, regions (or null), always_visible (name, selector), small_target_px,
   // attribute (name, value; or null), expect (attribute: name, value, or null; selector or
   // null; or null).
@@ -475,6 +494,6 @@
     };
   }
 
-  window.__uxuiCampaign = { prepare, apply, measure };
+  window.__uxuiCampaign = { prepare, apply, measure, still };
   return true;
 })()

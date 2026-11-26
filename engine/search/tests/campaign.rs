@@ -1272,9 +1272,8 @@ fn a_record_of_other_variants_is_not_reported() {
 const SMALL_NOTES: &str = "notes: the first elements behind each count, at most 3 per term and environment, of the page as shipped and of the frontier
 shipped stock.stock
      1366x768 light low_contrast: main > p.hint \"Updated a minute ago\": 3.10 under 4.5, #8a8a8a on #ffffff
-     1366x768 light low_contrast: td.muted \"n/a\": 2.32 under 4.5, #aaaaaa on #ffffff
+     1366x768 light, 390x844 dark low_contrast: td.muted \"n/a\": 2.32 under 4.5, #aaaaaa on #ffffff
      1366x768 light small_targets: nav > a.icon: 16 x 16 px
-     390x844 dark low_contrast: td.muted \"n/a\": 2.32 under 4.5, #aaaaaa on #ffffff
    1 tight.deep
      1366x768 light small_targets: nav > a.icon: 16 x 16 px
 ";
@@ -1323,6 +1322,123 @@ fn the_notes_name_the_elements_of_the_page_as_shipped_and_of_the_frontier() {
         notes.contains(" stock.stock\n     the page as shipped, above\n"),
         "{notes}"
     );
+}
+
+/// An element the same in every environment of every variant the notes are printed for is
+/// printed once, before the variants, with how many variants and environments it stands for;
+/// one the same in every environment of one variant is printed once for it.
+#[test]
+fn the_notes_name_an_element_once_when_it_is_the_same_in_every_environment_and_variant() {
+    let mut recorded = small_record();
+    recorded.notes[1] = (0..4)
+        .map(|at| note(at, "small_targets", &[SMALL_ICON]))
+        .collect();
+    recorded.notes[2] = vec![
+        note(0, "low_contrast", &[PALE_HINT, PALE_CELL]),
+        note(0, "small_targets", &[SMALL_ICON]),
+        note(1, "low_contrast", &[PALE_CELL]),
+        note(1, "small_targets", &[SMALL_ICON]),
+        note(2, "low_contrast", &[PALE_CELL]),
+        note(2, "small_targets", &[SMALL_ICON]),
+        note(3, "low_contrast", &[PALE_CELL]),
+        note(3, "small_targets", &[SMALL_ICON]),
+    ];
+    assert_eq!(
+        report::notes(&recorded),
+        Ok(format!(
+            "notes: the first elements behind each count, at most 3 per term and environment, of the page as shipped and of the frontier
+the same in every environment of every variant below, 2 variants in 4 environments, 8 renders:
+     small_targets: {SMALL_ICON}
+shipped stock.stock
+     1366x768 light low_contrast: {PALE_HINT}
+     all 4 environments low_contrast: {PALE_CELL}
+   1 tight.deep
+     only the elements of every variant, above
+"
+        ))
+    );
+}
+
+/// A mode, or a viewport, whose renders measure the same numbers as another one's for every
+/// variant is named, one line each; one that differs in one render is not.
+#[test]
+fn a_mode_or_a_viewport_that_measures_what_another_one_measures_is_named() {
+    let mut recorded = small_record();
+    assert_eq!(report::idle_environments(&recorded), Vec::<String>::new());
+    // The second environment, 1366x768 dark, measured 10 px more than the others.
+    for (_, renders) in &mut recorded.variants {
+        renders[1].primary_px -= 10;
+    }
+    assert_eq!(
+        report::idle_environments(&recorded),
+        [
+            "mode dark: every variant measures the same numbers as in the mode light, at every viewport",
+            "viewport 390x844: every variant measures the same numbers as at 1366x768, in every mode",
+        ]
+    );
+    // One render of one variant differs: the viewport changes a number, the mode none.
+    recorded.variants[3].1[3].overflow = 1;
+    recorded.variants[3].1[2].overflow = 1;
+    assert_eq!(
+        report::idle_environments(&recorded),
+        [
+            "mode dark: every variant measures the same numbers as in the mode light, at every viewport"
+        ]
+    );
+}
+
+/// The renders of a restricted run are no campaign: the report refuses their file.
+#[test]
+fn the_renders_of_a_restricted_run_are_not_reported() {
+    let text = small_record().text().replace(
+        "\"format\": \"ux-search-campaign-measurements/2\"",
+        "\"format\": \"ux-search-campaign-renders/1\"",
+    );
+    let refused = Recorded::parse(&text).expect_err("the renders of a restricted run");
+    assert!(refused.contains("a restricted run"), "{refused}");
+}
+
+/// A restriction to a variant or an environment the declaration does not have is refused with
+/// the ones it has, before a browser starts.
+#[test]
+fn campaign_run_refuses_a_restriction_the_declaration_does_not_have() {
+    let directory = crate::state_dir("campaign-run-restricted");
+    std::fs::create_dir_all(&directory).expect("a scratch directory");
+    let declaration = directory.join("small.campaign.yaml");
+    std::fs::write(&declaration, small_text()).expect("a file");
+    let out = directory.join("measurements.json");
+    let _ = std::fs::remove_file(&out);
+    for (flag, value, known) in [
+        (
+            "--variant",
+            "loose.deep",
+            "tight.stock, tight.deep, stock.stock, stock.deep",
+        ),
+        (
+            "--environment",
+            "1366x768 dim",
+            "1366x768 light, 1366x768 dark, 390x844 light, 390x844 dark",
+        ),
+    ] {
+        let output = ux_search(&[
+            "campaign",
+            "run",
+            "--declaration",
+            path(&declaration),
+            "--url",
+            "http://127.0.0.1:1",
+            "--out",
+            path(&out),
+            flag,
+            value,
+        ]);
+        assert_eq!(output.status.code(), Some(1), "{output:?}");
+        let said = String::from_utf8_lossy(&output.stderr);
+        assert!(said.contains(&format!("{flag} `{value}`")), "{said}");
+        assert!(said.contains(known), "{said}");
+        assert!(!said.contains("chromium"), "{said}");
+        assert!(!out.exists());
+    }
 }
 
 /// A frontier variant's screenshots: every mode at the first viewport, and the last

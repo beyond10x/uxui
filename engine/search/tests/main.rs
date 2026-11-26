@@ -20,7 +20,7 @@
 //! module `campaign`: `tools/studio-campaign.sh` records, the tests read.
 //!
 //! The browser lane is the module `campaign_live`: it runs `ux-search campaign run` in Chromium
-//! on `fixtures/campaign/live/`, five campaigns for all of its tests. Each of its tests is
+//! on `fixtures/campaign/live/`, ten campaigns for all of its tests. Each of its tests is
 //! ignored, so a plain `cargo test` and the gate, which has no browser, start none; the lane is
 //! `UXUI_CHROME=<chrome> cargo test --locked --manifest-path engine/search/Cargo.toml -- --ignored campaign_live`.
 

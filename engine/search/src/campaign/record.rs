@@ -22,6 +22,10 @@ pub const FORMAT: &str = "ux-search-campaign-measurements/2";
 /// The format before the pointer was parked: a file of it is refused, with the reason.
 const FORMAT_BEFORE_THE_POINTER: &str = "ux-search-campaign-measurements/1";
 
+/// The file of a run restricted to one variant or one environment (`campaign run --variant`,
+/// `--environment`): its renders, which are no campaign. The report refuses it.
+pub const RENDERS_FORMAT: &str = "ux-search-campaign-renders/1";
+
 /// The counts whose first elements a run names, in the order a variant's notes are written in.
 pub const NOTED: [&str; 4] = [
     "low_contrast",
@@ -355,6 +359,13 @@ impl Recorded {
                  campaign again for `{FORMAT}`"
             ));
         }
+        if format == RENDERS_FORMAT {
+            return Err(format!(
+                "`format` is `{RENDERS_FORMAT}`: the renders of a restricted run (`--variant`, \
+                 `--environment`), not a campaign; the report ranks the measurements of a whole \
+                 one, `{FORMAT}`"
+            ));
+        }
         if format != FORMAT {
             return Err(format!("`format` is not `{FORMAT}`"));
         }
@@ -463,28 +474,6 @@ impl Recorded {
 
     /// The file without its last member, the digest: what the digest is taken of.
     fn body(&self) -> String {
-        let mut out = String::from("{\n");
-        for (key, value) in [
-            ("format", FORMAT),
-            ("adapter", self.adapter.as_str()),
-            ("browser", self.browser.as_str()),
-        ] {
-            out.push_str(&format!("  {}: {},\n", quoted(key), quoted(value)));
-        }
-        out.push_str(&format!(
-            "  \"declaration\": {{\"digest\": {}, \"text\": {}}},\n",
-            quoted(&self.declaration.digest),
-            quoted(&self.declaration.text)
-        ));
-        out.push_str(&format!(
-            "  \"environments\": {},\n",
-            list(&environment_names(&self.declaration))
-        ));
-        out.push_str(&format!(
-            "  \"pointer\": {},\n",
-            pointers(&self.declaration)
-        ));
-        out.push_str(&format!("  \"columns\": {},\n", list(&column_names())));
         let axes: Vec<String> = self
             .declaration
             .axes
@@ -497,37 +486,19 @@ impl Recorded {
                 )
             })
             .collect();
-        out.push_str(&format!("  \"axes\": [{}],\n", axes.join(", ")));
-        out.push_str("  \"variants\": [\n");
-        for (at, (id, renders)) in self.variants.iter().enumerate() {
-            out.push_str(&format!("    {{\"id\": {}, \"renders\": [\n", quoted(id)));
-            for (row, render) in renders.iter().enumerate() {
-                let numbers: Vec<String> = render.row().iter().map(u64::to_string).collect();
-                let comma = if row + 1 < renders.len() { "," } else { "" };
-                out.push_str(&format!("      [{}]{comma}\n", numbers.join(",")));
-            }
-            let notes = self.notes.get(at).map(Vec::as_slice).unwrap_or_default();
-            if !notes.is_empty() {
-                out.push_str("    ], \"notes\": [\n");
-                for (row, note) in notes.iter().enumerate() {
-                    let comma = if row + 1 < notes.len() { "," } else { "" };
-                    out.push_str(&format!(
-                        "      {{\"environment\": {}, \"term\": {}, \"elements\": {}}}{comma}\n",
-                        note.environment,
-                        quoted(&note.term),
-                        list(&note.elements)
-                    ));
-                }
-            }
-            let comma = if at + 1 < self.variants.len() {
-                ","
-            } else {
-                ""
-            };
-            out.push_str(&format!("    ]}}{comma}\n"));
-        }
-        out.push_str("  ],\n");
-        out
+        let environments: Vec<usize> = (0..self.declaration.environments().len()).collect();
+        body_of(
+            &Head {
+                format: FORMAT,
+                adapter: &self.adapter,
+                browser: &self.browser,
+                declaration: &self.declaration,
+                environments: &environments,
+                between: format!("  \"axes\": [{}],\n", axes.join(", ")),
+            },
+            &self.variants,
+            &self.notes,
+        )
     }
 
     /// `sha256:<hex>` of the file's content before its `digest` member.
@@ -538,10 +509,129 @@ impl Recorded {
     /// The measurements file: one line per render, the numbers in the order of [`COLUMNS`],
     /// and the digest of all of it as the last member. The same record gives the same bytes.
     pub fn text(&self) -> String {
-        format!(
-            "{}  \"digest\": {}\n}}\n",
-            self.body(),
-            quoted(&self.digest())
-        )
+        with_digest(self.body())
+    }
+}
+
+/// What a file of renders holds before its variants.
+struct Head<'a> {
+    format: &'a str,
+    adapter: &'a str,
+    browser: &'a str,
+    declaration: &'a Declaration,
+    /// The environments measured, as indices of [`Declaration::environments`].
+    environments: &'a [usize],
+    /// The members between the columns and the variants, each a line of its own.
+    between: String,
+}
+
+/// A file of renders without its digest: the head, then one line per render and the notes of
+/// each variant.
+fn body_of(head: &Head, variants: &[(String, Vec<Render>)], notes: &[Vec<Note>]) -> String {
+    let all = head.declaration.environments();
+    let environments: Vec<&Environment> = head.environments.iter().map(|&at| &all[at]).collect();
+    let mut out = String::from("{\n");
+    for (key, value) in [
+        ("format", head.format),
+        ("adapter", head.adapter),
+        ("browser", head.browser),
+    ] {
+        out.push_str(&format!("  {}: {},\n", quoted(key), quoted(value)));
+    }
+    out.push_str(&format!(
+        "  \"declaration\": {{\"digest\": {}, \"text\": {}}},\n",
+        quoted(&head.declaration.digest),
+        quoted(&head.declaration.text)
+    ));
+    let names: Vec<String> = environments
+        .iter()
+        .map(|environment| environment.name())
+        .collect();
+    out.push_str(&format!("  \"environments\": {},\n", list(&names)));
+    let pointer: Vec<String> = environments
+        .iter()
+        .map(|environment| {
+            let (x, y) = head.declaration.pointer(environment);
+            format!("[{x},{y}]")
+        })
+        .collect();
+    out.push_str(&format!("  \"pointer\": [{}],\n", pointer.join(",")));
+    out.push_str(&format!("  \"columns\": {},\n", list(&column_names())));
+    out.push_str(&head.between);
+    out.push_str("  \"variants\": [\n");
+    for (at, (id, renders)) in variants.iter().enumerate() {
+        out.push_str(&format!("    {{\"id\": {}, \"renders\": [\n", quoted(id)));
+        for (row, render) in renders.iter().enumerate() {
+            let numbers: Vec<String> = render.row().iter().map(u64::to_string).collect();
+            let comma = if row + 1 < renders.len() { "," } else { "" };
+            out.push_str(&format!("      [{}]{comma}\n", numbers.join(",")));
+        }
+        let notes = notes.get(at).map(Vec::as_slice).unwrap_or_default();
+        if !notes.is_empty() {
+            out.push_str("    ], \"notes\": [\n");
+            for (row, note) in notes.iter().enumerate() {
+                let comma = if row + 1 < notes.len() { "," } else { "" };
+                out.push_str(&format!(
+                    "      {{\"environment\": {}, \"term\": {}, \"elements\": {}}}{comma}\n",
+                    note.environment,
+                    quoted(&note.term),
+                    list(&note.elements)
+                ));
+            }
+        }
+        let comma = if at + 1 < variants.len() { "," } else { "" };
+        out.push_str(&format!("    ]}}{comma}\n"));
+    }
+    out.push_str("  ],\n");
+    out
+}
+
+/// A file's body with the digest of it as the last member.
+fn with_digest(body: String) -> String {
+    let digest = digest(body.as_bytes());
+    format!("{body}  \"digest\": {}\n}}\n", quoted(&digest))
+}
+
+/// The renders of a run restricted to one variant, one environment or both
+/// ([`RENDERS_FORMAT`]): the measurements file's members for the renders it made, and what it was
+/// restricted to. No report ranks it: a campaign is every variant in every environment.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Renders {
+    pub adapter: String,
+    pub browser: String,
+    pub declaration: Declaration,
+    /// The variant the run was restricted to, by id; `None`: every variant.
+    pub variant: Option<String>,
+    /// The environment the run was restricted to, by name; `None`: every environment.
+    pub environment: Option<String>,
+    /// The environments measured, as indices of [`Declaration::environments`].
+    pub environments: Vec<usize>,
+    /// Each variant measured: its id and its renders, one per measured environment.
+    pub variants: Vec<(String, Vec<Render>)>,
+    /// Per variant: the first elements behind its counts; `environment` is an index of
+    /// [`Declaration::environments`].
+    pub notes: Vec<Vec<Note>>,
+}
+
+impl Renders {
+    /// The file: like the measurements file, with `restricted` in place of `axes`.
+    pub fn text(&self) -> String {
+        let named = |name: &Option<String>| name.as_deref().map_or("null".to_owned(), quoted);
+        with_digest(body_of(
+            &Head {
+                format: RENDERS_FORMAT,
+                adapter: &self.adapter,
+                browser: &self.browser,
+                declaration: &self.declaration,
+                environments: &self.environments,
+                between: format!(
+                    "  \"restricted\": {{\"variant\": {}, \"environment\": {}}},\n",
+                    named(&self.variant),
+                    named(&self.environment)
+                ),
+            },
+            &self.variants,
+            &self.notes,
+        ))
     }
 }

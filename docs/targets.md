@@ -100,14 +100,32 @@ the server is whatever serves that repository's app on a loopback port.
   With `--notes` it prints, after the same report, the first elements behind the counts `low_contrast`,
   `overflow`, `small_targets` and `always_visible_misses` (at most 3 per count and environment) of the page as
   shipped and of each frontier variant: a count says how many, the note says which, so a person looks at the
-  element before taking the number. `--help` after any command prints the usage.
+  element before taking the number. An element is printed once where it is the same: once before the
+  variants, under a line that says for how many variants and environments, when every variant printed names
+  it in every environment; else once per variant, with the environments it is named in (`all 4
+  environments` when it is every one). `--help` after any command prints the usage.
+- **A restricted run**: `--variant <id>` measures one variant, `--environment "<W>x<H> <mode>"` (the name
+  the report prints, as `800x600 dark`) one environment; both together one render. The run makes the same
+  checks on those renders, loads each anew, shoots each with `--shots`, prints the numbers of each render by
+  column with its notes, and writes them as `ux-search-campaign-renders/1`: the measurements file's members
+  for those renders, with `restricted` in place of `axes`. `campaign report` refuses that file: a campaign is
+  every variant in every environment, and a frontier of part of the space is no frontier. A variant or an
+  environment the declaration does not have is refused, with the ones it has, before a browser starts.
 - **Screenshots**: with `--shots`, each frontier variant is shot in every mode at the first viewport and in
   the last environment (the last viewport in the last mode). With two viewports and two modes that is three
   of the four environments. A variant off the frontier gets no screenshot. A mode the page did not take is
-  seen in its screenshot.
+  seen in its screenshot. A shot is taken with the caret hidden (`caret-color: transparent` on every
+  element, after the render is measured): the caret of a field the page focused blinks, on for the first
+  half second after the focus and off for the next, so two runs that shoot at different times wrote
+  different bytes. With it hidden, two runs of one declaration write screenshots of the same bytes, also when
+  one of them shoots 700 ms later (the browser lane holds both).
 - **What the run says beside the report** (standard error): a mode that is set by a query and expects
-  nothing is named as not read back; per axis, how many of its values change the page at all, and an axis
-  none of whose values does is named as one that changes nothing here. A value changes the page when a
+  nothing is named as not read back; a mode or a viewport whose renders measure the same numbers as an
+  earlier one's for every variant is named, one line each (`note: mode dark: every variant measures the same
+  numbers as in the mode light, at every viewport`): it costs its renders and moves no term, and is dropped
+  from the declaration unless a screenshot of it is wanted; per axis, how many of its values change the page
+  at all, and an axis none of whose values does is named as one that changes nothing here. A value changes
+  the page when a
   render of it differs from the render of the shipped value in a measured number, in the box of an element
   (rounded to px) or in one of these computed styles of an element or of its `::before` and `::after`: the
   colour, the background colour and image, the font size and weight, the border radius, the border and
@@ -140,10 +158,14 @@ A number is of the page in one state. The run sets that state the same way for e
   `light`. `attribute` is set on the root element before the page's scripts run and again when the page is
   ready, and must still be there at every measurement. A page that writes the attribute itself when it
   starts is measured with the declared value, because the run writes it again when the page is ready; a
-  page that changes it after that is refused.
+  page that changes it after that is refused, and the refusal says that the page changed the attribute
+  after it was ready.
   `query` is the query of the page's URL, and what it does is up to the page. `expect` is the read-back: an
   attribute of the root element with its value, a selector that matches at least one element, or both, read
-  in every render of the mode. A miss is refused with the mode, the environment and what was read. A mode by
+  in every render of the mode. Before the first variant is rendered, each mode with an `attribute` or an
+  `expect` is read back on one page load of its first environment, the page with no sheet injected; a miss
+  there refuses the run at once, and later in any render as well. A miss is refused with the mode, the
+  environment and what was read. A mode by
   `query` without `expect` is measured, and the run says that nothing read it back: a page that does not know
   the query is then measured in its default mode twice.
 - **In force**: a property a variant sets is in force when the computed value of that custom property, on
@@ -175,10 +197,24 @@ outside any repository, and no document of this repository names its page, its s
 5. Hover-driven chrome: when a navigation or a toolbar opens under the pointer, name `page.pointer` over a
    place that opens nothing, and check the first screenshot.
 6. A mode by query or by attribute gets an `expect`, and the screenshots of both modes are looked at. A
-   miss is refused at the first measurement of that mode, which can be after the renders of the modes
-   before it; no file is written.
+   miss is refused before the first variant is rendered; no file is written. To look at one state, restrict
+   the run (`--variant`, `--environment`) instead of cutting the declaration down.
 7. Read the run's lines per axis: an axis that changes nothing on this page is dropped from the declaration
-   or pointed at a property the page reads.
+   or pointed at a property the page reads. A mode or a viewport the run names as measuring what another
+   one measures is dropped unless its screenshot is wanted.
+
+### Decided with `story:campaign-run-follow-ups`
+
+- `text_under_14` stays a share. On the page outside this repository the share rose while the count fell
+  because the state of the page changed the number of text runs (the navigation was open); with the pointer
+  parked the state is the same in every render, and within one campaign every variant is measured in that
+  state. A share says what part of the text a reader meets small, whatever the length of the page; the
+  count is in the measurements (`text_under_14` beside `text_runs`) for a reader who wants it.
+- A declaration that gains a key or a catalogue entry gets a new format name. `ux-search-campaign/1` gained
+  `page.pointer` and `expect` under its name, and an engine of before them refused such a file with an
+  unknown key and no word of a newer format. From now on a name stands for one set of keys and terms: a
+  reader of the new name still reads the old one, and a file of the old name that uses a key or a term of
+  the new one is refused with the name it needs.
 8. Run `campaign report --notes` and look at the named elements before a count is taken as a finding.
 
 The proof on a page of this repository is the studio's frontier page, generated by ESS and served on its
