@@ -284,9 +284,11 @@
     };
 
     const primary = (all(config.primary) || []).find(visible) || null;
-    let primaryTop = null, primaryIn = false;
+    let primaryTop = null, primaryBottom = null, primaryIn = false;
     if (primary) {
-      primaryTop = Math.max(0, Math.round(primary.getBoundingClientRect().top + scrollY));
+      const r = primary.getBoundingClientRect();
+      primaryTop = Math.max(0, Math.round(r.top + scrollY));
+      primaryBottom = Math.max(0, Math.round(r.bottom + scrollY));
       primaryIn = inView(primary);
     }
     if (!primaryIn) {
@@ -322,6 +324,13 @@
       }
     }
     keep('small_targets', smalls);
+
+    // The rows of a list that lie fully in view at the top of the page.
+    let rowsInView = 0;
+    if (config.rows !== null)
+      for (const el of all(config.rows) || []) {
+        if (visible(el) && inView(el)) rowsInView++;
+      }
 
     let regions = 0;
     if (config.regions !== null)
@@ -395,12 +404,41 @@
     keep('overflow', cut);
 
     // An item is there when one of its matches lies fully in the box it shows in, at the top of
-    // the page and again at its end.
+    // the page and again at its end. An item with a container is there as well when it is
+    // clipped by that container alone: the container (the item itself or the nearest element
+    // around it that the selector matches) clips or scrolls, lies fully in view, and the part of
+    // the item inside the container's scroll port is not empty and is cut by nothing between the
+    // two.
+    const clippedOnlyBy = (el, selector) => {
+      const box = el.closest(selector);
+      if (!box || !visible(box) || !inView(box)) return false;
+      const cs = getComputedStyle(box);
+      if (cs.overflowX === 'visible' && cs.overflowY === 'visible') return false;
+      const b = box.getBoundingClientRect(), r = el.getBoundingClientRect();
+      const left = b.left + box.clientLeft, top = b.top + box.clientTop;
+      const part = {
+        left: Math.max(r.left, left),
+        top: Math.max(r.top, top),
+        right: Math.min(r.right, left + box.clientWidth),
+        bottom: Math.min(r.bottom, top + box.clientHeight),
+      };
+      if (part.right <= part.left || part.bottom <= part.top) return false;
+      for (let at = el.parentElement; at && at !== box; at = at.parentElement) {
+        const s = getComputedStyle(at);
+        if (s.overflowX === 'visible' && s.overflowY === 'visible') continue;
+        const a = at.getBoundingClientRect();
+        const l = a.left + at.clientLeft, t = a.top + at.clientTop;
+        if (part.left < l - 1 || part.top < t - 1 || part.right > l + at.clientWidth + 1 || part.bottom > t + at.clientHeight + 1) return false;
+      }
+      return true;
+    };
     let misses = 0;
     if (config.always_visible.length) {
       const there = () => {
         clips = new Map();
-        return config.always_visible.map((item) => (all(item.selector) || []).some((el) => visible(el) && inView(el)));
+        return config.always_visible.map((item) =>
+          (all(item.selector) || []).some((el) => visible(el) && (inView(el) || (item.container !== null && clippedOnlyBy(el, item.container)))),
+        );
       };
       const top = there();
       let end = top;
@@ -443,6 +481,8 @@
       low_contrast: lowContrast,
       overflow: overflow,
       always_visible_misses: misses,
+      rows_in_view: rowsInView,
+      primary_bottom_px: primaryBottom === null ? document.documentElement.scrollHeight : primaryBottom,
       fonts: document.fonts.status,
       attribute: config.attribute ? document.documentElement.getAttribute(config.attribute.name) : null,
       expect,
@@ -475,7 +515,8 @@
     return true;
   }
 
-  // `config`: primary, regions (or null), always_visible (name, selector), small_target_px,
+  // `config`: primary, regions (or null), rows (or null), always_visible (name, selector,
+  // container or null), small_target_px,
   // attribute (name, value; or null), expect (attribute: name, value, or null; selector or
   // null; or null).
   function prepare(cfg) {
@@ -490,7 +531,9 @@
       height: innerHeight,
       primary: count(cfg.primary),
       regions: cfg.regions === null ? null : count(cfg.regions),
+      rows: cfg.rows === null ? null : count(cfg.rows),
       always_visible: cfg.always_visible.map((item) => count(item.selector)),
+      containers: cfg.always_visible.map((item) => (item.container === null ? null : count(item.container))),
     };
   }
 

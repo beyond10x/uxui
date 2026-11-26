@@ -61,7 +61,7 @@ use ux_browser::target::Site;
 use ux_browser::ws::WebSocket;
 
 use super::declaration::{Declaration, Environment, Mode};
-use super::record::{NOTED, Note, Recorded, Render, Renders};
+use super::record::{self, NOTED, Note, Recorded, Render, Renders};
 use super::report;
 use crate::landing::patch::{self, Value};
 
@@ -273,6 +273,12 @@ fn plan(options: &Options) -> Result<Plan, String> {
                 map(vec![
                     ("name", text(&item.name)),
                     ("selector", text(&item.selector)),
+                    (
+                        "container",
+                        item.container
+                            .as_ref()
+                            .map_or(Value::Null, |container| text(container)),
+                    ),
                 ])
             })
             .collect();
@@ -284,6 +290,13 @@ fn plan(options: &Options) -> Result<Plan, String> {
                     .regions
                     .as_ref()
                     .map_or(Value::Null, |regions| text(regions)),
+            ),
+            (
+                "rows",
+                declaration
+                    .rows
+                    .as_ref()
+                    .map_or(Value::Null, |rows| text(rows)),
             ),
             ("always_visible", Value::List(items)),
             (
@@ -434,6 +447,8 @@ fn sample_of(value: &Value) -> Result<Sample, String> {
             low_contrast: count(value, "low_contrast")?,
             overflow: count(value, "overflow")?,
             always_visible_misses: count(value, "always_visible_misses")?,
+            rows_in_view: count(value, "rows_in_view")?,
+            primary_bottom_px: count(value, "primary_bottom_px")?,
         },
         hard: texts(value.get("notes")),
         elements,
@@ -575,7 +590,11 @@ fn open(conn: &mut Conn, plan: &Plan, environment: &Environment) -> Result<Page,
     if let Some(regions) = &declaration.regions {
         matched(plan, "regions", regions, &found("regions"), url)?;
     }
+    if let Some(rows) = &declaration.rows {
+        matched(plan, "rows", rows, &found("rows"), url)?;
+    }
     let items = found("always_visible");
+    let containers = found("containers");
     for (index, item) in declaration.always_visible.iter().enumerate() {
         matched(
             plan,
@@ -584,6 +603,15 @@ fn open(conn: &mut Conn, plan: &Plan, environment: &Environment) -> Result<Page,
             items.list().get(index).unwrap_or(&Value::Null),
             url,
         )?;
+        if let Some(container) = &item.container {
+            matched(
+                plan,
+                &format!("always_visible[{index}].container"),
+                container,
+                containers.list().get(index).unwrap_or(&Value::Null),
+                url,
+            )?;
+        }
     }
     Ok(page)
 }
@@ -1141,6 +1169,7 @@ fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered,
         });
     }
     let mut recorded = Recorded {
+        format: record::FORMAT,
         adapter: format!("ux-browser {}", ux_browser::VERSION),
         browser: browser.product.clone(),
         declaration: plan.declaration.clone(),

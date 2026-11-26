@@ -2,13 +2,32 @@
 format: aep.planning-md/3
 id: story:campaign-terms-for-list-pages
 kind: story
-status: draft
+status: implemented
 title: Campaign terms that separate variants of a list page
 summary: rows in view, a primary-action term that does not punish a smaller control, always-visible inside a scroll container
 relations:
 - decomposes: epic:targets
 - depends_on: story:trial-target
-revision: 2
+scope:
+- confidence: cited
+  path: AGENTS.md
+- confidence: cited
+  path: CHANGELOG.md
+- confidence: cited
+  path: docs/targets.md
+- confidence: cited
+  path: engine/search/src/campaign
+- confidence: cited
+  path: engine/search/src/main.rs
+- confidence: cited
+  path: engine/search/src/probes/campaign.js
+- confidence: cited
+  path: engine/search/tests
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T19:22:07Z", actor: "human:operator", revision: 3, decided_on: {"recorded":{"approval":1}}}
+- {from: "proposed", to: "active", at: "2026-11-26T19:22:07Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"approval":1}}}
+- {from: "active", to: "implemented", at: "2026-11-26T19:30:48Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1,"approval":1}}}
 ---
 # Story: Campaign terms that separate variants of a list page
 

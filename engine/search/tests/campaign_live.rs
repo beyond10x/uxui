@@ -1,6 +1,6 @@
 //! The browser lane of the declared campaign: `ux-search campaign run` in Chromium on a page of
-//! this repository's own, `fixtures/campaign/live/site/list.html`, served by the browser
-//! adapter's static server.
+//! this repository's own, `fixtures/campaign/live/site/list.html` and, for the terms of a list
+//! page, `site/rows.html`, served by the browser adapter's static server.
 //!
 //! Every test here is ignored in a plain `cargo test`, and so in the gate, which has no browser
 //! (`tools/gate.sh`). The lane is one command, from the repository root, with a Chromium:
@@ -12,10 +12,10 @@
 //! Without a browser the lane fails; it does not skip. The page sets every size a test reads in
 //! px, so no number depends on a font of the host.
 //!
-//! Budget: ten campaigns, so ten browser starts, for all tests of the lane: the two campaigns
+//! Budget: eleven campaigns, so eleven browser starts, for all tests of the lane: the three campaigns
 //! that several tests read run once per test process (`cargo test` runs the tests of this binary
 //! in one process), and eight tests run one of their own. The largest is 4 variants in 4
-//! environments; the lane ended in 6.2 s on a loaded host, and no test of it comes near the 60 s
+//! environments; the lane ended in 7 s on a loaded host, and no test of it comes near the 60 s
 //! a test has.
 
 use std::collections::BTreeSet;
@@ -708,4 +708,127 @@ fn a_page_that_changes_the_modes_attribute_after_it_was_ready_is_refused() {
         "{}",
         ran.stderr
     );
+}
+
+// The terms of a list page (`story:campaign-terms-for-list-pages`), on `site/rows.html`.
+
+/// The campaign of `rows.campaign.yaml`, run once.
+fn rows() -> &'static Ran {
+    static RAN: OnceLock<Ran> = OnceLock::new();
+    RAN.get_or_init(|| {
+        let path = fixture("rows.campaign.yaml");
+        let text = std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+        run("rows", &text)
+    })
+}
+
+/// The ranking of a report: each variant's id and its terms, best first.
+fn ranking(report: &str) -> Vec<(String, String)> {
+    report
+        .split_once("\nranking ")
+        .map(|(_, rest)| rest)
+        .unwrap_or_else(|| panic!("no ranking: {report}"))
+        .lines()
+        .skip(1)
+        .filter_map(|line| {
+            let mut words = line.split_whitespace();
+            let (_, id) = (words.next()?, words.next()?);
+            Some((id.to_owned(), words.collect::<Vec<_>>().join(" ")))
+        })
+        .collect()
+}
+
+/// Rows in view: the tighter rows put more of them in the viewport, and the variant with them
+/// has the higher count and ranks before the looser one, the term where more is better.
+#[test]
+#[ignore = "starts a browser: the lane is `cargo test -- --ignored campaign_live`"]
+fn the_tighter_rows_have_more_rows_in_view_and_rank_before_the_looser_ones() {
+    let ran = rows().succeeded();
+    for control in ["tall", "short"] {
+        let (tight, stock) = (format!("tight.{control}"), format!("stock.{control}"));
+        assert_eq!(ran.number(&tight, "800x600 light", "rows_in_view"), 16);
+        assert_eq!(ran.number(&stock, "800x600 light", "rows_in_view"), 13);
+        let ranking = ranking(&ran.stdout);
+        let place = |id: &str| {
+            ranking
+                .iter()
+                .position(|(ranked, _)| ranked == id)
+                .unwrap_or_else(|| panic!("{id} is not ranked: {}", ran.stdout))
+        };
+        assert!(place(&tight) < place(&stock), "{}", ran.stdout);
+        assert!(
+            ranking[place(&tight)].1.contains("rows_in_view=16 "),
+            "{}",
+            ran.stdout
+        );
+        assert!(
+            ranking[place(&stock)].1.contains("rows_in_view=13 "),
+            "{}",
+            ran.stdout
+        );
+    }
+}
+
+/// The create action is centred in the header: a smaller action moves its top edge down, so
+/// `primary_px` ranks it worse, and its bottom edge up. `primary_bottom_px` does not rank the
+/// variant that only shrinks the action worse than the page as shipped.
+#[test]
+#[ignore = "starts a browser: the lane is `cargo test -- --ignored campaign_live`"]
+fn a_smaller_primary_action_does_not_rank_worse_on_its_bottom_edge() {
+    let ran = rows().succeeded();
+    let environment = "800x600 light";
+    assert_eq!(ran.number("stock.tall", environment, "primary_px"), 12);
+    assert_eq!(ran.number("stock.short", environment, "primary_px"), 16);
+    assert_eq!(
+        ran.number("stock.tall", environment, "primary_bottom_px"),
+        52
+    );
+    assert_eq!(
+        ran.number("stock.short", environment, "primary_bottom_px"),
+        48
+    );
+    let ranking = ranking(&ran.stdout);
+    let terms = |id: &str| {
+        ranking
+            .iter()
+            .find(|(ranked, _)| ranked == id)
+            .map(|(_, terms)| terms.clone())
+            .unwrap_or_else(|| panic!("{id} is not ranked"))
+    };
+    assert!(
+        terms("stock.tall").contains(" primary_bottom_px=52 "),
+        "{}",
+        ran.stdout
+    );
+    assert!(
+        terms("stock.short").contains(" primary_bottom_px=48 "),
+        "{}",
+        ran.stdout
+    );
+}
+
+/// The navigation is taller than the viewport and lies in a scroll container that clips it on
+/// purpose. Named with its container it is no miss; the same element without one is.
+#[test]
+#[ignore = "starts a browser: the lane is `cargo test -- --ignored campaign_live`"]
+fn an_element_clipped_only_by_its_named_scroll_container_is_no_miss() {
+    let ran = rows().succeeded();
+    for variant in ["tight.tall", "tight.short", "stock.tall", "stock.short"] {
+        assert_eq!(
+            ran.number(variant, "800x600 light", "always_visible_misses"),
+            1,
+            "{variant}"
+        );
+    }
+    let output = report_of(ran, &["--notes"]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let notes = String::from_utf8_lossy(&output.stdout).into_owned();
+    assert!(
+        notes.contains(
+            "always_visible_misses: navigation unclipped (`nav.side-nav`): not in view at the top of the page and at its end\n"
+        ),
+        "{notes}"
+    );
+    assert!(!notes.contains(": navigation (`"), "{notes}");
 }

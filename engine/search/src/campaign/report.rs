@@ -43,8 +43,13 @@ fn broken(declaration: &Declaration, render: &Render) -> u64 {
         .sum()
 }
 
+/// What a term where more is better is held as: this less the count, so that lower is better
+/// for every term, and the worst environment is the one with the fewest. The report prints the
+/// count.
+const MORE_IS_BETTER: u64 = u64::MAX;
+
 /// One term of one render. The share of small text is in thousandths, rounded down; a render
-/// without text has none.
+/// without text has none. `rows_in_view` is held as [`MORE_IS_BETTER`] less the count.
 fn term(name: &str, render: &Render) -> u64 {
     match name {
         "primary_px" => render.primary_px,
@@ -55,6 +60,8 @@ fn term(name: &str, render: &Render) -> u64 {
         "low_contrast" => render.low_contrast,
         "overflow" => render.overflow,
         "always_visible_misses" => render.always_visible_misses,
+        "rows_in_view" => MORE_IS_BETTER - render.rows_in_view,
+        "primary_bottom_px" => render.primary_bottom_px,
         _ => 0,
     }
 }
@@ -83,6 +90,7 @@ pub fn terms_text(declaration: &Declaration, terms: &[u64]) -> String {
         .zip(terms)
         .map(|(name, value)| match *name {
             "text_under_14" => format!("{name}={}.{:03}", value / 1000, value % 1000),
+            "rows_in_view" => format!("{name}={}", MORE_IS_BETTER - value),
             _ => format!("{name}={value}"),
         })
         .collect::<Vec<_>>()
@@ -247,8 +255,13 @@ pub fn report(recorded: &Recorded) -> Result<String, String> {
         }
     ));
     out.push_str(&format!(
-        "# terms, lexicographic, lower is better: {}; hard summed over the environments, each \
+        "# terms, lexicographic, lower is better{}: {}; hard summed over the environments, each \
          other term the worst of them; ties by variant id\n",
+        if declaration.terms.iter().any(|term| term == "rows_in_view") {
+            " (rows_in_view: more is better, the worst is the fewest)"
+        } else {
+            ""
+        },
         term_names(declaration).join(" ")
     ));
     out.push_str(
