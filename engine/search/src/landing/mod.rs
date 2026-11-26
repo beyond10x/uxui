@@ -12,11 +12,14 @@
 //! - [`space`]: the six axes, the 144 variants and each one's patch.
 //! - [`record`]: the environments, the journeys and the measurements file
 //!   (`ux-search-landing/1`).
+//! - [`promote`]: one variant of the frontier written to the two sources, with its evidence
+//!   document (`ux-search landing promote`).
 //! - [`report`]: the terms of a variant, the ranking, the frontier and the report
 //!   (`ux-search landing report`).
 //! - [`run`]: the campaign in Chromium (`ux-search landing run`).
 
 pub mod patch;
+pub mod promote;
 pub mod record;
 pub mod report;
 pub mod run;

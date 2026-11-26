@@ -20,11 +20,16 @@ use ux_search::landing::space::{self, AXES, STUDIO_PALETTE};
 /// The command that writes the golden report, from the repository root.
 const GENERATE: &str = "engine/search/target/debug/ux-search landing report --measurements engine/search/tests/fixtures/docs-landing/measurements.json > engine/search/tests/fixtures/docs-landing/report.txt";
 
-/// The page as shipped.
-const SHIPPED: &str = "docs-system.left.1+1.features-first.d100.h85";
 /// The variant `variant.product.json` and `variant.landing.css` are: no axis at its shipped
 /// value.
 const FAR: &str = "studio.centred.1+3.status-first.d85.h100";
+
+/// The page as shipped: the id `src/landing/shipped.txt` holds, the one place it stands.
+fn shipped_id() -> String {
+    read(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/landing/shipped.txt"))
+        .trim_end()
+        .to_owned()
+}
 
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -64,9 +69,9 @@ fn recorded() -> Recorded {
 fn the_space_is_144_variants_each_id_once() {
     let sizes: Vec<usize> = AXES.iter().map(|axis| axis.ids.len()).collect();
     assert_eq!(sizes, [2, 2, 3, 2, 3, 2]);
-    for axis in &AXES {
+    for (axis, shipped) in AXES.iter().zip(space::shipped().choice) {
         assert_eq!(axis.ids.len(), axis.labels.len(), "{}", axis.name);
-        assert!(axis.shipped < axis.ids.len(), "{}", axis.name);
+        assert!(shipped < axis.ids.len(), "{}", axis.name);
     }
     let variants = space::variants();
     assert_eq!(variants.len(), 144);
@@ -95,7 +100,7 @@ fn one_variant_is_the_page_as_shipped() {
         .filter(space::Variant::is_shipped)
         .collect();
     assert_eq!(shipped.len(), 1);
-    assert_eq!(shipped[0].id, SHIPPED);
+    assert_eq!(shipped[0].id, shipped_id());
     assert_eq!(space::shipped(), shipped[0]);
     assert!(shipped[0].patch().product.is_empty());
 }
@@ -133,6 +138,22 @@ fn a_variant_writes_the_sources_its_axis_values_name() {
         .unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(product, read(&fixture("variant.product.json")));
     assert_eq!(css, read(&fixture("variant.landing.css")));
+}
+
+/// The site the campaign builds a second time is of a variant with no axis at its shipped
+/// value, so the check of the probe's render covers every axis. A promotion that moves the
+/// shipped page onto one of that variant's values needs another variant here, in
+/// `tools/docs-landing-campaign.sh` and in the two `variant.*` files.
+#[test]
+fn the_rebuilt_variant_has_no_axis_at_its_shipped_value() {
+    let (far, shipped) = (variant(FAR), space::shipped());
+    for (at, axis) in AXES.iter().enumerate() {
+        assert_ne!(
+            far.choice[at], shipped.choice[at],
+            "{FAR} has the shipped value of the axis `{}`",
+            axis.name
+        );
+    }
 }
 
 /// The campaign script builds a site from `variant.product.json` and `variant.landing.css` and
@@ -734,7 +755,7 @@ fn ranking_of(ranked: &report::Ranked) -> Vec<usize> {
 
 #[test]
 fn a_record_of_other_variants_is_refused() {
-    let few = record_of(vec![(SHIPPED.to_owned(), vec![clean(); 6])]);
+    let few = record_of(vec![(shipped_id(), vec![clean(); 6])]);
     assert!(
         report::report(&few).is_err(),
         "one variant is not the space"
@@ -888,7 +909,7 @@ fn the_report_prints_the_frontier_first_then_every_variant() {
         .find(|line| line.starts_with("shipped "))
         .expect("the line of the page as shipped");
     assert!(
-        shipped.starts_with(&format!("shipped {SHIPPED}: rank ")),
+        shipped.starts_with(&format!("shipped {}: rank ", shipped_id())),
         "{shipped}"
     );
     let between = &text[frontier..ranking];

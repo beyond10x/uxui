@@ -133,7 +133,8 @@ pub fn rank(recorded: &Recorded) -> Ranked {
     }
 }
 
-fn terms_text(terms: &[u64]) -> String {
+/// The terms as the report writes them: `hard=0 words=56 ...`.
+pub fn terms_text(terms: &[u64]) -> String {
     TERMS
         .iter()
         .zip(terms)
@@ -142,10 +143,30 @@ fn terms_text(terms: &[u64]) -> String {
         .join(" ")
 }
 
-/// The report: the frontier first, each of its variants with its patch, then the full ranking.
-/// It refuses a record that is not of the 144 variants of [`space::variants`], in their order,
-/// each with one render per environment.
-pub fn report(recorded: &Recorded) -> Result<String, String> {
+/// A patch as the report prints it under a frontier variant, one line per source file and
+/// rule, without the indent: the operations on `product.json`, then the custom properties of
+/// each rule of `landing.css`.
+pub fn patch_lines(patch: &space::Patch) -> Vec<String> {
+    let mut lines = vec![format!("product.json {}", patch::ops_json(&patch.product))];
+    for rule in &patch.css {
+        let values: Vec<String> = rule
+            .values
+            .iter()
+            .map(|(property, value)| format!("{property}: {value}"))
+            .collect();
+        lines.push(format!(
+            "landing.css {} {{ {} }}",
+            rule.selector,
+            values.join("; ")
+        ));
+    }
+    lines
+}
+
+/// The variants of the space, when the record is of them: the 144 variants of
+/// [`space::variants`], in their order, each with one render per environment. Any other record
+/// is refused.
+pub fn check(recorded: &Recorded) -> Result<Vec<space::Variant>, String> {
     let variants = space::variants();
     if recorded.variants.len() != variants.len() {
         return Err(format!(
@@ -169,6 +190,13 @@ pub fn report(recorded: &Recorded) -> Result<String, String> {
             ));
         }
     }
+    Ok(variants)
+}
+
+/// The report: the frontier first, each of its variants with its patch, then the full ranking.
+/// It refuses a record [`check`] refuses.
+pub fn report(recorded: &Recorded) -> Result<String, String> {
+    let variants = check(recorded)?;
     let ranked = rank(recorded);
     let place = |index: usize| {
         ranked
@@ -275,22 +303,8 @@ pub fn report(recorded: &Recorded) -> Result<String, String> {
             scored.id,
             terms_text(&scored.terms)
         ));
-        let patch = variants[index].patch();
-        out.push_str(&format!(
-            "     product.json {}\n",
-            patch::ops_json(&patch.product)
-        ));
-        for rule in &patch.css {
-            let values: Vec<String> = rule
-                .values
-                .iter()
-                .map(|(property, value)| format!("{property}: {value}"))
-                .collect();
-            out.push_str(&format!(
-                "     landing.css {} {{ {} }}\n",
-                rule.selector,
-                values.join("; ")
-            ));
+        for line in patch_lines(&variants[index].patch()) {
+            out.push_str(&format!("     {line}\n"));
         }
     }
     out.push_str(&format!("ranking {}\n", ranked.ranking.len()));

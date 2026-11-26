@@ -219,8 +219,73 @@ patched pair `variant.product.json`, `variant.landing.css`, which a test compare
 patch writes); a new campaign then replaces the measurements, the report and the screenshots
 together.
 
+## Promotion
+
+`ux-search landing promote` makes one variant of the frontier the page as shipped
+(`engine/search/src/landing/promote.rs`). It starts no browser and builds no site.
+
+```console
+engine/search/target/debug/ux-search landing promote \
+  --measurements engine/search/tests/fixtures/docs-landing/measurements.json \
+  --variant <variant id> \
+  --product website/product.json --css website/src/css/landing.css \
+  --evidence docs/promotions/<date>-docs-landing.evidence.json \
+  --chosen-by "<who chose, and when>" \
+  --shipped-file engine/search/src/landing/shipped.txt
+```
+
+It refuses, with the reason on standard error and exit code 1, and writes nothing, when the id is
+no variant of the space, is the page as shipped, is not in the measurements, breaks a hard rule or
+is not on the frontier of the measurements (the message names a variant that dominates it), when
+one of the two files is not the source the measurements were recorded on (the measurements hold
+each file's SHA-256), or when the patch does not apply. A wrong invocation exits with 2. There is
+no flag that promotes a variant off the frontier.
+
+Otherwise it writes four files, all of them or none (each is staged beside its place first):
+
+| file | what |
+|---|---|
+| `website/product.json`, `website/src/css/landing.css` | the two sources with the variant's patch applied |
+| the evidence file | one `ratchet-evidence/1` document, below |
+| `engine/search/src/landing/shipped.txt` | the variant's id: the one place that says which variant is shipped. `ux-search` reads it when it is built (the report's `shipped` line, the tests), so the next step is a build |
+
+The evidence document has no `run` member and no timestamp: the same measurements, variant and
+sources give the same bytes. Promoted evidence files live in `docs/promotions/`, named
+`<date>-docs-landing.evidence.json`.
+
+| member of `evidence` | holds |
+|---|---|
+| `candidate`, `target.identifiers.digest` | SHA-256 over the `sha256sum` lines of the two sources after the promotion |
+| `inputs` | the SHA-256 of the measurements file and of each source before the promotion, the variant id, and who chose it (`--chosen-by`, left out without the flag) |
+| `conditions` | `ux-search`, `ux-browser` and Chromium as the measurements name them, the measurements format, the page, the 6 environments |
+| `coverage` | the 144 variants, those with `hard` = 0 as `passed` |
+| `results` | for the chosen variant and for the page as shipped before: its rank (`landing.rank@1`, with the number of variants and whether it is on the frontier) and its six terms (`landing.<term>@1`); the size of the frontier with its ids in rank order (`landing.frontier_size@1`); per source file its SHA-256 after, with the SHA-256 before and the patch as the report prints it (`landing.source@1`) |
+
+After a promotion, in this order:
+
+1. Build `ux-search` again (`shipped.txt` is compiled in).
+2. Copy the two sources into the fixture (`engine/search/tests/fixtures/docs-landing/product.json`
+   and `landing.css`). The rebuilt variant of the campaign script has no axis at its shipped value:
+   when the promoted variant shares one with it, name another in `tools/docs-landing-campaign.sh`
+   (`variant=`) and in `engine/search/tests/landing.rs` (`FAR`), and write the fixture's
+   `variant.product.json` and `variant.landing.css` from its patch. A test names what is missing.
+3. Record the campaign again on the new sources with `tools/docs-landing-campaign.sh` ("Run it
+   again"): the measurements, `report.txt` and the screenshots are replaced together. The evidence
+   file stays as written: it names the measurements the choice was made on.
+4. Write the golden evidence of the tests again:
+   `UX_SEARCH_BLESS=1 cargo test --manifest-path engine/search/Cargo.toml --locked landing_promote`.
+5. Commit the diff of the sources, the fixture, `shipped.txt` and the screenshots together with the
+   evidence file.
+
+One limit. The operations for the actions, the section order and the studio palette are written
+against a shipped page with `1+1`, `features-first` and `docs-system`
+(`engine/search/src/landing/space.rs`, `ANCHOR`); density, heading scale and hero alignment are
+absolute values and carry no such anchor. `promote` applies a variant off the anchored values and
+prints a note: before the next campaign the operations of `space.rs` are then rewritten against the
+new shipped page, and for a shipped studio palette the probe too, which appends a variant's style
+sheet after the built ones and cannot take a shipped palette away.
+
 ## Next
 
-The owner picks a variant from the frontier. Phase B applies its patch to `website/product.json`
-and `website/src/css/landing.css` as a pull request with ratchet evidence (`docs/targets.md`,
-Promotion).
+The owner picks a variant from the frontier; `ux-search landing promote` applies it as above, and
+the diff goes into a pull request with the evidence file (`docs/targets.md`, Promotion).
