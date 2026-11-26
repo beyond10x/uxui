@@ -84,7 +84,7 @@
       "area": "Search engine",
       "label": "First climb on a toy",
       "status": "planned",
-      "detail": "Two axes on one example page, searched exhaustively, a ranked frontier printed as text; then the studio. The search ux-search climb is written for theme x section order on layout model v0; it also climbs the studio's live climb page (120 section orders, frontier 42); no UI state exploration. The engine ran its first campaign on the browser adapter over the documentation landing page (144 variants, 864 renders, frontier 16, the page as shipped ranks 35th); a person's pick promoted as a pull request is not there yet. A campaign declared in a file ran on one page of the generated studio and on one list page of an admin console in a private repository (32 variants, 192 renders, frontier 6, the page as shipped ranks 28th).",
+      "detail": "Two axes on one example page, searched exhaustively, a ranked frontier printed as text; then the studio. The search ux-search climb is written for theme x section order on layout model v0; it also climbs the studio's live climb page (120 section orders, frontier 42); no UI state exploration. The engine ran its first campaign on the browser adapter over the documentation landing page (144 variants, 864 renders, frontier 16, the page as shipped ranked 35th); a person's pick from that frontier is promoted (density 0.85, the primary action 24 px higher), and the page as shipped ranks 11th, on the frontier. A campaign declared in a file ran on one page of the generated studio and on one list page of an admin console in a private repository (32 variants, 192 renders, frontier 6, the page as shipped ranks 28th).",
       "href": "/docs/roadmap"
     },
     {

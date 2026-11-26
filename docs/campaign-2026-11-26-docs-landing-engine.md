@@ -3,7 +3,8 @@
 Status: run 2026-11-26 (`story:docs-site-first-climb`, phase A). The first campaign of `ux-search`
 on the browser adapter: the worked example of `docs/targets.md`, the page `/uxui/` built from
 `website/`, 144 variants in 6 environments. It ends at a frontier for a person to choose from;
-nothing on the site changed. The spike campaign over the same page is
+nothing on the site changed. The owner's pick from it is promoted since (§ The promotion of
+2026-11-26); the sections up to Promotion are phase A's record. The spike campaign over the same page is
 `docs/campaign-2026-11-24-docs-landing.md`; its probe and its KPI definitions are reused here.
 
 Code: `engine/search/src/landing/` (`space`, `patch`, `record`, `report`, `run`), the in-page probe
@@ -354,7 +355,27 @@ prints a note: before the next campaign the operations of `space.rs` are then re
 new shipped page, and for a shipped studio palette the probe too, which appends a variant's style
 sheet after the built ones and cannot take a shipped palette away.
 
-## Next
+## The promotion of 2026-11-26
 
-The owner picks a variant from the frontier; `ux-search landing promote` applies it as above, and
-the diff goes into a pull request with the evidence file (`docs/targets.md`, Promotion).
+The owner chose `docs-system.left.1+1.features-first.d85.h85` (rank 11, on the frontier) on
+2026-11-26. One change against the page as shipped before it, `d100`: `--uxui-density` 1 to 0.85
+in `website/src/css/landing.css`, `primary_px` 472 to 448; `website/product.json` is unchanged
+(its patch is `[]`).
+
+| | |
+|---|---|
+| measurements the pick came from | phase A's, sha256 `6c3af614ceebcdbd6cd642f2b71d9e12955721f6122b27d71ae372e0465069bd`, kept as `docs/promotions/2026-11-26-docs-landing.measurements.json` |
+| evidence | `docs/promotions/2026-11-26-docs-landing.evidence.json`, written by `ux-search landing promote` |
+| re-record on the new sources | `engine/search/tests/fixtures/docs-landing/measurements.json`, sha256 `836f68f8340eb6b18f957e11ed07d2fba7419188b65bb8b1b8031c2309d5c44f` |
+| `landing.css` | sha256 `057666f7…` before, `84d6e37e…` after |
+| the page as shipped | rank 35 of 144, off the frontier, before; rank 11 of 144, on the frontier, 8 variants before it on their terms and 7 equal to it, after |
+
+The site the campaign builds a second time moved to `studio.centred.1+3.status-first.d115.h100`:
+the variant before it had the density 0.85, now the shipped value. Its check held in 6
+environments, as did the other three checks of "How a variant is rendered".
+
+Against phase A the re-record differs in the digest of `landing.css` only: all 864 renders have
+the same 14 numbers, the frontier is the same 16 variants in the same order, and the 32
+screenshots have the same bytes. The report differs in that digest and in its `shipped` line. The
+golden evidence of the tests (`promote.evidence.json`) differs in the digests of the measurements
+and of `landing.css`, and in its shipped variant's rank and terms.

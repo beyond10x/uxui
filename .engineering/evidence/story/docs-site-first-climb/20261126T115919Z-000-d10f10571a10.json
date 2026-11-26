@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T11:59:19Z",
+  "actor": "human:operator",
+  "artifact": "story:docs-site-first-climb",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "ux-search landing promote of docs-system.left.1+1.features-first.d85.h85, chosen by the owner on 2026-11-26 from the frontier of the landing campaign (measurements sha256 6c3af614ceebcdbd6cd642f2b71d9e12955721f6122b27d71ae372e0465069bd): diff to website/src/css/landing.css (density 1 to 0.85), product.json patch [], ratchet-evidence/1 naming the campaign; campaign re-recorded on the new sources with tools/docs-landing-campaign.sh --pool (measurements sha256 836f68f8340eb6b18f957e11ed07d2fba7419188b65bb8b1b8031c2309d5c44f): the page as shipped ranks 11 of 144, on the frontier of 16, all 864 renders equal to phase A's",
+    "reference": "docs/promotions/2026-11-26-docs-landing.evidence.json"
+  }
+}

@@ -3,7 +3,7 @@
    alignment at start and the lede's inline margin at 0, every rule below reproduces the docs-system
    theme's own value. */
 :root {
-  --uxui-density: 0.85;
+  --uxui-density: 1.15;
   --uxui-heading-scale: 1;
   --uxui-hero-align: center;
   --uxui-hero-lede-inline: auto;

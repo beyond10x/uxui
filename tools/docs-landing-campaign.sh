@@ -42,7 +42,7 @@ run=$work/run
 site=$work/variant-site
 rebuilt=$work/rebuilt
 # The variant the fixture's variant.* files are: no axis at its shipped value.
-variant=studio.centred.1+3.status-first.d85.h100
+variant=studio.centred.1+3.status-first.d115.h100
 product=website/product.json
 css=website/src/css/landing.css
 # The Playwright build of the Chromium headless shell the campaign is recorded with.

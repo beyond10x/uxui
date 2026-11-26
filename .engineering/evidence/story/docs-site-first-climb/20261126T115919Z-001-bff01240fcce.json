@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T11:59:19Z",
+  "actor": "human:operator",
+  "artifact": "story:docs-site-first-climb",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "re-record of the landing campaign on the promoted sources: report shipped line rank 11 of 144, on the frontier; four render checks held",
+    "reference": "engine/search/tests/fixtures/docs-landing/report.txt"
+  }
+}
