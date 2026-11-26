@@ -9,7 +9,9 @@
 # - anything under .engineering/ (the AEP planning store), or
 # - one of these Markdown files outside the built documentation site, which no tool reads:
 #   AGENTS.md, CLAUDE.md, README.md, research/*.md, reviews/*.md, and docs/*.md except the three
-#   that tools/docs.sh generates pages from (docs/metrics.md, docs/brief.md, docs/roadmap.md).
+#   that tools/docs.sh generates pages from (docs/metrics.md, docs/brief.md, docs/roadmap.md) and
+#   the one that tools/studio-campaign.sh writes its tables into and a test of engine/search
+#   reads (docs/campaign-2026-11-26-studio-engine.md).
 # Everything else runs the gate, among it website/ (the built site), plugin/ (the skill),
 # CHANGELOG.md (tools/check-plugin.sh reads it), ess/, engine/ and generators/ (test fixtures
 # included), tools/ and .github/. tools/gate.test.sh fails when a tool names a file this list
@@ -20,6 +22,7 @@ prose() {
 	case $1 in
 	.engineering/*) return 0 ;;
 	docs/metrics.md | docs/brief.md | docs/roadmap.md) return 1 ;;
+	docs/campaign-2026-11-26-studio-engine.md) return 1 ;;
 	AGENTS.md | CLAUDE.md | README.md) return 0 ;;
 	research/*.md | reviews/*.md | docs/*.md) return 0 ;;
 	*) return 1 ;;
