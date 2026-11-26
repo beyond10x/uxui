@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:docs-site-first-climb
 kind: story
-status: active
+status: implemented
 title: 'First real target: climb the documentation landing page'
 tags:
 - roadmap-step-5
@@ -14,10 +14,11 @@ relations:
 scope:
 - confidence: cited
   path: website
-revision: 7
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T13:54:14Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"review_outcome":7}}}
 - {from: "proposed", to: "active", at: "2026-11-25T13:54:14Z", actor: "human:operator", revision: 7, decided_on: {"recorded":{"review_outcome":7}}}
+- {from: "active", to: "implemented", at: "2026-11-26T11:59:19Z", actor: "human:operator", revision: 8, decided_on: {"recorded":{"test_result":3,"review_outcome":7}}}
 ---
 # Story: First real target: climb the documentation landing page
 

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- The documentation landing page ships the owner's pick from the frontier of the landing-page
+  campaign: `docs-system.left.1+1.features-first.d85.h85`, applied by `ux-search landing promote`
+  (`docs/promotions/2026-11-26-docs-landing.evidence.json`, with the copy of the measurements the
+  pick was made on). One change against the page before it: `--uxui-density` 1 to 0.85 in
+  `website/src/css/landing.css`, the primary action 24 px higher (472 to 448 px); the page ranked
+  35th of 144, off the frontier, and ranks 11th, on the frontier of 16. The campaign is recorded
+  again on the new sources (`docs/campaign-2026-11-26-docs-landing-engine.md`, The promotion of
+  2026-11-26); the site the campaign builds a second time is of
+  `studio.centred.1+3.status-first.d115.h100`, since the old one shared the density 0.85 with the
+  page as shipped. Closes `story:docs-site-first-climb`.
 - The specification's five not-found outcomes are reachable (`ess/GAPS.md`, G20, closed in the
   model): an unknown state-space key or promotion id now answers `StateSpaceNotFound` or
   `PromotionNotFound` where it answered a state conflict. `ess verify conform synthesize --path ess

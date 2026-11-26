@@ -22,7 +22,8 @@ reads no theme. `ux-search cost` measures what one evaluation costs per UI state
 not measured yet.
 
 Three campaigns have run in a browser. The first is compiled into the engine, over this site's
-landing page (144 variants, 864 renders, a frontier of 16; the page as shipped ranks 35th). The
+landing page (144 variants, 864 renders, a frontier of 16; the page as shipped ranked 35th, and
+ranks 11th, on the frontier, since a person's pick from it was promoted). The
 second takes its target from a declaration file, over one page of the generated studio (48
 variants, 192 renders, a frontier of 12; the page as shipped ranks 36th); on the current theme
 three of its four axes move no term, and its variants set custom properties only: none reorders

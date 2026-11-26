@@ -22,7 +22,7 @@ const GENERATE: &str = "engine/search/target/debug/ux-search landing report --me
 
 /// The variant `variant.product.json` and `variant.landing.css` are: no axis at its shipped
 /// value.
-const FAR: &str = "studio.centred.1+3.status-first.d85.h100";
+const FAR: &str = "studio.centred.1+3.status-first.d115.h100";
 
 /// The page as shipped: the id `src/landing/shipped.txt` holds, the one place it stands.
 fn shipped_id() -> String {

@@ -87,9 +87,12 @@ second; the first code is a thin vertical slice that measures the assumption the
    **Then the first real target, this repository's documentation site,** on a browser adapter: the engine
    with a headless browser as renderer, for any page with a URL (`docs/targets.md`).
    Exists: `ux-search landing` (`engine/search`), the engine's first campaign on the browser adapter, over
-   the documentation landing page: 144 variants, 864 renders, a frontier of 16; the page as shipped ranks
-   35th (`docs/campaign-2026-11-26-docs-landing-engine.md`). Not yet: a person's pick promoted as a pull
-   request.
+   the documentation landing page: 144 variants, 864 renders, a frontier of 16; the page as shipped ranked
+   35th (`docs/campaign-2026-11-26-docs-landing-engine.md`). The owner picked
+   `docs-system.left.1+1.features-first.d85.h85` from that frontier and `ux-search landing promote`
+   applied it (density 0.85 for 1, the primary action 24 px higher; evidence
+   `docs/promotions/2026-11-26-docs-landing.evidence.json`): the page as shipped ranks 11th, on the
+   frontier, in the campaign recorded again on the new sources.
 6. **Trial target.** One page or component of an admin console generated from an `ess-ui/1` document (a
    private repository; its fixtures make it I/O-free). Results stay in that repository; only generic findings
    come back here.
