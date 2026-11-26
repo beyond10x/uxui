@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- `ux-search` builds on ESS 0.99.5, the newest release (was 0.99.4): the three ESS crates by that git
+  tag, and `engine/search/Cargo.lock` moved with them. 0.99.5 changes no source of the crates it links,
+  so both golden frontiers change in their first line only, which names the tag. `ux_search::ESS_TAG`
+  is the one name of the tag in the source, and a test holds the manifest, the lock file, the reports,
+  the fixture's provenance and `AGENTS.md` to it. `docs/ess-gaps.md` is read against ESS's releases up
+  to 0.99.5 and marks what a release closed: item 9 of 18 (for all over related rows), by a construct
+  ESS has had since 0.63.0 and the specification already uses; the other 17 items are open in 0.99.5.
+  Two needs of the generator round are closed by ESS 0.98.1, and `uxui-gen` follows the first: a live
+  `insert_top` of a key the section already holds shows one row (the held row takes the event's fields
+  and moves to the top, `max_rows` after the move), where it inserted the key again; the loop period
+  of a fixture script needed no change.
 - `ux-search` gets a second backend, the browser adapter (`ux_browser`, by path), and runs its first
   campaign on it: the documentation landing page `/uxui/`, 144 variants (palette x hero alignment x
   hero actions x section order x density x heading scale) in 6 environments, 864 renders in 6 page

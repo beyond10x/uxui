@@ -1,9 +1,9 @@
 //! ux-search: the engine's first search, on layout model v0.
 //!
-//! Layout model v0 is ESS's terminal renderer, driven in process (`ess_ui_tui::App` at ESS tag
-//! 0.99.4): a variant document is opened from its text, one page is opened, the screen is drawn
-//! into a test backend of a given size, and the cells each node occupies are read back as
-//! regions. None of that touches a terminal, a browser or the network.
+//! Layout model v0 is ESS's terminal renderer, driven in process (`ess_ui_tui::App` at the ESS
+//! tag [`ESS_TAG`]): a variant document is opened from its text, one page is opened, the screen
+//! is drawn into a test backend of a given size, and the cells each node occupies are read back
+//! as regions. None of that touches a terminal, a browser or the network.
 //!
 //! A second backend is the browser adapter (`ux_browser`, `engine/browser`): [`landing`] runs
 //! one campaign over the documentation landing page in Chromium and ranks its record with
@@ -24,3 +24,8 @@ pub mod drive;
 pub mod landing;
 pub mod rank;
 pub mod variant;
+
+/// The ESS release the terminal renderer is taken from: the git tag of the ESS crates in this
+/// crate's `Cargo.toml`. The reports name it in their first line; a test holds the manifest, the
+/// lock file and the documents that name the tag to it (`tests/ess_tag.rs`).
+pub const ESS_TAG: &str = "0.99.5";

@@ -3,7 +3,7 @@
 //! layout model v0 and printed as a ranked frontier.
 //!
 //! The page's layout has two columns, `side` (`summary`) and `main` (`hill_kpis`, `hill`,
-//! `progress`, `points`, `frontier`). The terminal renderer draws no columns (ESS 0.99.4 lacks
+//! `progress`, `points`, `frontier`). The terminal renderer draws no columns (ESS 0.99.5 lacks
 //! `no_columns` and falls back to `stack`): it stacks the page's `sections:` in the order
 //! written. A variant therefore reorders the sections inside each column and writes the page's
 //! `sections:` column by column, so the stack is the columns read top to bottom, left to right.

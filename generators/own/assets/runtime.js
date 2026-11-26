@@ -87,8 +87,8 @@
 
   // PART: live and channel semantics
   // An effect on a section's rows. `insert_or_patch` patches the row whose `match` field equals
-  // the payload's, else inserts it at the top; `insert_top` always inserts (a key held twice is
-  // shown twice, as ESS's renderers do) and keeps `max_rows`.
+  // the payload's, else inserts it at the top; `insert_top` moves a held row to the top with the
+  // payload's fields (one row per key, as ESS's renderers do from 0.98.1) and keeps `max_rows`.
   function apply(section, rows, event) {
     const live = section.spec.live;
     const key = live.match;
@@ -96,7 +96,7 @@
     const at = rows.findIndex((row) => payload[key] !== undefined && row[key] === payload[key]);
     switch (live.effect) {
       case "insert_top": {
-        const next = [{ ...payload }, ...rows];
+        const next = [{ ...(at < 0 ? {} : rows[at]), ...payload }, ...rows.filter((_, i) => i !== at)];
         return live.max_rows ? next.slice(0, live.max_rows) : next;
       }
       case "insert_or_patch":
@@ -162,8 +162,8 @@
     }
   }
   // A script plays each entry at its offset; a looping script restarts when its last entry has
-  // played (the period of ESS's terminal renderer and test clock; the generated React app waits
-  // one more second).
+  // played (the period of ESS's terminal renderer and test clock, and from ESS 0.98.1 of the
+  // generated React app); a script whose last entry is at 0 s plays once.
   function play(channel) {
     const script = fixtures.scripts[channel];
     setLifecycle(channel, "live");
