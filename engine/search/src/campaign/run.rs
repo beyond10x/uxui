@@ -19,7 +19,19 @@
 //! - each frontier variant is measured once more on a page loaded anew, in the environments of
 //!   its screenshots, and must measure there what it measured in the campaign;
 //! - a mode's attribute is set before the page's scripts run and again when the page is ready,
-//!   and must still be there at every measurement.
+//!   and must still be there at every measurement;
+//! - what a mode expects of the page (`expect`: an attribute of the root element, a selector)
+//!   is read back at every measurement, and a miss is refused: a query the page does not know
+//!   leaves it in its default mode, and the numbers would be those of that mode twice;
+//! - the pointer is parked before every measurement and before every screenshot, at
+//!   `page.pointer` or in the bottom-right corner of the viewport, by a real mouse move: a
+//!   headless pointer rests at 0, 0 otherwise, and a page with something there that opens on
+//!   hover is measured open.
+//!
+//! What the run says beside that: a mode that is set by a query and expects nothing is named
+//! as not read back, and per axis the number of values that change a box or a computed style
+//! on the page at all; an axis none of whose values does is named as one that changes nothing
+//! here.
 //!
 //! The page reaches nothing but its own origin, with `GET` and `HEAD` only
 //! (`ux_browser::cdp::Guard`). A request the guard failed fails the run and is named: a page
@@ -38,7 +50,7 @@ use ux_browser::target::Site;
 use ux_browser::ws::WebSocket;
 
 use super::declaration::{Declaration, Environment, Mode};
-use super::record::{Recorded, Render};
+use super::record::{NOTED, Note, Recorded, Render};
 use super::report;
 use crate::landing::patch::{self, Value};
 
@@ -76,16 +88,27 @@ pub struct Outcome {
     pub notes: Vec<String>,
     /// The checks the run made beside the record, one line each.
     pub checks: Vec<String>,
+    /// What the run says about the declaration on this page, one line each: `note: ...` for a
+    /// mode that is not read back and for an axis that changes nothing, `axis ...` for every
+    /// other axis.
+    pub remarks: Vec<String>,
 }
 
 /// The environments a frontier variant's screenshot is taken in, as indices of the
-/// declaration's environments: the first and the last.
-pub fn screenshot_environments(environments: usize) -> Vec<usize> {
-    match environments {
-        0 => Vec::new(),
-        1 => vec![0],
-        count => vec![0, count - 1],
+/// declaration's environments (every mode of the first viewport, then of the next): every mode
+/// at the first viewport, and the last environment. So each mode is seen once, and the last
+/// viewport once.
+pub fn screenshot_environments(viewports: usize, modes: usize) -> Vec<usize> {
+    let mut environments: Vec<usize> = (0..modes.min(viewports * modes)).collect();
+    if viewports * modes > modes {
+        environments.push(viewports * modes - 1);
     }
+    environments
+}
+
+/// [`screenshot_environments`] of a declaration.
+pub fn screenshots_of(declaration: &Declaration) -> Vec<usize> {
+    screenshot_environments(declaration.viewports.len(), declaration.modes.len())
 }
 
 /// The file name of a variant's screenshot in an environment.
@@ -120,6 +143,8 @@ struct Plan {
     declaration: Declaration,
     environments: Vec<Environment>,
     ids: Vec<String>,
+    /// Each variant's choice, in the order of `ids`: the index of each axis's value.
+    choices: Vec<Vec<usize>>,
     /// Per mode, in the order of the declaration's modes: each variant's sheet and checks as
     /// JSON text, in the order of `ids`.
     specs: Vec<Vec<String>>,
@@ -215,12 +240,39 @@ fn plan(options: &Options) -> Result<Plan, String> {
                         map(vec![("name", text(name)), ("value", text(value))])
                     }),
             ),
+            (
+                "expect",
+                mode.expect.as_ref().map_or(Value::Null, |expect| {
+                    map(vec![
+                        (
+                            "attribute",
+                            expect
+                                .attribute
+                                .as_ref()
+                                .map_or(Value::Null, |(name, value)| {
+                                    map(vec![("name", text(name)), ("value", text(value))])
+                                }),
+                        ),
+                        (
+                            "selector",
+                            expect
+                                .selector
+                                .as_ref()
+                                .map_or(Value::Null, |selector| text(selector)),
+                        ),
+                    ])
+                }),
+            ),
         ])));
         urls.push(declaration.url(&options.site, &mode.name)?);
     }
     Ok(Plan {
         file: options.declaration.display().to_string(),
         environments: declaration.environments(),
+        choices: variants
+            .iter()
+            .map(|variant| variant.choice.clone())
+            .collect(),
         ids: variants.into_iter().map(|variant| variant.id).collect(),
         specs,
         configs,
@@ -247,17 +299,38 @@ fn flag(value: &Value, key: &str) -> Result<bool, String> {
     }
 }
 
-/// One render as the probe returns it, and what it says broke a hard rule.
-fn render_of(value: &Value) -> Result<(Render, Vec<String>), String> {
-    let notes = value
-        .get("notes")
+/// One render as the probe returns it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Sample {
+    render: Render,
+    /// What broke a hard rule, each line starting with the rule.
+    hard: Vec<String>,
+    /// The first elements behind a count, per count of [`NOTED`] that is above 0.
+    elements: Vec<(String, Vec<String>)>,
+    /// The probe's digest of every element's box and colours.
+    digest: String,
+}
+
+fn texts(value: Option<&Value>) -> Vec<String> {
+    value
         .map(Value::list)
         .unwrap_or_default()
         .iter()
-        .filter_map(|note| note.str().map(str::to_owned))
+        .filter_map(|text| text.str().map(str::to_owned))
+        .collect()
+}
+
+fn sample_of(value: &Value) -> Result<Sample, String> {
+    let named = value.get("elements");
+    let elements = NOTED
+        .iter()
+        .filter_map(|&term| {
+            let elements = texts(named.and_then(|named| named.get(term)));
+            (!elements.is_empty()).then(|| (term.to_owned(), elements))
+        })
         .collect();
-    Ok((
-        Render {
+    Ok(Sample {
+        render: Render {
             primary_in_view: flag(value, "primary_in_view")?,
             h_scroll: flag(value, "h_scroll")?,
             unnamed: count(value, "unnamed")?,
@@ -270,8 +343,13 @@ fn render_of(value: &Value) -> Result<(Render, Vec<String>), String> {
             overflow: count(value, "overflow")?,
             always_visible_misses: count(value, "always_visible_misses")?,
         },
-        notes,
-    ))
+        hard: texts(value.get("notes")),
+        elements,
+        digest: value
+            .get_str("digest")
+            .ok_or("the probe's `digest` is not a text")?
+            .to_owned(),
+    })
 }
 
 /// The script that sets a mode's attribute on the root element as soon as the document has
@@ -306,8 +384,19 @@ fn matched(plan: &Plan, key: &str, selector: &str, found: &Value, url: &str) -> 
     }
 }
 
-/// Opens the declared page in an environment, waits until it is ready, and prepares the probe
-/// in it.
+/// Parks the pointer where the declaration rests it in the environment, by a mouse move.
+fn park(
+    conn: &mut Conn,
+    page: &Page,
+    plan: &Plan,
+    environment: &Environment,
+) -> Result<(), String> {
+    let (x, y) = plan.declaration.pointer(environment);
+    page.move_pointer(conn, f64::from(x), f64::from(y))
+}
+
+/// Opens the declared page in an environment, waits until it is ready, parks the pointer, and
+/// prepares the probe in it.
 fn open(conn: &mut Conn, plan: &Plan, environment: &Environment) -> Result<Page, String> {
     let at = plan.mode(environment);
     let mode: &Mode = &plan.declaration.modes[at];
@@ -366,6 +455,8 @@ fn open(conn: &mut Conn, plan: &Plan, environment: &Environment) -> Result<Page,
         }
         page.wait(conn, READY_WAIT_MS)?;
     }
+    // Before the settle wait: what the page closes when the pointer leaves has that time.
+    park(conn, &page, plan, environment)?;
     if declaration.page.settle_ms > 0 {
         page.wait(conn, declaration.page.settle_ms)?;
     }
@@ -410,15 +501,69 @@ fn open(conn: &mut Conn, plan: &Plan, environment: &Environment) -> Result<Page,
 const FONT_TRIES: usize = 200;
 const FONT_WAIT_MS: u64 = 25;
 
-/// Renders a variant (`null`: the page with no sheet injected) and measures it. Refused: a
-/// property of the sheet that is not in force, and a mode's attribute the page took away.
+/// Whether the page shows what the mode expects of it, from what the probe read back.
+fn expected(plan: &Plan, at: usize, read: Option<&Value>) -> Result<(), String> {
+    let mode = &plan.declaration.modes[at];
+    let Some(expect) = &mode.expect else {
+        return Ok(());
+    };
+    let read = |key: &str| read.and_then(|read| read.get(key));
+    if let Some((name, value)) = &expect.attribute {
+        let held = read("attribute").and_then(Value::str);
+        if held != Some(value.as_str()) {
+            return Err(plan.declared(
+                &format!("environments.modes[{at}].expect.attribute"),
+                format!(
+                    "the mode `{}` expects `{name}` `{value}` on the root element, and the page \
+                     has it {} when it is measured; the mode is set by {}, and the page does \
+                     not show it",
+                    mode.name,
+                    held.map_or("unset".to_owned(), |held| format!("`{held}`")),
+                    mode.set_by()
+                ),
+            ));
+        }
+    }
+    if let Some(selector) = &expect.selector {
+        let key = format!("environments.modes[{at}].expect.selector");
+        match read("selector") {
+            Some(Value::Int(n)) if *n > 0 => {}
+            Some(Value::Int(0)) => {
+                return Err(plan.declared(
+                    &key,
+                    format!(
+                        "the mode `{}` expects the page to hold an element for it, and \
+                         `{selector}` matches nothing on the page when it is measured; the mode \
+                         is set by {}, and the page does not show it",
+                        mode.name,
+                        mode.set_by()
+                    ),
+                ));
+            }
+            _ => {
+                return Err(plan.declared(
+                    &key,
+                    format!("the browser does not read the selector `{selector}`"),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Renders a variant (`null`: the page with no sheet injected), parks the pointer, and measures
+/// the page. Refused: a property of the sheet that is not in force, a mode's attribute the page
+/// took away, and a page that does not show what its mode expects.
 fn measure(
     conn: &mut Conn,
     page: &Page,
     plan: &Plan,
-    mode: usize,
+    environment: &Environment,
     spec: &str,
-) -> Result<(Render, Vec<String>), String> {
+) -> Result<Sample, String> {
+    let mode = plan.mode(environment);
+    page.eval(conn, &format!("__uxuiCampaign.apply({spec})"))?;
+    park(conn, page, plan, environment)?;
     let expression = format!("__uxuiCampaign.measure({spec})");
     for _ in 0..FONT_TRIES {
         let value = page.eval(conn, &expression)?;
@@ -453,7 +598,8 @@ fn measure(
                 ),
             ));
         }
-        return render_of(&value);
+        expected(plan, mode, value.get("expect"))?;
+        return sample_of(&value);
     }
     Err(format!(
         "a font was still loading after {FONT_TRIES} tries {FONT_WAIT_MS} ms apart"
@@ -474,8 +620,8 @@ fn unblocked(conn: &Conn, plan: &Plan) -> Result<(), String> {
     }
 }
 
-/// One environment's renders, in the order of the plan's variants, with each one's notes.
-type Measured = Vec<(Render, Vec<String>)>;
+/// One environment's renders, in the order of the plan's variants.
+type Measured = Vec<Sample>;
 
 fn measure_environment(
     conn: &mut Conn,
@@ -484,27 +630,28 @@ fn measure_environment(
 ) -> Result<Measured, String> {
     let mode = plan.mode(environment);
     let page = open(conn, plan, environment)?;
-    let (built, _) = measure(conn, &page, plan, mode, "null")?;
+    let built = measure(conn, &page, plan, environment, "null")?.render;
     let specs = &plan.specs[mode];
-    let mut measured = Vec::with_capacity(specs.len());
+    let mut measured: Measured = Vec::with_capacity(specs.len());
     for (index, spec) in specs.iter().enumerate() {
         let id = &plan.ids[index];
-        let (render, notes) = measure(conn, &page, plan, mode, spec)
+        let sample = measure(conn, &page, plan, environment, spec)
             .map_err(|why| format!("{why} (variant {id})"))?;
+        let render = sample.render;
         if index == plan.shipped && render != built {
             return Err(format!(
                 "{id}: the variant of the shipped values measures {render:?} with its sheet \
                  injected, the page without a sheet {built:?}"
             ));
         }
-        measured.push((render, notes));
+        measured.push(sample);
     }
-    let (again, _) = measure(conn, &page, plan, mode, &specs[0])?;
-    if again != measured[0].0 {
+    let again = measure(conn, &page, plan, environment, &specs[0])?.render;
+    if again != measured[0].render {
         return Err(format!(
             "{}: measured again after the last variant it gives {again:?}, at first {:?}: a \
              render leaves a trace, or the page changes while it is measured",
-            plan.ids[0], measured[0].0
+            plan.ids[0], measured[0].render
         ));
     }
     unblocked(conn, plan)?;
@@ -524,7 +671,7 @@ fn measure_anew(
 ) -> Result<Option<Vec<u8>>, String> {
     let mode = plan.mode(environment);
     let page = open(conn, plan, environment)?;
-    let (render, _) = measure(conn, &page, plan, mode, &plan.specs[mode][index])?;
+    let render = measure(conn, &page, plan, environment, &plan.specs[mode][index])?.render;
     if render != *recorded {
         return Err(format!(
             "{}: on a page loaded anew it measures {render:?}, in the campaign {recorded:?}",
@@ -532,6 +679,7 @@ fn measure_anew(
         ));
     }
     let shot = if shoot {
+        park(conn, &page, plan, environment)?;
         Some(page.screenshot(conn)?)
     } else {
         None
@@ -558,8 +706,8 @@ fn notes(plan: &Plan, measured: &[Measured]) -> Vec<String> {
     let mut lines = Vec::new();
     for (environment, renders) in plan.environments.iter().zip(measured) {
         let mut found: BTreeMap<&str, (usize, &str)> = BTreeMap::new();
-        for (id, (_, notes)) in plan.ids.iter().zip(renders) {
-            for note in notes {
+        for (id, sample) in plan.ids.iter().zip(renders) {
+            for note in &sample.hard {
                 let declared = note
                     .split_once(": ")
                     .is_some_and(|(rule, _)| plan.declaration.hard.iter().any(|hard| hard == rule));
@@ -578,12 +726,109 @@ fn notes(plan: &Plan, measured: &[Measured]) -> Vec<String> {
     lines
 }
 
+/// Per axis, how many of its values beside the shipped one change the page: a value changes it
+/// when one of its renders differs from the render of the shipped value beside the same choice
+/// of the other axes, in the same environment, in a measured number or in the probe's digest.
+fn changing(plan: &Plan, measured: &[Measured]) -> Vec<u64> {
+    let axes = &plan.declaration.axes;
+    // The step between two variants that differ by one value of an axis: the last axis changes
+    // fastest.
+    let mut steps = vec![1usize; axes.len()];
+    for at in (0..axes.len().saturating_sub(1)).rev() {
+        steps[at] = steps[at + 1] * axes[at + 1].values.len();
+    }
+    axes.iter()
+        .enumerate()
+        .map(|(at, axis)| {
+            let differs = |value: usize| {
+                plan.choices.iter().enumerate().any(|(index, choice)| {
+                    choice[at] == value && {
+                        let beside = index - value * steps[at] + axis.shipped * steps[at];
+                        measured.iter().any(|renders| {
+                            renders[index].render != renders[beside].render
+                                || renders[index].digest != renders[beside].digest
+                        })
+                    }
+                })
+            };
+            let count = (0..axis.values.len())
+                .filter(|&value| value != axis.shipped && differs(value))
+                .count();
+            u64::try_from(count).unwrap_or(u64::MAX)
+        })
+        .collect()
+}
+
+/// What the run says about each axis, one line: how many of its values change the page, or
+/// that none does.
+fn axis_lines(declaration: &Declaration, changing: &[u64]) -> Vec<String> {
+    declaration
+        .axes
+        .iter()
+        .zip(changing)
+        .map(|(axis, &changing)| {
+            let others = axis.values.len().saturating_sub(1);
+            if changing == 0 {
+                format!(
+                    "note: axis {}: no value changes a box or a computed style on this page",
+                    axis.name
+                )
+            } else {
+                format!(
+                    "axis {}: {changing} of the {others} values beside the shipped one change a \
+                     box or a computed style on this page",
+                    axis.name
+                )
+            }
+        })
+        .collect()
+}
+
+/// The modes that are set by a query and expect nothing, one line each: the run cannot know
+/// that the page took the query.
+fn unread_modes(declaration: &Declaration) -> Vec<String> {
+    declaration
+        .modes
+        .iter()
+        .filter(|mode| mode.expect.is_none())
+        .filter_map(|mode| {
+            let query = mode.query.as_ref()?;
+            Some(format!(
+                "note: mode `{}`: set by the query `{query}` and not read back: a page that \
+                 does not know the query is measured in its default mode under this name; \
+                 `expect` names an attribute of the root element or a selector the page shows \
+                 in the mode",
+                mode.name
+            ))
+        })
+        .collect()
+}
+
+/// The first elements behind the counts of one variant, per environment.
+fn notes_of(measured: &[Measured], index: usize) -> Vec<Note> {
+    measured
+        .iter()
+        .enumerate()
+        .flat_map(|(environment, renders)| {
+            renders[index]
+                .elements
+                .iter()
+                .map(move |(term, elements)| Note {
+                    environment,
+                    term: term.clone(),
+                    elements: elements.clone(),
+                })
+        })
+        .collect()
+}
+
 /// Everything the browser is asked: the record, the frontier's screenshots, the checks.
 struct Rendered {
     recorded: Recorded,
     shots: Vec<(String, Vec<u8>)>,
     notes: Vec<String>,
     checks: Vec<String>,
+    remarks: Vec<String>,
 }
 
 fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered, String> {
@@ -599,7 +844,7 @@ fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered,
         },
         close,
     )?;
-    let recorded = Recorded {
+    let mut recorded = Recorded {
         adapter: format!("ux-browser {}", ux_browser::VERSION),
         browser: browser.product.clone(),
         declaration: plan.declaration.clone(),
@@ -608,11 +853,23 @@ fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered,
             .iter()
             .enumerate()
             .map(|(index, id)| {
-                let renders = measured.iter().map(|renders| renders[index].0).collect();
+                let renders = measured
+                    .iter()
+                    .map(|renders| renders[index].render)
+                    .collect();
                 (id.clone(), renders)
             })
             .collect(),
+        changing: changing(plan, &measured),
+        notes: vec![Vec::new(); plan.ids.len()],
     };
+    let frontier = report::rank(&recorded).frontier;
+    for &index in std::iter::once(&plan.shipped).chain(&frontier) {
+        recorded.notes[index] = notes_of(&measured, index);
+    }
+    recorded.check()?;
+    let mut remarks = unread_modes(&plan.declaration);
+    remarks.extend(axis_lines(&plan.declaration, &recorded.changing));
     let mut checks = vec![
         format!(
             "{}: with its sheet injected it measures what the page measures without one, in {} \
@@ -634,10 +891,36 @@ fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered,
             "no request left {} or had another method than GET and HEAD",
             plan.guard.origin
         ),
+        format!(
+            "the pointer rests at {} while a render is measured and shot, moved there as a \
+             mouse moves",
+            pointers(plan)
+        ),
     ];
+    for mode in &plan.declaration.modes {
+        let Some(expect) = &mode.expect else {
+            continue;
+        };
+        let mut shown = Vec::new();
+        if let Some((name, value)) = &expect.attribute {
+            shown.push(format!("`{name}` `{value}` on the root element"));
+        }
+        if let Some(selector) = &expect.selector {
+            shown.push(format!("an element that matches `{selector}`"));
+        }
+        let renders = environments
+            .iter()
+            .filter(|environment| environment.mode == mode.name)
+            .count()
+            * plan.ids.len();
+        checks.push(format!(
+            "the mode `{}` shows what it expects in {renders} renders: {}",
+            mode.name,
+            shown.join(" and ")
+        ));
+    }
 
-    let frontier = report::rank(&recorded).frontier;
-    let shot_in = screenshot_environments(environments.len());
+    let shot_in = screenshots_of(&plan.declaration);
     let shoot = options.shots.is_some();
     let shots: Vec<Option<Vec<u8>>> = ux_browser::pool::run(
         options.jobs,
@@ -651,7 +934,7 @@ fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered,
                 plan,
                 &environments[environment],
                 index,
-                &measured[environment][index].0,
+                &measured[environment][index].render,
                 shoot,
             )
             .map_err(|why| format!("{why} ({})", environments[environment].name()))
@@ -677,7 +960,30 @@ fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered,
         shots: files,
         notes: notes(plan, &measured),
         checks,
+        remarks,
     })
+}
+
+/// Where the pointer rests, for a line of the run: the declared place, or the corner of each
+/// viewport.
+fn pointers(plan: &Plan) -> String {
+    match plan.declaration.page.pointer {
+        Some((x, y)) => format!("[{x}, {y}], the declared `page.pointer`, in every environment"),
+        None => {
+            let mut corners: Vec<String> = Vec::new();
+            for &(width, height) in &plan.declaration.viewports {
+                corners.push(format!(
+                    "[{}, {}] in {width}x{height}",
+                    width.saturating_sub(1),
+                    height.saturating_sub(1)
+                ));
+            }
+            format!(
+                "the bottom-right corner of the viewport, {}",
+                corners.join(", ")
+            )
+        }
+    }
 }
 
 /// Runs the campaign: every variant in every environment, then the frontier on pages loaded
@@ -717,5 +1023,6 @@ pub fn run(options: &Options) -> Result<Outcome, String> {
         written,
         notes: rendered.notes,
         checks: rendered.checks,
+        remarks: rendered.remarks,
     })
 }

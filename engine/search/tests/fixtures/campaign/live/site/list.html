@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A list page</title>
+<!--
+  The page the browser lane of the declared campaign measures (tests/campaign_live.rs). Every
+  size a test reads is set in px here, so no number depends on a font of the host.
+
+  - nav.rail lies at the top-left corner. It opens when the pointer enters it (a script adds
+    `open`, 40 px to 200 px, which moves everything below it) and shows its hint while it is
+    hovered (CSS). A pointer that rests at 0 x 0 keeps it open.
+  - `?theme=dark` is the page's dark mode: the script sets `data-theme` on the root element and
+    `is-dark` on the body.
+  - p.pale is under 4.5:1 in light mode. span.icon has a colour of alpha 0: an image stands in
+    for its character.
+  - a.tiny is a target of 10 px. button.wide ends outside the frame that clips it. p.end lies
+    below the first screen.
+  - `--space` is the padding of main; nothing reads `--nothing-reads-this`. `--dot` is read by
+    one rule, the background of the dot before the heading, which is a generated box
+    (`h1::before`): no element's box or colour depends on it.
+-->
+<style>
+  :root { --space: 16px; --nothing-reads-this: 0; --dot: #888888; }
+  * { box-sizing: border-box; }
+  html { background: #ffffff; color: #1a1a1a; }
+  html[data-theme="dark"] { background: #101014; color: #f0f0f0; }
+  body { margin: 0; font: 16px/24px sans-serif; }
+  nav.rail { display: block; height: 40px; overflow: hidden; background: #dddde8; color: #1a1a1a; }
+  nav.rail.open { height: 200px; }
+  nav.rail a { display: inline-block; width: 80px; height: 30px; color: #1a1a1a; }
+  nav.rail .hint { display: none; }
+  nav.rail:hover .hint { display: inline; }
+  main { padding: var(--space); }
+  button { display: block; margin: 0; padding: 0; border: 1px solid #1a1a1a; background: #ffffff; color: #1a1a1a; font: inherit; }
+  button.primary { width: 160px; height: 40px; }
+  h1 { margin: 0; font-size: 24px; line-height: 32px; }
+  h1::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; background: var(--dot); }
+  p { margin: 0; }
+  p.pale { color: #aaaaaa; background: #ffffff; }
+  span.icon { color: rgba(0, 0, 0, 0); }
+  a.tiny { display: inline-block; width: 10px; height: 10px; overflow: hidden; color: inherit; }
+  div.frame { width: 100px; overflow: hidden; }
+  button.wide { width: 150px; height: 30px; }
+  div.tall { height: 900px; }
+</style>
+</head>
+<body>
+<nav class="rail" aria-label="Sections"><a href="/list">List</a><span class="hint">Sections</span></nav>
+<main>
+  <button class="primary" type="button">New order</button>
+  <h1>Orders</h1>
+  <p class="pale">Pale note</p>
+  <p><span class="icon">x</span><span>Starred</span></p>
+  <p><a class="tiny" href="/list">i</a></p>
+  <div class="frame"><button class="wide" type="button">Export all orders</button></div>
+  <div class="tall"></div>
+  <p class="end">The end of the list</p>
+</main>
+<script>
+  (() => {
+    const rail = document.querySelector('nav.rail');
+    rail.addEventListener('pointerenter', () => rail.classList.add('open'));
+    rail.addEventListener('pointerleave', () => rail.classList.remove('open'));
+    if (new URLSearchParams(location.search).get('theme') === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.body.classList.add('is-dark');
+    }
+    document.querySelector('main').setAttribute('data-ready', '');
+  })();
+</script>
+</body>
+</html>
