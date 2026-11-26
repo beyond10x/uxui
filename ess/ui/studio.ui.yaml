@@ -85,7 +85,7 @@ pages:
           - {name: document, component: choice, reads: {view: uxsearch.design.BaseDocuments, key: base_document_id}}
       - name: list
         component: collection
-        reads: {view: uxsearch.design.TargetCatalog, key: target_id, params: {base_document_id: state.document}, filter: name contains state.search, paging: client}
+        reads: {view: uxsearch.design.TargetCatalog, key: target_id, params: {base_document_id: state.document}, filter: row.name contains state.search, paging: client}
         columns: [name, {field: scope, as: badge}, node_path, {field: host_slot, as: toggle, label: Host slot}]
         row_actions:
           - {name: start, navigate: {to: campaigns.start, params: {target_id: row.target_id}}, label: Start campaign, visible: not row.host_slot}
@@ -129,7 +129,7 @@ pages:
     sections:
       - name: list
         component: collection
-        reads: {view: uxsearch.search.Campaigns, key: campaign_id, filter: campaign_id contains state.search, paging: client}
+        reads: {view: uxsearch.search.Campaigns, key: campaign_id, filter: row.campaign_id contains state.search, paging: client}
         columns: [campaign_id, target_id, {field: strategy, as: badge}, {field: state, as: badge, tone_by: campaign_state}, ended_because]
         row_actions:
           - {name: climb, navigate: {to: campaigns.climb, params: {campaign_id: row.campaign_id}}, label: Watch}
@@ -281,7 +281,7 @@ pages:
       - name: switches
         component: collection
         title: Axis switches
-        reads: {view: uxsearch.design.AxisSwitches, key: axis_switch_id, filter: from_variant == params.variant_digest, paging: client}
+        reads: {view: uxsearch.design.AxisSwitches, key: axis_switch_id, filter: row.from_variant == params.variant_digest, paging: client}
         columns: [axis_id, axis_value_id, {field: state, as: badge}, reached, failure]
         live: {channel: switches, effect: refetch}
         row_actions:
@@ -348,7 +348,7 @@ pages:
     sections:
       - name: list
         component: collection
-        reads: {view: uxsearch.promotion.Promotions, key: promotion_id, filter: variant_digest contains state.search, paging: client}
+        reads: {view: uxsearch.promotion.Promotions, key: promotion_id, filter: row.variant_digest contains state.search, paging: client}
         columns: [campaign_id, variant_digest, {field: gate, as: badge, tone_by: gate}, {field: gate_trade_off_only, as: toggle, label: Trade-off}, {field: state, as: badge, tone_by: promotion_state}, accepted_by]
         row_actions:
           - {name: open, navigate: {to: promotions.detail, params: {promotion_id: row.promotion_id}}, label: Open}
@@ -369,6 +369,7 @@ pages:
       - name: decision
         component: collection
         title: Gate decision from ratchet
+        style: list
         reads: {view: uxsearch.promotion.PromotionById, key: promotion_id, params: {promotion_id: params.promotion_id}}
         columns: [{field: gate, as: badge, tone_by: gate}, {field: gate_trade_off_only, as: toggle, label: Trade-off}, gate_policy_revision, {field: losses, as: list, label: Gets worse}, {field: gains, as: list, label: Gets better}, {field: gate_requirement_verdicts, as: list}]
         row_actions:
@@ -410,7 +411,7 @@ pages:
     sections:
       - name: list
         component: collection
-        reads: {view: uxsearch.promotion.Judgements, key: judgement_id, filter: note contains state.search, paging: client}
+        reads: {view: uxsearch.promotion.Judgements, key: judgement_id, filter: row.note contains state.search, paging: client}
         columns: [{field: kind, as: badge}, {field: author_kind, as: badge}, author, left_variant, right_variant, preferred, note, {field: disposition, as: badge}, {field: state, as: badge}]
         row_actions:
           - {name: disposition, opens: disposition, visible: row.state == Recorded, label: Disposition}

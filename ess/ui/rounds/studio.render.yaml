@@ -63,7 +63,9 @@ nodes:
   - name: always campaign state
     selector: '[data-ui-path="pages/campaigns.climb/sections/summary/fields/state"]'
   - name: always gate
-    selector: '[data-ui-path="pages/promotions.detail/sections/decision/columns/gate"]'
+    selector: '[data-ui-path^="pages/promotions.detail/sections/decision/"][data-ui-path$="/columns/gate"]'
+  - name: always owner action
+    selector: '[data-ui-path^="pages/promotions.detail/sections/decision/rows/"][data-ui-path*="/row_actions/"]'
   - name: budget
     selector: '[data-ui-path="pages/campaigns.climb/sections/summary/fields/budget"]'
   - name: steps
