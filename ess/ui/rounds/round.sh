@@ -7,7 +7,8 @@
 # Chromium: UXUI_CHROME, else the newest Chromium headless shell under the Playwright cache.
 # Writes <target dir>/loop-round/<round id>/: versions.txt, page-checks.evidence.json, capture/,
 # render/<page>.<viewport>.<mode>.json and .png, dom/<page>.html, and what trial.mjs writes
-# (trial/, shots/, audit/), and round.json (summary.mjs). Nothing under ess/ui/ is written: the round's
+# (trial/, shots/, audit/), repeat/<n>.evidence.json (the page checks run again, UXUI_ROUND_REPEATS
+# times, default 4), and round.json (summary.mjs). Nothing under ess/ui/ is written: the round's
 # report takes its numbers from round.json, which is copied into ess/ui/rounds/<round id>/.
 #
 # It compiles (tsc, esbuild, cargo) and then measures. On a host with a build pool (`slot` on PATH)
@@ -137,6 +138,20 @@ if [ "$status" -ne 0 ]; then
 	echo "round: ux-browser checks exited $status" >&2
 	exit "$status"
 fi
+
+# 3a. The same page checks $repeats more times: the layout shift after ready is sampled, and one run
+# of it is not one number (UXF-023). summary.mjs reads every run's value of every page.
+repeats=${UXUI_ROUND_REPEATS:-4}
+mkdir -p "$out/repeat"
+n=1
+while [ "$n" -le "$repeats" ]; do
+	n=$((n + 1))
+	"$bin" checks --config "$config" --url "$origin" --project uxui --assessment "studio-round-$round-run-$n" \
+		--out "$out/repeat/$n.evidence.json" >/dev/null || {
+		echo "round: ux-browser checks, run $n, failed" >&2
+		exit 1
+	}
+done
 
 # 4. One render record, screenshot and DOM per page, gating viewport and mode.
 paths=$(awk '/^  paths:/ { on = 1; next } on && /^    - / { print $2; next } on { exit }' "$config")

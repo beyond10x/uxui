@@ -38,8 +38,11 @@ pub fn check(page: &Value, doc: &Value, model: &Model) -> Findings {
         let mut shown: Vec<&str> = Vec::new();
         for field in section.get("fields").map(Value::list).unwrap_or(&[]) {
             let name = field.get_str("field").unwrap_or("");
-            shown.push(name);
-            if view.field(name).is_none() {
+            // A path through an object (`budget.max_variants`) binds through its first member; the
+            // model here holds a view's fields, not the members of their types.
+            let root = name.split('.').next().unwrap_or(name);
+            shown.push(root);
+            if view.field(root).is_none() {
                 out.errors.push(format!(
                     "{}: `{name}` is not a field of `{view_name}`",
                     field.get_str("path").unwrap_or(path)

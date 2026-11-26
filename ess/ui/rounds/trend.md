@@ -8,6 +8,7 @@ One row per round. Every number is lower-is-better and comes from the round's `r
 | R-01 | 1, 2, 3 | 6 of 11 | 2 of 44 | 16 | 24 | 14 | 2 of 10 | 4 of 10 | 0.564 | 12 | 0.0151 | 22 (4) |
 | R-02 | 1, 2, 3 | 5 of 11 | 2 of 44 | 12 | 20 | 14 | 2 of 10 | 4 of 10 | 0 | 0 | 0.0176 | 20 (2) |
 | R-03 | 1, 3 | 4 of 11 | 0 of 44 | 8 | 0 | 14 | 2 of 10 | 0 of 10 | 0 | 0 | 0.0284 | 20 (0) |
+| R-04 | 1, 3 | 4 of 11 | 0 of 44 | 4 | 0 | 0 | 1 of 10 | 0 of 10 | 0 | 0 | 0.0075 | 17 (0) |
 
 Not measured in any round: gate 4 (the screen-only user) and gate 5 (accessibility by axe-core).
 
@@ -25,3 +26,12 @@ this table does not show: the cells of the page audit under a floor (`audit.cell
 16 of 40 on R-02's input, 0 in R-03) and the runs that showed a notice with a command's name in it
 (`trial.runs_notice_expectation_missed`: 26 of 44 on R-02's input, 28 in R-03; UXF-010, a known
 loss). The 20 findings open after R-03 are 11 S2 and 9 S3; three of them are new.
+
+R-04: measured with Chrome for Testing 159 (R-03: 158). R-03's input measured again is
+`R-04/before.round.json`: every count of R-03's row is equal, the layout shift is 0.0284. From R-04
+on `round.json` runs the page checks five times and counts three keys more, which this table does not
+show: the largest layout shift of the five runs and the largest difference between runs on one page
+(`page_checks.layout_shift.max_of_runs` and `page_checks.layout_shift.spread`: 0.0284 and 0.0121 on
+R-03's input, 0.0075 and 0.0024 in R-04), and the cells of the page audit over a page bar
+(`audit.cells_over_a_page_bar`: 4 of 8 on R-03's input, 0 in R-04). The 17 findings open after R-04
+are 10 S2 and 7 S3; none is new.

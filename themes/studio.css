@@ -162,6 +162,34 @@ h1 { font-size: 1.55rem; letter-spacing: -0.01em; }
 @media (width >= 48rem) {
   .ui-layout-columns > .ui-column-narrow { position: sticky; top: calc(var(--uxui-page-pad-y) + var(--uxui-header-min) + var(--ui-space-md)); }
 }
+/* The live climb fits the viewport (UXF-026; the yes side of ess/ui/rounds/R-04/decision.md). The step
+   table, the one section that grows while a campaign runs, comes last, so a new step moves nothing
+   under it. From 78rem of width the main column is two rows: the KPIs beside the chart of the best
+   value, the step table beside "Frontier now"; the side column is 11rem. The progress chart is not
+   drawn there: its four series are four columns of the step table, step by step. */
+[data-ui-path="pages/campaigns.climb/sections/points"] { order: 1; }
+@media (width >= 78rem) {
+  main[data-ui-path="pages/campaigns.climb"] { --ui-size-chart-height: 7rem; }
+  main[data-ui-path="pages/campaigns.climb"] .ui-layout-columns > .ui-column-narrow { flex: 0 0 11rem; }
+  main[data-ui-path="pages/campaigns.climb"] .ui-column-wide { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 3fr); grid-template-areas: "kpis hill" "points frontier"; align-items: start; }
+  [data-ui-path="pages/campaigns.climb/sections/hill_kpis"] { grid-area: kpis; }
+  [data-ui-path="pages/campaigns.climb/sections/hill"] { grid-area: hill; }
+  [data-ui-path="pages/campaigns.climb/sections/points"] { grid-area: points; }
+  [data-ui-path="pages/campaigns.climb/sections/frontier"] { grid-area: frontier; }
+  [data-ui-path="pages/campaigns.climb/sections/progress"] { display: none; }
+}
+
+/* The start form keeps its place while its reads answer (UXF-023): the target above it holds the height
+   of its three fields from the first frame, each field with suggestions holds the height of its one row
+   of suggestions before they arrive, and the loading bar of a form that loads its values lies over the
+   form's top edge instead of above its fields. */
+[data-ui-path="pages/campaigns.start/sections/target"] { box-sizing: border-box; min-height: 11rem; }
+[data-ui-path="pages/campaigns.start/sections/form/fields/journeys"],
+[data-ui-path="pages/campaigns.start/sections/form/fields/environments"],
+[data-ui-path="pages/campaigns.start/sections/form/fields/kpis"] { min-height: 5.75rem; }
+form.ui-form { position: relative; }
+form.ui-form > .ui-skeleton[role=status] { position: absolute; inset: 0 0 auto 0; }
+
 .ui-section { border: 1px solid var(--uxui-section-border); box-shadow: var(--uxui-shadow); }
 .ui-section h2 { font-size: var(--uxui-text-small); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ui-color-muted); }
 

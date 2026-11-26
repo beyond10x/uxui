@@ -27,6 +27,7 @@
       "steps": [
         {"open": "/promotions/detail/pr-02"},
         {"moment": "gate-failed"},
+        {"expect": {"path": "pages/promotions.detail/sections/summary", "not_text": "{\""}},
         {"expect": {"path": "pages/promotions.detail/sections/decision/rows/pr-02", "text": "attention.glance_cost"}},
         {"expect": {"path": "pages/promotions.detail/sections/decision", "not_text": "{\""}},
         {"expect": {"path": "pages/promotions.detail/sections/decision/rows/pr-02/row_actions/trade_off", "text": "Accept trade-off"}},
@@ -48,7 +49,7 @@
     {
       "name": "live-climb",
       "card": "rotating",
-      "source": "a progress event lands in the live climb; the step table shows its rows by seq, a live step included; the budget reads as a map and the KPI values as a list",
+      "source": "a progress event lands in the live climb; the step table shows its rows by seq, a live step included; the budget reads as its members",
       "steps": [
         {"open": "/campaigns/climb/cp-01"},
         {"wait": {"path": "pages/campaigns.climb/sections/points/rows/pt-04", "timeout_ms": 8000}, "optional": true},
@@ -56,8 +57,9 @@
         {"moment": "loaded"},
         {"expect": {"path": "pages/campaigns.climb/header/actions/stop", "text": "Stop"}},
         {"expect": {"path": "pages/campaigns.climb/sections/summary/fields/state", "text": "Running"}},
-        {"expect": {"path": "pages/campaigns.climb/sections/summary/fields/budget", "text": "max_variants: 400, max_wall_time_s: 3600"}},
-        {"expect": {"path": "pages/campaigns.climb/sections/frontier/rows/fe-01/columns/kpi_values", "text": "kpi_id: kpi-effort, value: 6, kpi_id: kpi-glance, value: 2"}},
+        {"expect": {"path": "pages/campaigns.climb/sections/summary/fields/max_variants", "text": "400"}},
+        {"expect": {"path": "pages/campaigns.climb/sections/summary/fields/max_wall_time_s", "text": "3,600"}},
+        {"expect": {"path": "pages/campaigns.climb/sections/summary", "not_text": "{\""}},
         {"click": {"path": "pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show"}},
         {"moment": "kpi-picked"},
         {"reveal": {"path": "pages/campaigns.climb/sections/points"}},
@@ -79,6 +81,7 @@
       "steps": [
         {"open": "/variants/detail/sha256%3Av-a1"},
         {"moment": "variant"},
+        {"expect": {"path": "pages/variants.detail/sections/summary", "not_text": "{\""}},
         {"expect": {"path": "pages/variants.detail/sections/switches", "rows": ["sw-01"]}},
         {"click": {"path": "pages/variants.detail/sections/axes/rows/av-04/row_actions/switch"}},
         {"moment": "switch-sent"},
@@ -122,6 +125,8 @@
         {"click": {"path": "pages/campaigns.frontier/sections/frontier/rows/fe-02/row_actions/compare"}},
         {"wait": {"path": "pages/variants.compare/sections/summary"}},
         {"moment": "compare"},
+        {"expect": {"path": "pages/variants.compare/sections/summary", "not_text": "{\""}},
+        {"expect": {"path": "pages/variants.compare/sections/right_summary", "not_text": "{\""}},
         {"click": {"path": "pages/variants.compare/header/actions/judge"}},
         {"wait": {"css": "[role=dialog]"}},
         {"moment": "judge-drawer"},

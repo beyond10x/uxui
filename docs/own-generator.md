@@ -86,6 +86,7 @@ row, and the own generator follows it.
 | A confirm's button text when the short form names none | schema: `confirm_label` default `Delete`; React: `Confirm` | `Confirm` |
 | A field's label | schema: `model.field_label`, which the model does not declare; renderers: the name with `_` as a space | the renderers' rule |
 | A `by_id_from` view with no matching row | React: the source's first row | no row |
+| A field path through an object (`budget.max_variants`) | 0.99.2: both renderers read the member; `ess ui check` checks every member against its type | reads the member; checks only the first member against the view's fields (the model reader holds no types' members) |
 
 ## Three changes on both ways
 

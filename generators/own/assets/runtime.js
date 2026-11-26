@@ -206,7 +206,7 @@
     return String(value);
   }
   function cell(field, row) {
-    const value = row[field.field];
+    const value = field.field.split(".").reduce((v, k) => (v == null ? v : v[k]), row);
     if (field.as === "badge") {
       const tone = (field.tones && field.tones[String(value)]) || field.tone || "neutral";
       return el("span", { class: `ui-badge tone-${tone}` }, format(value));

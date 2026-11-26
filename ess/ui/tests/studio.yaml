@@ -46,10 +46,12 @@ tests:
       - act: pages/targets.catalog/sections/list/rows/tg-02/row_actions/start
       - expect: {at: pages/campaigns.start/sections/target, text: Settings page}
 
-  - name: the budget reads as a map and the KPI values as a list
+  - name: the budget reads as its members and the KPI values as a list
     steps:
       - open: {page: campaigns.climb, params: {campaign_id: cp-01}}
-      - expect: {at: pages/campaigns.climb/sections/summary, text: "max_variants: 400, max_wall_time_s: 3600"}
+      - expect: {at: pages/campaigns.climb/sections/summary, text: "400"}
+      - expect: {at: pages/campaigns.climb/sections/summary, text: "3600"}
+      - expect: {at: pages/campaigns.climb/sections/summary, not_text: "max_variants"}
       - expect: {at: pages/campaigns.climb/sections/frontier/rows/fe-01/columns/kpi_values, text: "kpi_id: kpi-effort, value: 6, kpi_id: kpi-glance, value: 2"}
       - open: {page: campaigns.frontier, params: {campaign_id: cp-01}}
       - expect: {at: pages/campaigns.frontier/sections/frontier/rows/fe-02/columns/kpi_values, text: "kpi_id: kpi-effort, value: 5, kpi_id: kpi-glance, value: 3"}

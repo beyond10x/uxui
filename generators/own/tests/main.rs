@@ -194,6 +194,30 @@ fn a_view_the_model_does_not_have_is_refused_with_its_path() {
 }
 
 #[test]
+fn a_path_through_an_object_binds_through_its_first_member() {
+    let text = std::fs::read_to_string(repo().join("ess/ui/studio.ui.yaml"))
+        .unwrap()
+        .replace("field: budget.max_variants", "field: nowhere.max_variants");
+    let dir = out("member");
+    std::fs::create_dir_all(&dir).unwrap();
+    let doc = dir.join("studio.ui.yaml");
+    std::fs::write(&doc, text).unwrap();
+    let error = uxui_gen::generate(
+        &doc,
+        &repo().join("ess"),
+        "campaigns.climb",
+        &dir.join("out"),
+        &[],
+    )
+    .unwrap_err();
+    assert!(
+        error.contains("fields/max_variants: `nowhere.max_variants` is not a field of"),
+        "{error}"
+    );
+    assert!(!error.contains("max_wall_time_s"), "{error}");
+}
+
+#[test]
 fn a_theme_is_copied_beside_the_page_its_stylesheet_after_the_page_s_and_its_script_in_the_head() {
     let dir = out("themed");
     std::fs::create_dir_all(&dir).unwrap();
