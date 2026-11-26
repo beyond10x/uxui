@@ -21,19 +21,30 @@ line of 14 numbers per render) and the report over it, `report.txt` beside it.
 | variants that break a hard rule | 0 |
 | frontier | 16 variants, 2 different sets of terms |
 | the page as shipped | rank 35 of 144: 32 variants before it, 7 equal to it, off the frontier |
-| wall time of `ux-search landing run` | 14.1 s, 4 pages at once, on a build node with 32 CPUs; a first run took 14.8 s and wrote the same measurements, byte for byte |
+| wall time of `ux-search landing run` | 13.6 s, 4 pages at once, on a build node with 32 CPUs |
 | browser | `HeadlessChrome/158.0.8127.18` (the headless shell of Playwright's build 1254) |
-| adapter | `ux-browser 0.10.0` |
+| adapter | `ux-browser 0.11.0` |
 
 The wall time covers the 864 renders, the 32 screenshots (each variant measured again before its
 screenshot) and the check against a second build of the site; the two site builds are not in it.
 `docs/targets.md` reckoned with about 2,600 renders at 1 s each.
 
-The table is the first recording. Release 0.11.0 changed the plugin version in the page's eyebrow,
-which is part of `website/product.json`, so the campaign was recorded again for it (13.6 s, adapter
-`ux-browser 0.11.0`): the committed measurements differ from the first recording in the adapter line
-and the digest of `product.json` only, every measured number is equal, and the 32 screenshots differ
-in the eyebrow's version text.
+The table is the committed recording, the third. The first (adapter `ux-browser 0.10.0`, 14.1 s; a
+run before it took 14.8 s and wrote the same measurements, byte for byte) and the second (adapter
+`ux-browser 0.11.0`, 13.6 s) measured a page whose eyebrow named the plugin version. The eyebrow is
+part of `website/product.json`, so release 0.11.0 changed that source's digest and the campaign was
+recorded again for it: the second recording differs from the first in the adapter line and that
+digest only.
+
+For the third the version left the eyebrow ("Measured UI improvement"; the status page names the
+plugin version). No source of the campaign names a version since, so a release changes neither
+digest and records nothing again; the adapter line says which `ux-browser` measured, not which
+release the tree is at. Against the second recording `words` is 2 lower in all 864 renders, and
+`primary_px` is 14 or 15 px lower in the 288 renders at 390x844, where the eyebrow takes one line
+and took two; no other number moved. The frontier is the same 16 variants in the same order and the
+page as shipped keeps rank 35. Ranks 49 to 96 changed: `d85.h100` (485, before 500) now stands
+before `d115.h85` (495). All 32 screenshots were replaced: at 390x844 the page below the eyebrow
+stands 15 px higher.
 
 ## Space
 
@@ -121,17 +132,17 @@ a font was loading is measured again.
 
 No variant breaks a hard rule. Theme, hero alignment and section order move no term, so every set
 of terms is shared by 8 variants; the 144 variants have 18 different sets (3 action counts x 6
-pairs of density and heading scale). `words` is 56 for all of them: no axis changes the text above
+pairs of density and heading scale). `words` is 54 for all of them: no axis changes the text above
 the primary action.
 
 | density, heading scale | `primary_px` |
 |---|---|
 | `d85.h85` | 448 |
 | `d100.h85` (shipped) | 472 |
+| `d85.h100` | 485 |
 | `d115.h85` | 495 |
-| `d85.h100` | 500 |
-| `d100.h100` | 516 |
-| `d115.h100` | 532 |
+| `d100.h100` | 501 |
+| `d115.h100` | 517 |
 
 | actions | `regions` | `small_targets` | `actions` |
 |---|---|---|---|
@@ -145,14 +156,14 @@ tap target under 44 px fewer and one region fewer for that journey, and at 390x8
 since the route is then the menu toggle and the navbar's "Status". `1+3` is dominated by `1+1`: two
 more small tap targets and nothing gained.
 
-The page as shipped (`docs-system.left.1+1.features-first.d100.h85`: `hard=0 words=56
+The page as shipped (`docs-system.left.1+1.features-first.d100.h85`: `hard=0 words=54
 primary_px=472 regions=7 small_targets=21 actions=5`) ranks 35th. The `d85.h85` variants with `1+1`
 dominate it.
 
 ## Frontier
 
-Ranks 1 to 8 have `hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6`, ranks 9
-to 16 `hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5`. Each variant's full
+Ranks 1 to 8 have `hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6`, ranks 9
+to 16 `hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5`. Each variant's full
 patch stands under its line in `engine/search/tests/fixtures/docs-landing/report.txt`. The
 screenshots are the first screen, 1440x900 light and 390x844 dark, in
 `docs/campaign-2026-11-26-docs-landing-engine/`.
@@ -178,19 +189,23 @@ screenshots are the first screen, 1440x900 light and 390x844 dark, in
 
 Within a rank group the terms are equal: the order is the variant id's, not a preference. The
 choice between palette, hero alignment and section order is the person's, from the screenshots.
-At 390x844 the first screen of a `features-first` variant and of its `status-first` twin is the
-same picture (8 pairs of files with the same bytes): the sections start below it.
+At 390x844 the first screen of a `features-first` variant with `1+1` and of its `status-first`
+twin is the same picture (4 pairs of files with the same bytes): the sections start below it. With
+`1+0` the top edge of the first section is in the last 11 px of the screen, and the 4 pairs differ
+there.
 
 ## What the numbers do not say
 
 - Three of six axes move no term. The terms measure position, count and reach; they do not see a
   palette that passes contrast, an alignment, or the order of sections no journey's cheapest route
   runs through.
-- The numbers are of one browser build on one host. On a workstation with the full Chromium of the
-  same version (`Chrome/158.0.8127.18`) 304 of the 864 renders differ: all 288 at 390x844 in
-  `primary_px` (14 or 15 px lower there: the hero's eyebrow takes one line, two on the build node),
-  and 16 at 1024x768 in the regions of the metrics journey (one more there). The frontier and the
-  rank of the page as shipped come out the same. The committed measurements are the build node's.
+- The numbers are of one browser build on one host. With the eyebrow of the first two recordings, a
+  workstation with the full Chromium of the same version (`Chrome/158.0.8127.18`) measured 304 of
+  the 864 renders differently: all 288 at 390x844 in `primary_px` (14 or 15 px lower there: the
+  hero's eyebrow took one line, two on the build node), and 16 at 1024x768 in the regions of the
+  metrics journey (one more there). The frontier and the rank of the page as shipped came out the
+  same. That comparison was not run again for the committed recording, whose eyebrow takes one line
+  on the build node too. The committed measurements are the build node's.
 - A render is the built page changed in place, not a build of the variant. One variant is checked
   against a real build in every run (above); the other 142 rest on the same mapping.
 - A screenshot is the first screen, not the whole page.
@@ -199,19 +214,33 @@ same picture (8 pairs of files with the same bytes): the sections start below it
 
 ## Run it again
 
-From the repository root, with Node 22, npm and a Chromium (`UXUI_CHROME` names the binary; else
-the newest `chromium-<n>` of the Playwright cache):
+One command, from the repository root, with Node 22, npm, cargo and a Chromium (`UXUI_CHROME` names
+the binary; else the headless shell of Playwright's build 1254 in the Playwright cache, the build
+this campaign is recorded with):
 
 ```console
-cargo build --manifest-path engine/search/Cargo.toml --locked
-sh tools/docs-landing-campaign.sh docs/campaign-2026-11-26-docs-landing-engine > report.txt
+sh tools/docs-landing-campaign.sh
 ```
 
-The script builds the site, builds it once more from the patched sources of one variant, runs
-`ux-search landing run`, and prints the report. It writes `measurements.json` and the screenshots
-to the directory named; the measurements kept in the repository are that file, moved to
-`engine/search/tests/fixtures/docs-landing/`. The report of a measurements file alone, with no
-browser:
+On a host with a build pool the same is one job of the pool, started by
+`sh tools/docs-landing-campaign.sh --pool`: the job runs on a build node and the files it wrote are
+copied back. No other job of the same checkout runs beside it.
+
+The script builds `ux-search` and the site, builds the site once more from the patched sources of
+one variant in a copy of `website/` (it writes neither source of the site), runs
+`ux-search landing run`, and prints the report. It records in place: the measurements and the
+report in `engine/search/tests/fixtures/docs-landing/`, the golden evidence of the tests of
+`landing promote` beside them (through the tests' own switch, `UX_SEARCH_BLESS`), and the
+screenshots in `docs/campaign-2026-11-26-docs-landing-engine/`, in place of the ones that were
+there. No file is moved by hand and no golden file is blessed by hand; the numbers of this document
+are written from the report. The run's own files stay in `engine/search/target/landing/run`.
+
+A release does not record the campaign again. Neither source names a version
+(`engine/search/tests/landing.rs` holds that), so a release changes neither digest, and the
+measurements keep the adapter line they were recorded with: it says which `ux-browser` measured
+them, not which release the tree is at.
+
+The report of a measurements file alone, with no browser:
 
 ```console
 engine/search/target/debug/ux-search landing report \
@@ -302,20 +331,19 @@ when step 2 says so, the measurements, the report, the screenshots and the golde
 tests. The tests name no variant a promotion can make the shipped one: the variant they promote is
 the first of the recorded frontier that is not the shipped one.
 
-1. Build `ux-search` again (`shipped.txt` is compiled in).
+1. `shipped.txt` is compiled in: the next build of `ux-search` reads it (the script of step 3
+   builds).
 2. Copy the two sources into the fixture (`engine/search/tests/fixtures/docs-landing/product.json`
    and `landing.css`). The rebuilt variant of the campaign script has no axis at its shipped value:
    when the promoted variant shares one with it, name another in `tools/docs-landing-campaign.sh`
    (`variant=`) and in `engine/search/tests/landing.rs` (`FAR`), and write the fixture's
    `variant.product.json` and `variant.landing.css` from its patch. A test names what is missing.
-3. Record the campaign again on the new sources with `tools/docs-landing-campaign.sh` ("Run it
-   again"): the fixture's `measurements.json`, `report.txt` and the screenshots are replaced
-   together. The evidence file and the copy of the measurements beside it stay as written: they
+3. Record the campaign again on the new sources with `sh tools/docs-landing-campaign.sh` ("Run it
+   again"): the fixture's `measurements.json`, `report.txt`, the golden evidence of the tests
+   (`promote.evidence.json`) and the screenshots are replaced together, by the script. The
+   evidence file of the promotion and the copy of the measurements beside it stay as written: they
    are the record of the choice.
-4. Write the golden evidence of the tests again
-   (`engine/search/tests/fixtures/docs-landing/promote.evidence.json`):
-   `UX_SEARCH_BLESS=1 cargo test --manifest-path engine/search/Cargo.toml --locked landing_promote`.
-5. Commit the diff of the sources, the fixture, `shipped.txt` and the screenshots together with the
+4. Commit the diff of the sources, the fixture, `shipped.txt` and the screenshots together with the
    evidence file and the copy of the measurements.
 
 One limit. The operations for the actions, the section order and the studio palette are written

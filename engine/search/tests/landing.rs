@@ -177,6 +177,114 @@ fn the_campaign_script_names_the_variant_its_second_site_is_built_from() {
     );
 }
 
+/// The lines of a shell script that are commands: no comment, no blank line.
+fn commands(script: &str) -> impl Iterator<Item = &str> {
+    script
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+}
+
+/// The script records into the places these tests read and writes the golden evidence of the
+/// module `landing_promote` through that module's own switch, so a recording leaves no file to
+/// move and no golden to bless by hand.
+#[test]
+fn the_campaign_script_records_into_the_places_the_tests_read() {
+    let script = read(&repository("tools/docs-landing-campaign.sh"));
+    for part in [
+        "fixtures=engine/search/tests/fixtures/docs-landing",
+        "shots=docs/campaign-2026-11-26-docs-landing-engine",
+        "manifest=engine/search/Cargo.toml",
+        "cp \"$run/measurements.json\" \"$fixtures/measurements.json\"",
+        "\"$bin\" landing report --measurements \"$fixtures/measurements.json\" >\"$fixtures/report.txt\"",
+        "rm -f \"$shots\"/*.png",
+        "cp \"$run\"/*.png \"$shots/\"",
+        "UX_SEARCH_BLESS=1 cargo test --manifest-path \"$manifest\" --locked landing_promote >&2",
+    ] {
+        assert!(
+            commands(&script).any(|line| line == part),
+            "tools/docs-landing-campaign.sh has no line `{part}`"
+        );
+    }
+}
+
+/// The second site is built from a copy of `website/`: the script writes neither of the site's
+/// two sources, so no other reader of the checkout sees a variant's files in their place.
+#[test]
+fn the_campaign_script_writes_no_source_of_the_site() {
+    let script = read(&repository("tools/docs-landing-campaign.sh"));
+    for line in commands(&script) {
+        for source in ["\"$product\"", "\"$css\""] {
+            assert!(
+                !(line.starts_with("cp ") && line.ends_with(source))
+                    && !line.contains(&format!(">{source}")),
+                "tools/docs-landing-campaign.sh writes {source}: `{line}`"
+            );
+        }
+    }
+    assert!(
+        commands(&script)
+            .any(|line| line == "cp \"$fixtures/variant.product.json\" \"$site/product.json\""),
+        "the variant's product.json does not go into the copy of the site"
+    );
+}
+
+/// A release changes versions and nothing else: no source of the campaign names a version, so a
+/// release leaves their digests, and with them the recorded measurements, as they are.
+#[test]
+fn the_sources_of_the_campaign_name_no_version() {
+    for path in [
+        repository("website/product.json"),
+        repository("website/src/css/landing.css"),
+        fixture("product.json"),
+        fixture("landing.css"),
+        fixture("variant.product.json"),
+        fixture("variant.landing.css"),
+    ] {
+        for line in read(&path).lines() {
+            let version = line
+                .split(|c: char| !c.is_ascii_digit() && c != '.')
+                .map(|word| word.trim_matches('.'))
+                .find(|word| crate::is_semver(word));
+            assert_eq!(
+                version,
+                None,
+                "{}: `{}` names a version, which the next release would change",
+                path.display(),
+                line.trim()
+            );
+        }
+    }
+}
+
+/// A record names the adapter it was recorded with, as `ux-browser <version>`. The tests hold
+/// that form and never the version of this build: a release records nothing again.
+#[test]
+fn an_adapter_line_is_ux_browser_and_a_bare_semver() {
+    for (line, version) in [
+        ("ux-browser 0.11.0", "0.11.0"),
+        ("ux-browser 10.0.3", "10.0.3"),
+        ("ux-browser 0.0.0", "0.0.0"),
+    ] {
+        assert_eq!(crate::adapter_version(line), Some(version), "{line}");
+    }
+    for line in [
+        "ux-browser",
+        "ux-browser ",
+        "ux-browser 0.11",
+        "ux-browser 0.11.0.1",
+        "ux-browser 0.11.0-rc.1",
+        "ux-browser v0.11.0",
+        "ux-browser 0.11.0 ",
+        "ux-browser 00.11.0",
+        "ux-browser 0..0",
+        "ux-search 0.11.0",
+        " ux-browser 0.11.0",
+    ] {
+        assert_eq!(crate::adapter_version(line), None, "{line:?}");
+    }
+}
+
 /// The screenshots kept beside the campaign's document are those of the recorded campaign's
 /// frontier, one per variant and screenshot environment, and nothing else lies there.
 #[test]
@@ -848,8 +956,8 @@ fn the_recorded_campaign_is_every_variant_in_every_environment_on_the_kept_sourc
     assert_eq!(recorded.product_digest, digest("product.json"));
     assert_eq!(recorded.css_digest, digest("landing.css"));
     assert!(
-        recorded.adapter.starts_with("ux-browser "),
-        "{}",
+        crate::adapter_version(&recorded.adapter).is_some(),
+        "the adapter line `{}` is not `ux-browser <version>`",
         recorded.adapter
     );
     assert!(recorded.browser.contains("Chrome/"), "{}", recorded.browser);

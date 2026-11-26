@@ -1,6 +1,6 @@
 # ux-search landing: the documentation landing page /uxui/ on the browser adapter
 # adapter ux-browser 0.11.0, browser HeadlessChrome/158.0.8127.18
-# sources: product.json sha256:2df2c58fd3b2828f3ac593b1dfda0d3d51b65d25afb542653dbee00bf52f3bc8 landing.css sha256:057666f723ea58c06cd44fab39429b3afa47cc8bbd4348ab42c17247d403070b
+# sources: product.json sha256:5a03301b037964f50fb233440a55e4ad1eb614938ff5edc1ea9185a70d14e226 landing.css sha256:057666f723ea58c06cd44fab39429b3afa47cc8bbd4348ab42c17247d403070b
 # axes: theme 2 (docs-system, studio) x hero 2 (left, centred) x actions 3 (1+3, 1+1, 1+0) x section order 2 (features-first, status-first) x density 3 (0.85, 1, 1.15) x heading scale 2 (0.85, 1) = 144 variants
 # environments 6: 1440x900 light, 1440x900 dark, 1024x768 light, 1024x768 dark, 390x844 light, 390x844 dark; 864 renders
 # journeys 3: install the plugin, what exists today, find the metric catalogue
@@ -8,212 +8,212 @@
 # frontier: of the variants with hard=0, those no other of them beats on one term without losing on another; equal terms stand on it together
 shipped docs-system.left.1+1.features-first.d100.h85: rank 35 of 144, 32 variants before it on their terms, 7 equal to it, off the frontier
 frontier 16
-   1 docs-system.centred.1+0.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
+   1 docs-system.centred.1+0.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
      product.json [{"op":"test","path":"/product/actions/1/href","value":"/docs/status"},{"op":"remove","path":"/product/actions/1"}]
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: center; --uxui-hero-lede-inline: auto }
-   2 docs-system.centred.1+0.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
+   2 docs-system.centred.1+0.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
      product.json [{"op":"test","path":"/product/actions/1/href","value":"/docs/status"},{"op":"remove","path":"/product/actions/1"},{"op":"test","path":"/sections/2/kind","value":"status"},{"op":"move","from":"/sections/2","path":"/sections/0"}]
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: center; --uxui-hero-lede-inline: auto }
-   3 docs-system.left.1+0.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
+   3 docs-system.left.1+0.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
      product.json [{"op":"test","path":"/product/actions/1/href","value":"/docs/status"},{"op":"remove","path":"/product/actions/1"}]
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: start; --uxui-hero-lede-inline: 0 }
-   4 docs-system.left.1+0.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
+   4 docs-system.left.1+0.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
      product.json [{"op":"test","path":"/product/actions/1/href","value":"/docs/status"},{"op":"remove","path":"/product/actions/1"},{"op":"test","path":"/sections/2/kind","value":"status"},{"op":"move","from":"/sections/2","path":"/sections/0"}]
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: start; --uxui-hero-lede-inline: 0 }
-   5 studio.centred.1+0.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
+   5 studio.centred.1+0.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
      product.json [{"op":"test","path":"/product/actions/1/href","value":"/docs/status"},{"op":"remove","path":"/product/actions/1"}]
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: center; --uxui-hero-lede-inline: auto }
      landing.css html:root:has(.b10x-product) { --b10x-color-canvas: #f4f5f9; --b10x-color-surface: #ffffff; --b10x-color-surface-muted: #eeeefc; --b10x-color-panel: #ffffff; --b10x-color-heading: #161a2b; --b10x-color-text: #161a2b; --b10x-color-muted: #646b82; --b10x-color-line: #e3e6ef; --b10x-color-hairline: #e3e6ef; --b10x-color-link: #5b5bd6; --b10x-color-focus: #5b5bd6; --b10x-color-accent: #5b5bd6; --b10x-color-accent-strong: #5b5bd6; --b10x-color-on-accent: #ffffff; --b10x-color-amber: #b26b00; --b10x-color-rose: #c63d4b; --b10x-color-sky: #3a6fd8; --b10x-color-success: #1f8a5b; --b10x-color-warning: #b26b00; --b10x-color-danger: #c63d4b; --b10x-color-cyan: #3a6fd8; --b10x-color-lime: #1f8a5b }
      landing.css html[data-theme='dark']:has(.b10x-product) { --b10x-color-canvas: #0e1020; --b10x-color-surface: #171a2e; --b10x-color-surface-muted: #23264a; --b10x-color-panel: #171a2e; --b10x-color-heading: #e7e9f5; --b10x-color-text: #e7e9f5; --b10x-color-muted: #9aa0bd; --b10x-color-line: #2a2e48; --b10x-color-hairline: #2a2e48; --b10x-color-link: #8b8bff; --b10x-color-focus: #8b8bff; --b10x-color-accent: #8b8bff; --b10x-color-accent-strong: #8b8bff; --b10x-color-on-accent: #0e1020; --b10x-color-amber: #f0b55a; --b10x-color-rose: #ff7a85; --b10x-color-sky: #7aa5ff; --b10x-color-success: #4cc38a; --b10x-color-warning: #f0b55a; --b10x-color-danger: #ff7a85; --b10x-color-cyan: #7aa5ff; --b10x-color-lime: #4cc38a }
-   6 studio.centred.1+0.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
+   6 studio.centred.1+0.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
      product.json [{"op":"test","path":"/product/actions/1/href","value":"/docs/status"},{"op":"remove","path":"/product/actions/1"},{"op":"test","path":"/sections/2/kind","value":"status"},{"op":"move","from":"/sections/2","path":"/sections/0"}]
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: center; --uxui-hero-lede-inline: auto }
      landing.css html:root:has(.b10x-product) { --b10x-color-canvas: #f4f5f9; --b10x-color-surface: #ffffff; --b10x-color-surface-muted: #eeeefc; --b10x-color-panel: #ffffff; --b10x-color-heading: #161a2b; --b10x-color-text: #161a2b; --b10x-color-muted: #646b82; --b10x-color-line: #e3e6ef; --b10x-color-hairline: #e3e6ef; --b10x-color-link: #5b5bd6; --b10x-color-focus: #5b5bd6; --b10x-color-accent: #5b5bd6; --b10x-color-accent-strong: #5b5bd6; --b10x-color-on-accent: #ffffff; --b10x-color-amber: #b26b00; --b10x-color-rose: #c63d4b; --b10x-color-sky: #3a6fd8; --b10x-color-success: #1f8a5b; --b10x-color-warning: #b26b00; --b10x-color-danger: #c63d4b; --b10x-color-cyan: #3a6fd8; --b10x-color-lime: #1f8a5b }
      landing.css html[data-theme='dark']:has(.b10x-product) { --b10x-color-canvas: #0e1020; --b10x-color-surface: #171a2e; --b10x-color-surface-muted: #23264a; --b10x-color-panel: #171a2e; --b10x-color-heading: #e7e9f5; --b10x-color-text: #e7e9f5; --b10x-color-muted: #9aa0bd; --b10x-color-line: #2a2e48; --b10x-color-hairline: #2a2e48; --b10x-color-link: #8b8bff; --b10x-color-focus: #8b8bff; --b10x-color-accent: #8b8bff; --b10x-color-accent-strong: #8b8bff; --b10x-color-on-accent: #0e1020; --b10x-color-amber: #f0b55a; --b10x-color-rose: #ff7a85; --b10x-color-sky: #7aa5ff; --b10x-color-success: #4cc38a; --b10x-color-warning: #f0b55a; --b10x-color-danger: #ff7a85; --b10x-color-cyan: #7aa5ff; --b10x-color-lime: #4cc38a }
-   7 studio.left.1+0.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
+   7 studio.left.1+0.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
      product.json [{"op":"test","path":"/product/actions/1/href","value":"/docs/status"},{"op":"remove","path":"/product/actions/1"}]
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: start; --uxui-hero-lede-inline: 0 }
      landing.css html:root:has(.b10x-product) { --b10x-color-canvas: #f4f5f9; --b10x-color-surface: #ffffff; --b10x-color-surface-muted: #eeeefc; --b10x-color-panel: #ffffff; --b10x-color-heading: #161a2b; --b10x-color-text: #161a2b; --b10x-color-muted: #646b82; --b10x-color-line: #e3e6ef; --b10x-color-hairline: #e3e6ef; --b10x-color-link: #5b5bd6; --b10x-color-focus: #5b5bd6; --b10x-color-accent: #5b5bd6; --b10x-color-accent-strong: #5b5bd6; --b10x-color-on-accent: #ffffff; --b10x-color-amber: #b26b00; --b10x-color-rose: #c63d4b; --b10x-color-sky: #3a6fd8; --b10x-color-success: #1f8a5b; --b10x-color-warning: #b26b00; --b10x-color-danger: #c63d4b; --b10x-color-cyan: #3a6fd8; --b10x-color-lime: #1f8a5b }
      landing.css html[data-theme='dark']:has(.b10x-product) { --b10x-color-canvas: #0e1020; --b10x-color-surface: #171a2e; --b10x-color-surface-muted: #23264a; --b10x-color-panel: #171a2e; --b10x-color-heading: #e7e9f5; --b10x-color-text: #e7e9f5; --b10x-color-muted: #9aa0bd; --b10x-color-line: #2a2e48; --b10x-color-hairline: #2a2e48; --b10x-color-link: #8b8bff; --b10x-color-focus: #8b8bff; --b10x-color-accent: #8b8bff; --b10x-color-accent-strong: #8b8bff; --b10x-color-on-accent: #0e1020; --b10x-color-amber: #f0b55a; --b10x-color-rose: #ff7a85; --b10x-color-sky: #7aa5ff; --b10x-color-success: #4cc38a; --b10x-color-warning: #f0b55a; --b10x-color-danger: #ff7a85; --b10x-color-cyan: #7aa5ff; --b10x-color-lime: #4cc38a }
-   8 studio.left.1+0.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
+   8 studio.left.1+0.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
      product.json [{"op":"test","path":"/product/actions/1/href","value":"/docs/status"},{"op":"remove","path":"/product/actions/1"},{"op":"test","path":"/sections/2/kind","value":"status"},{"op":"move","from":"/sections/2","path":"/sections/0"}]
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: start; --uxui-hero-lede-inline: 0 }
      landing.css html:root:has(.b10x-product) { --b10x-color-canvas: #f4f5f9; --b10x-color-surface: #ffffff; --b10x-color-surface-muted: #eeeefc; --b10x-color-panel: #ffffff; --b10x-color-heading: #161a2b; --b10x-color-text: #161a2b; --b10x-color-muted: #646b82; --b10x-color-line: #e3e6ef; --b10x-color-hairline: #e3e6ef; --b10x-color-link: #5b5bd6; --b10x-color-focus: #5b5bd6; --b10x-color-accent: #5b5bd6; --b10x-color-accent-strong: #5b5bd6; --b10x-color-on-accent: #ffffff; --b10x-color-amber: #b26b00; --b10x-color-rose: #c63d4b; --b10x-color-sky: #3a6fd8; --b10x-color-success: #1f8a5b; --b10x-color-warning: #b26b00; --b10x-color-danger: #c63d4b; --b10x-color-cyan: #3a6fd8; --b10x-color-lime: #1f8a5b }
      landing.css html[data-theme='dark']:has(.b10x-product) { --b10x-color-canvas: #0e1020; --b10x-color-surface: #171a2e; --b10x-color-surface-muted: #23264a; --b10x-color-panel: #171a2e; --b10x-color-heading: #e7e9f5; --b10x-color-text: #e7e9f5; --b10x-color-muted: #9aa0bd; --b10x-color-line: #2a2e48; --b10x-color-hairline: #2a2e48; --b10x-color-link: #8b8bff; --b10x-color-focus: #8b8bff; --b10x-color-accent: #8b8bff; --b10x-color-accent-strong: #8b8bff; --b10x-color-on-accent: #0e1020; --b10x-color-amber: #f0b55a; --b10x-color-rose: #ff7a85; --b10x-color-sky: #7aa5ff; --b10x-color-success: #4cc38a; --b10x-color-warning: #f0b55a; --b10x-color-danger: #ff7a85; --b10x-color-cyan: #7aa5ff; --b10x-color-lime: #4cc38a }
-   9 docs-system.centred.1+1.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
+   9 docs-system.centred.1+1.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
      product.json []
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: center; --uxui-hero-lede-inline: auto }
-  10 docs-system.centred.1+1.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
+  10 docs-system.centred.1+1.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
      product.json [{"op":"test","path":"/sections/2/kind","value":"status"},{"op":"move","from":"/sections/2","path":"/sections/0"}]
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: center; --uxui-hero-lede-inline: auto }
-  11 docs-system.left.1+1.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
+  11 docs-system.left.1+1.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
      product.json []
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: start; --uxui-hero-lede-inline: 0 }
-  12 docs-system.left.1+1.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
+  12 docs-system.left.1+1.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
      product.json [{"op":"test","path":"/sections/2/kind","value":"status"},{"op":"move","from":"/sections/2","path":"/sections/0"}]
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: start; --uxui-hero-lede-inline: 0 }
-  13 studio.centred.1+1.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
+  13 studio.centred.1+1.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
      product.json []
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: center; --uxui-hero-lede-inline: auto }
      landing.css html:root:has(.b10x-product) { --b10x-color-canvas: #f4f5f9; --b10x-color-surface: #ffffff; --b10x-color-surface-muted: #eeeefc; --b10x-color-panel: #ffffff; --b10x-color-heading: #161a2b; --b10x-color-text: #161a2b; --b10x-color-muted: #646b82; --b10x-color-line: #e3e6ef; --b10x-color-hairline: #e3e6ef; --b10x-color-link: #5b5bd6; --b10x-color-focus: #5b5bd6; --b10x-color-accent: #5b5bd6; --b10x-color-accent-strong: #5b5bd6; --b10x-color-on-accent: #ffffff; --b10x-color-amber: #b26b00; --b10x-color-rose: #c63d4b; --b10x-color-sky: #3a6fd8; --b10x-color-success: #1f8a5b; --b10x-color-warning: #b26b00; --b10x-color-danger: #c63d4b; --b10x-color-cyan: #3a6fd8; --b10x-color-lime: #1f8a5b }
      landing.css html[data-theme='dark']:has(.b10x-product) { --b10x-color-canvas: #0e1020; --b10x-color-surface: #171a2e; --b10x-color-surface-muted: #23264a; --b10x-color-panel: #171a2e; --b10x-color-heading: #e7e9f5; --b10x-color-text: #e7e9f5; --b10x-color-muted: #9aa0bd; --b10x-color-line: #2a2e48; --b10x-color-hairline: #2a2e48; --b10x-color-link: #8b8bff; --b10x-color-focus: #8b8bff; --b10x-color-accent: #8b8bff; --b10x-color-accent-strong: #8b8bff; --b10x-color-on-accent: #0e1020; --b10x-color-amber: #f0b55a; --b10x-color-rose: #ff7a85; --b10x-color-sky: #7aa5ff; --b10x-color-success: #4cc38a; --b10x-color-warning: #f0b55a; --b10x-color-danger: #ff7a85; --b10x-color-cyan: #7aa5ff; --b10x-color-lime: #4cc38a }
-  14 studio.centred.1+1.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
+  14 studio.centred.1+1.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
      product.json [{"op":"test","path":"/sections/2/kind","value":"status"},{"op":"move","from":"/sections/2","path":"/sections/0"}]
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: center; --uxui-hero-lede-inline: auto }
      landing.css html:root:has(.b10x-product) { --b10x-color-canvas: #f4f5f9; --b10x-color-surface: #ffffff; --b10x-color-surface-muted: #eeeefc; --b10x-color-panel: #ffffff; --b10x-color-heading: #161a2b; --b10x-color-text: #161a2b; --b10x-color-muted: #646b82; --b10x-color-line: #e3e6ef; --b10x-color-hairline: #e3e6ef; --b10x-color-link: #5b5bd6; --b10x-color-focus: #5b5bd6; --b10x-color-accent: #5b5bd6; --b10x-color-accent-strong: #5b5bd6; --b10x-color-on-accent: #ffffff; --b10x-color-amber: #b26b00; --b10x-color-rose: #c63d4b; --b10x-color-sky: #3a6fd8; --b10x-color-success: #1f8a5b; --b10x-color-warning: #b26b00; --b10x-color-danger: #c63d4b; --b10x-color-cyan: #3a6fd8; --b10x-color-lime: #1f8a5b }
      landing.css html[data-theme='dark']:has(.b10x-product) { --b10x-color-canvas: #0e1020; --b10x-color-surface: #171a2e; --b10x-color-surface-muted: #23264a; --b10x-color-panel: #171a2e; --b10x-color-heading: #e7e9f5; --b10x-color-text: #e7e9f5; --b10x-color-muted: #9aa0bd; --b10x-color-line: #2a2e48; --b10x-color-hairline: #2a2e48; --b10x-color-link: #8b8bff; --b10x-color-focus: #8b8bff; --b10x-color-accent: #8b8bff; --b10x-color-accent-strong: #8b8bff; --b10x-color-on-accent: #0e1020; --b10x-color-amber: #f0b55a; --b10x-color-rose: #ff7a85; --b10x-color-sky: #7aa5ff; --b10x-color-success: #4cc38a; --b10x-color-warning: #f0b55a; --b10x-color-danger: #ff7a85; --b10x-color-cyan: #7aa5ff; --b10x-color-lime: #4cc38a }
-  15 studio.left.1+1.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
+  15 studio.left.1+1.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
      product.json []
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: start; --uxui-hero-lede-inline: 0 }
      landing.css html:root:has(.b10x-product) { --b10x-color-canvas: #f4f5f9; --b10x-color-surface: #ffffff; --b10x-color-surface-muted: #eeeefc; --b10x-color-panel: #ffffff; --b10x-color-heading: #161a2b; --b10x-color-text: #161a2b; --b10x-color-muted: #646b82; --b10x-color-line: #e3e6ef; --b10x-color-hairline: #e3e6ef; --b10x-color-link: #5b5bd6; --b10x-color-focus: #5b5bd6; --b10x-color-accent: #5b5bd6; --b10x-color-accent-strong: #5b5bd6; --b10x-color-on-accent: #ffffff; --b10x-color-amber: #b26b00; --b10x-color-rose: #c63d4b; --b10x-color-sky: #3a6fd8; --b10x-color-success: #1f8a5b; --b10x-color-warning: #b26b00; --b10x-color-danger: #c63d4b; --b10x-color-cyan: #3a6fd8; --b10x-color-lime: #1f8a5b }
      landing.css html[data-theme='dark']:has(.b10x-product) { --b10x-color-canvas: #0e1020; --b10x-color-surface: #171a2e; --b10x-color-surface-muted: #23264a; --b10x-color-panel: #171a2e; --b10x-color-heading: #e7e9f5; --b10x-color-text: #e7e9f5; --b10x-color-muted: #9aa0bd; --b10x-color-line: #2a2e48; --b10x-color-hairline: #2a2e48; --b10x-color-link: #8b8bff; --b10x-color-focus: #8b8bff; --b10x-color-accent: #8b8bff; --b10x-color-accent-strong: #8b8bff; --b10x-color-on-accent: #0e1020; --b10x-color-amber: #f0b55a; --b10x-color-rose: #ff7a85; --b10x-color-sky: #7aa5ff; --b10x-color-success: #4cc38a; --b10x-color-warning: #f0b55a; --b10x-color-danger: #ff7a85; --b10x-color-cyan: #7aa5ff; --b10x-color-lime: #4cc38a }
-  16 studio.left.1+1.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
+  16 studio.left.1+1.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
      product.json [{"op":"test","path":"/sections/2/kind","value":"status"},{"op":"move","from":"/sections/2","path":"/sections/0"}]
      landing.css :root { --uxui-density: 0.85; --uxui-heading-scale: 0.85; --uxui-hero-align: start; --uxui-hero-lede-inline: 0 }
      landing.css html:root:has(.b10x-product) { --b10x-color-canvas: #f4f5f9; --b10x-color-surface: #ffffff; --b10x-color-surface-muted: #eeeefc; --b10x-color-panel: #ffffff; --b10x-color-heading: #161a2b; --b10x-color-text: #161a2b; --b10x-color-muted: #646b82; --b10x-color-line: #e3e6ef; --b10x-color-hairline: #e3e6ef; --b10x-color-link: #5b5bd6; --b10x-color-focus: #5b5bd6; --b10x-color-accent: #5b5bd6; --b10x-color-accent-strong: #5b5bd6; --b10x-color-on-accent: #ffffff; --b10x-color-amber: #b26b00; --b10x-color-rose: #c63d4b; --b10x-color-sky: #3a6fd8; --b10x-color-success: #1f8a5b; --b10x-color-warning: #b26b00; --b10x-color-danger: #c63d4b; --b10x-color-cyan: #3a6fd8; --b10x-color-lime: #1f8a5b }
      landing.css html[data-theme='dark']:has(.b10x-product) { --b10x-color-canvas: #0e1020; --b10x-color-surface: #171a2e; --b10x-color-surface-muted: #23264a; --b10x-color-panel: #171a2e; --b10x-color-heading: #e7e9f5; --b10x-color-text: #e7e9f5; --b10x-color-muted: #9aa0bd; --b10x-color-line: #2a2e48; --b10x-color-hairline: #2a2e48; --b10x-color-link: #8b8bff; --b10x-color-focus: #8b8bff; --b10x-color-accent: #8b8bff; --b10x-color-accent-strong: #8b8bff; --b10x-color-on-accent: #0e1020; --b10x-color-amber: #f0b55a; --b10x-color-rose: #ff7a85; --b10x-color-sky: #7aa5ff; --b10x-color-success: #4cc38a; --b10x-color-warning: #f0b55a; --b10x-color-danger: #ff7a85; --b10x-color-cyan: #7aa5ff; --b10x-color-lime: #4cc38a }
 ranking 144
-   1 docs-system.centred.1+0.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
-   2 docs-system.centred.1+0.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
-   3 docs-system.left.1+0.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
-   4 docs-system.left.1+0.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
-   5 studio.centred.1+0.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
-   6 studio.centred.1+0.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
-   7 studio.left.1+0.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
-   8 studio.left.1+0.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=6 small_targets=20 actions=6
-   9 docs-system.centred.1+1.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
-  10 docs-system.centred.1+1.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
-  11 docs-system.left.1+1.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
-  12 docs-system.left.1+1.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
-  13 studio.centred.1+1.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
-  14 studio.centred.1+1.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
-  15 studio.left.1+1.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
-  16 studio.left.1+1.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=21 actions=5
-  17 docs-system.centred.1+3.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=23 actions=5
-  18 docs-system.centred.1+3.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=23 actions=5
-  19 docs-system.left.1+3.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=23 actions=5
-  20 docs-system.left.1+3.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=23 actions=5
-  21 studio.centred.1+3.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=23 actions=5
-  22 studio.centred.1+3.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=23 actions=5
-  23 studio.left.1+3.features-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=23 actions=5
-  24 studio.left.1+3.status-first.d85.h85 hard=0 words=56 primary_px=448 regions=7 small_targets=23 actions=5
-  25 docs-system.centred.1+0.features-first.d100.h85 hard=0 words=56 primary_px=472 regions=6 small_targets=20 actions=6
-  26 docs-system.centred.1+0.status-first.d100.h85 hard=0 words=56 primary_px=472 regions=6 small_targets=20 actions=6
-  27 docs-system.left.1+0.features-first.d100.h85 hard=0 words=56 primary_px=472 regions=6 small_targets=20 actions=6
-  28 docs-system.left.1+0.status-first.d100.h85 hard=0 words=56 primary_px=472 regions=6 small_targets=20 actions=6
-  29 studio.centred.1+0.features-first.d100.h85 hard=0 words=56 primary_px=472 regions=6 small_targets=20 actions=6
-  30 studio.centred.1+0.status-first.d100.h85 hard=0 words=56 primary_px=472 regions=6 small_targets=20 actions=6
-  31 studio.left.1+0.features-first.d100.h85 hard=0 words=56 primary_px=472 regions=6 small_targets=20 actions=6
-  32 studio.left.1+0.status-first.d100.h85 hard=0 words=56 primary_px=472 regions=6 small_targets=20 actions=6
-  33 docs-system.centred.1+1.features-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=21 actions=5
-  34 docs-system.centred.1+1.status-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=21 actions=5
-  35 docs-system.left.1+1.features-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=21 actions=5
-  36 docs-system.left.1+1.status-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=21 actions=5
-  37 studio.centred.1+1.features-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=21 actions=5
-  38 studio.centred.1+1.status-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=21 actions=5
-  39 studio.left.1+1.features-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=21 actions=5
-  40 studio.left.1+1.status-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=21 actions=5
-  41 docs-system.centred.1+3.features-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=23 actions=5
-  42 docs-system.centred.1+3.status-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=23 actions=5
-  43 docs-system.left.1+3.features-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=23 actions=5
-  44 docs-system.left.1+3.status-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=23 actions=5
-  45 studio.centred.1+3.features-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=23 actions=5
-  46 studio.centred.1+3.status-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=23 actions=5
-  47 studio.left.1+3.features-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=23 actions=5
-  48 studio.left.1+3.status-first.d100.h85 hard=0 words=56 primary_px=472 regions=7 small_targets=23 actions=5
-  49 docs-system.centred.1+0.features-first.d115.h85 hard=0 words=56 primary_px=495 regions=6 small_targets=20 actions=6
-  50 docs-system.centred.1+0.status-first.d115.h85 hard=0 words=56 primary_px=495 regions=6 small_targets=20 actions=6
-  51 docs-system.left.1+0.features-first.d115.h85 hard=0 words=56 primary_px=495 regions=6 small_targets=20 actions=6
-  52 docs-system.left.1+0.status-first.d115.h85 hard=0 words=56 primary_px=495 regions=6 small_targets=20 actions=6
-  53 studio.centred.1+0.features-first.d115.h85 hard=0 words=56 primary_px=495 regions=6 small_targets=20 actions=6
-  54 studio.centred.1+0.status-first.d115.h85 hard=0 words=56 primary_px=495 regions=6 small_targets=20 actions=6
-  55 studio.left.1+0.features-first.d115.h85 hard=0 words=56 primary_px=495 regions=6 small_targets=20 actions=6
-  56 studio.left.1+0.status-first.d115.h85 hard=0 words=56 primary_px=495 regions=6 small_targets=20 actions=6
-  57 docs-system.centred.1+1.features-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=21 actions=5
-  58 docs-system.centred.1+1.status-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=21 actions=5
-  59 docs-system.left.1+1.features-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=21 actions=5
-  60 docs-system.left.1+1.status-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=21 actions=5
-  61 studio.centred.1+1.features-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=21 actions=5
-  62 studio.centred.1+1.status-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=21 actions=5
-  63 studio.left.1+1.features-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=21 actions=5
-  64 studio.left.1+1.status-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=21 actions=5
-  65 docs-system.centred.1+3.features-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=23 actions=5
-  66 docs-system.centred.1+3.status-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=23 actions=5
-  67 docs-system.left.1+3.features-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=23 actions=5
-  68 docs-system.left.1+3.status-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=23 actions=5
-  69 studio.centred.1+3.features-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=23 actions=5
-  70 studio.centred.1+3.status-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=23 actions=5
-  71 studio.left.1+3.features-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=23 actions=5
-  72 studio.left.1+3.status-first.d115.h85 hard=0 words=56 primary_px=495 regions=7 small_targets=23 actions=5
-  73 docs-system.centred.1+0.features-first.d85.h100 hard=0 words=56 primary_px=500 regions=6 small_targets=20 actions=6
-  74 docs-system.centred.1+0.status-first.d85.h100 hard=0 words=56 primary_px=500 regions=6 small_targets=20 actions=6
-  75 docs-system.left.1+0.features-first.d85.h100 hard=0 words=56 primary_px=500 regions=6 small_targets=20 actions=6
-  76 docs-system.left.1+0.status-first.d85.h100 hard=0 words=56 primary_px=500 regions=6 small_targets=20 actions=6
-  77 studio.centred.1+0.features-first.d85.h100 hard=0 words=56 primary_px=500 regions=6 small_targets=20 actions=6
-  78 studio.centred.1+0.status-first.d85.h100 hard=0 words=56 primary_px=500 regions=6 small_targets=20 actions=6
-  79 studio.left.1+0.features-first.d85.h100 hard=0 words=56 primary_px=500 regions=6 small_targets=20 actions=6
-  80 studio.left.1+0.status-first.d85.h100 hard=0 words=56 primary_px=500 regions=6 small_targets=20 actions=6
-  81 docs-system.centred.1+1.features-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=21 actions=5
-  82 docs-system.centred.1+1.status-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=21 actions=5
-  83 docs-system.left.1+1.features-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=21 actions=5
-  84 docs-system.left.1+1.status-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=21 actions=5
-  85 studio.centred.1+1.features-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=21 actions=5
-  86 studio.centred.1+1.status-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=21 actions=5
-  87 studio.left.1+1.features-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=21 actions=5
-  88 studio.left.1+1.status-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=21 actions=5
-  89 docs-system.centred.1+3.features-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=23 actions=5
-  90 docs-system.centred.1+3.status-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=23 actions=5
-  91 docs-system.left.1+3.features-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=23 actions=5
-  92 docs-system.left.1+3.status-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=23 actions=5
-  93 studio.centred.1+3.features-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=23 actions=5
-  94 studio.centred.1+3.status-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=23 actions=5
-  95 studio.left.1+3.features-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=23 actions=5
-  96 studio.left.1+3.status-first.d85.h100 hard=0 words=56 primary_px=500 regions=7 small_targets=23 actions=5
-  97 docs-system.centred.1+0.features-first.d100.h100 hard=0 words=56 primary_px=516 regions=6 small_targets=20 actions=6
-  98 docs-system.centred.1+0.status-first.d100.h100 hard=0 words=56 primary_px=516 regions=6 small_targets=20 actions=6
-  99 docs-system.left.1+0.features-first.d100.h100 hard=0 words=56 primary_px=516 regions=6 small_targets=20 actions=6
- 100 docs-system.left.1+0.status-first.d100.h100 hard=0 words=56 primary_px=516 regions=6 small_targets=20 actions=6
- 101 studio.centred.1+0.features-first.d100.h100 hard=0 words=56 primary_px=516 regions=6 small_targets=20 actions=6
- 102 studio.centred.1+0.status-first.d100.h100 hard=0 words=56 primary_px=516 regions=6 small_targets=20 actions=6
- 103 studio.left.1+0.features-first.d100.h100 hard=0 words=56 primary_px=516 regions=6 small_targets=20 actions=6
- 104 studio.left.1+0.status-first.d100.h100 hard=0 words=56 primary_px=516 regions=6 small_targets=20 actions=6
- 105 docs-system.centred.1+1.features-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=21 actions=5
- 106 docs-system.centred.1+1.status-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=21 actions=5
- 107 docs-system.left.1+1.features-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=21 actions=5
- 108 docs-system.left.1+1.status-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=21 actions=5
- 109 studio.centred.1+1.features-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=21 actions=5
- 110 studio.centred.1+1.status-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=21 actions=5
- 111 studio.left.1+1.features-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=21 actions=5
- 112 studio.left.1+1.status-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=21 actions=5
- 113 docs-system.centred.1+3.features-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=23 actions=5
- 114 docs-system.centred.1+3.status-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=23 actions=5
- 115 docs-system.left.1+3.features-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=23 actions=5
- 116 docs-system.left.1+3.status-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=23 actions=5
- 117 studio.centred.1+3.features-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=23 actions=5
- 118 studio.centred.1+3.status-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=23 actions=5
- 119 studio.left.1+3.features-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=23 actions=5
- 120 studio.left.1+3.status-first.d100.h100 hard=0 words=56 primary_px=516 regions=7 small_targets=23 actions=5
- 121 docs-system.centred.1+0.features-first.d115.h100 hard=0 words=56 primary_px=532 regions=6 small_targets=20 actions=6
- 122 docs-system.centred.1+0.status-first.d115.h100 hard=0 words=56 primary_px=532 regions=6 small_targets=20 actions=6
- 123 docs-system.left.1+0.features-first.d115.h100 hard=0 words=56 primary_px=532 regions=6 small_targets=20 actions=6
- 124 docs-system.left.1+0.status-first.d115.h100 hard=0 words=56 primary_px=532 regions=6 small_targets=20 actions=6
- 125 studio.centred.1+0.features-first.d115.h100 hard=0 words=56 primary_px=532 regions=6 small_targets=20 actions=6
- 126 studio.centred.1+0.status-first.d115.h100 hard=0 words=56 primary_px=532 regions=6 small_targets=20 actions=6
- 127 studio.left.1+0.features-first.d115.h100 hard=0 words=56 primary_px=532 regions=6 small_targets=20 actions=6
- 128 studio.left.1+0.status-first.d115.h100 hard=0 words=56 primary_px=532 regions=6 small_targets=20 actions=6
- 129 docs-system.centred.1+1.features-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=21 actions=5
- 130 docs-system.centred.1+1.status-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=21 actions=5
- 131 docs-system.left.1+1.features-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=21 actions=5
- 132 docs-system.left.1+1.status-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=21 actions=5
- 133 studio.centred.1+1.features-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=21 actions=5
- 134 studio.centred.1+1.status-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=21 actions=5
- 135 studio.left.1+1.features-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=21 actions=5
- 136 studio.left.1+1.status-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=21 actions=5
- 137 docs-system.centred.1+3.features-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=23 actions=5
- 138 docs-system.centred.1+3.status-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=23 actions=5
- 139 docs-system.left.1+3.features-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=23 actions=5
- 140 docs-system.left.1+3.status-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=23 actions=5
- 141 studio.centred.1+3.features-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=23 actions=5
- 142 studio.centred.1+3.status-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=23 actions=5
- 143 studio.left.1+3.features-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=23 actions=5
- 144 studio.left.1+3.status-first.d115.h100 hard=0 words=56 primary_px=532 regions=7 small_targets=23 actions=5
+   1 docs-system.centred.1+0.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
+   2 docs-system.centred.1+0.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
+   3 docs-system.left.1+0.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
+   4 docs-system.left.1+0.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
+   5 studio.centred.1+0.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
+   6 studio.centred.1+0.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
+   7 studio.left.1+0.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
+   8 studio.left.1+0.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=6 small_targets=20 actions=6
+   9 docs-system.centred.1+1.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
+  10 docs-system.centred.1+1.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
+  11 docs-system.left.1+1.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
+  12 docs-system.left.1+1.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
+  13 studio.centred.1+1.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
+  14 studio.centred.1+1.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
+  15 studio.left.1+1.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
+  16 studio.left.1+1.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=21 actions=5
+  17 docs-system.centred.1+3.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=23 actions=5
+  18 docs-system.centred.1+3.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=23 actions=5
+  19 docs-system.left.1+3.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=23 actions=5
+  20 docs-system.left.1+3.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=23 actions=5
+  21 studio.centred.1+3.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=23 actions=5
+  22 studio.centred.1+3.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=23 actions=5
+  23 studio.left.1+3.features-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=23 actions=5
+  24 studio.left.1+3.status-first.d85.h85 hard=0 words=54 primary_px=448 regions=7 small_targets=23 actions=5
+  25 docs-system.centred.1+0.features-first.d100.h85 hard=0 words=54 primary_px=472 regions=6 small_targets=20 actions=6
+  26 docs-system.centred.1+0.status-first.d100.h85 hard=0 words=54 primary_px=472 regions=6 small_targets=20 actions=6
+  27 docs-system.left.1+0.features-first.d100.h85 hard=0 words=54 primary_px=472 regions=6 small_targets=20 actions=6
+  28 docs-system.left.1+0.status-first.d100.h85 hard=0 words=54 primary_px=472 regions=6 small_targets=20 actions=6
+  29 studio.centred.1+0.features-first.d100.h85 hard=0 words=54 primary_px=472 regions=6 small_targets=20 actions=6
+  30 studio.centred.1+0.status-first.d100.h85 hard=0 words=54 primary_px=472 regions=6 small_targets=20 actions=6
+  31 studio.left.1+0.features-first.d100.h85 hard=0 words=54 primary_px=472 regions=6 small_targets=20 actions=6
+  32 studio.left.1+0.status-first.d100.h85 hard=0 words=54 primary_px=472 regions=6 small_targets=20 actions=6
+  33 docs-system.centred.1+1.features-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=21 actions=5
+  34 docs-system.centred.1+1.status-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=21 actions=5
+  35 docs-system.left.1+1.features-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=21 actions=5
+  36 docs-system.left.1+1.status-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=21 actions=5
+  37 studio.centred.1+1.features-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=21 actions=5
+  38 studio.centred.1+1.status-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=21 actions=5
+  39 studio.left.1+1.features-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=21 actions=5
+  40 studio.left.1+1.status-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=21 actions=5
+  41 docs-system.centred.1+3.features-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=23 actions=5
+  42 docs-system.centred.1+3.status-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=23 actions=5
+  43 docs-system.left.1+3.features-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=23 actions=5
+  44 docs-system.left.1+3.status-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=23 actions=5
+  45 studio.centred.1+3.features-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=23 actions=5
+  46 studio.centred.1+3.status-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=23 actions=5
+  47 studio.left.1+3.features-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=23 actions=5
+  48 studio.left.1+3.status-first.d100.h85 hard=0 words=54 primary_px=472 regions=7 small_targets=23 actions=5
+  49 docs-system.centred.1+0.features-first.d85.h100 hard=0 words=54 primary_px=485 regions=6 small_targets=20 actions=6
+  50 docs-system.centred.1+0.status-first.d85.h100 hard=0 words=54 primary_px=485 regions=6 small_targets=20 actions=6
+  51 docs-system.left.1+0.features-first.d85.h100 hard=0 words=54 primary_px=485 regions=6 small_targets=20 actions=6
+  52 docs-system.left.1+0.status-first.d85.h100 hard=0 words=54 primary_px=485 regions=6 small_targets=20 actions=6
+  53 studio.centred.1+0.features-first.d85.h100 hard=0 words=54 primary_px=485 regions=6 small_targets=20 actions=6
+  54 studio.centred.1+0.status-first.d85.h100 hard=0 words=54 primary_px=485 regions=6 small_targets=20 actions=6
+  55 studio.left.1+0.features-first.d85.h100 hard=0 words=54 primary_px=485 regions=6 small_targets=20 actions=6
+  56 studio.left.1+0.status-first.d85.h100 hard=0 words=54 primary_px=485 regions=6 small_targets=20 actions=6
+  57 docs-system.centred.1+1.features-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=21 actions=5
+  58 docs-system.centred.1+1.status-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=21 actions=5
+  59 docs-system.left.1+1.features-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=21 actions=5
+  60 docs-system.left.1+1.status-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=21 actions=5
+  61 studio.centred.1+1.features-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=21 actions=5
+  62 studio.centred.1+1.status-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=21 actions=5
+  63 studio.left.1+1.features-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=21 actions=5
+  64 studio.left.1+1.status-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=21 actions=5
+  65 docs-system.centred.1+3.features-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=23 actions=5
+  66 docs-system.centred.1+3.status-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=23 actions=5
+  67 docs-system.left.1+3.features-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=23 actions=5
+  68 docs-system.left.1+3.status-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=23 actions=5
+  69 studio.centred.1+3.features-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=23 actions=5
+  70 studio.centred.1+3.status-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=23 actions=5
+  71 studio.left.1+3.features-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=23 actions=5
+  72 studio.left.1+3.status-first.d85.h100 hard=0 words=54 primary_px=485 regions=7 small_targets=23 actions=5
+  73 docs-system.centred.1+0.features-first.d115.h85 hard=0 words=54 primary_px=495 regions=6 small_targets=20 actions=6
+  74 docs-system.centred.1+0.status-first.d115.h85 hard=0 words=54 primary_px=495 regions=6 small_targets=20 actions=6
+  75 docs-system.left.1+0.features-first.d115.h85 hard=0 words=54 primary_px=495 regions=6 small_targets=20 actions=6
+  76 docs-system.left.1+0.status-first.d115.h85 hard=0 words=54 primary_px=495 regions=6 small_targets=20 actions=6
+  77 studio.centred.1+0.features-first.d115.h85 hard=0 words=54 primary_px=495 regions=6 small_targets=20 actions=6
+  78 studio.centred.1+0.status-first.d115.h85 hard=0 words=54 primary_px=495 regions=6 small_targets=20 actions=6
+  79 studio.left.1+0.features-first.d115.h85 hard=0 words=54 primary_px=495 regions=6 small_targets=20 actions=6
+  80 studio.left.1+0.status-first.d115.h85 hard=0 words=54 primary_px=495 regions=6 small_targets=20 actions=6
+  81 docs-system.centred.1+1.features-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=21 actions=5
+  82 docs-system.centred.1+1.status-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=21 actions=5
+  83 docs-system.left.1+1.features-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=21 actions=5
+  84 docs-system.left.1+1.status-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=21 actions=5
+  85 studio.centred.1+1.features-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=21 actions=5
+  86 studio.centred.1+1.status-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=21 actions=5
+  87 studio.left.1+1.features-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=21 actions=5
+  88 studio.left.1+1.status-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=21 actions=5
+  89 docs-system.centred.1+3.features-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=23 actions=5
+  90 docs-system.centred.1+3.status-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=23 actions=5
+  91 docs-system.left.1+3.features-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=23 actions=5
+  92 docs-system.left.1+3.status-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=23 actions=5
+  93 studio.centred.1+3.features-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=23 actions=5
+  94 studio.centred.1+3.status-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=23 actions=5
+  95 studio.left.1+3.features-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=23 actions=5
+  96 studio.left.1+3.status-first.d115.h85 hard=0 words=54 primary_px=495 regions=7 small_targets=23 actions=5
+  97 docs-system.centred.1+0.features-first.d100.h100 hard=0 words=54 primary_px=501 regions=6 small_targets=20 actions=6
+  98 docs-system.centred.1+0.status-first.d100.h100 hard=0 words=54 primary_px=501 regions=6 small_targets=20 actions=6
+  99 docs-system.left.1+0.features-first.d100.h100 hard=0 words=54 primary_px=501 regions=6 small_targets=20 actions=6
+ 100 docs-system.left.1+0.status-first.d100.h100 hard=0 words=54 primary_px=501 regions=6 small_targets=20 actions=6
+ 101 studio.centred.1+0.features-first.d100.h100 hard=0 words=54 primary_px=501 regions=6 small_targets=20 actions=6
+ 102 studio.centred.1+0.status-first.d100.h100 hard=0 words=54 primary_px=501 regions=6 small_targets=20 actions=6
+ 103 studio.left.1+0.features-first.d100.h100 hard=0 words=54 primary_px=501 regions=6 small_targets=20 actions=6
+ 104 studio.left.1+0.status-first.d100.h100 hard=0 words=54 primary_px=501 regions=6 small_targets=20 actions=6
+ 105 docs-system.centred.1+1.features-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=21 actions=5
+ 106 docs-system.centred.1+1.status-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=21 actions=5
+ 107 docs-system.left.1+1.features-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=21 actions=5
+ 108 docs-system.left.1+1.status-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=21 actions=5
+ 109 studio.centred.1+1.features-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=21 actions=5
+ 110 studio.centred.1+1.status-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=21 actions=5
+ 111 studio.left.1+1.features-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=21 actions=5
+ 112 studio.left.1+1.status-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=21 actions=5
+ 113 docs-system.centred.1+3.features-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=23 actions=5
+ 114 docs-system.centred.1+3.status-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=23 actions=5
+ 115 docs-system.left.1+3.features-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=23 actions=5
+ 116 docs-system.left.1+3.status-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=23 actions=5
+ 117 studio.centred.1+3.features-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=23 actions=5
+ 118 studio.centred.1+3.status-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=23 actions=5
+ 119 studio.left.1+3.features-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=23 actions=5
+ 120 studio.left.1+3.status-first.d100.h100 hard=0 words=54 primary_px=501 regions=7 small_targets=23 actions=5
+ 121 docs-system.centred.1+0.features-first.d115.h100 hard=0 words=54 primary_px=517 regions=6 small_targets=20 actions=6
+ 122 docs-system.centred.1+0.status-first.d115.h100 hard=0 words=54 primary_px=517 regions=6 small_targets=20 actions=6
+ 123 docs-system.left.1+0.features-first.d115.h100 hard=0 words=54 primary_px=517 regions=6 small_targets=20 actions=6
+ 124 docs-system.left.1+0.status-first.d115.h100 hard=0 words=54 primary_px=517 regions=6 small_targets=20 actions=6
+ 125 studio.centred.1+0.features-first.d115.h100 hard=0 words=54 primary_px=517 regions=6 small_targets=20 actions=6
+ 126 studio.centred.1+0.status-first.d115.h100 hard=0 words=54 primary_px=517 regions=6 small_targets=20 actions=6
+ 127 studio.left.1+0.features-first.d115.h100 hard=0 words=54 primary_px=517 regions=6 small_targets=20 actions=6
+ 128 studio.left.1+0.status-first.d115.h100 hard=0 words=54 primary_px=517 regions=6 small_targets=20 actions=6
+ 129 docs-system.centred.1+1.features-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=21 actions=5
+ 130 docs-system.centred.1+1.status-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=21 actions=5
+ 131 docs-system.left.1+1.features-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=21 actions=5
+ 132 docs-system.left.1+1.status-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=21 actions=5
+ 133 studio.centred.1+1.features-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=21 actions=5
+ 134 studio.centred.1+1.status-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=21 actions=5
+ 135 studio.left.1+1.features-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=21 actions=5
+ 136 studio.left.1+1.status-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=21 actions=5
+ 137 docs-system.centred.1+3.features-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=23 actions=5
+ 138 docs-system.centred.1+3.status-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=23 actions=5
+ 139 docs-system.left.1+3.features-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=23 actions=5
+ 140 docs-system.left.1+3.status-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=23 actions=5
+ 141 studio.centred.1+3.features-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=23 actions=5
+ 142 studio.centred.1+3.status-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=23 actions=5
+ 143 studio.left.1+3.features-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=23 actions=5
+ 144 studio.left.1+3.status-first.d115.h100 hard=0 words=54 primary_px=517 regions=7 small_targets=23 actions=5

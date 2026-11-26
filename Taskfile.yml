@@ -12,10 +12,29 @@ tasks:
     cmds:
       - sh tools/gate.sh
 
+  release:set-version:
+    desc: '`task release:set-version -- <version>` is the one command of a release: it writes the version into every file that carries it, moves the changelog entries under the dated heading, regenerates the pages and ends with the versions check.'
+    cmds:
+      - sh tools/release-set-version.sh {{.CLI_ARGS}}
+
   release:ready:
     desc: '`task release:ready -- <sha>` exits 0 only when Gate, Documentation validation and Documentation site ended success on that commit; run it before the release tag.'
     cmds:
       - sh tools/release-ready.sh {{.CLI_ARGS}}
+
+  bless:static:
+    desc: 'Write the golden evidence of ux-static again through the test''s own switch; on a build pool `slot --fetch engine/static/tests/fixtures/ratchet-example task bless:static`.'
+    env:
+      UX_STATIC_BLESS: '1'
+    cmds:
+      - cargo test -p ux-static --locked the_output_over_fixed_inputs_is_the_golden_file
+
+  bless:search:
+    desc: 'Write the golden evidence of `ux-search landing promote` again through the tests'' own switch; on a build pool `slot --fetch engine/search/tests/fixtures/docs-landing task bless:search`. A recording does it itself (tools/docs-landing-campaign.sh).'
+    env:
+      UX_SEARCH_BLESS: '1'
+    cmds:
+      - cargo test --manifest-path engine/search/Cargo.toml --locked landing_promote
 
   validate:
     desc: Validate the Claude Code plugin and marketplace manifests.
