@@ -1,5 +1,6 @@
 {
-  "about": "The scenario cards of a round on the studio, played by trial.mjs. The first seven follow the tests of ess/ui/tests/studio.yaml (source); the others are cards of this round. A step names its node by path (data-ui-path) or css. The anchors are the two cards every round plays first.",
+  "about": "The scenario cards of a round on the studio, played by trial.mjs. The first seven follow the tests of ess/ui/tests/studio.yaml (source); the others are cards of this round. A step names its node by path (data-ui-path) or css. The anchors are the two cards every round plays first. notices holds what every notice of every card is held to: not_text is a text no notice may contain (a command's qualified name is not a word of the person's task).",
+  "notices": {"not_text": "uxsearch."},
   "ready": "main.ui-page:not(:has([role=status][aria-label=Loading]))",
   "scenarios": [
     {
@@ -27,11 +28,13 @@
         {"open": "/promotions/detail/pr-02"},
         {"moment": "gate-failed"},
         {"expect": {"path": "pages/promotions.detail/sections/decision/rows/pr-02", "text": "attention.glance_cost"}},
+        {"expect": {"path": "pages/promotions.detail/sections/decision", "not_text": "{\""}},
         {"expect": {"path": "pages/promotions.detail/sections/decision/rows/pr-02/row_actions/trade_off", "text": "Accept trade-off"}},
         {"absent": {"path": "pages/promotions.detail/sections/decision/rows/pr-02/row_actions/accept"}},
         {"click": {"path": "pages/promotions.detail/sections/decision/rows/pr-02/row_actions/trade_off"}},
         {"wait": {"css": "[role=dialog]"}},
         {"moment": "dialog"},
+        {"expect": {"path": "pages/promotions.detail/overlays/trade_off/record", "not_text": "{\""}},
         {"click": {"css": "[role=dialog] form button[type=submit]"}},
         {"moment": "accepted"},
         {"absent": {"css": "[role=dialog]"}},
@@ -153,7 +156,7 @@
     {
       "name": "filter-targets",
       "card": "rotating",
-      "source": "none: the search of a list page has no test",
+      "source": "starting a campaign from the catalog opens the form on that target (its first steps hold the catalog search to one row); the search that matches nothing is this card's twist",
       "steps": [
         {"open": "/targets/catalog"},
         {"type": {"css": "[data-ui-path=\"pages/targets.catalog/sections/filters\"] input[type=search]", "text": "form"}},

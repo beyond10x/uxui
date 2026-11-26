@@ -1,0 +1,3719 @@
+{
+ "about": "Round R-03 on the studio: the numbers of ess/ui/rounds/round.sh, written by ess/ui/rounds/summary.mjs. Lower is better for every metric.",
+ "round": "R-03",
+ "versions": {
+  "ess": "ess 0.99.2",
+  "node": "v22.23.3",
+  "npm": "10.9.9",
+  "react": "19.3.1",
+  "react-dom": "19.3.1",
+  "esbuild": "0.28.2",
+  "typescript": "5.9.3",
+  "ux-browser": "ux-browser 0.11.0",
+  "chromium": "Google Chrome for Testing 158.0.8127.18",
+  "studio.ui.yaml": "sha256:e7fffe33804e6266835294a7150122f04fe809b3004f8b4c6e9cb42ee4db1404",
+  "studio.css": "sha256:9e7591d6b161b463c57aedac96598b49cad0bc3d694b3c011c3cdc6a7baaa80e",
+  "www": "sha256:e3ef71ca68535e01fb5b63e1bd37d64843e532315acb2c67d042e7cdd557a4d5",
+  "font Inter": "Inter.ttc: \"Inter\" \"Regular\"",
+  "font Segoe UI": "NotoSans-Regular.ttf: \"Noto Sans\" \"Regular\"",
+  "font system-ui": "NotoSans-Regular.ttf: \"Noto Sans\" \"Regular\""
+ },
+ "measured": {
+  "pages": [
+   "/campaigns/climb/cp-01",
+   "/campaigns/frontier/cp-01",
+   "/campaigns/list",
+   "/campaigns/start/tg-02",
+   "/judgements/list",
+   "/promotions/detail/pr-02",
+   "/promotions/list",
+   "/targets/catalog",
+   "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+   "/variants/detail/sha256%3Av-a1"
+  ],
+  "page_checks": {
+   "viewports": [
+    "1366x768",
+    "1280x720",
+    "1366x657",
+    "1536x754",
+    "960x1080"
+   ],
+   "modes": [
+    "light",
+    "dark"
+   ],
+   "coverage": {
+    "unit": "check",
+    "executed": 890,
+    "skipped": 0,
+    "not_run": 0,
+    "unsupported": 0,
+    "passed": 826,
+    "failed": 14
+   },
+   "completion": "completed"
+  },
+  "trial_and_audit": {
+   "viewports": [
+    "1280x720",
+    "1366x768"
+   ],
+   "modes": [
+    "dark",
+    "light"
+   ],
+   "scenarios": 11,
+   "runs": 44,
+   "audits": 40
+  }
+ },
+ "metrics": {
+  "page_checks.page_scroll.total": 0,
+  "page_checks.overflow.blocks": 14,
+  "page_checks.always_visible.misses": 0,
+  "page_checks.keyboard.misses": 0,
+  "page_checks.layout_shift.max": 0.0284,
+  "audit.pages_with_document_scroll": 2,
+  "audit.pages_with_scrollable_element": 2,
+  "audit.pages_without_h1": 0,
+  "audit.text_under_14px.share": 0,
+  "audit.text_low_contrast.runs_per_page.max": 0,
+  "audit.controls_unnamed.max": 1,
+  "audit.inputs_placeholder_only.pages": 4,
+  "audit.tab_stops_unmarked.max": 0,
+  "audit.pages_tab_starts_outside_navigation": 10,
+  "audit.cells_over_a_bar": 0,
+  "audit.cells_under_a_floor": 0,
+  "trial.scenarios": 11,
+  "trial.scenarios_not_completed": 4,
+  "trial.runs_failed": 0,
+  "trial.runs_expectation_missed": 16,
+  "trial.runs_notice_expectation_missed": 28,
+  "trial.looks.total": 8,
+  "trial.actions.max": 10
+ },
+ "page_checks": {
+  "layout.page_scroll@1": {
+   "unit": "units",
+   "total": 0,
+   "max": 0,
+   "pages": {}
+  },
+  "layout.overflow@1": {
+   "unit": "blocks",
+   "total": 14,
+   "max": 10,
+   "pages": {
+    "/campaigns/climb/cp-01": {
+     "value": 10,
+     "viewports": {
+      "1366x768": 2,
+      "1280x720": 2,
+      "1366x657": 2,
+      "1536x754": 2,
+      "960x1080": 2
+     }
+    },
+    "/variants/detail/sha256%3Av-a1": {
+     "value": 4,
+     "viewports": {
+      "1366x768": 0,
+      "1280x720": 2,
+      "1366x657": 0,
+      "1536x754": 0,
+      "960x1080": 2
+     }
+    }
+   }
+  },
+  "always_visible.misses@1": {
+   "unit": "items",
+   "total": 0,
+   "max": 0,
+   "pages": {}
+  },
+  "keyboard.misses@1": {
+   "unit": "checks",
+   "total": 0,
+   "max": 0,
+   "pages": {}
+  },
+  "layout_shift.after_ready@1": {
+   "unit": "score",
+   "total": 0.0414,
+   "max": 0.0284,
+   "pages": {
+    "/campaigns/start/tg-02": {
+     "value": 0.0284,
+     "viewports": {
+      "1366x768": 0.0125,
+      "1280x720": 0.0057,
+      "1366x657": 0.0111,
+      "1536x754": 0.0155,
+      "960x1080": 0.0284
+     }
+    },
+    "/campaigns/climb/cp-01": {
+     "value": 0.013,
+     "viewports": {
+      "1366x768": 0.0009,
+      "1280x720": 0,
+      "1366x657": 0,
+      "1536x754": 0.0002,
+      "960x1080": 0.013
+     }
+    }
+   }
+  }
+ },
+ "page_check_misses": {
+  "/campaigns/climb/cp-01": {
+   "layout.overflow@1 dd \"{\"max_variants\":400,\"max_wall_time_s\":36\": right edge 607 past its parent": [
+    "1366x768.light",
+    "1366x768.dark",
+    "1280x720.light",
+    "1280x720.dark",
+    "1366x657.light",
+    "1366x657.dark",
+    "1536x754.light",
+    "1536x754.dark",
+    "960x1080.light",
+    "960x1080.dark"
+   ]
+  },
+  "/variants/detail/sha256%3Av-a1": {
+   "layout.overflow@1 dd \"{\"design_space_id\":\"ds-01\",\"origin\":\"sea\": right edge 499 past its parent": [
+    "1280x720.light",
+    "1280x720.dark",
+    "960x1080.light",
+    "960x1080.dark"
+   ]
+  }
+ },
+ "audit_bars": {
+  "text_under_14px": {
+   "bar": 0,
+   "cells": 40,
+   "cells_over": 0,
+   "worst": 0,
+   "over": []
+  },
+  "text_low_contrast": {
+   "bar": 0,
+   "cells": 40,
+   "cells_over": 0,
+   "worst": 0,
+   "over": []
+  }
+ },
+ "audit_floors": {
+  "h1": {
+   "floor": 1,
+   "cells": 40,
+   "cells_under": 0,
+   "least": 1,
+   "under": []
+  }
+ },
+ "trial_notices": {
+  "not_text": "uxsearch.",
+  "runs": 44,
+  "runs_missed": 28,
+  "scenarios_missed": [
+   "compare-and-judge",
+   "owner-trade-off",
+   "propose-promotion",
+   "start-campaign",
+   "stop-campaign-keyboard",
+   "stop-campaign",
+   "switch-axis"
+  ],
+  "missed": {
+   "uxsearch.promotion.RecordJudgement done in fixture mode; its effect was not applied: its success creates a row (`creates:`)": 4,
+   "uxsearch.promotion.AcceptTradeOff done in fixture mode; its effect was not applied: its success sets `accepted_by` from a value fixture mode does not compute": 4,
+   "uxsearch.promotion.ProposePromotion done in fixture mode; its effect was not applied: its success creates a row (`creates:`)": 4,
+   "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)": 4,
+   "uxsearch.search.StopCampaign done": 8,
+   "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)": 4
+  }
+ },
+ "audit": {
+  "/campaigns/climb/cp-01": {
+   "1280x720.dark": {
+    "document_height": 1249,
+    "viewport_height": 720,
+    "document_scrolls": true,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 86,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.81,
+    "controls": 11,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 11,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1280x720.light": {
+    "document_height": 1249,
+    "viewport_height": 720,
+    "document_scrolls": true,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 86,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.29,
+    "controls": 11,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 11,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.dark": {
+    "document_height": 1249,
+    "viewport_height": 768,
+    "document_scrolls": true,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 86,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.81,
+    "controls": 11,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 11,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.light": {
+    "document_height": 1249,
+    "viewport_height": 768,
+    "document_scrolls": true,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 86,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.29,
+    "controls": 11,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 11,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   }
+  },
+  "/campaigns/frontier/cp-01": {
+   "1280x720.dark": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 36,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.81,
+    "controls": 14,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 14,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1280x720.light": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 36,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.29,
+    "controls": 14,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 14,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.dark": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 36,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.81,
+    "controls": 14,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 14,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.light": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 36,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.29,
+    "controls": 14,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 14,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   }
+  },
+  "/campaigns/list": {
+   "1280x720.dark": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 31,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.81,
+    "controls": 12,
+    "controls_unnamed": 1,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 12,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1280x720.light": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 31,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.56,
+    "controls": 12,
+    "controls_unnamed": 1,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 12,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.dark": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 31,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.81,
+    "controls": 12,
+    "controls_unnamed": 1,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 12,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.light": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 31,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.56,
+    "controls": 12,
+    "controls_unnamed": 1,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 12,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   }
+  },
+  "/campaigns/start/tg-02": {
+   "1280x720.dark": {
+    "document_height": 1077,
+    "viewport_height": 720,
+    "document_scrolls": true,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 29,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 6.24,
+    "controls": 19,
+    "controls_unnamed": 0,
+    "controls_under_24px": 4,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 19,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1280x720.light": {
+    "document_height": 1077,
+    "viewport_height": 720,
+    "document_scrolls": true,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 29,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.29,
+    "controls": 19,
+    "controls_unnamed": 0,
+    "controls_under_24px": 4,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 19,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.dark": {
+    "document_height": 1077,
+    "viewport_height": 768,
+    "document_scrolls": true,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 29,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 6.24,
+    "controls": 19,
+    "controls_unnamed": 0,
+    "controls_under_24px": 4,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 19,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.light": {
+    "document_height": 1077,
+    "viewport_height": 768,
+    "document_scrolls": true,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 29,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.29,
+    "controls": 19,
+    "controls_unnamed": 0,
+    "controls_under_24px": 4,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 19,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   }
+  },
+  "/judgements/list": {
+   "1280x720.dark": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 29,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 6.24,
+    "controls": 7,
+    "controls_unnamed": 1,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 7,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1280x720.light": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 29,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.82,
+    "controls": 7,
+    "controls_unnamed": 1,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 7,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.dark": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 29,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 6.24,
+    "controls": 7,
+    "controls_unnamed": 1,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 7,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.light": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 29,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.82,
+    "controls": 7,
+    "controls_unnamed": 1,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 7,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   }
+  },
+  "/promotions/detail/pr-02": {
+   "1280x720.dark": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 43,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.66,
+    "controls": 8,
+    "controls_unnamed": 0,
+    "controls_under_24px": 1,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 7,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1280x720.light": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 43,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.23,
+    "controls": 8,
+    "controls_unnamed": 0,
+    "controls_under_24px": 1,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 7,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.dark": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 43,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.66,
+    "controls": 8,
+    "controls_unnamed": 0,
+    "controls_under_24px": 1,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 7,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.light": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 43,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.23,
+    "controls": 8,
+    "controls_unnamed": 0,
+    "controls_under_24px": 1,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 7,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   }
+  },
+  "/promotions/list": {
+   "1280x720.dark": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 27,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.66,
+    "controls": 10,
+    "controls_unnamed": 1,
+    "controls_under_24px": 2,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 8,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1280x720.light": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 27,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.23,
+    "controls": 10,
+    "controls_unnamed": 1,
+    "controls_under_24px": 2,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 8,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.dark": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 27,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.66,
+    "controls": 10,
+    "controls_unnamed": 1,
+    "controls_under_24px": 2,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 8,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.light": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 27,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.23,
+    "controls": 10,
+    "controls_unnamed": 1,
+    "controls_under_24px": 2,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 8,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   }
+  },
+  "/targets/catalog": {
+   "1280x720.dark": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 34,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 6.24,
+    "controls": 16,
+    "controls_unnamed": 1,
+    "controls_under_24px": 5,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 11,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1280x720.light": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 34,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.82,
+    "controls": 16,
+    "controls_unnamed": 1,
+    "controls_under_24px": 5,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 11,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.dark": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 34,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 6.24,
+    "controls": 16,
+    "controls_unnamed": 1,
+    "controls_under_24px": 5,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 11,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.light": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 0,
+    "sideways_scrollable_elements": 0,
+    "h1": 1,
+    "text_runs": 34,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.82,
+    "controls": 16,
+    "controls_unnamed": 1,
+    "controls_under_24px": 5,
+    "inputs_placeholder_only": 1,
+    "tab_stops": 11,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   }
+  },
+  "/variants/compare/sha256%3Av-a1/sha256%3Av-b2": {
+   "1280x720.dark": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 2,
+    "sideways_scrollable_elements": 2,
+    "h1": 1,
+    "text_runs": 66,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.66,
+    "controls": 6,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 8,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1280x720.light": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 2,
+    "sideways_scrollable_elements": 2,
+    "h1": 1,
+    "text_runs": 66,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.23,
+    "controls": 6,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 8,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.dark": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 2,
+    "sideways_scrollable_elements": 2,
+    "h1": 1,
+    "text_runs": 66,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.66,
+    "controls": 6,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 8,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.light": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 2,
+    "sideways_scrollable_elements": 2,
+    "h1": 1,
+    "text_runs": 66,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.23,
+    "controls": 6,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 8,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   }
+  },
+  "/variants/detail/sha256%3Av-a1": {
+   "1280x720.dark": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 2,
+    "sideways_scrollable_elements": 2,
+    "h1": 1,
+    "text_runs": 87,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.66,
+    "controls": 10,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 12,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1280x720.light": {
+    "document_height": 720,
+    "viewport_height": 720,
+    "document_scrolls": false,
+    "scrollable_elements": 2,
+    "sideways_scrollable_elements": 2,
+    "h1": 1,
+    "text_runs": 87,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.23,
+    "controls": 10,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 12,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.dark": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 2,
+    "sideways_scrollable_elements": 2,
+    "h1": 1,
+    "text_runs": 87,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.66,
+    "controls": 10,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 12,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   },
+   "1366x768.light": {
+    "document_height": 768,
+    "viewport_height": 768,
+    "document_scrolls": false,
+    "scrollable_elements": 2,
+    "sideways_scrollable_elements": 2,
+    "h1": 1,
+    "text_runs": 87,
+    "text_under_14px": 0,
+    "text_low_contrast": 0,
+    "min_contrast": 5.23,
+    "controls": 10,
+    "controls_unnamed": 0,
+    "controls_under_24px": 0,
+    "inputs_placeholder_only": 0,
+    "tab_stops": 12,
+    "tab_first_region": "main",
+    "tab_stops_unmarked": 0
+   }
+  }
+ },
+ "trial": {
+  "compare-and-judge": {
+   "card": "rotating",
+   "source": "none: the studio document's compare and judgement pages have no test",
+   "runs": {
+    "1280x720.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 4,
+     "looks": 0,
+     "expectations": {
+      "total": 0,
+      "met": 0
+     },
+     "notices_missed": [
+      "uxsearch.promotion.RecordJudgement done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "frontier",
+       "after_step": 1,
+       "shot": "shots/compare-and-judge.1-frontier.1280x720.dark.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "picked",
+       "after_step": 3,
+       "shot": "shots/compare-and-judge.2-picked.1280x720.dark.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Compare from here\" in pages/campaigns.frontier/sections/frontier/rows/fe-01/row_actions/pick",
+       "scroll_y": 0
+      },
+      {
+       "moment": "compare",
+       "after_step": 6,
+       "shot": "shots/compare-and-judge.3-compare.1280x720.dark.png",
+       "url": "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "judge-drawer",
+       "after_step": 9,
+       "shot": "shots/compare-and-judge.4-judge-drawer.1280x720.dark.png",
+       "url": "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Record a judgement",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Record judgement\" in pages/variants.compare/header/actions/judge",
+       "scroll_y": 0
+      },
+      {
+       "moment": "judge-submitted",
+       "after_step": 11,
+       "shot": "shots/compare-and-judge.5-judge-submitted.1280x720.dark.png",
+       "url": "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+       "notices": [
+        "uxsearch.promotion.RecordJudgement done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1280x720.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 4,
+     "looks": 0,
+     "expectations": {
+      "total": 0,
+      "met": 0
+     },
+     "notices_missed": [
+      "uxsearch.promotion.RecordJudgement done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "frontier",
+       "after_step": 1,
+       "shot": "shots/compare-and-judge.1-frontier.1280x720.light.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "picked",
+       "after_step": 3,
+       "shot": "shots/compare-and-judge.2-picked.1280x720.light.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Compare from here\" in pages/campaigns.frontier/sections/frontier/rows/fe-01/row_actions/pick",
+       "scroll_y": 0
+      },
+      {
+       "moment": "compare",
+       "after_step": 6,
+       "shot": "shots/compare-and-judge.3-compare.1280x720.light.png",
+       "url": "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "judge-drawer",
+       "after_step": 9,
+       "shot": "shots/compare-and-judge.4-judge-drawer.1280x720.light.png",
+       "url": "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Record a judgement",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Record judgement\" in pages/variants.compare/header/actions/judge",
+       "scroll_y": 0
+      },
+      {
+       "moment": "judge-submitted",
+       "after_step": 11,
+       "shot": "shots/compare-and-judge.5-judge-submitted.1280x720.light.png",
+       "url": "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+       "notices": [
+        "uxsearch.promotion.RecordJudgement done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 4,
+     "looks": 0,
+     "expectations": {
+      "total": 0,
+      "met": 0
+     },
+     "notices_missed": [
+      "uxsearch.promotion.RecordJudgement done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "frontier",
+       "after_step": 1,
+       "shot": "shots/compare-and-judge.1-frontier.1366x768.dark.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "picked",
+       "after_step": 3,
+       "shot": "shots/compare-and-judge.2-picked.1366x768.dark.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Compare from here\" in pages/campaigns.frontier/sections/frontier/rows/fe-01/row_actions/pick",
+       "scroll_y": 0
+      },
+      {
+       "moment": "compare",
+       "after_step": 6,
+       "shot": "shots/compare-and-judge.3-compare.1366x768.dark.png",
+       "url": "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "judge-drawer",
+       "after_step": 9,
+       "shot": "shots/compare-and-judge.4-judge-drawer.1366x768.dark.png",
+       "url": "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Record a judgement",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Record judgement\" in pages/variants.compare/header/actions/judge",
+       "scroll_y": 0
+      },
+      {
+       "moment": "judge-submitted",
+       "after_step": 11,
+       "shot": "shots/compare-and-judge.5-judge-submitted.1366x768.dark.png",
+       "url": "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+       "notices": [
+        "uxsearch.promotion.RecordJudgement done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 4,
+     "looks": 0,
+     "expectations": {
+      "total": 0,
+      "met": 0
+     },
+     "notices_missed": [
+      "uxsearch.promotion.RecordJudgement done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "frontier",
+       "after_step": 1,
+       "shot": "shots/compare-and-judge.1-frontier.1366x768.light.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "picked",
+       "after_step": 3,
+       "shot": "shots/compare-and-judge.2-picked.1366x768.light.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Compare from here\" in pages/campaigns.frontier/sections/frontier/rows/fe-01/row_actions/pick",
+       "scroll_y": 0
+      },
+      {
+       "moment": "compare",
+       "after_step": 6,
+       "shot": "shots/compare-and-judge.3-compare.1366x768.light.png",
+       "url": "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "judge-drawer",
+       "after_step": 9,
+       "shot": "shots/compare-and-judge.4-judge-drawer.1366x768.light.png",
+       "url": "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Record a judgement",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Record judgement\" in pages/variants.compare/header/actions/judge",
+       "scroll_y": 0
+      },
+      {
+       "moment": "judge-submitted",
+       "after_step": 11,
+       "shot": "shots/compare-and-judge.5-judge-submitted.1366x768.light.png",
+       "url": "/variants/compare/sha256%3Av-a1/sha256%3Av-b2",
+       "notices": [
+        "uxsearch.promotion.RecordJudgement done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    }
+   }
+  },
+  "compare-without-pick": {
+   "card": "rotating",
+   "source": "none: a twist of compare-and-judge, the second step taken first",
+   "runs": {
+    "1280x720.dark": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 1,
+     "looks": 0,
+     "expectations": {
+      "total": 1,
+      "met": 0
+     },
+     "notices_missed": [],
+     "missed": [
+      {
+       "step": 4,
+       "expect": {
+        "css": "main[data-ui-path=\"pages/campaigns.frontier\"], main[data-ui-path=\"pages/variants.compare\"]"
+       },
+       "absent": null,
+       "found": false,
+       "text": null,
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "compared-with-nothing",
+       "after_step": 2,
+       "shot": "shots/compare-without-pick.1-compared-with-nothing.1280x720.dark.png",
+       "url": "/targets/catalog",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1280x720.light": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 1,
+     "looks": 0,
+     "expectations": {
+      "total": 1,
+      "met": 0
+     },
+     "notices_missed": [],
+     "missed": [
+      {
+       "step": 4,
+       "expect": {
+        "css": "main[data-ui-path=\"pages/campaigns.frontier\"], main[data-ui-path=\"pages/variants.compare\"]"
+       },
+       "absent": null,
+       "found": false,
+       "text": null,
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "compared-with-nothing",
+       "after_step": 2,
+       "shot": "shots/compare-without-pick.1-compared-with-nothing.1280x720.light.png",
+       "url": "/targets/catalog",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.dark": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 1,
+     "looks": 0,
+     "expectations": {
+      "total": 1,
+      "met": 0
+     },
+     "notices_missed": [],
+     "missed": [
+      {
+       "step": 4,
+       "expect": {
+        "css": "main[data-ui-path=\"pages/campaigns.frontier\"], main[data-ui-path=\"pages/variants.compare\"]"
+       },
+       "absent": null,
+       "found": false,
+       "text": null,
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "compared-with-nothing",
+       "after_step": 2,
+       "shot": "shots/compare-without-pick.1-compared-with-nothing.1366x768.dark.png",
+       "url": "/targets/catalog",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.light": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 1,
+     "looks": 0,
+     "expectations": {
+      "total": 1,
+      "met": 0
+     },
+     "notices_missed": [],
+     "missed": [
+      {
+       "step": 4,
+       "expect": {
+        "css": "main[data-ui-path=\"pages/campaigns.frontier\"], main[data-ui-path=\"pages/variants.compare\"]"
+       },
+       "absent": null,
+       "found": false,
+       "text": null,
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "compared-with-nothing",
+       "after_step": 2,
+       "shot": "shots/compare-without-pick.1-compared-with-nothing.1366x768.light.png",
+       "url": "/targets/catalog",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    }
+   }
+  },
+  "dismiss-confirm": {
+   "card": "rotating",
+   "source": "none: a twist of stop-campaign, the person changes their mind",
+   "runs": {
+    "1280x720.dark": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 3,
+     "looks": 0,
+     "expectations": {
+      "total": 3,
+      "met": 2
+     },
+     "notices_missed": [],
+     "missed": [
+      {
+       "step": 6,
+       "expect": null,
+       "absent": {
+        "css": "[role=dialog]"
+       },
+       "found": null,
+       "text": null,
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "after-escape",
+       "after_step": 4,
+       "shot": "shots/dismiss-confirm.1-after-escape.1280x720.dark.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Stop this campaign",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Stop\" in pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop",
+       "scroll_y": 0
+      },
+      {
+       "moment": "after-cancel",
+       "after_step": 7,
+       "shot": "shots/dismiss-confirm.2-after-cancel.1280x720.dark.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1280x720.light": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 3,
+     "looks": 0,
+     "expectations": {
+      "total": 3,
+      "met": 2
+     },
+     "notices_missed": [],
+     "missed": [
+      {
+       "step": 6,
+       "expect": null,
+       "absent": {
+        "css": "[role=dialog]"
+       },
+       "found": null,
+       "text": null,
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "after-escape",
+       "after_step": 4,
+       "shot": "shots/dismiss-confirm.1-after-escape.1280x720.light.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Stop this campaign",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Stop\" in pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop",
+       "scroll_y": 0
+      },
+      {
+       "moment": "after-cancel",
+       "after_step": 7,
+       "shot": "shots/dismiss-confirm.2-after-cancel.1280x720.light.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.dark": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 3,
+     "looks": 0,
+     "expectations": {
+      "total": 3,
+      "met": 2
+     },
+     "notices_missed": [],
+     "missed": [
+      {
+       "step": 6,
+       "expect": null,
+       "absent": {
+        "css": "[role=dialog]"
+       },
+       "found": null,
+       "text": null,
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "after-escape",
+       "after_step": 4,
+       "shot": "shots/dismiss-confirm.1-after-escape.1366x768.dark.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Stop this campaign",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Stop\" in pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop",
+       "scroll_y": 0
+      },
+      {
+       "moment": "after-cancel",
+       "after_step": 7,
+       "shot": "shots/dismiss-confirm.2-after-cancel.1366x768.dark.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.light": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 3,
+     "looks": 0,
+     "expectations": {
+      "total": 3,
+      "met": 2
+     },
+     "notices_missed": [],
+     "missed": [
+      {
+       "step": 6,
+       "expect": null,
+       "absent": {
+        "css": "[role=dialog]"
+       },
+       "found": null,
+       "text": null,
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "after-escape",
+       "after_step": 4,
+       "shot": "shots/dismiss-confirm.1-after-escape.1366x768.light.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Stop this campaign",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Stop\" in pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop",
+       "scroll_y": 0
+      },
+      {
+       "moment": "after-cancel",
+       "after_step": 7,
+       "shot": "shots/dismiss-confirm.2-after-cancel.1366x768.light.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    }
+   }
+  },
+  "filter-targets": {
+   "card": "rotating",
+   "source": "starting a campaign from the catalog opens the form on that target (its first steps hold the catalog search to one row); the search that matches nothing is this card's twist",
+   "runs": {
+    "1280x720.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 4,
+     "looks": 0,
+     "expectations": {
+      "total": 1,
+      "met": 1
+     },
+     "notices_missed": [],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "filtered",
+       "after_step": 3,
+       "shot": "shots/filter-targets.1-filtered.1280x720.dark.png",
+       "url": "/targets/catalog?search=form",
+       "notices": [],
+       "dialogs": [],
+       "focus": "input in pages/targets.catalog/sections/filters",
+       "scroll_y": 0
+      },
+      {
+       "moment": "no-match",
+       "after_step": 6,
+       "shot": "shots/filter-targets.2-no-match.1280x720.dark.png",
+       "url": "/targets/catalog?search=formzzz",
+       "notices": [],
+       "dialogs": [],
+       "focus": "input in pages/targets.catalog/sections/filters",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1280x720.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 4,
+     "looks": 0,
+     "expectations": {
+      "total": 1,
+      "met": 1
+     },
+     "notices_missed": [],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "filtered",
+       "after_step": 3,
+       "shot": "shots/filter-targets.1-filtered.1280x720.light.png",
+       "url": "/targets/catalog?search=form",
+       "notices": [],
+       "dialogs": [],
+       "focus": "input in pages/targets.catalog/sections/filters",
+       "scroll_y": 0
+      },
+      {
+       "moment": "no-match",
+       "after_step": 6,
+       "shot": "shots/filter-targets.2-no-match.1280x720.light.png",
+       "url": "/targets/catalog?search=formzzz",
+       "notices": [],
+       "dialogs": [],
+       "focus": "input in pages/targets.catalog/sections/filters",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 4,
+     "looks": 0,
+     "expectations": {
+      "total": 1,
+      "met": 1
+     },
+     "notices_missed": [],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "filtered",
+       "after_step": 3,
+       "shot": "shots/filter-targets.1-filtered.1366x768.dark.png",
+       "url": "/targets/catalog?search=form",
+       "notices": [],
+       "dialogs": [],
+       "focus": "input in pages/targets.catalog/sections/filters",
+       "scroll_y": 0
+      },
+      {
+       "moment": "no-match",
+       "after_step": 6,
+       "shot": "shots/filter-targets.2-no-match.1366x768.dark.png",
+       "url": "/targets/catalog?search=formzzz",
+       "notices": [],
+       "dialogs": [],
+       "focus": "input in pages/targets.catalog/sections/filters",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 4,
+     "looks": 0,
+     "expectations": {
+      "total": 1,
+      "met": 1
+     },
+     "notices_missed": [],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "filtered",
+       "after_step": 3,
+       "shot": "shots/filter-targets.1-filtered.1366x768.light.png",
+       "url": "/targets/catalog?search=form",
+       "notices": [],
+       "dialogs": [],
+       "focus": "input in pages/targets.catalog/sections/filters",
+       "scroll_y": 0
+      },
+      {
+       "moment": "no-match",
+       "after_step": 6,
+       "shot": "shots/filter-targets.2-no-match.1366x768.light.png",
+       "url": "/targets/catalog?search=formzzz",
+       "notices": [],
+       "dialogs": [],
+       "focus": "input in pages/targets.catalog/sections/filters",
+       "scroll_y": 0
+      }
+     ]
+    }
+   }
+  },
+  "live-climb": {
+   "card": "rotating",
+   "source": "a progress event lands in the live climb; the step table shows its rows by seq, a live step included; the budget reads as a map and the KPI values as a list",
+   "runs": {
+    "1280x720.dark": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 1,
+     "looks": 1,
+     "expectations": {
+      "total": 5,
+      "met": 2
+     },
+     "notices_missed": [],
+     "missed": [
+      {
+       "step": 3,
+       "expect": {
+        "path": "pages/campaigns.climb/sections/points",
+        "rows": [
+         "pt-01",
+         "pt-02",
+         "pt-03",
+         "pt-04"
+        ]
+       },
+       "absent": null,
+       "found": true,
+       "text": "STEPS seq evaluated pruned insufficient frontier size at 1 12 3 1 2 11/23/2026, 10:00 2 30 9 2 3 11/23/2026, 10:00 3 51 14 2 3 11/23/2026, 10:00 5 92 24 4",
+       "rows": [
+        "pt-01",
+        "pt-02",
+        "pt-03",
+        "pt-05"
+       ]
+      },
+      {
+       "step": 7,
+       "expect": {
+        "path": "pages/campaigns.climb/sections/summary/fields/budget",
+        "text": "max_variants: 400, max_wall_time_s: 3600"
+       },
+       "absent": null,
+       "found": true,
+       "text": "{\"max_variants\":400,\"max_wall_time_s\":3600}",
+       "rows": null
+      },
+      {
+       "step": 8,
+       "expect": {
+        "path": "pages/campaigns.climb/sections/frontier/rows/fe-01/columns/kpi_values",
+        "text": "kpi_id: kpi-effort, value: 6, kpi_id: kpi-glance, value: 2"
+       },
+       "absent": null,
+       "found": true,
+       "text": "{\"kpi_id\":\"kpi-effort\",\"value\":6}, {\"kpi_id\":\"kpi-glance\",\"value\":2}",
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "loaded",
+       "after_step": 3,
+       "shot": "shots/live-climb.1-loaded.1280x720.dark.png",
+       "url": "/campaigns/climb/cp-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "kpi-picked",
+       "after_step": 9,
+       "shot": "shots/live-climb.2-kpi-picked.1280x720.dark.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 0
+      },
+      {
+       "moment": "steps",
+       "after_step": 11,
+       "shot": "shots/live-climb.3-steps.1280x720.dark.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 559
+      },
+      {
+       "moment": "frontier-now",
+       "after_step": 13,
+       "shot": "shots/live-climb.4-frontier-now.1280x720.dark.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 559
+      },
+      {
+       "moment": "reconnecting-seen-from-below",
+       "after_step": 15,
+       "shot": "shots/live-climb.5-reconnecting-seen-from-below.1280x720.dark.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 559
+      },
+      {
+       "moment": "reconnecting",
+       "after_step": 17,
+       "shot": "shots/live-climb.6-reconnecting.1280x720.dark.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 559
+      },
+      {
+       "moment": "live-again",
+       "after_step": 19,
+       "shot": "shots/live-climb.7-live-again.1280x720.dark.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 559
+      }
+     ]
+    },
+    "1280x720.light": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 1,
+     "looks": 1,
+     "expectations": {
+      "total": 5,
+      "met": 2
+     },
+     "notices_missed": [],
+     "missed": [
+      {
+       "step": 3,
+       "expect": {
+        "path": "pages/campaigns.climb/sections/points",
+        "rows": [
+         "pt-01",
+         "pt-02",
+         "pt-03",
+         "pt-04"
+        ]
+       },
+       "absent": null,
+       "found": true,
+       "text": "STEPS seq evaluated pruned insufficient frontier size at 1 12 3 1 2 11/23/2026, 10:00 2 30 9 2 3 11/23/2026, 10:00 3 51 14 2 3 11/23/2026, 10:00 5 92 24 4",
+       "rows": [
+        "pt-01",
+        "pt-02",
+        "pt-03",
+        "pt-05"
+       ]
+      },
+      {
+       "step": 7,
+       "expect": {
+        "path": "pages/campaigns.climb/sections/summary/fields/budget",
+        "text": "max_variants: 400, max_wall_time_s: 3600"
+       },
+       "absent": null,
+       "found": true,
+       "text": "{\"max_variants\":400,\"max_wall_time_s\":3600}",
+       "rows": null
+      },
+      {
+       "step": 8,
+       "expect": {
+        "path": "pages/campaigns.climb/sections/frontier/rows/fe-01/columns/kpi_values",
+        "text": "kpi_id: kpi-effort, value: 6, kpi_id: kpi-glance, value: 2"
+       },
+       "absent": null,
+       "found": true,
+       "text": "{\"kpi_id\":\"kpi-effort\",\"value\":6}, {\"kpi_id\":\"kpi-glance\",\"value\":2}",
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "loaded",
+       "after_step": 3,
+       "shot": "shots/live-climb.1-loaded.1280x720.light.png",
+       "url": "/campaigns/climb/cp-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "kpi-picked",
+       "after_step": 9,
+       "shot": "shots/live-climb.2-kpi-picked.1280x720.light.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 0
+      },
+      {
+       "moment": "steps",
+       "after_step": 11,
+       "shot": "shots/live-climb.3-steps.1280x720.light.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 559
+      },
+      {
+       "moment": "frontier-now",
+       "after_step": 13,
+       "shot": "shots/live-climb.4-frontier-now.1280x720.light.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 559
+      },
+      {
+       "moment": "reconnecting-seen-from-below",
+       "after_step": 15,
+       "shot": "shots/live-climb.5-reconnecting-seen-from-below.1280x720.light.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 559
+      },
+      {
+       "moment": "reconnecting",
+       "after_step": 17,
+       "shot": "shots/live-climb.6-reconnecting.1280x720.light.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 559
+      },
+      {
+       "moment": "live-again",
+       "after_step": 19,
+       "shot": "shots/live-climb.7-live-again.1280x720.light.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 559
+      }
+     ]
+    },
+    "1366x768.dark": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 1,
+     "looks": 1,
+     "expectations": {
+      "total": 5,
+      "met": 2
+     },
+     "notices_missed": [],
+     "missed": [
+      {
+       "step": 3,
+       "expect": {
+        "path": "pages/campaigns.climb/sections/points",
+        "rows": [
+         "pt-01",
+         "pt-02",
+         "pt-03",
+         "pt-04"
+        ]
+       },
+       "absent": null,
+       "found": true,
+       "text": "STEPS seq evaluated pruned insufficient frontier size at 1 12 3 1 2 11/23/2026, 10:00 2 30 9 2 3 11/23/2026, 10:00 3 51 14 2 3 11/23/2026, 10:00 5 92 24 4",
+       "rows": [
+        "pt-01",
+        "pt-02",
+        "pt-03",
+        "pt-05"
+       ]
+      },
+      {
+       "step": 7,
+       "expect": {
+        "path": "pages/campaigns.climb/sections/summary/fields/budget",
+        "text": "max_variants: 400, max_wall_time_s: 3600"
+       },
+       "absent": null,
+       "found": true,
+       "text": "{\"max_variants\":400,\"max_wall_time_s\":3600}",
+       "rows": null
+      },
+      {
+       "step": 8,
+       "expect": {
+        "path": "pages/campaigns.climb/sections/frontier/rows/fe-01/columns/kpi_values",
+        "text": "kpi_id: kpi-effort, value: 6, kpi_id: kpi-glance, value: 2"
+       },
+       "absent": null,
+       "found": true,
+       "text": "{\"kpi_id\":\"kpi-effort\",\"value\":6}, {\"kpi_id\":\"kpi-glance\",\"value\":2}",
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "loaded",
+       "after_step": 3,
+       "shot": "shots/live-climb.1-loaded.1366x768.dark.png",
+       "url": "/campaigns/climb/cp-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "kpi-picked",
+       "after_step": 9,
+       "shot": "shots/live-climb.2-kpi-picked.1366x768.dark.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 0
+      },
+      {
+       "moment": "steps",
+       "after_step": 11,
+       "shot": "shots/live-climb.3-steps.1366x768.dark.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 515
+      },
+      {
+       "moment": "frontier-now",
+       "after_step": 13,
+       "shot": "shots/live-climb.4-frontier-now.1366x768.dark.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 515
+      },
+      {
+       "moment": "reconnecting-seen-from-below",
+       "after_step": 15,
+       "shot": "shots/live-climb.5-reconnecting-seen-from-below.1366x768.dark.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 515
+      },
+      {
+       "moment": "reconnecting",
+       "after_step": 17,
+       "shot": "shots/live-climb.6-reconnecting.1366x768.dark.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 515
+      },
+      {
+       "moment": "live-again",
+       "after_step": 19,
+       "shot": "shots/live-climb.7-live-again.1366x768.dark.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 515
+      }
+     ]
+    },
+    "1366x768.light": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 1,
+     "looks": 1,
+     "expectations": {
+      "total": 5,
+      "met": 2
+     },
+     "notices_missed": [],
+     "missed": [
+      {
+       "step": 3,
+       "expect": {
+        "path": "pages/campaigns.climb/sections/points",
+        "rows": [
+         "pt-01",
+         "pt-02",
+         "pt-03",
+         "pt-04"
+        ]
+       },
+       "absent": null,
+       "found": true,
+       "text": "STEPS seq evaluated pruned insufficient frontier size at 1 12 3 1 2 11/23/2026, 10:00 2 30 9 2 3 11/23/2026, 10:00 3 51 14 2 3 11/23/2026, 10:00 5 92 24 4",
+       "rows": [
+        "pt-01",
+        "pt-02",
+        "pt-03",
+        "pt-05"
+       ]
+      },
+      {
+       "step": 7,
+       "expect": {
+        "path": "pages/campaigns.climb/sections/summary/fields/budget",
+        "text": "max_variants: 400, max_wall_time_s: 3600"
+       },
+       "absent": null,
+       "found": true,
+       "text": "{\"max_variants\":400,\"max_wall_time_s\":3600}",
+       "rows": null
+      },
+      {
+       "step": 8,
+       "expect": {
+        "path": "pages/campaigns.climb/sections/frontier/rows/fe-01/columns/kpi_values",
+        "text": "kpi_id: kpi-effort, value: 6, kpi_id: kpi-glance, value: 2"
+       },
+       "absent": null,
+       "found": true,
+       "text": "{\"kpi_id\":\"kpi-effort\",\"value\":6}, {\"kpi_id\":\"kpi-glance\",\"value\":2}",
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "loaded",
+       "after_step": 3,
+       "shot": "shots/live-climb.1-loaded.1366x768.light.png",
+       "url": "/campaigns/climb/cp-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "kpi-picked",
+       "after_step": 9,
+       "shot": "shots/live-climb.2-kpi-picked.1366x768.light.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 0
+      },
+      {
+       "moment": "steps",
+       "after_step": 11,
+       "shot": "shots/live-climb.3-steps.1366x768.light.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 515
+      },
+      {
+       "moment": "frontier-now",
+       "after_step": 13,
+       "shot": "shots/live-climb.4-frontier-now.1366x768.light.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 515
+      },
+      {
+       "moment": "reconnecting-seen-from-below",
+       "after_step": 15,
+       "shot": "shots/live-climb.5-reconnecting-seen-from-below.1366x768.light.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 515
+      },
+      {
+       "moment": "reconnecting",
+       "after_step": 17,
+       "shot": "shots/live-climb.6-reconnecting.1366x768.light.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 515
+      },
+      {
+       "moment": "live-again",
+       "after_step": 19,
+       "shot": "shots/live-climb.7-live-again.1366x768.light.png",
+       "url": "/campaigns/climb/cp-01?kpi=kpi-glance",
+       "notices": [],
+       "dialogs": [],
+       "focus": "button \"Show its climb\" in pages/campaigns.climb/sections/hill_kpis/rows/kpi-glance/row_actions/show",
+       "scroll_y": 515
+      }
+     ]
+    }
+   }
+  },
+  "owner-trade-off": {
+   "card": "anchor",
+   "source": "the owner sees what gets worse and is offered only the accept that applies",
+   "runs": {
+    "1280x720.dark": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 2,
+     "looks": 0,
+     "expectations": {
+      "total": 9,
+      "met": 8
+     },
+     "notices_missed": [
+      "uxsearch.promotion.AcceptTradeOff done in fixture mode; its effect was not applied: its success sets `accepted_by` from a value fixture mode does not compute"
+     ],
+     "missed": [
+      {
+       "step": 14,
+       "expect": {
+        "path": "pages/promotions.detail/sections/summary/fields/state",
+        "text": "Accepted"
+       },
+       "absent": null,
+       "found": true,
+       "text": "Proposed",
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "gate-failed",
+       "after_step": 1,
+       "shot": "shots/owner-trade-off.1-gate-failed.1280x720.dark.png",
+       "url": "/promotions/detail/pr-02",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "dialog",
+       "after_step": 8,
+       "shot": "shots/owner-trade-off.2-dialog.1280x720.dark.png",
+       "url": "/promotions/detail/pr-02",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Accept the trade-off as a new protected reference",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Accept trade-off\" in pages/promotions.detail/sections/decision/rows/pr-02/row_actions/trade_off",
+       "scroll_y": 0
+      },
+      {
+       "moment": "accepted",
+       "after_step": 11,
+       "shot": "shots/owner-trade-off.3-accepted.1280x720.dark.png",
+       "url": "/promotions/detail/pr-02",
+       "notices": [
+        "uxsearch.promotion.AcceptTradeOff done in fixture mode; its effect was not applied: its success sets `accepted_by` from a value fixture mode does not compute"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "gate-passed",
+       "after_step": 15,
+       "shot": "shots/owner-trade-off.4-gate-passed.1280x720.dark.png",
+       "url": "/promotions/detail/pr-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1280x720.light": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 2,
+     "looks": 0,
+     "expectations": {
+      "total": 9,
+      "met": 8
+     },
+     "notices_missed": [
+      "uxsearch.promotion.AcceptTradeOff done in fixture mode; its effect was not applied: its success sets `accepted_by` from a value fixture mode does not compute"
+     ],
+     "missed": [
+      {
+       "step": 14,
+       "expect": {
+        "path": "pages/promotions.detail/sections/summary/fields/state",
+        "text": "Accepted"
+       },
+       "absent": null,
+       "found": true,
+       "text": "Proposed",
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "gate-failed",
+       "after_step": 1,
+       "shot": "shots/owner-trade-off.1-gate-failed.1280x720.light.png",
+       "url": "/promotions/detail/pr-02",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "dialog",
+       "after_step": 8,
+       "shot": "shots/owner-trade-off.2-dialog.1280x720.light.png",
+       "url": "/promotions/detail/pr-02",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Accept the trade-off as a new protected reference",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Accept trade-off\" in pages/promotions.detail/sections/decision/rows/pr-02/row_actions/trade_off",
+       "scroll_y": 0
+      },
+      {
+       "moment": "accepted",
+       "after_step": 11,
+       "shot": "shots/owner-trade-off.3-accepted.1280x720.light.png",
+       "url": "/promotions/detail/pr-02",
+       "notices": [
+        "uxsearch.promotion.AcceptTradeOff done in fixture mode; its effect was not applied: its success sets `accepted_by` from a value fixture mode does not compute"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "gate-passed",
+       "after_step": 15,
+       "shot": "shots/owner-trade-off.4-gate-passed.1280x720.light.png",
+       "url": "/promotions/detail/pr-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.dark": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 2,
+     "looks": 0,
+     "expectations": {
+      "total": 9,
+      "met": 8
+     },
+     "notices_missed": [
+      "uxsearch.promotion.AcceptTradeOff done in fixture mode; its effect was not applied: its success sets `accepted_by` from a value fixture mode does not compute"
+     ],
+     "missed": [
+      {
+       "step": 14,
+       "expect": {
+        "path": "pages/promotions.detail/sections/summary/fields/state",
+        "text": "Accepted"
+       },
+       "absent": null,
+       "found": true,
+       "text": "Proposed",
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "gate-failed",
+       "after_step": 1,
+       "shot": "shots/owner-trade-off.1-gate-failed.1366x768.dark.png",
+       "url": "/promotions/detail/pr-02",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "dialog",
+       "after_step": 8,
+       "shot": "shots/owner-trade-off.2-dialog.1366x768.dark.png",
+       "url": "/promotions/detail/pr-02",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Accept the trade-off as a new protected reference",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Accept trade-off\" in pages/promotions.detail/sections/decision/rows/pr-02/row_actions/trade_off",
+       "scroll_y": 0
+      },
+      {
+       "moment": "accepted",
+       "after_step": 11,
+       "shot": "shots/owner-trade-off.3-accepted.1366x768.dark.png",
+       "url": "/promotions/detail/pr-02",
+       "notices": [
+        "uxsearch.promotion.AcceptTradeOff done in fixture mode; its effect was not applied: its success sets `accepted_by` from a value fixture mode does not compute"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "gate-passed",
+       "after_step": 15,
+       "shot": "shots/owner-trade-off.4-gate-passed.1366x768.dark.png",
+       "url": "/promotions/detail/pr-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.light": {
+     "result": "expectation missed",
+     "failed": null,
+     "actions": 2,
+     "looks": 0,
+     "expectations": {
+      "total": 9,
+      "met": 8
+     },
+     "notices_missed": [
+      "uxsearch.promotion.AcceptTradeOff done in fixture mode; its effect was not applied: its success sets `accepted_by` from a value fixture mode does not compute"
+     ],
+     "missed": [
+      {
+       "step": 14,
+       "expect": {
+        "path": "pages/promotions.detail/sections/summary/fields/state",
+        "text": "Accepted"
+       },
+       "absent": null,
+       "found": true,
+       "text": "Proposed",
+       "rows": null
+      }
+     ],
+     "moments": [
+      {
+       "moment": "gate-failed",
+       "after_step": 1,
+       "shot": "shots/owner-trade-off.1-gate-failed.1366x768.light.png",
+       "url": "/promotions/detail/pr-02",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "dialog",
+       "after_step": 8,
+       "shot": "shots/owner-trade-off.2-dialog.1366x768.light.png",
+       "url": "/promotions/detail/pr-02",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Accept the trade-off as a new protected reference",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Accept trade-off\" in pages/promotions.detail/sections/decision/rows/pr-02/row_actions/trade_off",
+       "scroll_y": 0
+      },
+      {
+       "moment": "accepted",
+       "after_step": 11,
+       "shot": "shots/owner-trade-off.3-accepted.1366x768.light.png",
+       "url": "/promotions/detail/pr-02",
+       "notices": [
+        "uxsearch.promotion.AcceptTradeOff done in fixture mode; its effect was not applied: its success sets `accepted_by` from a value fixture mode does not compute"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "gate-passed",
+       "after_step": 15,
+       "shot": "shots/owner-trade-off.4-gate-passed.1366x768.light.png",
+       "url": "/promotions/detail/pr-01",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    }
+   }
+  },
+  "propose-promotion": {
+   "card": "rotating",
+   "source": "none: the propose overlay of the frontier has no test",
+   "runs": {
+    "1280x720.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 2,
+     "looks": 0,
+     "expectations": {
+      "total": 0,
+      "met": 0
+     },
+     "notices_missed": [
+      "uxsearch.promotion.ProposePromotion done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "drawer",
+       "after_step": 3,
+       "shot": "shots/propose-promotion.1-drawer.1280x720.dark.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Propose this variant for promotion",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Propose promotion\" in pages/campaigns.frontier/sections/frontier/rows/fe-01/row_actions/promote",
+       "scroll_y": 0
+      },
+      {
+       "moment": "proposed",
+       "after_step": 5,
+       "shot": "shots/propose-promotion.2-proposed.1280x720.dark.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [
+        "uxsearch.promotion.ProposePromotion done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1280x720.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 2,
+     "looks": 0,
+     "expectations": {
+      "total": 0,
+      "met": 0
+     },
+     "notices_missed": [
+      "uxsearch.promotion.ProposePromotion done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "drawer",
+       "after_step": 3,
+       "shot": "shots/propose-promotion.1-drawer.1280x720.light.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Propose this variant for promotion",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Propose promotion\" in pages/campaigns.frontier/sections/frontier/rows/fe-01/row_actions/promote",
+       "scroll_y": 0
+      },
+      {
+       "moment": "proposed",
+       "after_step": 5,
+       "shot": "shots/propose-promotion.2-proposed.1280x720.light.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [
+        "uxsearch.promotion.ProposePromotion done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 2,
+     "looks": 0,
+     "expectations": {
+      "total": 0,
+      "met": 0
+     },
+     "notices_missed": [
+      "uxsearch.promotion.ProposePromotion done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "drawer",
+       "after_step": 3,
+       "shot": "shots/propose-promotion.1-drawer.1366x768.dark.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Propose this variant for promotion",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Propose promotion\" in pages/campaigns.frontier/sections/frontier/rows/fe-01/row_actions/promote",
+       "scroll_y": 0
+      },
+      {
+       "moment": "proposed",
+       "after_step": 5,
+       "shot": "shots/propose-promotion.2-proposed.1366x768.dark.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [
+        "uxsearch.promotion.ProposePromotion done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 2,
+     "looks": 0,
+     "expectations": {
+      "total": 0,
+      "met": 0
+     },
+     "notices_missed": [
+      "uxsearch.promotion.ProposePromotion done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "drawer",
+       "after_step": 3,
+       "shot": "shots/propose-promotion.1-drawer.1366x768.light.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Propose this variant for promotion",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Propose promotion\" in pages/campaigns.frontier/sections/frontier/rows/fe-01/row_actions/promote",
+       "scroll_y": 0
+      },
+      {
+       "moment": "proposed",
+       "after_step": 5,
+       "shot": "shots/propose-promotion.2-proposed.1366x768.light.png",
+       "url": "/campaigns/frontier/cp-01",
+       "notices": [
+        "uxsearch.promotion.ProposePromotion done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    }
+   }
+  },
+  "start-campaign": {
+   "card": "rotating",
+   "source": "starting a campaign from the catalog opens the form on that target",
+   "runs": {
+    "1280x720.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 10,
+     "looks": 1,
+     "expectations": {
+      "total": 1,
+      "met": 1
+     },
+     "notices_missed": [
+      "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "catalog",
+       "after_step": 1,
+       "shot": "shots/start-campaign.1-catalog.1280x720.dark.png",
+       "url": "/targets/catalog",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "form",
+       "after_step": 5,
+       "shot": "shots/start-campaign.2-form.1280x720.dark.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "submitted-empty",
+       "after_step": 7,
+       "shot": "shots/start-campaign.3-submitted-empty.1280x720.dark.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Save\" in pages/campaigns.start/sections/form",
+       "scroll_y": 357
+      },
+      {
+       "moment": "filled",
+       "after_step": 13,
+       "shot": "shots/start-campaign.4-filled.1280x720.dark.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "input in pages/campaigns.start/sections/form/fields/strategy",
+       "scroll_y": 290
+      },
+      {
+       "moment": "started",
+       "after_step": 15,
+       "shot": "shots/start-campaign.5-started.1280x720.dark.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)",
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Save\" in pages/campaigns.start/sections/form",
+       "scroll_y": 290
+      }
+     ]
+    },
+    "1280x720.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 10,
+     "looks": 1,
+     "expectations": {
+      "total": 1,
+      "met": 1
+     },
+     "notices_missed": [
+      "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "catalog",
+       "after_step": 1,
+       "shot": "shots/start-campaign.1-catalog.1280x720.light.png",
+       "url": "/targets/catalog",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "form",
+       "after_step": 5,
+       "shot": "shots/start-campaign.2-form.1280x720.light.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "submitted-empty",
+       "after_step": 7,
+       "shot": "shots/start-campaign.3-submitted-empty.1280x720.light.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Save\" in pages/campaigns.start/sections/form",
+       "scroll_y": 357
+      },
+      {
+       "moment": "filled",
+       "after_step": 13,
+       "shot": "shots/start-campaign.4-filled.1280x720.light.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "input in pages/campaigns.start/sections/form/fields/strategy",
+       "scroll_y": 290
+      },
+      {
+       "moment": "started",
+       "after_step": 15,
+       "shot": "shots/start-campaign.5-started.1280x720.light.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)",
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Save\" in pages/campaigns.start/sections/form",
+       "scroll_y": 290
+      }
+     ]
+    },
+    "1366x768.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 10,
+     "looks": 1,
+     "expectations": {
+      "total": 1,
+      "met": 1
+     },
+     "notices_missed": [
+      "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "catalog",
+       "after_step": 1,
+       "shot": "shots/start-campaign.1-catalog.1366x768.dark.png",
+       "url": "/targets/catalog",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "form",
+       "after_step": 5,
+       "shot": "shots/start-campaign.2-form.1366x768.dark.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "submitted-empty",
+       "after_step": 7,
+       "shot": "shots/start-campaign.3-submitted-empty.1366x768.dark.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Save\" in pages/campaigns.start/sections/form",
+       "scroll_y": 309
+      },
+      {
+       "moment": "filled",
+       "after_step": 13,
+       "shot": "shots/start-campaign.4-filled.1366x768.dark.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "input in pages/campaigns.start/sections/form/fields/strategy",
+       "scroll_y": 242
+      },
+      {
+       "moment": "started",
+       "after_step": 15,
+       "shot": "shots/start-campaign.5-started.1366x768.dark.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)",
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Save\" in pages/campaigns.start/sections/form",
+       "scroll_y": 242
+      }
+     ]
+    },
+    "1366x768.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 10,
+     "looks": 1,
+     "expectations": {
+      "total": 1,
+      "met": 1
+     },
+     "notices_missed": [
+      "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "catalog",
+       "after_step": 1,
+       "shot": "shots/start-campaign.1-catalog.1366x768.light.png",
+       "url": "/targets/catalog",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "form",
+       "after_step": 5,
+       "shot": "shots/start-campaign.2-form.1366x768.light.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "submitted-empty",
+       "after_step": 7,
+       "shot": "shots/start-campaign.3-submitted-empty.1366x768.light.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Save\" in pages/campaigns.start/sections/form",
+       "scroll_y": 309
+      },
+      {
+       "moment": "filled",
+       "after_step": 13,
+       "shot": "shots/start-campaign.4-filled.1366x768.light.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "input in pages/campaigns.start/sections/form/fields/strategy",
+       "scroll_y": 242
+      },
+      {
+       "moment": "started",
+       "after_step": 15,
+       "shot": "shots/start-campaign.5-started.1366x768.light.png",
+       "url": "/campaigns/start/tg-02",
+       "notices": [
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)",
+        "uxsearch.search.StartCampaign done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Save\" in pages/campaigns.start/sections/form",
+       "scroll_y": 242
+      }
+     ]
+    }
+   }
+  },
+  "stop-campaign-keyboard": {
+   "card": "rotating",
+   "source": "stopping a running campaign asks first and sends the command, by keyboard alone",
+   "runs": {
+    "1280x720.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 10,
+     "looks": 0,
+     "expectations": {
+      "total": 2,
+      "met": 2
+     },
+     "notices_missed": [
+      "uxsearch.search.StopCampaign done"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "confirm",
+       "after_step": 4,
+       "shot": "shots/stop-campaign-keyboard.1-confirm.1280x720.dark.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Stop this campaign",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Stop\" in pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop",
+       "scroll_y": 0
+      },
+      {
+       "moment": "stopped",
+       "after_step": 7,
+       "shot": "shots/stop-campaign-keyboard.2-stopped.1280x720.dark.png",
+       "url": "/campaigns/list",
+       "notices": [
+        "uxsearch.search.StopCampaign done"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1280x720.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 10,
+     "looks": 0,
+     "expectations": {
+      "total": 2,
+      "met": 2
+     },
+     "notices_missed": [
+      "uxsearch.search.StopCampaign done"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "confirm",
+       "after_step": 4,
+       "shot": "shots/stop-campaign-keyboard.1-confirm.1280x720.light.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Stop this campaign",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Stop\" in pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop",
+       "scroll_y": 0
+      },
+      {
+       "moment": "stopped",
+       "after_step": 7,
+       "shot": "shots/stop-campaign-keyboard.2-stopped.1280x720.light.png",
+       "url": "/campaigns/list",
+       "notices": [
+        "uxsearch.search.StopCampaign done"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 10,
+     "looks": 0,
+     "expectations": {
+      "total": 2,
+      "met": 2
+     },
+     "notices_missed": [
+      "uxsearch.search.StopCampaign done"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "confirm",
+       "after_step": 4,
+       "shot": "shots/stop-campaign-keyboard.1-confirm.1366x768.dark.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Stop this campaign",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Stop\" in pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop",
+       "scroll_y": 0
+      },
+      {
+       "moment": "stopped",
+       "after_step": 7,
+       "shot": "shots/stop-campaign-keyboard.2-stopped.1366x768.dark.png",
+       "url": "/campaigns/list",
+       "notices": [
+        "uxsearch.search.StopCampaign done"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 10,
+     "looks": 0,
+     "expectations": {
+      "total": 2,
+      "met": 2
+     },
+     "notices_missed": [
+      "uxsearch.search.StopCampaign done"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "confirm",
+       "after_step": 4,
+       "shot": "shots/stop-campaign-keyboard.1-confirm.1366x768.light.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Stop this campaign",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Stop\" in pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop",
+       "scroll_y": 0
+      },
+      {
+       "moment": "stopped",
+       "after_step": 7,
+       "shot": "shots/stop-campaign-keyboard.2-stopped.1366x768.light.png",
+       "url": "/campaigns/list",
+       "notices": [
+        "uxsearch.search.StopCampaign done"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    }
+   }
+  },
+  "stop-campaign": {
+   "card": "anchor",
+   "source": "stopping a running campaign asks first and sends the command",
+   "runs": {
+    "1280x720.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 2,
+     "looks": 0,
+     "expectations": {
+      "total": 3,
+      "met": 3
+     },
+     "notices_missed": [
+      "uxsearch.search.StopCampaign done"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "list",
+       "after_step": 1,
+       "shot": "shots/stop-campaign.1-list.1280x720.dark.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "confirm",
+       "after_step": 4,
+       "shot": "shots/stop-campaign.2-confirm.1280x720.dark.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Stop this campaign",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Stop\" in pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop",
+       "scroll_y": 0
+      },
+      {
+       "moment": "stopped",
+       "after_step": 6,
+       "shot": "shots/stop-campaign.3-stopped.1280x720.dark.png",
+       "url": "/campaigns/list",
+       "notices": [
+        "uxsearch.search.StopCampaign done"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1280x720.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 2,
+     "looks": 0,
+     "expectations": {
+      "total": 3,
+      "met": 3
+     },
+     "notices_missed": [
+      "uxsearch.search.StopCampaign done"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "list",
+       "after_step": 1,
+       "shot": "shots/stop-campaign.1-list.1280x720.light.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "confirm",
+       "after_step": 4,
+       "shot": "shots/stop-campaign.2-confirm.1280x720.light.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Stop this campaign",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Stop\" in pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop",
+       "scroll_y": 0
+      },
+      {
+       "moment": "stopped",
+       "after_step": 6,
+       "shot": "shots/stop-campaign.3-stopped.1280x720.light.png",
+       "url": "/campaigns/list",
+       "notices": [
+        "uxsearch.search.StopCampaign done"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 2,
+     "looks": 0,
+     "expectations": {
+      "total": 3,
+      "met": 3
+     },
+     "notices_missed": [
+      "uxsearch.search.StopCampaign done"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "list",
+       "after_step": 1,
+       "shot": "shots/stop-campaign.1-list.1366x768.dark.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "confirm",
+       "after_step": 4,
+       "shot": "shots/stop-campaign.2-confirm.1366x768.dark.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Stop this campaign",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Stop\" in pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop",
+       "scroll_y": 0
+      },
+      {
+       "moment": "stopped",
+       "after_step": 6,
+       "shot": "shots/stop-campaign.3-stopped.1366x768.dark.png",
+       "url": "/campaigns/list",
+       "notices": [
+        "uxsearch.search.StopCampaign done"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 2,
+     "looks": 0,
+     "expectations": {
+      "total": 3,
+      "met": 3
+     },
+     "notices_missed": [
+      "uxsearch.search.StopCampaign done"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "list",
+       "after_step": 1,
+       "shot": "shots/stop-campaign.1-list.1366x768.light.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "confirm",
+       "after_step": 4,
+       "shot": "shots/stop-campaign.2-confirm.1366x768.light.png",
+       "url": "/campaigns/list",
+       "notices": [],
+       "dialogs": [
+        {
+         "label": "Stop this campaign",
+         "focus_inside": false
+        }
+       ],
+       "focus": "button \"Stop\" in pages/campaigns.list/sections/list/rows/cp-01/row_actions/stop",
+       "scroll_y": 0
+      },
+      {
+       "moment": "stopped",
+       "after_step": 6,
+       "shot": "shots/stop-campaign.3-stopped.1366x768.light.png",
+       "url": "/campaigns/list",
+       "notices": [
+        "uxsearch.search.StopCampaign done"
+       ],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      }
+     ]
+    }
+   }
+  },
+  "switch-axis": {
+   "card": "rotating",
+   "source": "switching one axis of a variant sends the switch",
+   "runs": {
+    "1280x720.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 1,
+     "looks": 0,
+     "expectations": {
+      "total": 2,
+      "met": 2
+     },
+     "notices_missed": [
+      "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "variant",
+       "after_step": 1,
+       "shot": "shots/switch-axis.1-variant.1280x720.dark.png",
+       "url": "/variants/detail/sha256%3Av-a1",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "switch-sent",
+       "after_step": 4,
+       "shot": "shots/switch-axis.2-switch-sent.1280x720.dark.png",
+       "url": "/variants/detail/sha256%3Av-a1",
+       "notices": [
+        "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Switch\" in pages/variants.detail/sections/axes/rows/av-04/row_actions/switch",
+       "scroll_y": 0
+      },
+      {
+       "moment": "switches",
+       "after_step": 6,
+       "shot": "shots/switch-axis.3-switches.1280x720.dark.png",
+       "url": "/variants/detail/sha256%3Av-a1",
+       "notices": [
+        "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Switch\" in pages/variants.detail/sections/axes/rows/av-04/row_actions/switch",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1280x720.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 1,
+     "looks": 0,
+     "expectations": {
+      "total": 2,
+      "met": 2
+     },
+     "notices_missed": [
+      "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "variant",
+       "after_step": 1,
+       "shot": "shots/switch-axis.1-variant.1280x720.light.png",
+       "url": "/variants/detail/sha256%3Av-a1",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "switch-sent",
+       "after_step": 4,
+       "shot": "shots/switch-axis.2-switch-sent.1280x720.light.png",
+       "url": "/variants/detail/sha256%3Av-a1",
+       "notices": [
+        "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Switch\" in pages/variants.detail/sections/axes/rows/av-04/row_actions/switch",
+       "scroll_y": 0
+      },
+      {
+       "moment": "switches",
+       "after_step": 6,
+       "shot": "shots/switch-axis.3-switches.1280x720.light.png",
+       "url": "/variants/detail/sha256%3Av-a1",
+       "notices": [
+        "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Switch\" in pages/variants.detail/sections/axes/rows/av-04/row_actions/switch",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.dark": {
+     "result": "completed",
+     "failed": null,
+     "actions": 1,
+     "looks": 0,
+     "expectations": {
+      "total": 2,
+      "met": 2
+     },
+     "notices_missed": [
+      "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "variant",
+       "after_step": 1,
+       "shot": "shots/switch-axis.1-variant.1366x768.dark.png",
+       "url": "/variants/detail/sha256%3Av-a1",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "switch-sent",
+       "after_step": 4,
+       "shot": "shots/switch-axis.2-switch-sent.1366x768.dark.png",
+       "url": "/variants/detail/sha256%3Av-a1",
+       "notices": [
+        "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Switch\" in pages/variants.detail/sections/axes/rows/av-04/row_actions/switch",
+       "scroll_y": 0
+      },
+      {
+       "moment": "switches",
+       "after_step": 6,
+       "shot": "shots/switch-axis.3-switches.1366x768.dark.png",
+       "url": "/variants/detail/sha256%3Av-a1",
+       "notices": [
+        "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Switch\" in pages/variants.detail/sections/axes/rows/av-04/row_actions/switch",
+       "scroll_y": 0
+      }
+     ]
+    },
+    "1366x768.light": {
+     "result": "completed",
+     "failed": null,
+     "actions": 1,
+     "looks": 0,
+     "expectations": {
+      "total": 2,
+      "met": 2
+     },
+     "notices_missed": [
+      "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+     ],
+     "missed": [],
+     "moments": [
+      {
+       "moment": "variant",
+       "after_step": 1,
+       "shot": "shots/switch-axis.1-variant.1366x768.light.png",
+       "url": "/variants/detail/sha256%3Av-a1",
+       "notices": [],
+       "dialogs": [],
+       "focus": "body",
+       "scroll_y": 0
+      },
+      {
+       "moment": "switch-sent",
+       "after_step": 4,
+       "shot": "shots/switch-axis.2-switch-sent.1366x768.light.png",
+       "url": "/variants/detail/sha256%3Av-a1",
+       "notices": [
+        "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Switch\" in pages/variants.detail/sections/axes/rows/av-04/row_actions/switch",
+       "scroll_y": 0
+      },
+      {
+       "moment": "switches",
+       "after_step": 6,
+       "shot": "shots/switch-axis.3-switches.1366x768.light.png",
+       "url": "/variants/detail/sha256%3Av-a1",
+       "notices": [
+        "uxsearch.design.RequestAxisSwitch done in fixture mode; its effect was not applied: its success creates a row (`creates:`)"
+       ],
+       "dialogs": [],
+       "focus": "button \"Switch\" in pages/variants.detail/sections/axes/rows/av-04/row_actions/switch",
+       "scroll_y": 0
+      }
+     ]
+    }
+   }
+  }
+ }
+}

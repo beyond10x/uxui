@@ -3,10 +3,14 @@
 // audit/) and writes the round's numbers as one file: the round.json of plugin/skills/
 // ui-iteration-loop § 3.2. Deterministic code, no model, no browser. Every count is over the gating
 // viewports and both modes unless its key says otherwise.
-// With an audit bars file (studio.audit.json: `bars`, the most one cell of the page audit may show
-// per key) it also counts the cells over a bar: `audit.cells_over_a_bar` and `audit_bars`. A cell is
-// one page at one viewport in one mode. It prints one line per bar and never fails on one: a round
-// is a measurement.
+// With an audit bars file (studio.audit.json) it also counts the cells of the page audit that miss a
+// bar. `bars` holds the most one cell may show per key: `audit.cells_over_a_bar` and `audit_bars`.
+// `floors` holds the least one cell must show per key: `audit.cells_under_a_floor` and
+// `audit_floors`. A cell is one page at one viewport in one mode. It prints one line per bar and per
+// floor and never fails on one: a round is a measurement.
+// Where the scenario cards hold an expectation on notices (studio.scenarios.json `notices`, recorded
+// per run by trial.mjs), it counts the runs that showed a notice missing it:
+// `trial.runs_notice_expectation_missed` and `trial_notices`. A run is not less completed for it.
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -86,6 +90,20 @@ for (const [key, bar] of Object.entries(bars ?? {})) {
   console.log(`summary: bar ${key} <= ${bar}: ${over.length === 0 ? 'held' : 'missed'}, ${over.length} of ${cells.length} cells over it, worst ${auditBars[key].worst}`);
 }
 
+// The audit against its floors: per key the cells under the floor, and the least of them.
+const floors = barsFile ? json(barsFile).floors ?? {} : {};
+const auditFloors = {};
+for (const [key, floor] of Object.entries(floors)) {
+  const under = Object.entries(pages).flatMap(([path, page]) => Object.entries(page).filter(([, cell]) => cell[key] < floor).map(([cell, values]) => ({ page: path, cell, value: values[key] })));
+  if (cells.some((cell) => typeof cell[key] !== 'number')) {
+    console.error(`summary: ${barsFile}: the page audit has no number "${key}"`);
+    process.exit(2);
+  }
+  auditFloors[key] = { floor, cells: cells.length, cells_under: under.length, least: cells.reduce((least, cell) => Math.min(least, cell[key]), Infinity), under };
+  console.log(`summary: floor ${key} >= ${floor}: ${under.length === 0 ? 'held' : 'missed'}, ${under.length} of ${cells.length} cells under it, least ${auditFloors[key].least}`);
+}
+const hasFloors = Object.keys(floors).length > 0;
+
 const runs = list('trial');
 const scenarios = {};
 for (const run of runs) {
@@ -96,11 +114,24 @@ for (const run of runs) {
     actions: run.actions,
     looks: run.looks,
     expectations: run.expectations,
+    ...(run.notices ? { notices_missed: run.notices.missed } : {}),
     missed: run.steps.filter((s) => (s.expect || s.absent) && !s.met).map((s) => ({ step: s.step, expect: s.expect ?? null, absent: s.absent ?? null, found: s.found ?? null, text: s.text ?? null, rows: s.rows ?? null })),
     moments: run.moments.map((m) => ({ moment: m.moment, after_step: m.after_step, shot: m.shot, url: m.url, notices: m.notices.map((n) => n.text), dialogs: m.dialogs.map((d) => ({ label: d.label, focus_inside: d.focus_inside })), focus: m.focus, scroll_y: m.scroll.y })),
   };
 }
 const names = Object.keys(scenarios);
+// The expectation on notices, where the cards hold one: the runs that showed a notice missing it.
+const noticed = runs.filter((r) => r.notices);
+const missedNotices = {};
+for (const run of noticed) for (const text of run.notices.missed) missedNotices[text] = (missedNotices[text] ?? 0) + 1;
+const trialNotices = noticed.length === 0 ? null : {
+  not_text: noticed[0].notices.not_text,
+  runs: noticed.length,
+  runs_missed: noticed.filter((r) => r.notices.missed.length > 0).length,
+  scenarios_missed: [...new Set(noticed.filter((r) => r.notices.missed.length > 0).map((r) => r.scenario))],
+  missed: missedNotices,
+};
+if (trialNotices) console.log(`summary: no notice contains "${trialNotices.not_text}": ${trialNotices.runs_missed === 0 ? 'held' : 'missed'}, in ${trialNotices.runs_missed} of ${trialNotices.runs} runs`);
 const notCompleted = names.filter((name) => Object.values(scenarios[name].runs).some((r) => r.result !== 'completed'));
 
 const summary = {
@@ -128,16 +159,20 @@ const summary = {
     'audit.tab_stops_unmarked.max': max(cells.map((c) => c.tab_stops_unmarked)),
     'audit.pages_tab_starts_outside_navigation': pagesWhere((c) => c.tab_first_region !== 'nav').length,
     ...(bars ? { 'audit.cells_over_a_bar': sum(Object.values(auditBars).map((b) => b.cells_over)) } : {}),
+    ...(hasFloors ? { 'audit.cells_under_a_floor': sum(Object.values(auditFloors).map((f) => f.cells_under)) } : {}),
     'trial.scenarios': names.length,
     'trial.scenarios_not_completed': notCompleted.length,
     'trial.runs_failed': runs.filter((r) => r.failed).length,
     'trial.runs_expectation_missed': runs.filter((r) => !r.failed && !r.completed).length,
+    ...(trialNotices ? { 'trial.runs_notice_expectation_missed': trialNotices.runs_missed } : {}),
     'trial.looks.total': sum(runs.map((r) => r.looks)),
     'trial.actions.max': max(runs.map((r) => r.actions)),
   },
   page_checks: outputs,
   page_check_misses: misses,
   ...(bars ? { audit_bars: auditBars } : {}),
+  ...(hasFloors ? { audit_floors: auditFloors } : {}),
+  ...(trialNotices ? { trial_notices: trialNotices } : {}),
   audit: pages,
   trial: scenarios,
 };

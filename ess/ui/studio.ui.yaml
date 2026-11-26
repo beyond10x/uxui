@@ -151,6 +151,7 @@ pages:
     state:
       kpi: {type: {optional: KpiId}, class: page_state, store: url}
     header:
+      title: from_page
       live: [climb]
       actions:
         - {name: stop, does: uxsearch.search.StopCampaign, bind: {campaign_id: params.campaign_id}, confirm: {title: Stop this campaign}, label: Stop}
@@ -215,7 +216,7 @@ pages:
     switch_to: [campaigns.climb]
     state:
       left: {type: {optional: VariantDigest}, class: selection}
-    header: {live: [climb]}
+    header: {title: from_page, live: [climb]}
     sections:
       - name: summary
         component: record
@@ -246,7 +247,7 @@ pages:
     title: Variant
     params: {variant_digest: VariantDigest}
     actor: uxsearch.design.Designer
-    header: {live: [switches]}
+    header: {title: from_page, live: [switches]}
     layout:
       columns:
         - {name: side, sections: [summary, axes], width: narrow}
@@ -265,7 +266,7 @@ pages:
           - name: switch
             does: uxsearch.design.RequestAxisSwitch
             bind: {from_variant: params.variant_digest, axis_id: row.axis_id, axis_value_id: row.axis_value_id}
-            label: Switch to this value
+            label: Switch
         unmapped:
           - "UNMAPPED: no view lists the axis values of the design space a variant was reached in; the list shows every axis value"
       - name: verdicts
@@ -293,6 +294,7 @@ pages:
     params: {left: VariantDigest, right: VariantDigest}
     actor: uxsearch.design.Designer
     header:
+      title: from_page
       actions:
         - {name: judge, opens: judge, label: Record judgement}
     layout:
@@ -371,7 +373,26 @@ pages:
         title: Gate decision from ratchet
         style: list
         reads: {view: uxsearch.promotion.PromotionById, key: promotion_id, params: {promotion_id: params.promotion_id}}
-        columns: [{field: gate, as: badge, tone_by: gate}, {field: gate_trade_off_only, as: toggle, label: Trade-off}, gate_policy_revision, {field: losses, as: list, label: Gets worse}, {field: gains, as: list, label: Gets better}, {field: gate_requirement_verdicts, as: list}]
+        # The three lists of records are declared twice. `losses`, `gains` and
+        # `gate_requirement_verdicts` are what the terminal prints as text; the React app draws a
+        # list of records as JSON, so themes/studio.css hides these three there. The columns after
+        # them read one member of every record (`losses.requirement_id`): the React app draws them
+        # as words, the terminal draws nothing for them. UXF-005.
+        columns:
+          - {field: gate, as: badge, tone_by: gate}
+          - {field: gate_trade_off_only, as: toggle, label: Trade-off}
+          - gate_policy_revision
+          - {field: losses, as: list, label: Gets worse}
+          - {field: gains, as: list, label: Gets better}
+          - {field: gate_requirement_verdicts, as: list}
+          - {field: losses.requirement_id, name: worse, as: list, label: Gets worse}
+          - {field: losses.reference, name: worse_reference, as: list, label: Reference}
+          - {field: losses.candidate, name: worse_candidate, as: list, label: Candidate}
+          - {field: gains.requirement_id, name: better, as: list, label: Gets better}
+          - {field: gains.reference, name: better_reference, as: list, label: Reference}
+          - {field: gains.candidate, name: better_candidate, as: list, label: Candidate}
+          - {field: gate_requirement_verdicts.requirement_id, name: requirements, as: list, label: Requirement}
+          - {field: gate_requirement_verdicts.verdict, name: requirement_verdicts, as: list, label: Verdict}
         row_actions:
           - {name: accept, opens: accept, visible: row.gate == pass, label: Accept}
           - {name: trade_off, opens: trade_off, visible: row.gate_trade_off_only, label: Accept trade-off}
@@ -393,7 +414,16 @@ pages:
         record:
           component: record
           reads: {view: uxsearch.promotion.PromotionById, key: promotion_id, params: {promotion_id: params.promotion_id}}
-          fields: [{field: losses, as: list, label: Gets worse}, {field: gains, as: list, label: Gets better}]
+          # Declared twice, as the columns of the section "decision" are, and for the same reason.
+          fields:
+            - {field: losses, as: list, label: Gets worse}
+            - {field: gains, as: list, label: Gets better}
+            - {field: losses.requirement_id, name: worse, as: list, label: Gets worse}
+            - {field: losses.reference, name: worse_reference, as: list, label: Reference}
+            - {field: losses.candidate, name: worse_candidate, as: list, label: Candidate}
+            - {field: gains.requirement_id, name: better, as: list, label: Gets better}
+            - {field: gains.reference, name: better_reference, as: list, label: Reference}
+            - {field: gains.candidate, name: better_candidate, as: list, label: Candidate}
         fields: [variant_digest]
       reject:
         kind: dialog

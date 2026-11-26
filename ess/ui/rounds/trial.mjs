@@ -6,6 +6,9 @@
 // Deterministic code, no model. Every step names its node by `data-ui-path` or a CSS selector, not
 // by role and name, and a control outside the viewport is scrolled to and counted as a look: this
 // is a driver, not the screen-only user of § 7.
+// A scenarios file may hold one expectation on every notice (`notices: {not_text}`): each run then
+// records the notices seen at its moments and those that contain the text (`notices`). It is counted
+// beside the run's own expectations and does not change whether the run completed.
 // Writes <out dir>/trial/<scenario>.<viewport>.<mode>.json, <out dir>/shots/<scenario>.<n>-<moment>.<viewport>.<mode>.png
 // and <out dir>/audit/<page>.<viewport>.<mode>.json. Exit 0 when every run was played to its end
 // (a failed step is recorded, not fatal), 3 when the browser failed.
@@ -69,7 +72,7 @@ const IN_PAGE = `(() => {
       if (!el) return { found: false, matches: document.querySelectorAll(selector).length };
       const b = box(el);
       const centre = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
-      return { found: true, text: text(el).slice(0, 200), box: b, in_view: inView(el), covered: inView(el) && !(centre === el || el.contains(centre)), disabled: el.disabled === true };
+      return { found: true, text: text(el).slice(0, 200), whole: text(el), box: b, in_view: inView(el), covered: inView(el) && !(centre === el || el.contains(centre)), disabled: el.disabled === true };
     },
     reveal(selector) { first(selector)?.scrollIntoView({ block: 'center', inline: 'nearest' }); return true; },
     select(selector, value) {
@@ -250,7 +253,8 @@ async function play(browser, scenario, viewport, mode) {
         record.found = t.found;
         record.text = t.text;
         record.in_view = t.in_view ?? false;
-        record.met = t.found && (step.expect.text === undefined || t.text.includes(step.expect.text)) && (step.expect.not_text === undefined || !t.text.includes(step.expect.not_text));
+        // The record keeps the first 200 characters; the expectation is held on the whole text.
+        record.met = t.found && (step.expect.text === undefined || t.whole.includes(step.expect.text)) && (step.expect.not_text === undefined || !t.whole.includes(step.expect.not_text));
         const rows = await ask(page, `rows(${arg(css(step.expect))})`);
         if (rows.length > 0) record.rows = rows;
         if (step.expect.rows) record.met = record.met && JSON.stringify(rows) === JSON.stringify(step.expect.rows);
@@ -284,6 +288,12 @@ async function play(browser, scenario, viewport, mode) {
   const expects = run.steps.filter((s) => s.expect || s.absent);
   run.expectations = { total: expects.length, met: expects.filter((s) => s.met).length };
   run.completed = run.failed === null && expects.every((s) => s.met);
+  // The expectation every notice of the cards is held to: the notices seen at the run's moments,
+  // and those of them that contain the text no notice may contain.
+  if (spec.notices?.not_text) {
+    const seen = [...new Set(run.moments.flatMap((m) => m.notices.map((n) => n.text)))];
+    run.notices = { not_text: spec.notices.not_text, seen, missed: seen.filter((text) => text.includes(spec.notices.not_text)) };
+  }
   return run;
 }
 
