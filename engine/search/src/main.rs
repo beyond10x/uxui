@@ -11,13 +11,13 @@ const USAGE: &str = "usage: ux-search climb --doc <ui.yaml> --page <page> [--par
        ux-search landing run --build <built site> --product <product.json> --css <landing.css> --out <dir> [--jobs <n>] [--profile <dir>] [--rebuilt <variant id>=<built site>]
        ux-search landing report --measurements <measurements.json>
        ux-search landing promote --measurements <measurements.json> --variant <variant id> --product <product.json> --css <landing.css> --evidence <evidence.json> [--chosen-by \"<who chose>\"] [--shipped-file <shipped.txt>]
-       ux-search campaign run --declaration <campaign.yaml> --url <origin> --out <measurements.json> [--shots <dir>] [--jobs <n>] [--profile <dir>]
+       ux-search campaign run --declaration <campaign.yaml> --url <origin> --out <measurements.json> [--shots <dir>] [--jobs <n>] [--profile <dir>] [--variant <variant id>] [--environment \"<W>x<H> <mode>\"]
        ux-search campaign report --measurements <measurements.json> [--format text|markdown] [--links <prefix>] [--notes]
        ux-search -V | --version
        ux-search -h | --help, also after a command
 defaults: --sizes 120x40,48x40, --cap 5, --keys <tab><tab><tab><tab><tab>, --size 120x40, --repeat 5, --format text, --state-dir target/ux-search/state, --jobs the CPUs (at most 4), --profile a directory of the run's own under the system's temp directory (TMPDIR), removed when the run ends
 landing run renders the 144 variants of the documentation landing page in 6 environments in Chromium (UXUI_CHROME, else the Playwright cache), writes <dir>/measurements.json and two screenshots per frontier variant, and prints the report; landing report prints the report of a measurements file; landing promote applies the patch of one variant of that file's frontier to the two sources in place and writes, all or none, one ratchet-evidence/1 document that names the campaign, a copy of the measurements beside it (<name>.measurements.json beside <name>.evidence.json) and, with --shipped-file, the variant's id to that file; the document names each file by its path from the working directory; it refuses, and writes nothing, a variant off the frontier, sources the measurements were not recorded on, a place that is a directory and one file named twice
-campaign run reads a declaration ux-search-campaign/1 (the page, the environments, the axes of custom-property values per selector, the hard rules and the ordered terms), loads the page from the server at <origin> (an origin, with a path when the page's paths lie under one), renders every variant in every environment in Chromium as an injected style sheet, with the pointer parked at page.pointer or in the bottom-right corner of the viewport, writes the measurements file and, with --shots, per frontier variant one screenshot in every mode at the first viewport and one in the last environment, and prints the report; it reaches only that origin, with GET and HEAD, and refuses a declaration it cannot read (naming the file and the key), a selector that matches nothing, a property that is not in force and a mode whose expectation (expect) the page does not show; it names a mode that is set by a query and expects nothing as not read back, and an axis none of whose values changes the page; campaign report prints the report of a measurements file, with --notes followed by the first elements behind the counts of the page as shipped and of the frontier, with --format markdown the run and the frontier as two tables whose screenshot links start with <prefix>; it refuses a file whose content is not what its digest names";
+campaign run reads a declaration ux-search-campaign/2, or /1 (the page, the environments, the axes of custom-property values per selector, the hard rules and the ordered terms, with rows_in_view over the rows a declaration names, primary_bottom_px and an always-visible item clipped on purpose by its container), loads the page from the server at <origin> (an origin, with a path when the page's paths lie under one), renders every variant in every environment in Chromium as an injected style sheet, with the pointer parked at page.pointer or in the bottom-right corner of the viewport, writes the measurements file and, with --shots, per frontier variant one screenshot in every mode at the first viewport and one in the last environment, and prints the report; it reaches only that origin, with GET and HEAD, and refuses a declaration it cannot read (naming the file and the key), a selector that matches nothing, a property that is not in force and a mode whose expectation (expect) the page does not show; a mode with an attribute or an expectation is read back on one page load before the first variant is rendered; it names a mode that is set by a query and expects nothing as not read back, an axis none of whose values changes the page, and a mode or a viewport that measures the same numbers as another one for every variant; with --variant or --environment it measures that variant or environment alone, shoots each of its renders with --shots, prints the numbers of each render and writes them as ux-search-campaign-renders/1, which no report ranks; campaign report prints the report of a measurements file, with --notes followed by the first elements behind the counts of the page as shipped and of the frontier, each named once where it is the same in every environment and variant, with --format markdown the run and the frontier as two tables whose screenshot links start with <prefix>; it refuses a file whose content is not what its digest names";
 
 /// The flags that take no value.
 const SWITCHES: &[&str] = &["--notes"];
@@ -359,6 +359,8 @@ fn run_campaign(args: &[String]) -> ExitCode {
             "--shots",
             "--jobs",
             "--profile",
+            "--variant",
+            "--environment",
         ],
     ) {
         Ok(parsed) if parsed.params.is_empty() => parsed,
@@ -393,13 +395,15 @@ fn run_campaign(args: &[String]) -> ExitCode {
         shots: parsed.get("--shots").map(PathBuf::from),
         profile: profile.path().to_path_buf(),
         jobs,
+        variant: parsed.get("--variant").map(str::to_owned),
+        environment: parsed.get("--environment").map(str::to_owned),
     };
     let started = std::time::Instant::now();
     let outcome = match campaign::run::run(&options) {
         Ok(outcome) => outcome,
         Err(message) => return refused(&message),
     };
-    let text = match campaign::report::report(&outcome.recorded) {
+    let text = match outcome.measured.printed() {
         Ok(text) => text,
         Err(message) => return refused(&message),
     };
@@ -418,7 +422,7 @@ fn run_campaign(args: &[String]) -> ExitCode {
     eprintln!(
         "ux-search: {} renders in {}, {:.1} s with {} pages at once",
         outcome.renders,
-        outcome.recorded.browser,
+        outcome.measured.browser(),
         started.elapsed().as_secs_f64(),
         options.jobs
     );

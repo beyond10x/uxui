@@ -8,6 +8,9 @@
 //!
 //! What keeps a render honest:
 //!
+//! - before the first variant is rendered, each mode with an attribute or an expectation is
+//!   read back on one page load, so a mode the page does not take is refused at once and not
+//!   after the renders of the modes before it;
 //! - the page is first measured with no sheet injected; the variant of the shipped values,
 //!   measured with its sheet (an empty one when no shipped value has a rule), must give the
 //!   same numbers, in every environment;
@@ -29,9 +32,17 @@
 //!   hover is measured open.
 //!
 //! What the run says beside that: a mode that is set by a query and expects nothing is named
-//! as not read back, and per axis the number of values that change a box or a computed style
-//! on the page at all; an axis none of whose values does is named as one that changes nothing
-//! here.
+//! as not read back; per axis the number of values that change a box or a computed style on
+//! the page at all, and an axis none of whose values does is named as one that changes nothing
+//! here; and a mode or a viewport whose renders measure the same numbers as another one's for
+//! every variant is named, one line each.
+//!
+//! A screenshot is taken with the caret hidden: a field the page focused blinks, and two runs
+//! would write different bytes.
+//!
+//! A run restricted to one variant (`--variant`) or one environment (`--environment`) measures
+//! those renders with the same checks, loads each anew, shoots it with `--shots`, and writes the
+//! renders as `ux-search-campaign-renders/1`, which no report ranks.
 //!
 //! The page reaches nothing but its own origin, with `GET` and `HEAD` only
 //! (`ux_browser::cdp::Guard`). A request the guard failed fails the run and is named: a page
@@ -50,7 +61,7 @@ use ux_browser::target::Site;
 use ux_browser::ws::WebSocket;
 
 use super::declaration::{Declaration, Environment, Mode};
-use super::record::{NOTED, Note, Recorded, Render};
+use super::record::{self, NOTED, Note, Recorded, Render, Renders};
 use super::report;
 use crate::landing::patch::{self, Value};
 
@@ -72,13 +83,51 @@ pub struct Options {
     pub profile: PathBuf,
     /// How many pages are measured at once.
     pub jobs: usize,
+    /// The one variant to measure, by id; `None`: every variant.
+    pub variant: Option<String>,
+    /// The one environment to measure, by name (`800x600 dark`); `None`: every environment.
+    pub environment: Option<String>,
+}
+
+/// What a run measured: a campaign, every variant in every environment, or the renders of a run
+/// restricted to one variant or one environment, which no report ranks.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Measured {
+    Campaign(Recorded),
+    Restricted(Renders),
+}
+
+impl Measured {
+    /// The browser's product.
+    pub fn browser(&self) -> &str {
+        match self {
+            Measured::Campaign(recorded) => &recorded.browser,
+            Measured::Restricted(renders) => &renders.browser,
+        }
+    }
+
+    /// The file `--out` names.
+    pub fn text(&self) -> String {
+        match self {
+            Measured::Campaign(recorded) => recorded.text(),
+            Measured::Restricted(renders) => renders.text(),
+        }
+    }
+
+    /// What the run prints: the report of a campaign, the renders of a restricted run.
+    pub fn printed(&self) -> Result<String, String> {
+        match self {
+            Measured::Campaign(recorded) => report::report(recorded),
+            Measured::Restricted(renders) => Ok(report::renders(renders)),
+        }
+    }
 }
 
 /// A finished run.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Outcome {
     /// What was measured.
-    pub recorded: Recorded,
+    pub measured: Measured,
     /// The files written, in the order written.
     pub written: Vec<PathBuf>,
     /// The renders measured for the record.
@@ -89,8 +138,9 @@ pub struct Outcome {
     /// The checks the run made beside the record, one line each.
     pub checks: Vec<String>,
     /// What the run says about the declaration on this page, one line each: `note: ...` for a
-    /// mode that is not read back and for an axis that changes nothing, `axis ...` for every
-    /// other axis.
+    /// mode that is not read back, for an axis that changes nothing and for a mode or a
+    /// viewport that measures what another one measures, `axis ...` for every other axis. A
+    /// restricted run says nothing of axes and environments.
     pub remarks: Vec<String>,
 }
 
@@ -141,7 +191,15 @@ struct Plan {
     /// The declaration file, as every refusal names it.
     file: String,
     declaration: Declaration,
+    /// The environments the run measures: every one, or the one of `--environment`.
     environments: Vec<Environment>,
+    /// The index of each of them among the declaration's environments.
+    at: Vec<usize>,
+    /// The variants the run measures, as indices of `ids`: every one, or the one of
+    /// `--variant`.
+    selected: Vec<usize>,
+    /// Whether the run is restricted to one variant or one environment.
+    restricted: bool,
     ids: Vec<String>,
     /// Each variant's choice, in the order of `ids`: the index of each axis's value.
     choices: Vec<Vec<usize>>,
@@ -215,6 +273,12 @@ fn plan(options: &Options) -> Result<Plan, String> {
                 map(vec![
                     ("name", text(&item.name)),
                     ("selector", text(&item.selector)),
+                    (
+                        "container",
+                        item.container
+                            .as_ref()
+                            .map_or(Value::Null, |container| text(container)),
+                    ),
                 ])
             })
             .collect();
@@ -226,6 +290,13 @@ fn plan(options: &Options) -> Result<Plan, String> {
                     .regions
                     .as_ref()
                     .map_or(Value::Null, |regions| text(regions)),
+            ),
+            (
+                "rows",
+                declaration
+                    .rows
+                    .as_ref()
+                    .map_or(Value::Null, |rows| text(rows)),
             ),
             ("always_visible", Value::List(items)),
             (
@@ -266,9 +337,43 @@ fn plan(options: &Options) -> Result<Plan, String> {
         ])));
         urls.push(declaration.url(&options.site, &mode.name)?);
     }
+    let file = options.declaration.display().to_string();
+    let selected: Vec<usize> = match &options.variant {
+        None => (0..variants.len()).collect(),
+        Some(id) => match variants.iter().position(|variant| variant.id == *id) {
+            Some(index) => vec![index],
+            None => {
+                let known: Vec<&str> = variants.iter().map(|variant| variant.id.as_str()).collect();
+                return Err(format!(
+                    "{file}: --variant `{id}` is no variant of the declaration ({})",
+                    known.join(", ")
+                ));
+            }
+        },
+    };
+    let all = declaration.environments();
+    let at: Vec<usize> = match &options.environment {
+        None => (0..all.len()).collect(),
+        Some(name) => match all
+            .iter()
+            .position(|environment| environment.name() == *name)
+        {
+            Some(index) => vec![index],
+            None => {
+                let known: Vec<String> = all.iter().map(Environment::name).collect();
+                return Err(format!(
+                    "{file}: --environment `{name}` is no environment of the declaration ({})",
+                    known.join(", ")
+                ));
+            }
+        },
+    };
     Ok(Plan {
-        file: options.declaration.display().to_string(),
-        environments: declaration.environments(),
+        file,
+        environments: at.iter().map(|&index| all[index].clone()).collect(),
+        at,
+        selected,
+        restricted: options.variant.is_some() || options.environment.is_some(),
         choices: variants
             .iter()
             .map(|variant| variant.choice.clone())
@@ -342,6 +447,8 @@ fn sample_of(value: &Value) -> Result<Sample, String> {
             low_contrast: count(value, "low_contrast")?,
             overflow: count(value, "overflow")?,
             always_visible_misses: count(value, "always_visible_misses")?,
+            rows_in_view: count(value, "rows_in_view")?,
+            primary_bottom_px: count(value, "primary_bottom_px")?,
         },
         hard: texts(value.get("notes")),
         elements,
@@ -483,7 +590,11 @@ fn open(conn: &mut Conn, plan: &Plan, environment: &Environment) -> Result<Page,
     if let Some(regions) = &declaration.regions {
         matched(plan, "regions", regions, &found("regions"), url)?;
     }
+    if let Some(rows) = &declaration.rows {
+        matched(plan, "rows", rows, &found("rows"), url)?;
+    }
     let items = found("always_visible");
+    let containers = found("containers");
     for (index, item) in declaration.always_visible.iter().enumerate() {
         matched(
             plan,
@@ -492,6 +603,15 @@ fn open(conn: &mut Conn, plan: &Plan, environment: &Environment) -> Result<Page,
             items.list().get(index).unwrap_or(&Value::Null),
             url,
         )?;
+        if let Some(container) = &item.container {
+            matched(
+                plan,
+                &format!("always_visible[{index}].container"),
+                container,
+                containers.list().get(index).unwrap_or(&Value::Null),
+                url,
+            )?;
+        }
     }
     Ok(page)
 }
@@ -590,8 +710,9 @@ fn measure(
             return Err(plan.declared(
                 &format!("environments.modes[{mode}].attribute"),
                 format!(
-                    "the page has `{name}` {} when it is measured, not `{expected}`: it sets \
-                     the attribute itself",
+                    "the page has `{name}` {} when it is measured, not `{expected}`: the page \
+                     changed the attribute after it was ready; the run set it before the page's \
+                     scripts ran and again when the page was ready",
                     value
                         .get_str("attribute")
                         .map_or("unset".to_owned(), |held| format!("`{held}`"))
@@ -620,22 +741,22 @@ fn unblocked(conn: &Conn, plan: &Plan) -> Result<(), String> {
     }
 }
 
-/// One environment's renders, in the order of the plan's variants.
-type Measured = Vec<Sample>;
+/// One environment's renders, in the order of the plan's selected variants.
+type Samples = Vec<Sample>;
 
 fn measure_environment(
     conn: &mut Conn,
     plan: &Plan,
     environment: &Environment,
-) -> Result<Measured, String> {
+) -> Result<Samples, String> {
     let mode = plan.mode(environment);
     let page = open(conn, plan, environment)?;
     let built = measure(conn, &page, plan, environment, "null")?.render;
     let specs = &plan.specs[mode];
-    let mut measured: Measured = Vec::with_capacity(specs.len());
-    for (index, spec) in specs.iter().enumerate() {
+    let mut measured: Samples = Vec::with_capacity(plan.selected.len());
+    for &index in &plan.selected {
         let id = &plan.ids[index];
-        let sample = measure(conn, &page, plan, environment, spec)
+        let sample = measure(conn, &page, plan, environment, &specs[index])
             .map_err(|why| format!("{why} (variant {id})"))?;
         let render = sample.render;
         if index == plan.shipped && render != built {
@@ -646,17 +767,43 @@ fn measure_environment(
         }
         measured.push(sample);
     }
-    let again = measure(conn, &page, plan, environment, &specs[0])?.render;
+    let first = plan.selected[0];
+    let again = measure(conn, &page, plan, environment, &specs[first])?.render;
     if again != measured[0].render {
         return Err(format!(
             "{}: measured again after the last variant it gives {again:?}, at first {:?}: a \
              render leaves a trace, or the page changes while it is measured",
-            plan.ids[0], measured[0].render
+            plan.ids[first], measured[0].render
         ));
     }
     unblocked(conn, plan)?;
     page.close(conn)?;
     Ok(measured)
+}
+
+/// The environments whose mode is read back before the campaign: for each mode with an
+/// attribute or an expectation, the first environment the run measures it in.
+fn read_back_in(plan: &Plan) -> Vec<&Environment> {
+    plan.declaration
+        .modes
+        .iter()
+        .filter(|mode| mode.attribute.is_some() || mode.expect.is_some())
+        .filter_map(|mode| {
+            plan.environments
+                .iter()
+                .find(|environment| environment.mode == mode.name)
+        })
+        .collect()
+}
+
+/// One load of the page in an environment, measured with no sheet injected: a mode whose
+/// attribute the page does not keep or whose expectation it does not show is refused here,
+/// before any variant is rendered, and not after the renders of the modes before it.
+fn read_back(conn: &mut Conn, plan: &Plan, environment: &Environment) -> Result<(), String> {
+    let page = open(conn, plan, environment)?;
+    measure(conn, &page, plan, environment, "null")?;
+    unblocked(conn, plan)?;
+    page.close(conn)
 }
 
 /// One variant on a page loaded anew: it must measure what the campaign recorded. Returns its
@@ -679,6 +826,9 @@ fn measure_anew(
         ));
     }
     let shot = if shoot {
+        // A caret blinks in a field the page focused: hidden, it is not in one shot and gone
+        // from the next.
+        page.eval(conn, "__uxuiCampaign.still()")?;
         park(conn, &page, plan, environment)?;
         Some(page.screenshot(conn)?)
     } else {
@@ -702,11 +852,12 @@ fn close(mut conn: Conn) {
 
 /// What broke a declared hard rule, grouped: one line per environment and finding. The probe
 /// starts each note with the rule it is about.
-fn notes(plan: &Plan, measured: &[Measured]) -> Vec<String> {
+fn notes(plan: &Plan, measured: &[Samples]) -> Vec<String> {
     let mut lines = Vec::new();
     for (environment, renders) in plan.environments.iter().zip(measured) {
         let mut found: BTreeMap<&str, (usize, &str)> = BTreeMap::new();
-        for (id, sample) in plan.ids.iter().zip(renders) {
+        let ids = plan.selected.iter().map(|&index| &plan.ids[index]);
+        for (id, sample) in ids.zip(renders) {
             for note in &sample.hard {
                 let declared = note
                     .split_once(": ")
@@ -729,7 +880,8 @@ fn notes(plan: &Plan, measured: &[Measured]) -> Vec<String> {
 /// Per axis, how many of its values beside the shipped one change the page: a value changes it
 /// when one of its renders differs from the render of the shipped value beside the same choice
 /// of the other axes, in the same environment, in a measured number or in the probe's digest.
-fn changing(plan: &Plan, measured: &[Measured]) -> Vec<u64> {
+/// Of a run that is not restricted: every variant in every environment.
+fn changing(plan: &Plan, measured: &[Samples]) -> Vec<u64> {
     let axes = &plan.declaration.axes;
     // The step between two variants that differ by one value of an axis: the last axis changes
     // fastest.
@@ -804,13 +956,14 @@ fn unread_modes(declaration: &Declaration) -> Vec<String> {
         .collect()
 }
 
-/// The first elements behind the counts of one variant, per environment.
-fn notes_of(measured: &[Measured], index: usize) -> Vec<Note> {
+/// The first elements behind the counts of the variant at `position` of the selected ones, per
+/// environment; a note's `environment` is an index of the declaration's environments.
+fn notes_of(plan: &Plan, measured: &[Samples], position: usize) -> Vec<Note> {
     measured
         .iter()
-        .enumerate()
-        .flat_map(|(environment, renders)| {
-            renders[index]
+        .zip(&plan.at)
+        .flat_map(|(renders, &environment)| {
+            renders[position]
                 .elements
                 .iter()
                 .map(move |(term, elements)| Note {
@@ -822,70 +975,37 @@ fn notes_of(measured: &[Measured], index: usize) -> Vec<Note> {
         .collect()
 }
 
-/// Everything the browser is asked: the record, the frontier's screenshots, the checks.
+/// Everything the browser is asked: the record, the screenshots, the checks.
 struct Rendered {
-    recorded: Recorded,
+    measured: Measured,
     shots: Vec<(String, Vec<u8>)>,
     notes: Vec<String>,
     checks: Vec<String>,
     remarks: Vec<String>,
 }
 
-fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered, String> {
-    let ws_url = browser.process.ws_url.as_str();
+/// The checks every run makes, one line each, for the renders it measured.
+fn checks_of(plan: &Plan) -> Vec<String> {
     let environments = &plan.environments;
-    let measured: Vec<Measured> = ux_browser::pool::run(
-        options.jobs,
-        environments.len(),
-        || connect(ws_url),
-        |conn: &mut Conn, at| {
-            measure_environment(conn, plan, &environments[at])
-                .map_err(|why| format!("{why} ({})", environments[at].name()))
-        },
-        close,
-    )?;
-    let mut recorded = Recorded {
-        adapter: format!("ux-browser {}", ux_browser::VERSION),
-        browser: browser.product.clone(),
-        declaration: plan.declaration.clone(),
-        variants: plan
-            .ids
-            .iter()
-            .enumerate()
-            .map(|(index, id)| {
-                let renders = measured
-                    .iter()
-                    .map(|renders| renders[index].render)
-                    .collect();
-                (id.clone(), renders)
-            })
-            .collect(),
-        changing: changing(plan, &measured),
-        notes: vec![Vec::new(); plan.ids.len()],
-    };
-    let frontier = report::rank(&recorded).frontier;
-    for &index in std::iter::once(&plan.shipped).chain(&frontier) {
-        recorded.notes[index] = notes_of(&measured, index);
-    }
-    recorded.check()?;
-    let mut remarks = unread_modes(&plan.declaration);
-    remarks.extend(axis_lines(&plan.declaration, &recorded.changing));
-    let mut checks = vec![
-        format!(
+    let mut checks = Vec::new();
+    if plan.selected.contains(&plan.shipped) {
+        checks.push(format!(
             "{}: with its sheet injected it measures what the page measures without one, in {} \
              environments",
             plan.ids[plan.shipped],
             environments.len()
-        ),
+        ));
+    }
+    checks.extend([
         format!(
             "{}: measured again after the last variant, the same numbers in {} environments",
-            plan.ids[0],
+            plan.ids[plan.selected[0]],
             environments.len()
         ),
         format!(
             "every property a sheet sets is in force on every element its selector matches, in \
              {} renders",
-            plan.ids.len() * environments.len()
+            plan.selected.len() * environments.len()
         ),
         format!(
             "no request left {} or had another method than GET and HEAD",
@@ -896,7 +1016,19 @@ fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered,
              mouse moves",
             pointers(plan)
         ),
-    ];
+    ]);
+    let read_back = read_back_in(plan);
+    if !read_back.is_empty() {
+        let names: Vec<String> = read_back
+            .iter()
+            .map(|environment| environment.name())
+            .collect();
+        checks.push(format!(
+            "each mode with an attribute or an expectation was read back on one page load before \
+             the first variant was rendered: {}",
+            names.join(", ")
+        ));
+    }
     for mode in &plan.declaration.modes {
         let Some(expect) = &mode.expect else {
             continue;
@@ -912,53 +1044,170 @@ fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered,
             .iter()
             .filter(|environment| environment.mode == mode.name)
             .count()
-            * plan.ids.len();
+            * plan.selected.len();
         checks.push(format!(
             "the mode `{}` shows what it expects in {renders} renders: {}",
             mode.name,
             shown.join(" and ")
         ));
     }
+    checks
+}
 
-    let shot_in = screenshots_of(&plan.declaration);
-    let shoot = options.shots.is_some();
+/// Renders the variants of `wanted` (indices of the plan's variants, each with its index among
+/// the selected ones) in the environments of `shot_in` (indices of the plan's environments), each
+/// on a page loaded anew, measured again and, with `--shots`, shot. Returns the shots by file
+/// name.
+fn anew(
+    ws_url: &str,
+    options: &Options,
+    plan: &Plan,
+    measured: &[Samples],
+    wanted: &[(usize, usize)],
+    shot_in: &[usize],
+) -> Result<Vec<(String, Vec<u8>)>, String> {
+    let environments = &plan.environments;
     let shots: Vec<Option<Vec<u8>>> = ux_browser::pool::run(
         options.jobs,
-        frontier.len() * shot_in.len(),
+        wanted.len() * shot_in.len(),
         || connect(ws_url),
         |conn: &mut Conn, at| {
-            let index = frontier[at / shot_in.len()];
+            let (index, position) = wanted[at / shot_in.len()];
             let environment = shot_in[at % shot_in.len()];
             measure_anew(
                 conn,
                 plan,
                 &environments[environment],
                 index,
-                &measured[environment][index].render,
-                shoot,
+                &measured[environment][position].render,
+                options.shots.is_some(),
             )
             .map_err(|why| format!("{why} ({})", environments[environment].name()))
         },
         close,
     )?;
+    let mut files = Vec::new();
+    for (at, shot) in shots.into_iter().enumerate() {
+        if let Some(bytes) = shot {
+            let (index, _) = wanted[at / shot_in.len()];
+            let environment = &environments[shot_in[at % shot_in.len()]];
+            files.push((screenshot_name(&plan.ids[index], environment), bytes));
+        }
+    }
+    Ok(files)
+}
+
+fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered, String> {
+    let ws_url = browser.process.ws_url.as_str();
+    let environments = &plan.environments;
+    let read_back = read_back_in(plan);
+    ux_browser::pool::run(
+        options.jobs,
+        read_back.len(),
+        || connect(ws_url),
+        |conn: &mut Conn, at| {
+            self::read_back(conn, plan, read_back[at])
+                .map_err(|why| format!("{why} ({}); no variant was rendered", read_back[at].name()))
+        },
+        close,
+    )?;
+    let measured: Vec<Samples> = ux_browser::pool::run(
+        options.jobs,
+        environments.len(),
+        || connect(ws_url),
+        |conn: &mut Conn, at| {
+            measure_environment(conn, plan, &environments[at])
+                .map_err(|why| format!("{why} ({})", environments[at].name()))
+        },
+        close,
+    )?;
+    let mut checks = checks_of(plan);
+    let notes = notes(plan, &measured);
+    let renders_of = |position: usize| -> Vec<Render> {
+        measured
+            .iter()
+            .map(|renders| renders[position].render)
+            .collect()
+    };
+    if plan.restricted {
+        let wanted: Vec<(usize, usize)> = plan
+            .selected
+            .iter()
+            .enumerate()
+            .map(|(position, &index)| (index, position))
+            .collect();
+        let shot_in: Vec<usize> = (0..environments.len()).collect();
+        let shots = anew(ws_url, options, plan, &measured, &wanted, &shot_in)?;
+        checks.push(format!(
+            "{} variants: each measures on a page loaded anew what it measured in the run, in {} \
+             environments",
+            wanted.len(),
+            shot_in.len()
+        ));
+        let renders = Renders {
+            adapter: format!("ux-browser {}", ux_browser::VERSION),
+            browser: browser.product.clone(),
+            declaration: plan.declaration.clone(),
+            variant: options.variant.clone(),
+            environment: options.environment.clone(),
+            environments: plan.at.clone(),
+            variants: wanted
+                .iter()
+                .map(|&(index, position)| (plan.ids[index].clone(), renders_of(position)))
+                .collect(),
+            notes: wanted
+                .iter()
+                .map(|&(_, position)| notes_of(plan, &measured, position))
+                .collect(),
+        };
+        return Ok(Rendered {
+            measured: Measured::Restricted(renders),
+            shots,
+            notes,
+            checks,
+            remarks: unread_modes(&plan.declaration),
+        });
+    }
+    let mut recorded = Recorded {
+        format: record::FORMAT,
+        adapter: format!("ux-browser {}", ux_browser::VERSION),
+        browser: browser.product.clone(),
+        declaration: plan.declaration.clone(),
+        variants: plan
+            .ids
+            .iter()
+            .enumerate()
+            .map(|(index, id)| (id.clone(), renders_of(index)))
+            .collect(),
+        changing: changing(plan, &measured),
+        notes: vec![Vec::new(); plan.ids.len()],
+    };
+    let frontier = report::rank(&recorded).frontier;
+    for &index in std::iter::once(&plan.shipped).chain(&frontier) {
+        recorded.notes[index] = notes_of(plan, &measured, index);
+    }
+    recorded.check()?;
+    let mut remarks = unread_modes(&plan.declaration);
+    remarks.extend(axis_lines(&plan.declaration, &recorded.changing));
+    remarks.extend(
+        report::idle_environments(&recorded)
+            .into_iter()
+            .map(|line| format!("note: {line}")),
+    );
+
+    let shot_in = screenshots_of(&plan.declaration);
+    let wanted: Vec<(usize, usize)> = frontier.iter().map(|&index| (index, index)).collect();
+    let shots = anew(ws_url, options, plan, &measured, &wanted, &shot_in)?;
     checks.push(format!(
         "{} frontier variants: each measures on a page loaded anew what it measured in the \
          campaign, in {} environments",
         frontier.len(),
         shot_in.len()
     ));
-    let mut files = Vec::new();
-    for (at, shot) in shots.into_iter().enumerate() {
-        if let Some(bytes) = shot {
-            let index = frontier[at / shot_in.len()];
-            let environment = &environments[shot_in[at % shot_in.len()]];
-            files.push((screenshot_name(&plan.ids[index], environment), bytes));
-        }
-    }
     Ok(Rendered {
-        recorded,
-        shots: files,
-        notes: notes(plan, &measured),
+        measured: Measured::Campaign(recorded),
+        shots,
+        notes,
         checks,
         remarks,
     })
@@ -986,9 +1235,11 @@ fn pointers(plan: &Plan) -> String {
     }
 }
 
-/// Runs the campaign: every variant in every environment, then the frontier on pages loaded
-/// anew. A declaration that is refused starts no browser. Nothing is written unless all of it
-/// succeeds.
+/// Runs the campaign: each mode with an attribute or an expectation read back on one page load,
+/// every variant in every environment, then the frontier on pages loaded anew. Restricted to
+/// one variant or one environment, it measures those renders, loads each anew, and writes them
+/// as renders, not as a campaign. A declaration or a restriction that is refused starts no
+/// browser. Nothing is written unless all of it succeeds.
 pub fn run(options: &Options) -> Result<Outcome, String> {
     let plan = plan(options)?;
     let chrome = ux_browser::chrome::find(None)?;
@@ -1010,7 +1261,7 @@ pub fn run(options: &Options) -> Result<Outcome, String> {
     };
     let mut written = vec![write(
         options.out.clone(),
-        rendered.recorded.text().as_bytes(),
+        rendered.measured.text().as_bytes(),
     )?];
     if let Some(shots) = &options.shots {
         for (name, bytes) in &rendered.shots {
@@ -1018,8 +1269,8 @@ pub fn run(options: &Options) -> Result<Outcome, String> {
         }
     }
     Ok(Outcome {
-        renders: rendered.recorded.variants.len() * plan.environments.len(),
-        recorded: rendered.recorded,
+        renders: plan.selected.len() * plan.environments.len(),
+        measured: rendered.measured,
         written,
         notes: rendered.notes,
         checks: rendered.checks,

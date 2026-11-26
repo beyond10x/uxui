@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+- Campaign terms for a list page, in the declaration format `ux-search-campaign/2` (`/1` is still read,
+  and a `/1` file that uses a key or a term of `/2` is refused with the name it needs):
+  `rows_in_view` counts the rows of the selector `rows` fully in view at the top of the page, the one
+  term where more is better; `primary_bottom_px` is the bottom edge of the primary action, so an action
+  centred in a header that only gets smaller does not rank worse, as it does on `primary_px`; an
+  `always_visible` item names the scroll `container` that clips it on purpose and is then no miss. The
+  measurements gain the two columns as `ux-search-campaign-measurements/3`; a `/2` file is read and
+  written again in its own format, so the recorded studio campaign stays as it is. The browser lane
+  holds the three on a list page of its own (`site/rows.html`). Closes
+  `story:campaign-terms-for-list-pages`.
+- `ux-search campaign run` reads each mode with an attribute or an expectation back on one page load
+  before the first variant is rendered, so a mode the page does not take is refused at once and not
+  after the renders of the modes before it. It names a mode or a viewport whose renders measure the
+  same numbers as another one's for every variant. `--variant <id>` and `--environment "<W>x<H>
+  <mode>"` restrict a run to one variant or one environment: it prints the numbers of each render and
+  writes them as `ux-search-campaign-renders/1`, which `campaign report` refuses to rank. A shot is
+  taken with the caret hidden: a focused field's blinking caret made two runs write different bytes.
+  The refusal of a mode's attribute says that the page changed the attribute after it was ready.
+  `campaign report --notes` prints an element once where it is the same: once for every variant when
+  each names it in every environment, else once per variant with its environments. Decided:
+  `text_under_14` stays a share, and a declaration that gains a key gets a new format name
+  (`docs/targets.md`). Closes `story:campaign-run-follow-ups`.
 - ux-browser checks writes where it spent its time: `run.timing`, outside the evidence, holds per
   page and viewport the milliseconds of the browser context, the measured load with its ready
   condition, the settle wait, and per mode the switch, the overflow probe, the always-visible items at

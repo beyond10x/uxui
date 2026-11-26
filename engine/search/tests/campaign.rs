@@ -199,9 +199,36 @@ const BROKEN: &[Broken] = &[
         "another format",
         &[(
             "format: ux-search-campaign/1",
-            "format: ux-search-campaign/2",
+            "format: ux-search-campaign/9",
         )],
-        &["`format`", "ux-search-campaign/1"],
+        &["`format`", "ux-search-campaign/2", "ux-search-campaign/1"],
+    ),
+    (
+        "a key of the next format",
+        &[(
+            "small_target_px: 24\n",
+            "small_target_px: 24\nrows: 'tbody tr'\n",
+        )],
+        &["`rows`", "a key of `ux-search-campaign/2`"],
+    ),
+    (
+        "a term of the next format",
+        &[(
+            "terms: [always_visible_misses,",
+            "terms: [primary_bottom_px, always_visible_misses,",
+        )],
+        &["`terms[0]`", "a term of `ux-search-campaign/2`"],
+    ),
+    (
+        "a container in the format before it",
+        &[(
+            "{name: navigation, selector: nav}",
+            "{name: navigation, selector: nav, container: aside}",
+        )],
+        &[
+            "`always_visible[0].container`",
+            "a key of `ux-search-campaign/2`",
+        ],
     ),
     (
         "an unknown key",
@@ -624,6 +651,90 @@ fn a_broken_declaration_is_refused_with_the_key_it_breaks_at() {
     }
 }
 
+/// The small declaration in `ux-search-campaign/2`, with what that format adds: `rows`, the
+/// `container` of an always-visible item, and the terms `rows_in_view` and `primary_bottom_px`.
+fn small_2_text() -> String {
+    let mut text = small_text();
+    for (from, to) in [
+        (
+            "format: ux-search-campaign/1",
+            "format: ux-search-campaign/2",
+        ),
+        (
+            "small_target_px: 24\n",
+            "small_target_px: 24\nrows: 'tbody tr'\n",
+        ),
+        (
+            "{name: navigation, selector: nav}",
+            "{name: navigation, selector: nav, container: aside}",
+        ),
+        (
+            "terms: [always_visible_misses,",
+            "terms: [rows_in_view, primary_bottom_px, always_visible_misses,",
+        ),
+    ] {
+        assert!(text.contains(from), "the fixture has no `{from}`");
+        text = text.replacen(from, to, 1);
+    }
+    text
+}
+
+#[test]
+fn a_declaration_of_the_second_format_names_rows_a_container_and_the_list_terms() {
+    let declaration = Declaration::parse(&small_2_text()).unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(declaration.rows.as_deref(), Some("tbody tr"));
+    assert_eq!(
+        declaration.always_visible[0].container.as_deref(),
+        Some("aside")
+    );
+    assert_eq!(declaration.always_visible[1].container, None);
+    assert_eq!(
+        declaration.terms[..2],
+        ["rows_in_view", "primary_bottom_px"]
+    );
+    // The first format is still read, and has no rows and no container.
+    let first = small();
+    assert_eq!(first.rows, None);
+    assert!(
+        first
+            .always_visible
+            .iter()
+            .all(|item| item.container.is_none())
+    );
+    // `rows_in_view` counts the rows the key `rows` names.
+    let refused = Declaration::parse(&small_2_text().replace("rows: 'tbody tr'\n", ""))
+        .expect_err("rows_in_view without rows");
+    assert!(
+        refused.contains("`terms[0]`") && refused.contains("`rows`"),
+        "{refused}"
+    );
+}
+
+/// `rows_in_view` is the one term where more is better: the worst environment is the one with
+/// the fewest rows, and a variant with more rows in view ranks before one with fewer. The
+/// report prints the count.
+#[test]
+fn rows_in_view_is_a_term_where_more_is_better() {
+    let declaration = Declaration::parse(&small_2_text()).unwrap_or_else(|error| panic!("{error}"));
+    let mut more = vec![render(200, 0); 4];
+    for render in &mut more {
+        render.rows_in_view = 16;
+    }
+    let mut fewer = more.clone();
+    fewer[2].rows_in_view = 13;
+    let (more, fewer) = (
+        report::terms(&declaration, &more),
+        report::terms(&declaration, &fewer),
+    );
+    assert!(more < fewer, "{more:?} {fewer:?}");
+    assert!(
+        report::terms_text(&declaration, &more).contains(" rows_in_view=16 "),
+        "{}",
+        report::terms_text(&declaration, &more)
+    );
+    assert!(report::terms_text(&declaration, &fewer).contains(" rows_in_view=13 "));
+}
+
 #[test]
 fn a_text_that_is_no_declaration_is_refused() {
     for (text, says) in [
@@ -828,6 +939,8 @@ fn render(primary_px: u64, low_contrast: u64) -> Render {
         low_contrast,
         overflow: 0,
         always_visible_misses: 0,
+        rows_in_view: 0,
+        primary_bottom_px: 0,
     }
 }
 
@@ -863,6 +976,7 @@ fn small_record() -> Recorded {
         })
         .collect();
     Recorded {
+        format: record::FORMAT,
         adapter: "ux-browser 0.10.0".to_owned(),
         browser: "HeadlessChrome/1.2.3.4".to_owned(),
         declaration,
@@ -887,7 +1001,7 @@ fn a_record_reads_back_what_was_written_and_writes_the_same_bytes() {
     recorded.check().unwrap_or_else(|error| panic!("{error}"));
     let text = recorded.text();
     assert!(
-        text.starts_with("{\n  \"format\": \"ux-search-campaign-measurements/2\",\n"),
+        text.starts_with("{\n  \"format\": \"ux-search-campaign-measurements/3\",\n"),
         "{text}"
     );
     assert!(text.contains(&format!(
@@ -895,7 +1009,7 @@ fn a_record_reads_back_what_was_written_and_writes_the_same_bytes() {
         recorded.declaration.digest
     )));
     assert!(
-        text.contains("      [1,0,0,200,1,2,40,10,2,0,0],\n"),
+        text.contains("      [1,0,0,200,1,2,40,10,2,0,0,0,0],\n"),
         "{text}"
     );
     // Where the pointer rested, per environment; what each axis changes; a variant's notes.
@@ -913,7 +1027,7 @@ fn a_record_reads_back_what_was_written_and_writes_the_same_bytes() {
     );
     assert!(
         text.contains(
-            "      [1,0,0,200,1,2,40,10,0,0,0]\n    ], \"notes\": [\n      {\"environment\": 0, \"term\": \"small_targets\", \"elements\": [\"nav > a.icon: 16 x 16 px\"]}\n    ]},\n"
+            "      [1,0,0,200,1,2,40,10,0,0,0,0,0]\n    ], \"notes\": [\n      {\"environment\": 0, \"term\": \"small_targets\", \"elements\": [\"nav > a.icon: 16 x 16 px\"]}\n    ]},\n"
         ),
         "{text}"
     );
@@ -925,7 +1039,7 @@ fn a_record_reads_back_what_was_written_and_writes_the_same_bytes() {
     );
     // A variant without notes is written as before them.
     assert!(
-        text.contains("      [1,0,0,200,1,2,40,10,2,0,0]\n    ]},\n"),
+        text.contains("      [1,0,0,200,1,2,40,10,2,0,0,0,0]\n    ]},\n"),
         "{text}"
     );
     assert!(
@@ -935,7 +1049,7 @@ fn a_record_reads_back_what_was_written_and_writes_the_same_bytes() {
     let read = Recorded::parse(&text).unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(read, recorded);
     assert_eq!(read.text(), text);
-    assert_eq!(record::COLUMNS.len(), 11);
+    assert_eq!(record::COLUMNS.len(), 13);
 }
 
 /// A record whose numbers, declaration or shape were changed after it was written is refused:
@@ -946,8 +1060,8 @@ fn a_tampered_record_is_refused() {
     let changes: &[(&str, &str, &str, &str)] = &[
         (
             "a number",
-            "[1,0,0,200,1,2,40,10,2,0,0]",
-            "[1,0,0,199,1,2,40,10,2,0,0]",
+            "[1,0,0,200,1,2,40,10,2,0,0,0,0]",
+            "[1,0,0,199,1,2,40,10,2,0,0,0,0]",
             "`digest`",
         ),
         (
@@ -976,7 +1090,7 @@ fn a_tampered_record_is_refused() {
         ),
         (
             "a render",
-            "      [1,0,0,200,1,2,40,10,2,0,0],\n",
+            "      [1,0,0,200,1,2,40,10,2,0,0,0,0],\n",
             "",
             "renders",
         ),
@@ -996,13 +1110,13 @@ fn a_tampered_record_is_refused() {
         ),
         (
             "the format",
-            "ux-search-campaign-measurements/2",
+            "ux-search-campaign-measurements/3",
             "ux-search-landing/1",
             "`format`",
         ),
         (
             "the format before the pointer was parked",
-            "ux-search-campaign-measurements/2",
+            "ux-search-campaign-measurements/3",
             "ux-search-campaign-measurements/1",
             "the pointer wherever the browser left it",
         ),
@@ -1272,9 +1386,8 @@ fn a_record_of_other_variants_is_not_reported() {
 const SMALL_NOTES: &str = "notes: the first elements behind each count, at most 3 per term and environment, of the page as shipped and of the frontier
 shipped stock.stock
      1366x768 light low_contrast: main > p.hint \"Updated a minute ago\": 3.10 under 4.5, #8a8a8a on #ffffff
-     1366x768 light low_contrast: td.muted \"n/a\": 2.32 under 4.5, #aaaaaa on #ffffff
+     1366x768 light, 390x844 dark low_contrast: td.muted \"n/a\": 2.32 under 4.5, #aaaaaa on #ffffff
      1366x768 light small_targets: nav > a.icon: 16 x 16 px
-     390x844 dark low_contrast: td.muted \"n/a\": 2.32 under 4.5, #aaaaaa on #ffffff
    1 tight.deep
      1366x768 light small_targets: nav > a.icon: 16 x 16 px
 ";
@@ -1323,6 +1436,123 @@ fn the_notes_name_the_elements_of_the_page_as_shipped_and_of_the_frontier() {
         notes.contains(" stock.stock\n     the page as shipped, above\n"),
         "{notes}"
     );
+}
+
+/// An element the same in every environment of every variant the notes are printed for is
+/// printed once, before the variants, with how many variants and environments it stands for;
+/// one the same in every environment of one variant is printed once for it.
+#[test]
+fn the_notes_name_an_element_once_when_it_is_the_same_in_every_environment_and_variant() {
+    let mut recorded = small_record();
+    recorded.notes[1] = (0..4)
+        .map(|at| note(at, "small_targets", &[SMALL_ICON]))
+        .collect();
+    recorded.notes[2] = vec![
+        note(0, "low_contrast", &[PALE_HINT, PALE_CELL]),
+        note(0, "small_targets", &[SMALL_ICON]),
+        note(1, "low_contrast", &[PALE_CELL]),
+        note(1, "small_targets", &[SMALL_ICON]),
+        note(2, "low_contrast", &[PALE_CELL]),
+        note(2, "small_targets", &[SMALL_ICON]),
+        note(3, "low_contrast", &[PALE_CELL]),
+        note(3, "small_targets", &[SMALL_ICON]),
+    ];
+    assert_eq!(
+        report::notes(&recorded),
+        Ok(format!(
+            "notes: the first elements behind each count, at most 3 per term and environment, of the page as shipped and of the frontier
+the same in every environment of every variant below, 2 variants in 4 environments, 8 renders:
+     small_targets: {SMALL_ICON}
+shipped stock.stock
+     1366x768 light low_contrast: {PALE_HINT}
+     all 4 environments low_contrast: {PALE_CELL}
+   1 tight.deep
+     only the elements of every variant, above
+"
+        ))
+    );
+}
+
+/// A mode, or a viewport, whose renders measure the same numbers as another one's for every
+/// variant is named, one line each; one that differs in one render is not.
+#[test]
+fn a_mode_or_a_viewport_that_measures_what_another_one_measures_is_named() {
+    let mut recorded = small_record();
+    assert_eq!(report::idle_environments(&recorded), Vec::<String>::new());
+    // The second environment, 1366x768 dark, measured 10 px more than the others.
+    for (_, renders) in &mut recorded.variants {
+        renders[1].primary_px -= 10;
+    }
+    assert_eq!(
+        report::idle_environments(&recorded),
+        [
+            "mode dark: every variant measures the same numbers as in the mode light, at every viewport",
+            "viewport 390x844: every variant measures the same numbers as at 1366x768, in every mode",
+        ]
+    );
+    // One render of one variant differs: the viewport changes a number, the mode none.
+    recorded.variants[3].1[3].overflow = 1;
+    recorded.variants[3].1[2].overflow = 1;
+    assert_eq!(
+        report::idle_environments(&recorded),
+        [
+            "mode dark: every variant measures the same numbers as in the mode light, at every viewport"
+        ]
+    );
+}
+
+/// The renders of a restricted run are no campaign: the report refuses their file.
+#[test]
+fn the_renders_of_a_restricted_run_are_not_reported() {
+    let text = small_record().text().replace(
+        "\"format\": \"ux-search-campaign-measurements/3\"",
+        "\"format\": \"ux-search-campaign-renders/1\"",
+    );
+    let refused = Recorded::parse(&text).expect_err("the renders of a restricted run");
+    assert!(refused.contains("a restricted run"), "{refused}");
+}
+
+/// A restriction to a variant or an environment the declaration does not have is refused with
+/// the ones it has, before a browser starts.
+#[test]
+fn campaign_run_refuses_a_restriction_the_declaration_does_not_have() {
+    let directory = crate::state_dir("campaign-run-restricted");
+    std::fs::create_dir_all(&directory).expect("a scratch directory");
+    let declaration = directory.join("small.campaign.yaml");
+    std::fs::write(&declaration, small_text()).expect("a file");
+    let out = directory.join("measurements.json");
+    let _ = std::fs::remove_file(&out);
+    for (flag, value, known) in [
+        (
+            "--variant",
+            "loose.deep",
+            "tight.stock, tight.deep, stock.stock, stock.deep",
+        ),
+        (
+            "--environment",
+            "1366x768 dim",
+            "1366x768 light, 1366x768 dark, 390x844 light, 390x844 dark",
+        ),
+    ] {
+        let output = ux_search(&[
+            "campaign",
+            "run",
+            "--declaration",
+            path(&declaration),
+            "--url",
+            "http://127.0.0.1:1",
+            "--out",
+            path(&out),
+            flag,
+            value,
+        ]);
+        assert_eq!(output.status.code(), Some(1), "{output:?}");
+        let said = String::from_utf8_lossy(&output.stderr);
+        assert!(said.contains(&format!("{flag} `{value}`")), "{said}");
+        assert!(said.contains(known), "{said}");
+        assert!(!said.contains("chromium"), "{said}");
+        assert!(!out.exists());
+    }
 }
 
 /// A frontier variant's screenshots: every mode at the first viewport, and the last

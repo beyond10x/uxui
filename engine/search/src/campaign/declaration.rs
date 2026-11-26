@@ -1,8 +1,10 @@
-//! The declaration of a campaign, `ux-search-campaign/1`: the page, the environments, the axes
-//! and the terms, read from a file in the YAML subset of `uxui_doc::yaml`.
+//! The declaration of a campaign, `ux-search-campaign/2`: the page, the environments, the axes
+//! and the terms, read from a file in the YAML subset of `uxui_doc::yaml`. A file of
+//! `ux-search-campaign/1` is read as well: the same keys and terms without `rows`, the
+//! `container` of an always-visible item, `rows_in_view` and `primary_bottom_px`.
 //!
 //! ```yaml
-//! format: ux-search-campaign/1
+//! format: ux-search-campaign/2
 //! page:
 //!   path: /orders/list              # the page, under the origin given to `campaign run`
 //!   ready: 'main[data-ready]'       # the page is ready when this selector matches
@@ -34,8 +36,9 @@
 //!       - id: stock                 # no rule: the page as it is
 //! primary: 'button.primary'         # the primary action
 //! regions: 'header, main > section' # what the term `regions` counts
+//! rows: 'tbody tr'                  # what the term `rows_in_view` counts
 //! always_visible:                   # what the term `always_visible_misses` looks for
-//!   - {name: navigation, selector: nav}
+//!   - {name: navigation, selector: 'nav a', container: nav}  # clipped by nav on purpose
 //! small_target_px: 24               # a target under this size is small (default 44)
 //! hard: [primary_in_view, no_h_scroll, named]   # of HARD_RULES
 //! terms: [low_contrast, primary_px] # of TERMS, in ranking order; `hard` is always first
@@ -62,8 +65,17 @@ use uxui_doc::yaml::{self, Value};
 use crate::landing::patch::{self, CssRule};
 use crate::landing::record::digest;
 
-/// The format of a declaration.
-pub const FORMAT: &str = "ux-search-campaign/1";
+/// The format of a declaration: `ux-search-campaign/1` with the key `rows`, the key `container`
+/// of an always-visible item, and the terms `rows_in_view` and `primary_bottom_px`.
+pub const FORMAT: &str = "ux-search-campaign/2";
+
+/// The format before the terms of a list page. It is read still; a file of it that uses a key
+/// or a term of [`FORMAT`] is refused with that name. A format name stands for one set of keys
+/// and terms.
+pub const FORMAT_1: &str = "ux-search-campaign/1";
+
+/// How many of [`TERMS`] the format [`FORMAT_1`] has: the first ones.
+pub const TERMS_OF_FORMAT_1: usize = 7;
 
 /// The hard rules a declaration chooses from. A variant that breaks one of the chosen rules in
 /// one environment stands on no frontier.
@@ -91,8 +103,17 @@ pub const HARD_RULES: [&str; 4] = ["primary_in_view", "no_h_scroll", "contrast",
 /// - `overflow`: visible texts and replaced elements that end to the right of the viewport or
 ///   of the box that clips or scrolls them.
 /// - `always_visible_misses`: the items of `always_visible` that are not fully in the viewport
-///   at the top of the page, or not at its end.
-pub const TERMS: [&str; 7] = [
+///   at the top of the page, or not at its end. An item that names its `container` (a scroll
+///   box around it, or the item itself) is there when the container is fully in view and the
+///   item shows in it: what the container clips of it on purpose is no miss.
+/// - `rows_in_view` (from `ux-search-campaign/2`): the visible rows (the selector `rows`) that
+///   lie fully in view at the top of the page. The one term where more is better: the worst
+///   environment is the one with the fewest, and a variant ranks before another with fewer.
+/// - `primary_bottom_px` (from `ux-search-campaign/2`): the bottom edge of the primary action,
+///   in page px. A smaller action does not move it down, however the action is aligned: an
+///   action centred in a header moves its top edge down when it shrinks, which `primary_px`
+///   ranks worse.
+pub const TERMS: [&str; 9] = [
     "primary_px",
     "small_targets",
     "regions",
@@ -100,23 +121,34 @@ pub const TERMS: [&str; 7] = [
     "low_contrast",
     "overflow",
     "always_visible_misses",
+    "rows_in_view",
+    "primary_bottom_px",
 ];
 
 /// The most variants one campaign measures: a campaign is exhaustive.
 pub const MAX_VARIANTS: usize = 4096;
 
-const TOP_KEYS: [&str; 10] = [
+const TOP_KEYS: [&str; 11] = [
     "format",
     "page",
     "environments",
     "axes",
     "primary",
     "regions",
+    "rows",
     "always_visible",
     "small_target_px",
     "hard",
     "terms",
 ];
+
+/// A refusal of a key or a term of [`FORMAT`] in a file of [`FORMAT_1`].
+fn of_the_next_format(key: &str, what: &str) -> String {
+    at(
+        key,
+        format!("{what} of `{FORMAT}`; the file says `format: {FORMAT_1}`"),
+    )
+}
 
 /// The page a campaign measures.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -231,6 +263,9 @@ pub struct Variant {
 pub struct Item {
     pub name: String,
     pub selector: String,
+    /// The scroll box that clips the item on purpose: the item itself or the nearest element
+    /// around it that this selector matches. `None`: nothing may clip it.
+    pub container: Option<String>,
 }
 
 /// One property an injected sheet sets, to be checked on the page.
@@ -246,6 +281,8 @@ pub struct Check {
 /// A campaign as declared.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Declaration {
+    /// Its format, [`FORMAT`] or [`FORMAT_1`].
+    pub format: &'static str,
     /// The text it was read from.
     pub text: String,
     /// `sha256:<hex>` of that text.
@@ -259,6 +296,8 @@ pub struct Declaration {
     pub primary: String,
     /// The selector of the regions the term `regions` counts.
     pub regions: Option<String>,
+    /// The selector of the rows the term `rows_in_view` counts.
+    pub rows: Option<String>,
     pub always_visible: Vec<Item>,
     pub small_target_px: u64,
     /// The chosen hard rules, of [`HARD_RULES`].
@@ -790,26 +829,37 @@ fn set_once(axes: &[Axis]) -> Result<(), String> {
     Ok(())
 }
 
-fn always_visible(root: &Value) -> Result<Vec<Item>, String> {
+fn always_visible(root: &Value, format: &str) -> Result<Vec<Item>, String> {
     let list = items(root, "", "always_visible")?;
     let mut found: Vec<Item> = Vec::with_capacity(list.len());
     for (index, item) in list.iter().enumerate() {
         let path = format!("always_visible[{index}]");
-        let item = map(item, &path, &["name", "selector"])?;
+        let item = map(item, &path, &["name", "selector", "container"])?;
         let name = required(item, &path, "name", "what the item is called")?;
         if found.iter().any(|item| item.name == name) {
             return Err(twice(&join(&path, "name"), &name, ""));
         }
+        let container = text(item, &path, "container")?;
+        if container.is_some() && format == FORMAT_1 {
+            return Err(of_the_next_format(&join(&path, "container"), "a key"));
+        }
         found.push(Item {
             name,
             selector: required(item, &path, "selector", "the selector of the item")?,
+            container,
         });
     }
     Ok(found)
 }
 
 /// The names of a list, each of the catalogue and named once.
-fn chosen(root: &Value, key: &str, what: &str, catalogue: &[&str]) -> Result<Vec<String>, String> {
+fn chosen(
+    root: &Value,
+    key: &str,
+    what: &str,
+    catalogue: &[&str],
+    format: &str,
+) -> Result<Vec<String>, String> {
     let list = items(root, "", key)?;
     let mut names: Vec<String> = Vec::with_capacity(list.len());
     for (index, item) in list.iter().enumerate() {
@@ -820,6 +870,12 @@ fn chosen(root: &Value, key: &str, what: &str, catalogue: &[&str]) -> Result<Vec
                 &at_key,
                 "`hard` is always the first term and is not named",
             ));
+        }
+        if key == "terms"
+            && format == FORMAT_1
+            && TERMS[TERMS_OF_FORMAT_1..].contains(&name.as_str())
+        {
+            return Err(of_the_next_format(&at_key, &format!("`{name}` is a term")));
         }
         if !catalogue.contains(&name.as_str()) {
             return Err(at(
@@ -847,12 +903,21 @@ impl Declaration {
                 "the declaration is not a map; it starts with `format: {FORMAT}`"
             ));
         }
-        match root.get("format").and_then(Value::scalar_text) {
-            Some(format) if format == FORMAT => {}
-            Some(format) => return Err(at("format", format!("`{format}` is not `{FORMAT}`"))),
+        let format = match root.get("format").and_then(Value::scalar_text) {
+            Some(format) if format == FORMAT => FORMAT,
+            Some(format) if format == FORMAT_1 => FORMAT_1,
+            Some(format) => {
+                return Err(at(
+                    "format",
+                    format!("`{format}` is not `{FORMAT}` or `{FORMAT_1}`"),
+                ));
+            }
             None => return Err(at("format", format!("missing: `{FORMAT}`"))),
-        }
+        };
         map(&root, "", &TOP_KEYS)?;
+        if format == FORMAT_1 && root.get("rows").is_some() {
+            return Err(of_the_next_format("rows", "a key"));
+        }
         let page = page(&root)?;
         let Some(environments) = root.get("environments") else {
             return Err(at(
@@ -880,10 +945,11 @@ impl Declaration {
         let axes = axes(&root, &modes)?;
         let primary = required(&root, "", "primary", "the selector of the primary action")?;
         let regions = text(&root, "", "regions")?;
-        let always_visible = always_visible(&root)?;
+        let rows = text(&root, "", "rows")?;
+        let always_visible = always_visible(&root, format)?;
         let small_target_px = number(&root, "", "small_target_px", (1, 1000))?.unwrap_or(44);
-        let hard = chosen(&root, "hard", "hard rule", &HARD_RULES)?;
-        let terms = chosen(&root, "terms", "term", &TERMS)?;
+        let hard = chosen(&root, "hard", "hard rule", &HARD_RULES, format)?;
+        let terms = chosen(&root, "terms", "term", &TERMS, format)?;
         if terms.is_empty() {
             return Err(at(
                 "terms",
@@ -901,6 +967,7 @@ impl Declaration {
                 "always_visible_misses" if always_visible.is_empty() => {
                     "`always_visible`: the items it looks for"
                 }
+                "rows_in_view" if rows.is_none() => "`rows`: the selector of the rows it counts",
                 _ => continue,
             };
             return Err(at(
@@ -909,6 +976,7 @@ impl Declaration {
             ));
         }
         let declaration = Declaration {
+            format,
             digest: digest(source.as_bytes()),
             text: source.to_owned(),
             page,
@@ -917,6 +985,7 @@ impl Declaration {
             axes,
             primary,
             regions,
+            rows,
             always_visible,
             small_target_px,
             hard,

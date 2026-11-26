@@ -16,7 +16,7 @@
 use std::collections::BTreeSet;
 
 use super::declaration::{Declaration, Environment, Variant};
-use super::record::{Recorded, Render};
+use super::record::{COLUMNS, Note, Recorded, Render, Renders};
 use super::run;
 use crate::rank::{self, Scored};
 
@@ -43,8 +43,13 @@ fn broken(declaration: &Declaration, render: &Render) -> u64 {
         .sum()
 }
 
+/// What a term where more is better is held as: this less the count, so that lower is better
+/// for every term, and the worst environment is the one with the fewest. The report prints the
+/// count.
+const MORE_IS_BETTER: u64 = u64::MAX;
+
 /// One term of one render. The share of small text is in thousandths, rounded down; a render
-/// without text has none.
+/// without text has none. `rows_in_view` is held as [`MORE_IS_BETTER`] less the count.
 fn term(name: &str, render: &Render) -> u64 {
     match name {
         "primary_px" => render.primary_px,
@@ -55,6 +60,8 @@ fn term(name: &str, render: &Render) -> u64 {
         "low_contrast" => render.low_contrast,
         "overflow" => render.overflow,
         "always_visible_misses" => render.always_visible_misses,
+        "rows_in_view" => MORE_IS_BETTER - render.rows_in_view,
+        "primary_bottom_px" => render.primary_bottom_px,
         _ => 0,
     }
 }
@@ -83,6 +90,7 @@ pub fn terms_text(declaration: &Declaration, terms: &[u64]) -> String {
         .zip(terms)
         .map(|(name, value)| match *name {
             "text_under_14" => format!("{name}={}.{:03}", value / 1000, value % 1000),
+            "rows_in_view" => format!("{name}={}", MORE_IS_BETTER - value),
             _ => format!("{name}={value}"),
         })
         .collect::<Vec<_>>()
@@ -247,8 +255,13 @@ pub fn report(recorded: &Recorded) -> Result<String, String> {
         }
     ));
     out.push_str(&format!(
-        "# terms, lexicographic, lower is better: {}; hard summed over the environments, each \
+        "# terms, lexicographic, lower is better{}: {}; hard summed over the environments, each \
          other term the worst of them; ties by variant id\n",
+        if declaration.terms.iter().any(|term| term == "rows_in_view") {
+            " (rows_in_view: more is better, the worst is the fewest)"
+        } else {
+            ""
+        },
         term_names(declaration).join(" ")
     ));
     out.push_str(
@@ -291,18 +304,57 @@ pub fn report(recorded: &Recorded) -> Result<String, String> {
     Ok(out)
 }
 
-/// The lines of one variant's notes: one per element, `<environment> <term>: <element>`.
-fn note_lines(recorded: &Recorded, read: &Read, index: usize, out: &mut String) {
+/// One variant's notes as (term, element) with the environments it is named in, in the order
+/// each is first named.
+fn named_in(notes: &[Note]) -> Vec<((&str, &str), Vec<usize>)> {
+    let mut named: Vec<((&str, &str), Vec<usize>)> = Vec::new();
+    for note in notes {
+        for element in &note.elements {
+            let key = (note.term.as_str(), element.as_str());
+            match named.iter_mut().find(|(known, _)| *known == key) {
+                Some((_, environments)) => environments.push(note.environment),
+                None => named.push((key, vec![note.environment])),
+            }
+        }
+    }
+    named
+}
+
+/// The lines of one variant's notes: one per element, `<environments> <term>: <element>`, where
+/// `<environments>` names each environment it is named in, or says `all <n> environments`. An
+/// element of `common` is left out: it is printed once for every variant.
+fn note_lines(
+    recorded: &Recorded,
+    read: &Read,
+    index: usize,
+    common: &[(&str, &str)],
+    out: &mut String,
+) {
     let notes = recorded
         .notes
         .get(index)
         .map(Vec::as_slice)
         .unwrap_or_default();
-    for note in notes {
-        let environment = read.environments[note.environment].name();
-        for element in &note.elements {
-            out.push_str(&format!("     {environment} {}: {element}\n", note.term));
+    let named = named_in(notes);
+    let mut printed = 0;
+    for ((term, element), environments) in &named {
+        if common.contains(&(*term, *element)) {
+            continue;
         }
+        printed += 1;
+        let at = if environments.len() == read.environments.len() && environments.len() > 1 {
+            format!("all {} environments", environments.len())
+        } else {
+            environments
+                .iter()
+                .map(|&at| read.environments[at].name())
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        out.push_str(&format!("     {at} {term}: {element}\n"));
+    }
+    if printed == 0 && !named.is_empty() {
+        out.push_str("     only the elements of every variant, above\n");
     }
     if notes.is_empty() {
         let counted = recorded.variants[index].1.iter().any(|render| {
@@ -323,8 +375,12 @@ fn note_lines(recorded: &Recorded, read: &Read, index: usize, out: &mut String) 
 
 /// What `--notes` adds after the report: for the page as shipped and for each frontier
 /// variant, the first elements behind `low_contrast`, `overflow`, `small_targets` and
-/// `always_visible_misses`, per environment, as the run recorded them. A count says how many;
-/// these lines say which, so a reader can look at the element before taking the number.
+/// `always_visible_misses`, as the run recorded them. A count says how many; these lines say
+/// which, so a reader can look at the element before taking the number.
+///
+/// An element is printed once where it is the same: once before the variants when every
+/// variant printed names it in every environment (with more than one variant), else once per
+/// variant with the environments it is named in.
 pub fn notes(recorded: &Recorded) -> Result<String, String> {
     let read = read(recorded)?;
     let shipped = recorded.declaration.shipped();
@@ -338,8 +394,48 @@ pub fn notes(recorded: &Recorded) -> Result<String, String> {
          the page as shipped and of the frontier\n",
         super::record::NOTE_ELEMENTS
     );
+    let mut printed = vec![at];
+    printed.extend(read.ranked.frontier.iter().filter(|&&index| index != at));
+    let everywhere = |index: usize| -> Vec<(&str, &str)> {
+        let notes = recorded
+            .notes
+            .get(index)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        named_in(notes)
+            .into_iter()
+            .filter(|(_, environments)| {
+                (0..read.environments.len()).all(|at| environments.contains(&at))
+            })
+            .map(|(key, _)| key)
+            .collect()
+    };
+    let common: Vec<(&str, &str)> = if printed.len() > 1 {
+        let others: Vec<Vec<(&str, &str)>> = printed[1..]
+            .iter()
+            .map(|&index| everywhere(index))
+            .collect();
+        everywhere(at)
+            .into_iter()
+            .filter(|key| others.iter().all(|other| other.contains(key)))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    if !common.is_empty() {
+        out.push_str(&format!(
+            "the same in every environment of every variant below, {} variants in {} \
+             environments, {} renders:\n",
+            printed.len(),
+            read.environments.len(),
+            printed.len() * read.environments.len()
+        ));
+        for (term, element) in &common {
+            out.push_str(&format!("     {term}: {element}\n"));
+        }
+    }
     out.push_str(&format!("shipped {}\n", shipped.id));
-    note_lines(recorded, &read, at, &mut out);
+    note_lines(recorded, &read, at, &common, &mut out);
     for &index in &read.ranked.frontier {
         out.push_str(&format!(
             "{:>4} {}\n",
@@ -349,10 +445,89 @@ pub fn notes(recorded: &Recorded) -> Result<String, String> {
         if index == at {
             out.push_str("     the page as shipped, above\n");
         } else {
-            note_lines(recorded, &read, index, &mut out);
+            note_lines(recorded, &read, index, &common, &mut out);
         }
     }
     Ok(out)
+}
+
+/// The modes and the viewports whose renders measure the same numbers as another one's for
+/// every variant, one line each: a mode that measures in every viewport what an earlier mode
+/// measures there, a viewport that measures in every mode what an earlier viewport measures.
+/// Such an environment costs its renders and changes no term.
+pub fn idle_environments(recorded: &Recorded) -> Vec<String> {
+    let declaration = &recorded.declaration;
+    let (viewports, modes) = (declaration.viewports.len(), declaration.modes.len());
+    // The environments are each viewport in each mode: the mode changes fastest.
+    let same = |a: usize, b: usize| {
+        recorded
+            .variants
+            .iter()
+            .all(|(_, renders)| renders.get(a) == renders.get(b))
+    };
+    let mut lines = Vec::new();
+    for mode in 1..modes {
+        if let Some(earlier) = (0..mode)
+            .find(|&earlier| (0..viewports).all(|v| same(v * modes + mode, v * modes + earlier)))
+        {
+            lines.push(format!(
+                "mode {}: every variant measures the same numbers as in the mode {}, at every \
+                 viewport",
+                declaration.modes[mode].name, declaration.modes[earlier].name
+            ));
+        }
+    }
+    let size = |at: usize| {
+        let (width, height) = declaration.viewports[at];
+        format!("{width}x{height}")
+    };
+    for viewport in 1..viewports {
+        if let Some(earlier) = (0..viewport)
+            .find(|&earlier| (0..modes).all(|m| same(viewport * modes + m, earlier * modes + m)))
+        {
+            lines.push(format!(
+                "viewport {}: every variant measures the same numbers as at {}, in every mode",
+                size(viewport),
+                size(earlier)
+            ));
+        }
+    }
+    lines
+}
+
+/// The renders of a restricted run as the run prints them: per render one line of its numbers
+/// by column, `<variant> <environment>: <column>=<number> ...`, then its notes, one line per
+/// element.
+pub fn renders(renders: &Renders) -> String {
+    let environments = renders.declaration.environments();
+    let mut out = format!(
+        "# ux-search campaign: a restricted run on the page {} (variant {}, environment {}): \
+         {} renders, not ranked\n",
+        renders.declaration.page.path,
+        renders.variant.as_deref().unwrap_or("every one"),
+        renders.environment.as_deref().unwrap_or("every one"),
+        renders.variants.len() * renders.environments.len()
+    );
+    for ((id, measured), notes) in renders.variants.iter().zip(&renders.notes) {
+        for (&environment, render) in renders.environments.iter().zip(measured) {
+            let numbers: Vec<String> = COLUMNS
+                .iter()
+                .zip(render.row())
+                .map(|(column, number)| format!("{column}={number}"))
+                .collect();
+            out.push_str(&format!(
+                "{id} {}: {}\n",
+                environments[environment].name(),
+                numbers.join(" ")
+            ));
+            for note in notes.iter().filter(|note| note.environment == environment) {
+                for element in &note.elements {
+                    out.push_str(&format!("     {}: {element}\n", note.term));
+                }
+            }
+        }
+    }
+    out
 }
 
 /// The run and the frontier as two Markdown tables, for a document that keeps the campaign's

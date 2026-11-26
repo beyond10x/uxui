@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T19:30:15Z",
+  "actor": "human:operator",
+  "artifact": "story:campaign-terms-for-list-pages",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "engine/search tests 179 passed with the browser lane (cargo test -- --include-ignored, 12.9 s for the binary). On the fixture list page engine/search/tests/fixtures/campaign/live/site/rows.html with rows.campaign.yaml (a spacing axis over the rows, an axis that only shrinks the create action), each acceptance line held by a test that failed on the tree before the change (run there: 3 failed, the declaration refused): rows_in_view over the declared selector rows, tight 16 against stock 13, tight ranks before stock (campaign_live::the_tighter_rows_have_more_rows_in_view_and_rank_before_the_looser_ones, campaign::rows_in_view_is_a_term_where_more_is_better); primary_bottom_px, stock.short 48 against the page as shipped 52, where primary_px ranks it worse at 16 against 12 (campaign_live::a_smaller_primary_action_does_not_rank_worse_on_its_bottom_edge); an always_visible item with its scroll container counts no miss, the same element without it one (campaign_live::an_element_clipped_only_by_its_named_scroll_container_is_no_miss). Format: the declaration gains keys as ux-search-campaign/2 (/1 still read; a /1 file with a /2 key or term refused), the measurements gain two columns as ux-search-campaign-measurements/3 (/2 read and written again byte for byte: the studio record)",
+    "reference": "engine/search/tests/campaign_live.rs"
+  }
+}

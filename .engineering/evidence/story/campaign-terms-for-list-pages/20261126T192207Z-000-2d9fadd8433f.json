@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-26T19:22:07Z",
+  "actor": "human:operator",
+  "artifact": "story:campaign-terms-for-list-pages",
+  "kind": "story",
+  "revision": 2,
+  "change": {
+    "change": "evidence",
+    "kind": "approval",
+    "source": "the owner's decision D20 of 2026-11-26, taken on its default A: story:campaign-run-follow-ups and story:campaign-terms-for-list-pages go into the next wave, in series in one unit"
+  }
+}

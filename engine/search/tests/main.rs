@@ -12,7 +12,8 @@
 //! campaign: `small.campaign.yaml` uses every key of a declaration, and `studio/` is the campaign
 //! over the frontier page of the generated studio app, its declaration, its recorded measurements
 //! and the report over them (`docs/campaign-2026-11-26-studio-engine.md`), and `live/` is a page
-//! of this repository's own with the campaign the browser lane runs on it.
+//! of this repository's own with the campaign the browser lane runs on it, and a list page with
+//! rows and its campaign (`rows.campaign.yaml`, `ux-search-campaign/2`).
 //!
 //! Budget: no test runs longer than 60 s; a climb over the fixture is 18 variants, each checked,
 //! opened once and drawn four times; the studio climb is 120 such variants, run once. The module
@@ -20,7 +21,7 @@
 //! module `campaign`: `tools/studio-campaign.sh` records, the tests read.
 //!
 //! The browser lane is the module `campaign_live`: it runs `ux-search campaign run` in Chromium
-//! on `fixtures/campaign/live/`, five campaigns for all of its tests. Each of its tests is
+//! on `fixtures/campaign/live/`, eleven campaigns for all of its tests. Each of its tests is
 //! ignored, so a plain `cargo test` and the gate, which has no browser, start none; the lane is
 //! `UXUI_CHROME=<chrome> cargo test --locked --manifest-path engine/search/Cargo.toml -- --ignored campaign_live`.
 

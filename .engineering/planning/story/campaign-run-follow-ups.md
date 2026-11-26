@@ -2,13 +2,30 @@
 format: aep.planning-md/3
 id: story:campaign-run-follow-ups
 kind: story
-status: draft
+status: implemented
 title: 'Campaign run: refuse early, fold the notes, name an idle environment'
 summary: what the second run on a page outside this repository left open in ux-search campaign
 relations:
 - decomposes: epic:targets
 - depends_on: story:trial-target
-revision: 2
+scope:
+- confidence: cited
+  path: CHANGELOG.md
+- confidence: cited
+  path: docs/targets.md
+- confidence: cited
+  path: engine/search/src/campaign
+- confidence: cited
+  path: engine/search/src/main.rs
+- confidence: cited
+  path: engine/search/src/probes/campaign.js
+- confidence: cited
+  path: engine/search/tests
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T19:11:01Z", actor: "human:operator", revision: 3, decided_on: {"recorded":{"approval":1}}}
+- {from: "proposed", to: "active", at: "2026-11-26T19:11:01Z", actor: "human:operator", revision: 4, decided_on: {"recorded":{"approval":1}}}
+- {from: "active", to: "implemented", at: "2026-11-26T19:21:53Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1,"approval":1}}}
 ---
 # Story: Campaign run: refuse early, fold the notes, name an idle environment
 

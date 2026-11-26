@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A list page with rows</title>
+<!--
+  The list page the browser lane measures the terms of a list page on (tests/campaign_live.rs,
+  fixtures/campaign/live/rows.campaign.yaml). Every size a test reads is set in px here.
+
+  - aside.side is the navigation column: sticky at the top, as high as the viewport, and it
+    scrolls its own content. nav.side-nav in it holds 30 links of 40 px, taller than any
+    viewport: the aside clips it on purpose.
+  - header.head is 64 px high and centres the create action in it. `--control-h` is the
+    action's height, 40 px as shipped: a smaller action moves its top edge down and its bottom
+    edge up.
+  - The table holds 40 rows. `--row-pad` is the padding above and below the 24 px line of each
+    cell, 8 px as shipped: a row is 40 px high, or 32 px with 4 px.
+-->
+<style>
+  :root { --row-pad: 8px; --control-h: 40px; }
+  * { box-sizing: border-box; }
+  html { background: #ffffff; color: #1a1a1a; }
+  body { margin: 0; font: 16px/24px sans-serif; display: flex; }
+  aside.side { position: sticky; top: 0; align-self: flex-start; flex: none; width: 160px; height: 100vh; overflow: auto; background: #eeeef4; }
+  nav.side-nav a { display: block; height: 40px; padding: 8px; color: #1a1a1a; }
+  main { flex: 1; min-width: 0; }
+  header.head { display: flex; align-items: center; height: 64px; padding: 0 16px; }
+  header.head h1 { flex: 1; margin: 0; font-size: 24px; line-height: 32px; }
+  button.create { width: 120px; height: var(--control-h); margin: 0; padding: 0; border: 1px solid #1a1a1a; background: #ffffff; color: #1a1a1a; font: inherit; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: var(--row-pad) 8px; line-height: 24px; }
+</style>
+</head>
+<body>
+<aside class="side"><nav class="side-nav" aria-label="Sections"></nav></aside>
+<main>
+  <header class="head"><h1>Orders</h1><button class="create" type="button">New order</button></header>
+  <table><tbody></tbody></table>
+</main>
+<script>
+  (() => {
+    const nav = document.querySelector('nav.side-nav');
+    for (let i = 1; i <= 30; i++) {
+      const link = document.createElement('a');
+      link.href = '/rows';
+      link.textContent = `Section ${i}`;
+      nav.append(link);
+    }
+    const body = document.querySelector('tbody');
+    for (let i = 1; i <= 40; i++) {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td>Order ${i}</td><td>open</td>`;
+      body.append(row);
+    }
+    document.querySelector('main').setAttribute('data-ready', '');
+  })();
+</script>
+</body>
+</html>

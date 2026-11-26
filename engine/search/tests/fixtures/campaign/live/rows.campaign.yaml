@@ -1,0 +1,36 @@
+# The campaign the browser lane runs on the fixture list page site/rows.html (tests/campaign_live.rs):
+# a spacing axis over the rows, an axis that only shrinks the create action, and the navigation
+# twice, once with the scroll container that clips it and once without.
+format: ux-search-campaign/2
+page:
+  path: /rows
+  ready: 'main[data-ready]'
+environments:
+  viewports: [800x600]
+  modes:
+    - {name: light, media: light}
+axes:
+  # The padding of a row's cells: 32 px rows or 40 px rows.
+  - name: spacing
+    shipped: stock
+    values:
+      - id: tight
+        rules:
+          - {selector: ':root', set: {--row-pad: 4px}}
+      - id: stock
+  # The height of the create action, centred in the header.
+  - name: control
+    shipped: tall
+    values:
+      - id: tall
+      - id: short
+        rules:
+          - {selector: ':root', set: {--control-h: 32px}}
+primary: 'button.create'
+rows: 'tbody tr'
+always_visible:
+  - {name: navigation, selector: 'nav.side-nav', container: 'aside.side'}
+  - {name: navigation unclipped, selector: 'nav.side-nav'}
+small_target_px: 24
+hard: [primary_in_view, no_h_scroll, named]
+terms: [rows_in_view, primary_bottom_px, always_visible_misses]

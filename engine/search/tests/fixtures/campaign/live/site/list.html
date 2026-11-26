@@ -19,6 +19,10 @@
   - `--space` is the padding of main; nothing reads `--nothing-reads-this`. `--dot` is read by
     one rule, the background of the dot before the heading, which is a generated box
     (`h1::before`): no element's box or colour depends on it.
+  - input.filter takes the focus when the page loads, so its caret blinks while the page is
+    measured and shot.
+  - `?flip` is a page that changes the mode's attribute after it was ready: it writes
+    `data-theme` `light` on the root element when a style sheet is added to its head.
 -->
 <style>
   :root { --space: 16px; --nothing-reads-this: 0; --dot: #888888; }
@@ -39,6 +43,7 @@
   p { margin: 0; }
   p.pale { color: #aaaaaa; background: #ffffff; }
   span.icon { color: rgba(0, 0, 0, 0); }
+  input.filter { display: block; width: 200px; height: 24px; margin: 0; padding: 0 4px; border: 1px solid #1a1a1a; background: #ffffff; color: #1a1a1a; font: 16px/22px sans-serif; }
   a.tiny { display: inline-block; width: 10px; height: 10px; overflow: hidden; color: inherit; }
   div.frame { width: 100px; overflow: hidden; }
   button.wide { width: 150px; height: 30px; }
@@ -50,6 +55,7 @@
 <main>
   <button class="primary" type="button">New order</button>
   <h1>Orders</h1>
+  <input class="filter" type="text" aria-label="Filter" autofocus>
   <p class="pale">Pale note</p>
   <p><span class="icon">x</span><span>Starred</span></p>
   <p><a class="tiny" href="/list">i</a></p>
@@ -62,9 +68,16 @@
     const rail = document.querySelector('nav.rail');
     rail.addEventListener('pointerenter', () => rail.classList.add('open'));
     rail.addEventListener('pointerleave', () => rail.classList.remove('open'));
-    if (new URLSearchParams(location.search).get('theme') === 'dark') {
+    const query = new URLSearchParams(location.search);
+    if (query.get('theme') === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark');
       document.body.classList.add('is-dark');
+    }
+    if (query.has('flip')) {
+      new MutationObserver((changes) => {
+        if (changes.some((change) => [...change.addedNodes].some((node) => node.nodeName === 'STYLE')))
+          document.documentElement.setAttribute('data-theme', 'light');
+      }).observe(document.head, { childList: true });
     }
     document.querySelector('main').setAttribute('data-ready', '');
   })();

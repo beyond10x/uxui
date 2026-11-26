@@ -1,5 +1,7 @@
 //! What a declared campaign records: the measurements file
-//! `ux-search-campaign-measurements/2`, one line of numbers per variant and environment.
+//! `ux-search-campaign-measurements/3`, one line of numbers per variant and environment. A file
+//! of `/2`, before the columns `rows_in_view` and `primary_bottom_px`, is read and written again
+//! in its own format.
 //!
 //! The file holds the declaration it was measured for, as its text and that text's digest, so
 //! a report needs no other file; and the digest of everything else it holds, so a file whose
@@ -11,16 +13,28 @@
 //! (`axes`), and, for the page as shipped and for the frontier, the first elements behind each
 //! count (`notes` of a variant).
 
-use super::declaration::{Declaration, Environment};
+use super::declaration::{Declaration, Environment, FORMAT_1};
 use crate::landing::patch::{self, Value};
 
 pub use crate::landing::record::digest;
 
 /// The format of the measurements file.
-pub const FORMAT: &str = "ux-search-campaign-measurements/2";
+pub const FORMAT: &str = "ux-search-campaign-measurements/3";
+
+/// The format before the terms of a list page: the columns without `rows_in_view` and
+/// `primary_bottom_px`. A file of it is read, and written again in its own format; its
+/// declaration is of `ux-search-campaign/1`, which names neither term.
+pub const FORMAT_BEFORE_THE_ROWS: &str = "ux-search-campaign-measurements/2";
+
+/// How many of [`COLUMNS`] a file of [`FORMAT_BEFORE_THE_ROWS`] holds: the first ones.
+pub const COLUMNS_BEFORE_THE_ROWS: usize = 11;
 
 /// The format before the pointer was parked: a file of it is refused, with the reason.
 const FORMAT_BEFORE_THE_POINTER: &str = "ux-search-campaign-measurements/1";
+
+/// The file of a run restricted to one variant or one environment (`campaign run --variant`,
+/// `--environment`): its renders, which are no campaign. The report refuses it.
+pub const RENDERS_FORMAT: &str = "ux-search-campaign-renders/1";
 
 /// The counts whose first elements a run names, in the order a variant's notes are written in.
 pub const NOTED: [&str; 4] = [
@@ -74,10 +88,14 @@ pub struct Render {
     /// The items of `always_visible` not fully in the viewport at the top of the page, or not
     /// at its end.
     pub always_visible_misses: u64,
+    /// The visible rows that lie fully in view at the top of the page.
+    pub rows_in_view: u64,
+    /// The bottom edge of the primary action, in page px.
+    pub primary_bottom_px: u64,
 }
 
 /// The names of a render's numbers, in the order the measurements file writes them.
-pub const COLUMNS: [&str; 11] = [
+pub const COLUMNS: [&str; 13] = [
     "primary_in_view",
     "h_scroll",
     "unnamed",
@@ -89,11 +107,13 @@ pub const COLUMNS: [&str; 11] = [
     "low_contrast",
     "overflow",
     "always_visible_misses",
+    "rows_in_view",
+    "primary_bottom_px",
 ];
 
 impl Render {
     /// The render's numbers in the order of [`COLUMNS`].
-    pub fn row(&self) -> [u64; 11] {
+    pub fn row(&self) -> [u64; 13] {
         [
             u64::from(self.primary_in_view),
             u64::from(self.h_scroll),
@@ -106,13 +126,20 @@ impl Render {
             self.low_contrast,
             self.overflow,
             self.always_visible_misses,
+            self.rows_in_view,
+            self.primary_bottom_px,
         ]
     }
 
-    fn from_row(row: &[u64]) -> Result<Render, String> {
-        let row: &[u64; 11] = row
-            .try_into()
-            .map_err(|_| format!("a render has {} numbers, not {}", row.len(), COLUMNS.len()))?;
+    /// A render from its numbers in the order of the first `columns` of [`COLUMNS`]; a column
+    /// the file does not hold is 0.
+    fn from_row(row: &[u64], columns: usize) -> Result<Render, String> {
+        if row.len() != columns {
+            return Err(format!("a render has {} numbers, not {columns}", row.len()));
+        }
+        let mut all = [0; 13];
+        all[..columns].copy_from_slice(row);
+        let row = all;
         let flag = |at: usize| match row[at] {
             0 => Ok(false),
             1 => Ok(true),
@@ -130,6 +157,8 @@ impl Render {
             low_contrast: row[8],
             overflow: row[9],
             always_visible_misses: row[10],
+            rows_in_view: row[11],
+            primary_bottom_px: row[12],
         })
     }
 }
@@ -137,6 +166,9 @@ impl Render {
 /// A recorded campaign.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Recorded {
+    /// The format of its file: [`FORMAT`], or [`FORMAT_BEFORE_THE_ROWS`] for a file of it that
+    /// was read, which is written again in that format.
+    pub format: &'static str,
     /// The adapter and its version, `ux-browser 0.10.0`.
     pub adapter: String,
     /// The browser's product, `HeadlessChrome/149.0.7827.55`.
@@ -195,8 +227,12 @@ fn environment_names(declaration: &Declaration) -> Vec<String> {
         .collect()
 }
 
-fn column_names() -> Vec<String> {
-    COLUMNS.iter().map(|&column| column.to_owned()).collect()
+/// The names of the first `columns` of [`COLUMNS`].
+fn column_names(columns: usize) -> Vec<String> {
+    COLUMNS[..columns]
+        .iter()
+        .map(|&column| column.to_owned())
+        .collect()
 }
 
 /// Where the pointer rested in each environment, as the file writes it: `[[x,y],[x,y]]`.
@@ -249,6 +285,17 @@ impl Recorded {
     /// each with one render per environment; one number per axis, at most the values the axis
     /// has beside the shipped one; and notes only of counts a render has.
     pub fn check(&self) -> Result<(), String> {
+        if self.format != FORMAT && self.format != FORMAT_BEFORE_THE_ROWS {
+            return Err(format!("the record is of the format `{}`", self.format));
+        }
+        if self.format == FORMAT_BEFORE_THE_ROWS && self.declaration.format != FORMAT_1 {
+            return Err(format!(
+                "a record of `{FORMAT_BEFORE_THE_ROWS}` holds no `rows_in_view` and no \
+                 `primary_bottom_px`, and its declaration is of `{}`; record the campaign again \
+                 for `{FORMAT}`",
+                self.declaration.format
+            ));
+        }
         self.check_variants()?;
         let axes = &self.declaration.axes;
         if self.changing.len() != axes.len() {
@@ -355,9 +402,22 @@ impl Recorded {
                  campaign again for `{FORMAT}`"
             ));
         }
-        if format != FORMAT {
-            return Err(format!("`format` is not `{FORMAT}`"));
+        if format == RENDERS_FORMAT {
+            return Err(format!(
+                "`format` is `{RENDERS_FORMAT}`: the renders of a restricted run (`--variant`, \
+                 `--environment`), not a campaign; the report ranks the measurements of a whole \
+                 one, `{FORMAT}`"
+            ));
         }
+        let columns = if format == FORMAT {
+            COLUMNS.len()
+        } else if format == FORMAT_BEFORE_THE_ROWS {
+            COLUMNS_BEFORE_THE_ROWS
+        } else {
+            return Err(format!(
+                "`format` is not `{FORMAT}` or `{FORMAT_BEFORE_THE_ROWS}`"
+            ));
+        };
         let declared = |key: &str| {
             value
                 .get("declaration")
@@ -376,7 +436,7 @@ impl Recorded {
             .map_err(|why| format!("`declaration.text` is no declaration: {why}"))?;
         for (key, expected) in [
             ("environments", environment_names(&declaration)),
-            ("columns", column_names()),
+            ("columns", column_names(columns)),
         ] {
             if names(&value, key)? != expected {
                 return Err(format!("`{key}` is not {}", list(&expected)));
@@ -437,12 +497,19 @@ impl Recorded {
                         )),
                     })
                     .collect::<Result<_, _>>()?;
-                renders.push(Render::from_row(&numbers).map_err(|why| format!("{id}: {why}"))?);
+                renders.push(
+                    Render::from_row(&numbers, columns).map_err(|why| format!("{id}: {why}"))?,
+                );
             }
             variants.push((id.to_owned(), renders));
             notes.push(notes_of(item, id)?);
         }
         let recorded = Recorded {
+            format: if columns == COLUMNS.len() {
+                FORMAT
+            } else {
+                FORMAT_BEFORE_THE_ROWS
+            },
             adapter: field("adapter")?,
             browser: field("browser")?,
             declaration,
@@ -463,28 +530,6 @@ impl Recorded {
 
     /// The file without its last member, the digest: what the digest is taken of.
     fn body(&self) -> String {
-        let mut out = String::from("{\n");
-        for (key, value) in [
-            ("format", FORMAT),
-            ("adapter", self.adapter.as_str()),
-            ("browser", self.browser.as_str()),
-        ] {
-            out.push_str(&format!("  {}: {},\n", quoted(key), quoted(value)));
-        }
-        out.push_str(&format!(
-            "  \"declaration\": {{\"digest\": {}, \"text\": {}}},\n",
-            quoted(&self.declaration.digest),
-            quoted(&self.declaration.text)
-        ));
-        out.push_str(&format!(
-            "  \"environments\": {},\n",
-            list(&environment_names(&self.declaration))
-        ));
-        out.push_str(&format!(
-            "  \"pointer\": {},\n",
-            pointers(&self.declaration)
-        ));
-        out.push_str(&format!("  \"columns\": {},\n", list(&column_names())));
         let axes: Vec<String> = self
             .declaration
             .axes
@@ -497,37 +542,30 @@ impl Recorded {
                 )
             })
             .collect();
-        out.push_str(&format!("  \"axes\": [{}],\n", axes.join(", ")));
-        out.push_str("  \"variants\": [\n");
-        for (at, (id, renders)) in self.variants.iter().enumerate() {
-            out.push_str(&format!("    {{\"id\": {}, \"renders\": [\n", quoted(id)));
-            for (row, render) in renders.iter().enumerate() {
-                let numbers: Vec<String> = render.row().iter().map(u64::to_string).collect();
-                let comma = if row + 1 < renders.len() { "," } else { "" };
-                out.push_str(&format!("      [{}]{comma}\n", numbers.join(",")));
-            }
-            let notes = self.notes.get(at).map(Vec::as_slice).unwrap_or_default();
-            if !notes.is_empty() {
-                out.push_str("    ], \"notes\": [\n");
-                for (row, note) in notes.iter().enumerate() {
-                    let comma = if row + 1 < notes.len() { "," } else { "" };
-                    out.push_str(&format!(
-                        "      {{\"environment\": {}, \"term\": {}, \"elements\": {}}}{comma}\n",
-                        note.environment,
-                        quoted(&note.term),
-                        list(&note.elements)
-                    ));
-                }
-            }
-            let comma = if at + 1 < self.variants.len() {
-                ","
-            } else {
-                ""
-            };
-            out.push_str(&format!("    ]}}{comma}\n"));
+        let environments: Vec<usize> = (0..self.declaration.environments().len()).collect();
+        body_of(
+            &Head {
+                format: self.format,
+                columns: self.columns(),
+                adapter: &self.adapter,
+                browser: &self.browser,
+                declaration: &self.declaration,
+                environments: &environments,
+                between: format!("  \"axes\": [{}],\n", axes.join(", ")),
+            },
+            &self.variants,
+            &self.notes,
+        )
+    }
+
+    /// How many of [`COLUMNS`] a render of its file holds: every one, or the first
+    /// [`COLUMNS_BEFORE_THE_ROWS`] in a file of [`FORMAT_BEFORE_THE_ROWS`].
+    pub fn columns(&self) -> usize {
+        if self.format == FORMAT_BEFORE_THE_ROWS {
+            COLUMNS_BEFORE_THE_ROWS
+        } else {
+            COLUMNS.len()
         }
-        out.push_str("  ],\n");
-        out
     }
 
     /// `sha256:<hex>` of the file's content before its `digest` member.
@@ -538,10 +576,138 @@ impl Recorded {
     /// The measurements file: one line per render, the numbers in the order of [`COLUMNS`],
     /// and the digest of all of it as the last member. The same record gives the same bytes.
     pub fn text(&self) -> String {
-        format!(
-            "{}  \"digest\": {}\n}}\n",
-            self.body(),
-            quoted(&self.digest())
-        )
+        with_digest(self.body())
+    }
+}
+
+/// What a file of renders holds before its variants.
+struct Head<'a> {
+    format: &'a str,
+    /// How many of [`COLUMNS`] each render writes: the first ones.
+    columns: usize,
+    adapter: &'a str,
+    browser: &'a str,
+    declaration: &'a Declaration,
+    /// The environments measured, as indices of [`Declaration::environments`].
+    environments: &'a [usize],
+    /// The members between the columns and the variants, each a line of its own.
+    between: String,
+}
+
+/// A file of renders without its digest: the head, then one line per render and the notes of
+/// each variant.
+fn body_of(head: &Head, variants: &[(String, Vec<Render>)], notes: &[Vec<Note>]) -> String {
+    let all = head.declaration.environments();
+    let environments: Vec<&Environment> = head.environments.iter().map(|&at| &all[at]).collect();
+    let mut out = String::from("{\n");
+    for (key, value) in [
+        ("format", head.format),
+        ("adapter", head.adapter),
+        ("browser", head.browser),
+    ] {
+        out.push_str(&format!("  {}: {},\n", quoted(key), quoted(value)));
+    }
+    out.push_str(&format!(
+        "  \"declaration\": {{\"digest\": {}, \"text\": {}}},\n",
+        quoted(&head.declaration.digest),
+        quoted(&head.declaration.text)
+    ));
+    let names: Vec<String> = environments
+        .iter()
+        .map(|environment| environment.name())
+        .collect();
+    out.push_str(&format!("  \"environments\": {},\n", list(&names)));
+    let pointer: Vec<String> = environments
+        .iter()
+        .map(|environment| {
+            let (x, y) = head.declaration.pointer(environment);
+            format!("[{x},{y}]")
+        })
+        .collect();
+    out.push_str(&format!("  \"pointer\": [{}],\n", pointer.join(",")));
+    out.push_str(&format!(
+        "  \"columns\": {},\n",
+        list(&column_names(head.columns))
+    ));
+    out.push_str(&head.between);
+    out.push_str("  \"variants\": [\n");
+    for (at, (id, renders)) in variants.iter().enumerate() {
+        out.push_str(&format!("    {{\"id\": {}, \"renders\": [\n", quoted(id)));
+        for (row, render) in renders.iter().enumerate() {
+            let numbers: Vec<String> = render.row()[..head.columns]
+                .iter()
+                .map(u64::to_string)
+                .collect();
+            let comma = if row + 1 < renders.len() { "," } else { "" };
+            out.push_str(&format!("      [{}]{comma}\n", numbers.join(",")));
+        }
+        let notes = notes.get(at).map(Vec::as_slice).unwrap_or_default();
+        if !notes.is_empty() {
+            out.push_str("    ], \"notes\": [\n");
+            for (row, note) in notes.iter().enumerate() {
+                let comma = if row + 1 < notes.len() { "," } else { "" };
+                out.push_str(&format!(
+                    "      {{\"environment\": {}, \"term\": {}, \"elements\": {}}}{comma}\n",
+                    note.environment,
+                    quoted(&note.term),
+                    list(&note.elements)
+                ));
+            }
+        }
+        let comma = if at + 1 < variants.len() { "," } else { "" };
+        out.push_str(&format!("    ]}}{comma}\n"));
+    }
+    out.push_str("  ],\n");
+    out
+}
+
+/// A file's body with the digest of it as the last member.
+fn with_digest(body: String) -> String {
+    let digest = digest(body.as_bytes());
+    format!("{body}  \"digest\": {}\n}}\n", quoted(&digest))
+}
+
+/// The renders of a run restricted to one variant, one environment or both
+/// ([`RENDERS_FORMAT`]): the measurements file's members for the renders it made, and what it was
+/// restricted to. No report ranks it: a campaign is every variant in every environment.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Renders {
+    pub adapter: String,
+    pub browser: String,
+    pub declaration: Declaration,
+    /// The variant the run was restricted to, by id; `None`: every variant.
+    pub variant: Option<String>,
+    /// The environment the run was restricted to, by name; `None`: every environment.
+    pub environment: Option<String>,
+    /// The environments measured, as indices of [`Declaration::environments`].
+    pub environments: Vec<usize>,
+    /// Each variant measured: its id and its renders, one per measured environment.
+    pub variants: Vec<(String, Vec<Render>)>,
+    /// Per variant: the first elements behind its counts; `environment` is an index of
+    /// [`Declaration::environments`].
+    pub notes: Vec<Vec<Note>>,
+}
+
+impl Renders {
+    /// The file: like the measurements file, with `restricted` in place of `axes`.
+    pub fn text(&self) -> String {
+        let named = |name: &Option<String>| name.as_deref().map_or("null".to_owned(), quoted);
+        with_digest(body_of(
+            &Head {
+                format: RENDERS_FORMAT,
+                columns: COLUMNS.len(),
+                adapter: &self.adapter,
+                browser: &self.browser,
+                declaration: &self.declaration,
+                environments: &self.environments,
+                between: format!(
+                    "  \"restricted\": {{\"variant\": {}, \"environment\": {}}},\n",
+                    named(&self.variant),
+                    named(&self.environment)
+                ),
+            },
+            &self.variants,
+            &self.notes,
+        ))
     }
 }
