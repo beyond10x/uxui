@@ -2,13 +2,17 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use ux_search::landing::{record::Recorded, report, run};
 use ux_search::{climb, cost, drive};
 
 const USAGE: &str = "usage: ux-search climb --doc <ui.yaml> --page <page> [--param <name>=<value>]... [--sizes <W>x<H>[,<W>x<H>]...] [--cap <1-8>] [--state-dir <dir>]
        ux-search cost --doc <ui.yaml> --page <page> [--param <name>=<value>]... [--keys <key spec>] [--size <W>x<H>] [--repeat <n>] [--format text|json] [--state-dir <dir>]
+       ux-search landing run --build <built site> --product <product.json> --css <landing.css> --out <dir> [--jobs <n>] [--profile <dir>] [--rebuilt <variant id>=<built site>]
+       ux-search landing report --measurements <measurements.json>
        ux-search -V | --version
        ux-search -h | --help
-defaults: --sizes 120x40,48x40, --cap 5, --keys <tab><tab><tab><tab><tab>, --size 120x40, --repeat 5, --format text, --state-dir target/ux-search/state";
+defaults: --sizes 120x40,48x40, --cap 5, --keys <tab><tab><tab><tab><tab>, --size 120x40, --repeat 5, --format text, --state-dir target/ux-search/state, --jobs the CPUs (at most 4), --profile target/ux-search/profile-<pid>
+landing run renders the 144 variants of the documentation landing page in 6 environments in Chromium (UXUI_CHROME, else the Playwright cache), writes <dir>/measurements.json and two screenshots per frontier variant, and prints the report; landing report prints the report of a measurements file";
 
 /// 1: the inputs are refused (a document that does not load, a page it lacks); nothing printed.
 const REFUSED: u8 = 1;
@@ -46,6 +50,12 @@ fn main() -> ExitCode {
         }
         Some("climb") => run_climb(&args[1..]),
         Some("cost") => run_cost(&args[1..]),
+        Some("landing") => match args.get(1).map(String::as_str) {
+            Some("run") => run_landing(&args[2..]),
+            Some("report") => report_landing(&args[2..]),
+            Some(other) => wrong(&format!("unknown command `landing {other}`")),
+            None => wrong("landing needs `run` or `report`"),
+        },
         Some(other) => wrong(&format!("unknown command `{other}`")),
         None => wrong("no command"),
     }
@@ -181,6 +191,106 @@ fn run_cost(args: &[String]) -> ExitCode {
                     measured.text()
                 }
             );
+            ExitCode::SUCCESS
+        }
+        Err(message) => refused(&message),
+    }
+}
+
+fn run_landing(args: &[String]) -> ExitCode {
+    let parsed = match parse(
+        args,
+        &[
+            "--build",
+            "--product",
+            "--css",
+            "--out",
+            "--jobs",
+            "--profile",
+            "--rebuilt",
+        ],
+    ) {
+        Ok(parsed) if parsed.params.is_empty() => parsed,
+        Ok(_) => return wrong("landing run takes no --param"),
+        Err(message) => return wrong(&message),
+    };
+    let jobs = match parsed.get("--jobs").map(str::parse::<usize>) {
+        None => ux_browser::pool::default_jobs(ux_browser::pool::cpus()),
+        Some(Ok(jobs)) if jobs > 0 => jobs,
+        Some(_) => return wrong("--jobs is not a positive whole number"),
+    };
+    let rebuilt = match parsed.get("--rebuilt").map(|value| value.split_once('=')) {
+        None => None,
+        Some(Some((id, build))) if !id.is_empty() && !build.is_empty() => {
+            Some((id.to_owned(), PathBuf::from(build)))
+        }
+        Some(_) => return wrong("--rebuilt is not <variant id>=<built site>"),
+    };
+    let (Some(build), Some(product), Some(css), Some(out)) = (
+        parsed.get("--build"),
+        parsed.get("--product"),
+        parsed.get("--css"),
+        parsed.get("--out"),
+    ) else {
+        return wrong("landing run needs --build, --product, --css and --out");
+    };
+    let options = run::Options {
+        build: PathBuf::from(build),
+        product: PathBuf::from(product),
+        css: PathBuf::from(css),
+        out: PathBuf::from(out),
+        profile: parsed.get("--profile").map_or_else(
+            || PathBuf::from(format!("target/ux-search/profile-{}", std::process::id())),
+            PathBuf::from,
+        ),
+        jobs,
+        rebuilt,
+    };
+    let started = std::time::Instant::now();
+    let outcome = match run::run(&options) {
+        Ok(outcome) => outcome,
+        Err(message) => return refused(&message),
+    };
+    let text = match report::report(&outcome.recorded) {
+        Ok(text) => text,
+        Err(message) => return refused(&message),
+    };
+    for note in &outcome.notes {
+        eprintln!("ux-search: hard rule: {note}");
+    }
+    for check in &outcome.checks {
+        eprintln!("ux-search: checked: {check}");
+    }
+    for path in &outcome.written {
+        eprintln!("ux-search: wrote {}", path.display());
+    }
+    eprintln!(
+        "ux-search: {} renders in {}, {:.1} s with {} pages at once",
+        outcome.renders,
+        outcome.recorded.browser,
+        started.elapsed().as_secs_f64(),
+        options.jobs
+    );
+    print!("{text}");
+    ExitCode::SUCCESS
+}
+
+fn report_landing(args: &[String]) -> ExitCode {
+    let parsed = match parse(args, &["--measurements"]) {
+        Ok(parsed) if parsed.params.is_empty() => parsed,
+        Ok(_) => return wrong("landing report takes no --param"),
+        Err(message) => return wrong(&message),
+    };
+    let Some(measurements) = parsed.get("--measurements") else {
+        return wrong("landing report needs --measurements");
+    };
+    let text = std::fs::read_to_string(measurements)
+        .map_err(|error| format!("{measurements}: {error}"))
+        .and_then(|text| Recorded::parse(&text).map_err(|why| format!("{measurements}: {why}")))
+        .and_then(|recorded| report::report(&recorded));
+    match text {
+        Ok(text) => {
+            print!("{text}");
             ExitCode::SUCCESS
         }
         Err(message) => refused(&message),

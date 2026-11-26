@@ -1,19 +1,32 @@
-/* The landing page's density and heading scale (docs/campaign-2026-11-24-docs-landing.md). With
-   both custom properties at 1 every rule below reproduces the docs-system theme's own value. */
+/* The landing page's density, heading scale and hero alignment (docs/campaign-2026-11-24-docs-landing.md,
+   docs/campaign-2026-11-26-docs-landing-engine.md). With density and heading scale at 1, the hero
+   alignment at start and the lede's inline margin at 0, every rule below reproduces the docs-system
+   theme's own value. */
 :root {
   --uxui-density: 1;
   --uxui-heading-scale: 0.85;
+  --uxui-hero-align: start;
+  --uxui-hero-lede-inline: 0;
 }
 
 .b10x-product .b10x-hero {
   gap: calc(3.5rem * var(--uxui-density));
   padding-block: calc(6rem * var(--uxui-density)) calc(5.5rem * var(--uxui-density));
+  justify-content: var(--uxui-hero-align);
+  text-align: var(--uxui-hero-align);
+}
+.b10x-product .b10x-hero .b10x-kicker {
+  justify-content: var(--uxui-hero-align);
 }
 .b10x-product .b10x-hero h1 {
   margin: 0 0 calc(1.6rem * var(--uxui-density));
   font-size: calc(clamp(2.6rem, 4.5vw, 4rem) * var(--uxui-heading-scale));
 }
+.b10x-product .b10x-hero__lede {
+  margin-inline: var(--uxui-hero-lede-inline);
+}
 .b10x-product .b10x-hero__actions {
+  justify-content: var(--uxui-hero-align);
   margin-block: calc(2rem * var(--uxui-density)) calc(1.25rem * var(--uxui-density));
 }
 .b10x-product .b10x-product-section {

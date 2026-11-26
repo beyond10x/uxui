@@ -58,9 +58,10 @@ Two checks keep the funnel honest:
 ## Worked example: the documentation landing page
 
 - **Target**: page `/uxui/` (scope page), and the hero section (scope section).
-- **Axes**: theme (light, dark), hero layout (text left, centred), number of actions in the hero (1 primary +
-  3 links, 1 + 1, 1 + 0), section order (features before status, status first), density (spacing scale
-  0.85, 1, 1.15), heading scale (2 values). 2 x 2 x 3 x 2 x 3 x 2 = 144 variants.
+- **Axes**: theme (the palette: the documentation site's, the studio's; light and dark are modes of the
+  environments), hero layout (text left, centred), number of actions in the hero (1 primary + 3 links, 1 + 1,
+  1 + 0), section order (features before status, status first), density (spacing scale 0.85, 1, 1.15),
+  heading scale (2 values). 2 x 2 x 3 x 2 x 3 x 2 = 144 variants.
 - **Environments**: 1440x900, 1024x768, 390x844; light and dark mode.
 - **Journeys**: "install the plugin" (land, find the install command, copy it), "what exists today" (land,
   reach the status), "find the metric catalogue".

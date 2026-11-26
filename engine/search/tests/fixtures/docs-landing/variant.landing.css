@@ -1,0 +1,113 @@
+/* The landing page's density, heading scale and hero alignment (docs/campaign-2026-11-24-docs-landing.md,
+   docs/campaign-2026-11-26-docs-landing-engine.md). With density and heading scale at 1, the hero
+   alignment at start and the lede's inline margin at 0, every rule below reproduces the docs-system
+   theme's own value. */
+:root {
+  --uxui-density: 0.85;
+  --uxui-heading-scale: 1;
+  --uxui-hero-align: center;
+  --uxui-hero-lede-inline: auto;
+}
+
+.b10x-product .b10x-hero {
+  gap: calc(3.5rem * var(--uxui-density));
+  padding-block: calc(6rem * var(--uxui-density)) calc(5.5rem * var(--uxui-density));
+  justify-content: var(--uxui-hero-align);
+  text-align: var(--uxui-hero-align);
+}
+.b10x-product .b10x-hero .b10x-kicker {
+  justify-content: var(--uxui-hero-align);
+}
+.b10x-product .b10x-hero h1 {
+  margin: 0 0 calc(1.6rem * var(--uxui-density));
+  font-size: calc(clamp(2.6rem, 4.5vw, 4rem) * var(--uxui-heading-scale));
+}
+.b10x-product .b10x-hero__lede {
+  margin-inline: var(--uxui-hero-lede-inline);
+}
+.b10x-product .b10x-hero__actions {
+  justify-content: var(--uxui-hero-align);
+  margin-block: calc(2rem * var(--uxui-density)) calc(1.25rem * var(--uxui-density));
+}
+.b10x-product .b10x-product-section {
+  padding-block: calc(4.4rem * var(--uxui-density));
+}
+.b10x-product > .b10x-product-section.b10x-product-section:last-child {
+  padding-bottom: calc(5.5rem * var(--uxui-density));
+}
+.b10x-product .b10x-product-section__header {
+  margin-bottom: calc(2.2rem * var(--uxui-density));
+}
+.b10x-product .b10x-product-section h2 {
+  margin: 0 0 calc(1.1rem * var(--uxui-density));
+  font-size: calc(clamp(1.9rem, 3vw, 2.6rem) * var(--uxui-heading-scale));
+}
+
+@media (max-width: 996px) {
+  .b10x-product .b10x-hero {
+    gap: calc(2.5rem * var(--uxui-density));
+    padding-block: calc(4rem * var(--uxui-density));
+  }
+}
+
+@media (max-width: 720px) {
+  .b10x-product .b10x-hero {
+    padding-block: calc(3rem * var(--uxui-density));
+  }
+  .b10x-product .b10x-hero h1 {
+    font-size: calc(2.6rem * var(--uxui-heading-scale));
+  }
+  .b10x-product .b10x-product-section {
+    padding-block: calc(2.8rem * var(--uxui-density));
+  }
+}
+
+html:root:has(.b10x-product) {
+  --b10x-color-canvas: #f4f5f9;
+  --b10x-color-surface: #ffffff;
+  --b10x-color-surface-muted: #eeeefc;
+  --b10x-color-panel: #ffffff;
+  --b10x-color-heading: #161a2b;
+  --b10x-color-text: #161a2b;
+  --b10x-color-muted: #646b82;
+  --b10x-color-line: #e3e6ef;
+  --b10x-color-hairline: #e3e6ef;
+  --b10x-color-link: #5b5bd6;
+  --b10x-color-focus: #5b5bd6;
+  --b10x-color-accent: #5b5bd6;
+  --b10x-color-accent-strong: #5b5bd6;
+  --b10x-color-on-accent: #ffffff;
+  --b10x-color-amber: #b26b00;
+  --b10x-color-rose: #c63d4b;
+  --b10x-color-sky: #3a6fd8;
+  --b10x-color-success: #1f8a5b;
+  --b10x-color-warning: #b26b00;
+  --b10x-color-danger: #c63d4b;
+  --b10x-color-cyan: #3a6fd8;
+  --b10x-color-lime: #1f8a5b;
+}
+
+html[data-theme='dark']:has(.b10x-product) {
+  --b10x-color-canvas: #0e1020;
+  --b10x-color-surface: #171a2e;
+  --b10x-color-surface-muted: #23264a;
+  --b10x-color-panel: #171a2e;
+  --b10x-color-heading: #e7e9f5;
+  --b10x-color-text: #e7e9f5;
+  --b10x-color-muted: #9aa0bd;
+  --b10x-color-line: #2a2e48;
+  --b10x-color-hairline: #2a2e48;
+  --b10x-color-link: #8b8bff;
+  --b10x-color-focus: #8b8bff;
+  --b10x-color-accent: #8b8bff;
+  --b10x-color-accent-strong: #8b8bff;
+  --b10x-color-on-accent: #0e1020;
+  --b10x-color-amber: #f0b55a;
+  --b10x-color-rose: #ff7a85;
+  --b10x-color-sky: #7aa5ff;
+  --b10x-color-success: #4cc38a;
+  --b10x-color-warning: #f0b55a;
+  --b10x-color-danger: #ff7a85;
+  --b10x-color-cyan: #7aa5ff;
+  --b10x-color-lime: #4cc38a;
+}

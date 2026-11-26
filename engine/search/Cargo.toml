@@ -5,7 +5,7 @@ edition = "2024"
 license = "Apache-2.0"
 publish = false
 autotests = false
-description = "ux-search: the engine's first search on layout model v0 (ESS's terminal renderer, in process): the cost of one evaluation, and an exhaustive climb over theme x section order printed as a ranked frontier."
+description = "ux-search: the engine's searches. On layout model v0 (ESS's terminal renderer, in process): the cost of one evaluation, and an exhaustive climb over theme x section order printed as a ranked frontier. On the browser adapter: the campaign over the documentation landing page, 144 variants in six environments."
 
 [workspace]
 
@@ -28,6 +28,8 @@ path = "tests/main.rs"
 ess-ui = { git = "https://github.com/beyond10x/ess", tag = "0.99.4" }
 ess-ui-check = { git = "https://github.com/beyond10x/ess", tag = "0.99.4" }
 ess-ui-tui = { git = "https://github.com/beyond10x/ess", tag = "0.99.4" }
+ux-browser = { path = "../browser" }
+uxui-doc = { path = "../doc" }
 
 [profile.dev.package."*"]
 opt-level = 2
