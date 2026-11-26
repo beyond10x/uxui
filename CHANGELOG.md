@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- The specification's five not-found outcomes are reachable (`ess/GAPS.md`, G20, closed in the
+  model): an unknown state-space key or promotion id now answers `StateSpaceNotFound` or
+  `PromotionNotFound` where it answered a state conflict. `ess verify conform synthesize --path ess
+  --scenarios ess --suite-format 5` exits 0: 286 refusals, all 286 covered by the 50 authored
+  scenarios.
 - `ux-search landing promote` makes one variant of the landing-page campaign the page as shipped:
   it applies the variant's patch to `website/product.json` and `website/src/css/landing.css`, names
   the variant in `engine/search/src/landing/shipped.txt` (the one place the shipped variant stands

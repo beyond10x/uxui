@@ -550,10 +550,11 @@ commands:
             promotion_id: input.promotion_id
         summary: Nothing was recorded; a pass has no failing requirement and no loss.
 
+      # The command addresses the row it moves, so a key no row has is `unknown_instance`. The
+      # guards over that row are row sets that select it by its key: `when_subject` is refused
+      # beside the other row sets of this command (GAPS.md G20).
       - name: no-promotion
-        when_related:
-          via: input.promotion_id
-          exists: false
+        unknown_instance: true
         error: uxsearch.promotion.PromotionNotFound
         payload:
           uxsearch.promotion.PromotionNotFound:
@@ -562,8 +563,12 @@ commands:
 
       - name: variant-mismatch
         when_related:
-          via: input.promotion_id
-          predicate: variant_digest != input.variant_digest
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - variant_digest != input.variant_digest
+          exists: true
         error: uxsearch.promotion.VariantMismatch
         payload:
           uxsearch.promotion.VariantMismatch:
@@ -679,10 +684,11 @@ commands:
       - name: variant_digest
         type: uxsearch.design.VariantDigest
     outcomes:
+      # The command addresses the row it moves, so a key no row has is `unknown_instance`. The
+      # guards over that row are row sets that select it by its key: `when_subject` is refused
+      # beside the other row sets of this command (GAPS.md G20).
       - name: no-promotion
-        when_related:
-          via: input.promotion_id
-          exists: false
+        unknown_instance: true
         error: uxsearch.promotion.PromotionNotFound
         payload:
           uxsearch.promotion.PromotionNotFound:
@@ -691,8 +697,12 @@ commands:
 
       - name: variant-mismatch
         when_related:
-          via: input.promotion_id
-          predicate: variant_digest != input.variant_digest
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - variant_digest != input.variant_digest
+          exists: true
         error: uxsearch.promotion.VariantMismatch
         payload:
           uxsearch.promotion.VariantMismatch:
@@ -702,8 +712,12 @@ commands:
       # D3: a trade-off is accepted only by a person, through AcceptTradeOff; no policy may.
       - name: trade-off
         when_related:
-          via: input.promotion_id
-          predicate: gate_trade_off_only == true
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - gate_trade_off_only == true
+          exists: true
         error: uxsearch.promotion.TradeOffNeedsPerson
         payload:
           uxsearch.promotion.TradeOffNeedsPerson:
@@ -712,8 +726,12 @@ commands:
 
       - name: gate-not-passed
         when_related:
-          via: input.promotion_id
-          predicate: gate != pass
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - gate != pass
+          exists: true
         error: uxsearch.promotion.GateNotPassed
         payload:
           uxsearch.promotion.GateNotPassed:
@@ -810,10 +828,11 @@ commands:
       - name: variant_digest
         type: uxsearch.design.VariantDigest
     outcomes:
+      # The command addresses the row it moves, so a key no row has is `unknown_instance`. The
+      # guards over that row are row sets that select it by its key: `when_subject` is refused
+      # beside the other row sets of this command (GAPS.md G20).
       - name: no-promotion
-        when_related:
-          via: input.promotion_id
-          exists: false
+        unknown_instance: true
         error: uxsearch.promotion.PromotionNotFound
         payload:
           uxsearch.promotion.PromotionNotFound:
@@ -822,8 +841,12 @@ commands:
 
       - name: variant-mismatch
         when_related:
-          via: input.promotion_id
-          predicate: variant_digest != input.variant_digest
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - variant_digest != input.variant_digest
+          exists: true
         error: uxsearch.promotion.VariantMismatch
         payload:
           uxsearch.promotion.VariantMismatch:
@@ -832,8 +855,12 @@ commands:
 
       - name: not-a-trade-off
         when_related:
-          via: input.promotion_id
-          predicate: gate == pass
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - gate == pass
+          exists: true
         error: uxsearch.promotion.NotATradeOff
         payload:
           uxsearch.promotion.NotATradeOff:
@@ -844,11 +871,14 @@ commands:
       # or a fail on anything but the named losses never does.
       - name: gate-not-passed
         when_related:
-          via: input.promotion_id
-          predicate:
-            any:
-              - gate != fail
-              - gate_trade_off_only == false
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - any:
+                  - gate != fail
+                  - gate_trade_off_only == false
+          exists: true
         error: uxsearch.promotion.GateNotPassed
         payload:
           uxsearch.promotion.GateNotPassed:
@@ -857,8 +887,12 @@ commands:
 
       - name: no-gains
         when_related:
-          via: input.promotion_id
-          predicate: gains.count == 0
+          entity: uxsearch.promotion.Promotion
+          where:
+            all:
+              - promotion_id == input.promotion_id
+              - gains.count == 0
+          exists: true
         error: uxsearch.promotion.NoGains
         payload:
           uxsearch.promotion.NoGains:

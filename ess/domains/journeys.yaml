@@ -886,10 +886,11 @@ commands:
             value: count_of_states
         summary: Nothing was closed.
 
+      # The command addresses the row it moves, so a key no row has is `unknown_instance`. The
+      # guards over that row are row sets that select it by its key: `when_subject` is refused
+      # beside the other row sets of this command (GAPS.md G20).
       - name: no-state-space
-        when_related:
-          via: input.state_space_key
-          exists: false
+        unknown_instance: true
         error: uxsearch.journeys.StateSpaceNotFound
         payload:
           uxsearch.journeys.StateSpaceNotFound:
@@ -898,8 +899,12 @@ commands:
 
       - name: over-bound
         when_related:
-          via: input.state_space_key
-          predicate: bounds.max_states < input.states_count
+          entity: uxsearch.journeys.StateSpace
+          where:
+            all:
+              - state_space_key == input.state_space_key
+              - bounds.max_states < input.states_count
+          exists: true
         error: uxsearch.journeys.BeyondBounds
         payload:
           uxsearch.journeys.BeyondBounds:
@@ -981,10 +986,11 @@ commands:
             value: count_of_states
         summary: Nothing was closed.
 
+      # The command addresses the row it moves, so a key no row has is `unknown_instance`. The
+      # guards over that row are row sets that select it by its key: `when_subject` is refused
+      # beside the other row sets of this command (GAPS.md G20).
       - name: no-state-space
-        when_related:
-          via: input.state_space_key
-          exists: false
+        unknown_instance: true
         error: uxsearch.journeys.StateSpaceNotFound
         payload:
           uxsearch.journeys.StateSpaceNotFound:
@@ -993,8 +999,12 @@ commands:
 
       - name: over-bound
         when_related:
-          via: input.state_space_key
-          predicate: bounds.max_states < input.states_count
+          entity: uxsearch.journeys.StateSpace
+          where:
+            all:
+              - state_space_key == input.state_space_key
+              - bounds.max_states < input.states_count
+          exists: true
         error: uxsearch.journeys.BeyondBounds
         payload:
           uxsearch.journeys.BeyondBounds:
