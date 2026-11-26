@@ -50,8 +50,9 @@ Recommendation: B, from step 2.
 
 Default if unanswered by the next round: B, because the order recommends it and B makes no key worse.
 
-Answer: none yet. B is built in the change of this round. An answer A takes it back: remove the rules
-under "The live climb fits the viewport" from `themes/studio.css`; UXF-026 and UXF-022 are open again.
+Answer: B, the owner, 2026-11-26 (D21). B is built in the change of this round and stays. An answer A
+would have taken it back: remove the rules under "The live climb fits the viewport" from
+`themes/studio.css`; UXF-026 and UXF-022 open again.
 An answer B may take the progress chart out of the document as well (it is then gone from the
 terminal drawing too, and `engine/search/tests/fixtures/studio.frontier.txt` is generated again).
 

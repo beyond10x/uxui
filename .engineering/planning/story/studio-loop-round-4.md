@@ -114,8 +114,8 @@ round's assets in `before.round.json`). Against the acceptance:
   object binds through its first member"; `docs/own-generator.md` names the difference to ESS.
 - the layout shift in 5 runs, no page's values more than 0.01 apart: met,
   `page_checks.layout_shift.spread` 0.0024 (0.0121 on R-03's input); the start form 0 in 5 of 5 runs.
-  **Not met as written:** the line names `report.md` as the place that says whether the page or the
-  measurement was fixed, and the round has no `report.md`. The statement is in
+  `ess/ui/rounds/R-04/report.md` says the page was fixed, not the measurement (added after the
+  round's merge; until then this line was not met as written). The statement is also in
   `ess/ui/findings/UXF-023.md` ("Closed in R-04: the page was fixed, and the measure is taken five
   times") and in `triage.md`: the page was fixed (UXF-023, closed).
 - `decision.md` compares A and B in R-03's form, recommendation B, default B, "Answer: none yet";
