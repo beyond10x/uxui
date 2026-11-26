@@ -8,13 +8,18 @@
 //! repository (`docs/studio-climb.md`). `fixtures/docs-landing/` is the campaign over the
 //! documentation landing page on the browser adapter: its sources, its recorded measurements and
 //! the report over them (the module `landing` names each file;
-//! `docs/campaign-2026-11-26-docs-landing-engine.md`).
+//! `docs/campaign-2026-11-26-docs-landing-engine.md`). `fixtures/campaign/` is the declared
+//! campaign: `small.campaign.yaml` uses every key of a declaration, and `studio/` is the campaign
+//! over the frontier page of the generated studio app, its declaration, its recorded measurements
+//! and the report over them (`docs/campaign-2026-11-26-studio-engine.md`).
 //!
 //! Budget: no test runs longer than 60 s; a climb over the fixture is 18 variants, each checked,
 //! opened once and drawn four times; the studio climb is 120 such variants, run once. The module
-//! `landing` starts no browser and runs no campaign: it reads the recorded one.
+//! `landing` starts no browser and runs no campaign: it reads the recorded one. So does the
+//! module `campaign`: `tools/studio-campaign.sh` records, the tests read.
 
 mod assessor;
+mod campaign;
 mod climb;
 mod cost;
 mod ess_tag;
