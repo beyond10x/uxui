@@ -29,6 +29,12 @@ The wall time covers the 864 renders, the 32 screenshots (each variant measured 
 screenshot) and the check against a second build of the site; the two site builds are not in it.
 `docs/targets.md` reckoned with about 2,600 renders at 1 s each.
 
+The table is the first recording. Release 0.11.0 changed the plugin version in the page's eyebrow,
+which is part of `website/product.json`, so the campaign was recorded again for it (13.6 s, adapter
+`ux-browser 0.11.0`): the committed measurements differ from the first recording in the adapter line
+and the digest of `product.json` only, every measured number is equal, and the 32 screenshots differ
+in the eyebrow's version text.
+
 ## Space
 
 Six axes, 2 x 2 x 3 x 2 x 3 x 2 = **144 variants** (`engine/search/src/landing/space.rs`, `AXES`:
