@@ -1,9 +1,15 @@
 //! What a declared campaign records: the measurements file
-//! `ux-search-campaign-measurements/1`, one line of numbers per variant and environment.
+//! `ux-search-campaign-measurements/2`, one line of numbers per variant and environment.
 //!
 //! The file holds the declaration it was measured for, as its text and that text's digest, so
 //! a report needs no other file; and the digest of everything else it holds, so a file whose
-//! numbers were changed after the run is refused.
+//! numbers were changed after the run is refused. Because it holds the declaration's text, the
+//! file of a page that is private is as private as the declaration.
+//!
+//! Beside the numbers it holds what a reader needs to judge them: where the pointer rested in
+//! each environment (`pointer`), per axis the number of values that change the page at all
+//! (`axes`), and, for the page as shipped and for the frontier, the first elements behind each
+//! count (`notes` of a variant).
 
 use super::declaration::{Declaration, Environment};
 use crate::landing::patch::{self, Value};
@@ -11,7 +17,33 @@ use crate::landing::patch::{self, Value};
 pub use crate::landing::record::digest;
 
 /// The format of the measurements file.
-pub const FORMAT: &str = "ux-search-campaign-measurements/1";
+pub const FORMAT: &str = "ux-search-campaign-measurements/2";
+
+/// The format before the pointer was parked: a file of it is refused, with the reason.
+const FORMAT_BEFORE_THE_POINTER: &str = "ux-search-campaign-measurements/1";
+
+/// The counts whose first elements a run names, in the order a variant's notes are written in.
+pub const NOTED: [&str; 4] = [
+    "low_contrast",
+    "overflow",
+    "small_targets",
+    "always_visible_misses",
+];
+
+/// The most elements one note names.
+pub const NOTE_ELEMENTS: usize = 3;
+
+/// The first elements behind one count of one render, in document order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Note {
+    /// The index of the environment among [`Declaration::environments`].
+    pub environment: usize,
+    /// The count, one of [`NOTED`].
+    pub term: String,
+    /// What the count counts first: at most [`NOTE_ELEMENTS`] elements, each as a short path
+    /// with the start of its text and what was measured on it.
+    pub elements: Vec<String>,
+}
 
 /// What one render of one variant in one environment measured: every number of the catalogue,
 /// whether or not the declaration ranks by it.
@@ -114,6 +146,22 @@ pub struct Recorded {
     /// Each variant's id and its renders, one per environment in the order of
     /// [`Declaration::environments`].
     pub variants: Vec<(String, Vec<Render>)>,
+    /// Per axis, in the declaration's order: how many of its values beside the shipped one
+    /// change a box or a computed style on the page (the ones the probe's digest reads,
+    /// `probes/campaign.js`), or a measured number, in any environment and beside any choice of
+    /// the other axes. 0: no value of the axis changes this page.
+    pub changing: Vec<u64>,
+    /// Per variant, in the order of `variants`: the first elements behind its counts. A run
+    /// keeps them for the page as shipped and for the frontier; every other variant has none.
+    pub notes: Vec<Vec<Note>>,
+}
+
+/// A render's count by its column's name.
+fn counted(render: &Render, column: &str) -> u64 {
+    COLUMNS
+        .iter()
+        .position(|&name| name == column)
+        .map_or(0, |at| render.row()[at])
 }
 
 fn quoted(text: &str) -> String {
@@ -151,10 +199,116 @@ fn column_names() -> Vec<String> {
     COLUMNS.iter().map(|&column| column.to_owned()).collect()
 }
 
+/// Where the pointer rested in each environment, as the file writes it: `[[x,y],[x,y]]`.
+fn pointers(declaration: &Declaration) -> String {
+    let each: Vec<String> = declaration
+        .environments()
+        .iter()
+        .map(|environment| {
+            let (x, y) = declaration.pointer(environment);
+            format!("[{x},{y}]")
+        })
+        .collect();
+    format!("[{}]", each.join(","))
+}
+
+fn whole(value: Option<&Value>, what: &str) -> Result<u64, String> {
+    match value {
+        Some(Value::Int(n)) => u64::try_from(*n).map_err(|_| format!("{what}: {n} is below 0")),
+        _ => Err(format!("{what}: not a whole number")),
+    }
+}
+
+/// The notes of one variant of the file.
+fn notes_of(item: &Value, id: &str) -> Result<Vec<Note>, String> {
+    let items = match item.get("notes") {
+        None => return Ok(Vec::new()),
+        Some(Value::List(items)) => items,
+        Some(_) => return Err(format!("{id}: `notes` is not a list")),
+    };
+    items
+        .iter()
+        .map(|note| {
+            let environment = whole(note.get("environment"), "a note's `environment`")
+                .and_then(|at| usize::try_from(at).map_err(|error| error.to_string()))
+                .map_err(|why| format!("{id}: {why}"))?;
+            let term = note
+                .get_str("term")
+                .ok_or_else(|| format!("{id}: a note has no text `term`"))?;
+            Ok(Note {
+                environment,
+                term: term.to_owned(),
+                elements: names(note, "elements").map_err(|why| format!("{id}: a note: {why}"))?,
+            })
+        })
+        .collect()
+}
+
 impl Recorded {
     /// Whether the record is of its declaration: every variant of the space, in its order,
-    /// each with one render per environment.
+    /// each with one render per environment; one number per axis, at most the values the axis
+    /// has beside the shipped one; and notes only of counts a render has.
     pub fn check(&self) -> Result<(), String> {
+        self.check_variants()?;
+        let axes = &self.declaration.axes;
+        if self.changing.len() != axes.len() {
+            return Err(format!(
+                "the record holds {} axes, the declaration {}",
+                self.changing.len(),
+                axes.len()
+            ));
+        }
+        for (axis, &changing) in axes.iter().zip(&self.changing) {
+            let others = axis.values.len().saturating_sub(1);
+            if usize::try_from(changing).map_or(true, |changing| changing > others) {
+                return Err(format!(
+                    "axis `{}`: {changing} values change the page, of {others} beside the \
+                     shipped one",
+                    axis.name
+                ));
+            }
+        }
+        if self.notes.len() != self.variants.len() {
+            return Err(format!(
+                "the record holds the notes of {} variants, and {} variants",
+                self.notes.len(),
+                self.variants.len()
+            ));
+        }
+        for ((id, renders), notes) in self.variants.iter().zip(&self.notes) {
+            for note in notes {
+                let Some(render) = renders.get(note.environment) else {
+                    return Err(format!(
+                        "{id}: a note of environment {}, of {}",
+                        note.environment,
+                        renders.len()
+                    ));
+                };
+                if !NOTED.contains(&note.term.as_str()) {
+                    return Err(format!(
+                        "{id}: a note of `{}`, which is none of {}",
+                        note.term,
+                        NOTED.join(", ")
+                    ));
+                }
+                let count = counted(render, &note.term);
+                let named = note.elements.len();
+                if named == 0
+                    || named > NOTE_ELEMENTS
+                    || u64::try_from(named).map_or(true, |named| named > count)
+                {
+                    return Err(format!(
+                        "{id}: a note names {named} elements of `{}`, which counts {count} in \
+                         that environment; a note names 1 to {NOTE_ELEMENTS} of them",
+                        note.term
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn check_variants(&self) -> Result<(), String> {
         let variants = self.declaration.variants();
         if self.variants.len() != variants.len() {
             return Err(format!(
@@ -182,9 +336,9 @@ impl Recorded {
     }
 
     /// Reads a measurements file. Refused: another format, a declaration that is not the text
-    /// its digest names or that does not read, other environments or columns than the
-    /// declaration's and the catalogue's, other variants than the declaration's, and content
-    /// that is not what the file's digest names.
+    /// its digest names or that does not read, other environments, pointer positions, columns
+    /// or axes than the declaration's and the catalogue's, other variants than the
+    /// declaration's, and content that is not what the file's digest names.
     pub fn parse(text: &str) -> Result<Recorded, String> {
         let value = patch::parse(text)?;
         let field = |key: &str| {
@@ -193,7 +347,15 @@ impl Recorded {
                 .map(str::to_owned)
                 .ok_or_else(|| format!("no text `{key}`"))
         };
-        if field("format")? != FORMAT {
+        let format = field("format")?;
+        if format == FORMAT_BEFORE_THE_POINTER {
+            return Err(format!(
+                "`format` is `{FORMAT_BEFORE_THE_POINTER}`: a file of it was measured with the \
+                 pointer wherever the browser left it, and says nothing of the axes; run the \
+                 campaign again for `{FORMAT}`"
+            ));
+        }
+        if format != FORMAT {
             return Err(format!("`format` is not `{FORMAT}`"));
         }
         let declared = |key: &str| {
@@ -220,10 +382,41 @@ impl Recorded {
                 return Err(format!("`{key}` is not {}", list(&expected)));
             }
         }
+        let pointer = pointers(&declaration);
+        if value.get("pointer").map(patch::compact).as_deref() != Some(pointer.as_str()) {
+            return Err(format!(
+                "`pointer` is not {pointer}, where the declaration rests the pointer in each \
+                 environment"
+            ));
+        }
+        let Some(Value::List(axes)) = value.get("axes") else {
+            return Err("no list `axes`".to_owned());
+        };
+        let named: Vec<&str> = axes
+            .iter()
+            .map(|axis| axis.get_str("name").unwrap_or_default())
+            .collect();
+        let declared: Vec<&str> = declaration
+            .axes
+            .iter()
+            .map(|axis| axis.name.as_str())
+            .collect();
+        if named != declared {
+            return Err(format!(
+                "`axes` does not name the declaration's axes, {}",
+                declared.join(", ")
+            ));
+        }
+        let changing = axes
+            .iter()
+            .zip(&declared)
+            .map(|(axis, name)| whole(axis.get("changing"), &format!("`axes`: `{name}`")))
+            .collect::<Result<Vec<u64>, String>>()?;
         let Some(Value::List(items)) = value.get("variants") else {
             return Err("no list `variants`".to_owned());
         };
         let mut variants = Vec::with_capacity(items.len());
+        let mut notes = Vec::with_capacity(items.len());
         for item in items {
             let id = item.get_str("id").ok_or("a variant has no text `id`")?;
             let Some(Value::List(rows)) = item.get("renders") else {
@@ -247,12 +440,15 @@ impl Recorded {
                 renders.push(Render::from_row(&numbers).map_err(|why| format!("{id}: {why}"))?);
             }
             variants.push((id.to_owned(), renders));
+            notes.push(notes_of(item, id)?);
         }
         let recorded = Recorded {
             adapter: field("adapter")?,
             browser: field("browser")?,
             declaration,
             variants,
+            changing,
+            notes,
         };
         recorded.check()?;
         if field("digest")? != recorded.digest() {
@@ -280,12 +476,28 @@ impl Recorded {
             quoted(&self.declaration.digest),
             quoted(&self.declaration.text)
         ));
-        for (key, value) in [
-            ("environments", environment_names(&self.declaration)),
-            ("columns", column_names()),
-        ] {
-            out.push_str(&format!("  {}: {},\n", quoted(key), list(&value)));
-        }
+        out.push_str(&format!(
+            "  \"environments\": {},\n",
+            list(&environment_names(&self.declaration))
+        ));
+        out.push_str(&format!(
+            "  \"pointer\": {},\n",
+            pointers(&self.declaration)
+        ));
+        out.push_str(&format!("  \"columns\": {},\n", list(&column_names())));
+        let axes: Vec<String> = self
+            .declaration
+            .axes
+            .iter()
+            .zip(&self.changing)
+            .map(|(axis, changing)| {
+                format!(
+                    "{{\"name\": {}, \"changing\": {changing}}}",
+                    quoted(&axis.name)
+                )
+            })
+            .collect();
+        out.push_str(&format!("  \"axes\": [{}],\n", axes.join(", ")));
         out.push_str("  \"variants\": [\n");
         for (at, (id, renders)) in self.variants.iter().enumerate() {
             out.push_str(&format!("    {{\"id\": {}, \"renders\": [\n", quoted(id)));
@@ -293,6 +505,19 @@ impl Recorded {
                 let numbers: Vec<String> = render.row().iter().map(u64::to_string).collect();
                 let comma = if row + 1 < renders.len() { "," } else { "" };
                 out.push_str(&format!("      [{}]{comma}\n", numbers.join(",")));
+            }
+            let notes = self.notes.get(at).map(Vec::as_slice).unwrap_or_default();
+            if !notes.is_empty() {
+                out.push_str("    ], \"notes\": [\n");
+                for (row, note) in notes.iter().enumerate() {
+                    let comma = if row + 1 < notes.len() { "," } else { "" };
+                    out.push_str(&format!(
+                        "      {{\"environment\": {}, \"term\": {}, \"elements\": {}}}{comma}\n",
+                        note.environment,
+                        quoted(&note.term),
+                        list(&note.elements)
+                    ));
+                }
             }
             let comma = if at + 1 < self.variants.len() {
                 ","

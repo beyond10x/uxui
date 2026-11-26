@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use ux_search::landing::{promote, record::Recorded, report, run};
+use ux_search::profile::Profile;
 use ux_search::{campaign, climb, cost, drive};
 
 const USAGE: &str = "usage: ux-search climb --doc <ui.yaml> --page <page> [--param <name>=<value>]... [--sizes <W>x<H>[,<W>x<H>]...] [--cap <1-8>] [--state-dir <dir>]
@@ -11,12 +12,15 @@ const USAGE: &str = "usage: ux-search climb --doc <ui.yaml> --page <page> [--par
        ux-search landing report --measurements <measurements.json>
        ux-search landing promote --measurements <measurements.json> --variant <variant id> --product <product.json> --css <landing.css> --evidence <evidence.json> [--chosen-by \"<who chose>\"] [--shipped-file <shipped.txt>]
        ux-search campaign run --declaration <campaign.yaml> --url <origin> --out <measurements.json> [--shots <dir>] [--jobs <n>] [--profile <dir>]
-       ux-search campaign report --measurements <measurements.json> [--format text|markdown] [--links <prefix>]
+       ux-search campaign report --measurements <measurements.json> [--format text|markdown] [--links <prefix>] [--notes]
        ux-search -V | --version
-       ux-search -h | --help
-defaults: --sizes 120x40,48x40, --cap 5, --keys <tab><tab><tab><tab><tab>, --size 120x40, --repeat 5, --format text, --state-dir target/ux-search/state, --jobs the CPUs (at most 4), --profile target/ux-search/profile-<pid>
+       ux-search -h | --help, also after a command
+defaults: --sizes 120x40,48x40, --cap 5, --keys <tab><tab><tab><tab><tab>, --size 120x40, --repeat 5, --format text, --state-dir target/ux-search/state, --jobs the CPUs (at most 4), --profile a directory of the run's own under the system's temp directory (TMPDIR), removed when the run ends
 landing run renders the 144 variants of the documentation landing page in 6 environments in Chromium (UXUI_CHROME, else the Playwright cache), writes <dir>/measurements.json and two screenshots per frontier variant, and prints the report; landing report prints the report of a measurements file; landing promote applies the patch of one variant of that file's frontier to the two sources in place and writes, all or none, one ratchet-evidence/1 document that names the campaign, a copy of the measurements beside it (<name>.measurements.json beside <name>.evidence.json) and, with --shipped-file, the variant's id to that file; the document names each file by its path from the working directory; it refuses, and writes nothing, a variant off the frontier, sources the measurements were not recorded on, a place that is a directory and one file named twice
-campaign run reads a declaration ux-search-campaign/1 (the page, the environments, the axes of custom-property values per selector, the hard rules and the ordered terms), loads the page from the server at <origin> (an origin, with a path when the page's paths lie under one), renders every variant in every environment in Chromium as an injected style sheet, writes the measurements file and, with --shots, two screenshots per frontier variant, and prints the report; it reaches only that origin, with GET and HEAD, and refuses a declaration it cannot read (naming the file and the key), a selector that matches nothing and a property that is not in force; campaign report prints the report of a measurements file, with --format markdown the run and the frontier as two tables whose screenshot links start with <prefix>; it refuses a file whose content is not what its digest names";
+campaign run reads a declaration ux-search-campaign/1 (the page, the environments, the axes of custom-property values per selector, the hard rules and the ordered terms), loads the page from the server at <origin> (an origin, with a path when the page's paths lie under one), renders every variant in every environment in Chromium as an injected style sheet, with the pointer parked at page.pointer or in the bottom-right corner of the viewport, writes the measurements file and, with --shots, per frontier variant one screenshot in every mode at the first viewport and one in the last environment, and prints the report; it reaches only that origin, with GET and HEAD, and refuses a declaration it cannot read (naming the file and the key), a selector that matches nothing, a property that is not in force and a mode whose expectation (expect) the page does not show; it names a mode that is set by a query and expects nothing as not read back, and an axis none of whose values changes the page; campaign report prints the report of a measurements file, with --notes followed by the first elements behind the counts of the page as shipped and of the frontier, with --format markdown the run and the frontier as two tables whose screenshot links start with <prefix>; it refuses a file whose content is not what its digest names";
+
+/// The flags that take no value.
+const SWITCHES: &[&str] = &["--notes"];
 
 /// 1: the inputs are refused (a document that does not load, a page it lacks); nothing printed.
 const REFUSED: u8 = 1;
@@ -41,13 +45,39 @@ fn refused(message: &str) -> ExitCode {
     ExitCode::from(REFUSED)
 }
 
+/// Whether the arguments ask for the usage: `-h` or `--help` as the first word, after a
+/// command's words, or where a flag of the command stands. The value of a flag is not a
+/// question, and neither is anything after words that name no command.
+fn asks_for_usage(args: &[String]) -> bool {
+    let word = |at: usize| args.get(at).map(String::as_str);
+    let help = |word: Option<&str>| matches!(word, Some("-h" | "--help"));
+    let flags = match (word(0), word(1)) {
+        (first, _) if help(first) => return true,
+        (Some("climb" | "cost"), _) => &args[1..],
+        (Some("landing"), Some("run" | "report" | "promote"))
+        | (Some("campaign"), Some("run" | "report")) => &args[2..],
+        (Some("landing" | "campaign"), second) => return help(second),
+        _ => return false,
+    };
+    let mut rest = flags.iter();
+    while let Some(flag) = rest.next() {
+        if help(Some(flag)) {
+            return true;
+        }
+        if !SWITCHES.contains(&flag.as_str()) {
+            rest.next();
+        }
+    }
+    false
+}
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if asks_for_usage(&args) {
+        println!("{USAGE}");
+        return ExitCode::SUCCESS;
+    }
     match args.first().map(String::as_str) {
-        Some("-h" | "--help") => {
-            println!("{USAGE}");
-            ExitCode::SUCCESS
-        }
         Some("-V" | "--version") => {
             println!("ux-search {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
@@ -100,6 +130,15 @@ fn parse(args: &[String], allowed: &[&str]) -> Result<Parsed, String> {
     let mut params = Vec::new();
     let mut rest = args.iter();
     while let Some(flag) = rest.next() {
+        if SWITCHES.contains(&flag.as_str()) {
+            if !allowed.contains(&flag.as_str()) {
+                return Err(format!("unknown argument `{flag}`"));
+            }
+            if flags.insert(flag.clone(), String::new()).is_some() {
+                return Err(format!("`{flag}` is given twice"));
+            }
+            continue;
+        }
         let Some(value) = rest.next() else {
             return Err(format!("`{flag}` has no value"));
         };
@@ -245,15 +284,17 @@ fn run_landing(args: &[String]) -> ExitCode {
     ) else {
         return wrong("landing run needs --build, --product, --css and --out");
     };
+    // Held to the end of the run: a profile of the run's own is removed when it is dropped.
+    let profile = match Profile::of(parsed.get("--profile")) {
+        Ok(profile) => profile,
+        Err(message) => return refused(&message),
+    };
     let options = run::Options {
         build: PathBuf::from(build),
         product: PathBuf::from(product),
         css: PathBuf::from(css),
         out: PathBuf::from(out),
-        profile: parsed.get("--profile").map_or_else(
-            || PathBuf::from(format!("target/ux-search/profile-{}", std::process::id())),
-            PathBuf::from,
-        ),
+        profile: profile.path().to_path_buf(),
         jobs,
         rebuilt,
     };
@@ -340,15 +381,17 @@ fn run_campaign(args: &[String]) -> ExitCode {
         Ok(site) => site,
         Err(message) => return wrong(&format!("--url {message}")),
     };
+    // Held to the end of the run: a profile of the run's own is removed when it is dropped.
+    let profile = match Profile::of(parsed.get("--profile")) {
+        Ok(profile) => profile,
+        Err(message) => return refused(&message),
+    };
     let options = campaign::run::Options {
         declaration: PathBuf::from(declaration),
         site,
         out: PathBuf::from(out),
         shots: parsed.get("--shots").map(PathBuf::from),
-        profile: parsed.get("--profile").map_or_else(
-            || PathBuf::from(format!("target/ux-search/profile-{}", std::process::id())),
-            PathBuf::from,
-        ),
+        profile: profile.path().to_path_buf(),
         jobs,
     };
     let started = std::time::Instant::now();
@@ -360,6 +403,9 @@ fn run_campaign(args: &[String]) -> ExitCode {
         Ok(text) => text,
         Err(message) => return refused(&message),
     };
+    for remark in &outcome.remarks {
+        eprintln!("ux-search: {remark}");
+    }
     for note in &outcome.notes {
         eprintln!("ux-search: hard rule: {note}");
     }
@@ -381,7 +427,7 @@ fn run_campaign(args: &[String]) -> ExitCode {
 }
 
 fn report_campaign(args: &[String]) -> ExitCode {
-    let parsed = match parse(args, &["--measurements", "--format", "--links"]) {
+    let parsed = match parse(args, &["--measurements", "--format", "--links", "--notes"]) {
         Ok(parsed) if parsed.params.is_empty() => parsed,
         Ok(_) => return wrong("campaign report takes no --param"),
         Err(message) => return wrong(&message),
@@ -397,6 +443,10 @@ fn report_campaign(args: &[String]) -> ExitCode {
     if !markdown && parsed.get("--links").is_some() {
         return wrong("--links goes with --format markdown");
     }
+    let notes = parsed.get("--notes").is_some();
+    if markdown && notes {
+        return wrong("--notes goes with --format text");
+    }
     let text = std::fs::read_to_string(measurements)
         .map_err(|error| format!("{measurements}: {error}"))
         .and_then(|text| {
@@ -405,6 +455,8 @@ fn report_campaign(args: &[String]) -> ExitCode {
         .and_then(|recorded| {
             if markdown {
                 campaign::report::markdown(&recorded, parsed.get("--links").unwrap_or_default())
+            } else if notes {
+                Ok(campaign::report::report(&recorded)? + &campaign::report::notes(&recorded)?)
             } else {
                 campaign::report::report(&recorded)
             }

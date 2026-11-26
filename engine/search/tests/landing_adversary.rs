@@ -255,7 +255,7 @@ fn the_page_as_shipped_is_said_to_be_on_the_frontier_when_it_is() {
 
 // The measurements file.
 
-const FIRST_ROW: &str = "      [1,0,0,0,0,56,448,23,1,1,1,1,2,3],\n";
+const FIRST_ROW: &str = "      [1,0,0,0,0,54,448,23,1,1,1,1,2,3],\n";
 const FIRST_ID: &str = "\"docs-system.left.1+3.features-first.d85.h85\"";
 const SECOND_ID: &str = "\"docs-system.left.1+3.features-first.d85.h100\"";
 
@@ -324,7 +324,7 @@ fn a_measurements_file_that_is_not_the_campaign_is_refused_not_ranked() {
         ),
         (
             "a number written as text",
-            recorded.replacen("[1,0,0,0,0,56,", "[1,0,0,0,0,\"56\",", 1),
+            recorded.replacen("[1,0,0,0,0,54,", "[1,0,0,0,0,\"54\",", 1),
             "not a whole number",
         ),
         (
@@ -339,7 +339,7 @@ fn a_measurements_file_that_is_not_the_campaign_is_refused_not_ranked() {
         ),
         (
             "a number left out",
-            recorded.replacen("[1,0,0,0,0,56,", "[1,0,0,0,0,null,", 1),
+            recorded.replacen("[1,0,0,0,0,54,", "[1,0,0,0,0,null,", 1),
             "words",
         ),
         (

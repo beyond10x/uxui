@@ -6,7 +6,7 @@
 //!   it spans and the style sheet of custom properties each one injects.
 //! - [`run`]: every variant in every environment in Chromium, and the checks that keep a
 //!   render honest (`ux-search campaign run`).
-//! - [`record`]: the measurements file `ux-search-campaign-measurements/1`, which holds its
+//! - [`record`]: the measurements file `ux-search-campaign-measurements/2`, which holds its
 //!   declaration and the digest of its content.
 //! - [`report`]: the terms, the ranking, the frontier and the page as shipped among them
 //!   (`ux-search campaign report`), ranked with [`crate::rank`].

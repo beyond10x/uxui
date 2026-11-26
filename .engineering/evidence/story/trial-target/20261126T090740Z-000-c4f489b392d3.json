@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T09:07:40Z",
+  "actor": "human:operator",
+  "artifact": "story:trial-target",
+  "kind": "story",
+  "revision": 14,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "ux-search campaign on one list page of the admin console, on its fixtures, twice: 32 variants, 192 renders, a ranked frontier of 6, the page as shipped at rank 28 of 32, two runs with the same bytes; results in the private repository, uncommitted",
+    "reference": "docs/trial-2026-11-26-outside-target.md"
+  }
+}

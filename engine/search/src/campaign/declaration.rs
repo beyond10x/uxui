@@ -8,11 +8,21 @@
 //!   ready: 'main[data-ready]'       # the page is ready when this selector matches
 //!   ready_timeout_ms: 5000          # how long to wait for it (default 10000)
 //!   settle_ms: 100                  # a wait after it matched (default 0)
+//!   pointer: [380, 760]             # where the pointer rests while the page is measured, in
+//!                                   # CSS px from the top-left corner of the viewport (default:
+//!                                   # the bottom-right corner of each viewport, [W - 1, H - 1])
 //! environments:
 //!   viewports: [1366x768, 390x844]
 //!   modes:                          # each mode is set in one or more of three ways
-//!     - {name: light, media: light} # prefers-color-scheme, emulated
-//!     - {name: dark, media: dark, attribute: {name: data-theme, value: dark}, query: theme=dark}
+//!     - {name: light, media: light} # prefers-color-scheme, emulated; without it: light
+//!     - name: dark
+//!       media: dark
+//!       attribute: {name: data-theme, value: dark}  # set on the root element, and kept there
+//!       query: theme=dark                           # the query of the page's URL
+//!       expect:                     # what the page shows once the mode is set, read back in
+//!                                   # every render of the mode; one of the two, or both
+//!         attribute: {name: data-theme, value: dark}  # of the root element
+//!         selector: 'body.dark'                       # matches at least one element
 //! axes:
 //!   - name: spacing
 //!     shipped: stock                # the value the page is built with
@@ -34,6 +44,12 @@
 //! A variant is one value of each axis; its id is the values' ids joined by `.`. It is rendered
 //! as a style sheet of its values' custom properties, injected after the page's own. A value
 //! without rules injects nothing, so the variant of the shipped values is the page as it is.
+//!
+//! The pointer is part of what a page shows: a navigation that opens when the pointer enters it
+//! is open under a pointer that rests on it, and a headless pointer that was never moved rests
+//! at 0, 0. So a run moves the pointer to `page.pointer` before every measurement. A mode set by
+//! a query is set by the page, not by the run: `expect` says what the page shows when it took
+//! the query, and a run refuses a render that does not show it.
 //!
 //! Every refusal names the key it breaks at, as `` `axes[1].values[0].id`: ... ``; a refusal of
 //! a file ([`Declaration::read`]) names the file before it.
@@ -68,7 +84,10 @@ pub const HARD_RULES: [&str; 4] = ["primary_in_view", "no_h_scroll", "contrast",
 /// - `regions`: the visible regions (the selector `regions`) that start at or above the
 ///   primary action.
 /// - `text_under_14`: the share of the visible text runs under 14 px, in thousandths.
-/// - `low_contrast`: the visible text runs under WCAG 2.x 1.4.3.
+/// - `low_contrast`: the visible text runs under WCAG 2.x 1.4.3. A run in a disabled control,
+///   a run over a background image and a run whose colour has alpha 0 are not judged: a colour
+///   of alpha 0 paints nothing, so the page shows an image or a mask in the text's place, or
+///   nothing, and there is no contrast of the text. Such a run still counts as a text run.
 /// - `overflow`: visible texts and replaced elements that end to the right of the viewport or
 ///   of the box that clips or scrolls them.
 /// - `always_visible_misses`: the items of `always_visible` that are not fully in the viewport
@@ -110,6 +129,18 @@ pub struct Page {
     pub ready_timeout_ms: u64,
     /// A wait after the ready selector matched, before the first measurement.
     pub settle_ms: u64,
+    /// Where the pointer rests while the page is measured, x and y in CSS px of the viewport;
+    /// `None`: the bottom-right corner of each viewport ([`Declaration::pointer`]).
+    pub pointer: Option<(u32, u32)>,
+}
+
+/// What a page shows once a mode is set. A run reads it back in every render of the mode.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Expect {
+    /// An attribute of the root element and the value it has.
+    pub attribute: Option<(String, String)>,
+    /// A selector that matches at least one element.
+    pub selector: Option<String>,
 }
 
 /// One mode and how it is set: emulated `prefers-color-scheme`, an attribute of the root
@@ -123,6 +154,26 @@ pub struct Mode {
     pub attribute: Option<(String, String)>,
     /// The query, without its `?`.
     pub query: Option<String>,
+    /// What the page shows in the mode; `None`: nothing is read back but the run's own
+    /// `attribute`.
+    pub expect: Option<Expect>,
+}
+
+impl Mode {
+    /// How the mode is set, as a refusal says it: `the query `theme=dark``.
+    pub fn set_by(&self) -> String {
+        let mut ways = Vec::new();
+        if let Some(media) = &self.media {
+            ways.push(format!("the emulated colour scheme `{media}`"));
+        }
+        if let Some((name, value)) = &self.attribute {
+            ways.push(format!("the attribute `{name}` `{value}`"));
+        }
+        if let Some(query) = &self.query {
+            ways.push(format!("the query `{query}`"));
+        }
+        ways.join(" and ")
+    }
 }
 
 /// One environment: a viewport and a mode.
@@ -335,7 +386,7 @@ fn page(root: &Value) -> Result<Page, String> {
     let value = map(
         value,
         "page",
-        &["path", "ready", "ready_timeout_ms", "settle_ms"],
+        &["path", "ready", "ready_timeout_ms", "settle_ms", "pointer"],
     )?;
     let path = required(value, "page", "path", "the page's path under the origin")?;
     if !path.starts_with('/') {
@@ -360,6 +411,46 @@ fn page(root: &Value) -> Result<Page, String> {
         ready_timeout_ms: number(value, "page", "ready_timeout_ms", (1, 120_000))?
             .unwrap_or(10_000),
         settle_ms: number(value, "page", "settle_ms", (0, 60_000))?.unwrap_or(0),
+        pointer: pointer(value)?,
+    })
+}
+
+/// A value as a refusal shows it: a scalar's text, a list of them as `[a, b]`.
+fn shown(value: &Value) -> String {
+    match value {
+        Value::List(items) => format!(
+            "[{}]",
+            items.iter().map(shown).collect::<Vec<_>>().join(", ")
+        ),
+        Value::Map(_) => "a map".to_owned(),
+        scalar => scalar.scalar_text().unwrap_or_default(),
+    }
+}
+
+/// `page.pointer`: x and y, each a whole number from 0; `None` when the key is absent. Whether
+/// it lies in every viewport is checked once the viewports are read ([`Declaration::parse`]).
+fn pointer(page: &Value) -> Result<Option<(u32, u32)>, String> {
+    let side = |value: &Value| match value {
+        Value::Int(n) => u32::try_from(*n).ok(),
+        _ => None,
+    };
+    match page.get("pointer") {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::List(items)) if items.len() == 2 => match (side(&items[0]), side(&items[1])) {
+            (Some(x), Some(y)) => Ok(Some((x, y))),
+            _ => Err(()),
+        },
+        Some(_) => Err(()),
+    }
+    .map_err(|()| {
+        at(
+            "page.pointer",
+            format!(
+                "`{}` is not [<x>, <y>], two whole numbers from 0: where the pointer rests, in \
+                 CSS px from the top-left corner of the viewport",
+                page.get("pointer").map(shown).unwrap_or_default()
+            ),
+        )
     })
 }
 
@@ -411,6 +502,50 @@ fn attribute_name_ok(name: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || "-_.:".contains(c))
 }
 
+/// The key `attribute` of a mode or of its expectation: a name and a value; `None` when the
+/// key is absent.
+fn attribute(item: &Value, path: &str) -> Result<Option<(String, String)>, String> {
+    match item.get("attribute") {
+        None | Some(Value::Null) => Ok(None),
+        Some(attribute) => {
+            let path = join(path, "attribute");
+            let attribute = map(attribute, &path, &["name", "value"])?;
+            let name = required(attribute, &path, "name", "the attribute's name")?;
+            if !attribute_name_ok(&name) {
+                return Err(at(
+                    &join(&path, "name"),
+                    format!("`{name}` is not the name of an attribute"),
+                ));
+            }
+            let value = required(attribute, &path, "value", "the attribute's value")?;
+            Ok(Some((name, value)))
+        }
+    }
+}
+
+/// The key `expect` of a mode: an attribute of the root element, a selector, or both.
+fn expect(item: &Value, path: &str, mode: &str) -> Result<Option<Expect>, String> {
+    let path = join(path, "expect");
+    let expect = match item.get("expect") {
+        None | Some(Value::Null) => return Ok(None),
+        Some(expect) => map(expect, &path, &["attribute", "selector"])?,
+    };
+    let expect = Expect {
+        attribute: attribute(expect, &path)?,
+        selector: text(expect, &path, "selector")?,
+    };
+    if expect.attribute.is_none() && expect.selector.is_none() {
+        return Err(at(
+            &path,
+            format!(
+                "the mode `{mode}` expects nothing: `attribute` is a name and a value of the \
+                 root element, `selector` matches at least one element; one of them, or both"
+            ),
+        ));
+    }
+    Ok(Some(expect))
+}
+
 fn modes(value: &Value) -> Result<Vec<Mode>, String> {
     let list = items(value, "environments", "modes")?;
     if list.is_empty() {
@@ -422,7 +557,11 @@ fn modes(value: &Value) -> Result<Vec<Mode>, String> {
     let mut modes: Vec<Mode> = Vec::with_capacity(list.len());
     for (index, item) in list.iter().enumerate() {
         let path = format!("environments.modes[{index}]");
-        let item = map(item, &path, &["name", "media", "attribute", "query"])?;
+        let item = map(
+            item,
+            &path,
+            &["name", "media", "attribute", "query", "expect"],
+        )?;
         let name = name(item, &path, "name", "the mode's name")?;
         if modes.iter().any(|mode| mode.name == name) {
             return Err(twice(&join(&path, "name"), &name, ""));
@@ -440,22 +579,7 @@ fn modes(value: &Value) -> Result<Vec<Mode>, String> {
                 ),
             ));
         }
-        let attribute = match item.get("attribute") {
-            None | Some(Value::Null) => None,
-            Some(attribute) => {
-                let path = join(&path, "attribute");
-                let attribute = map(attribute, &path, &["name", "value"])?;
-                let name = required(attribute, &path, "name", "the attribute's name")?;
-                if !attribute_name_ok(&name) {
-                    return Err(at(
-                        &join(&path, "name"),
-                        format!("`{name}` is not the name of an attribute"),
-                    ));
-                }
-                let value = required(attribute, &path, "value", "the attribute's value")?;
-                Some((name, value))
-            }
-        };
+        let attribute = attribute(item, &path)?;
         let query = text(item, &path, "query")?;
         if let Some(query) = &query
             && (query.starts_with('?')
@@ -473,11 +597,13 @@ fn modes(value: &Value) -> Result<Vec<Mode>, String> {
                 format!("the mode `{name}` has no `media`, `attribute` or `query` that sets it"),
             ));
         }
+        let expect = expect(item, &path, &name)?;
         modes.push(Mode {
             name,
             media,
             attribute,
             query,
+            expect,
         });
     }
     Ok(modes)
@@ -736,6 +862,20 @@ impl Declaration {
         };
         let environments = map(environments, "environments", &["viewports", "modes"])?;
         let viewports = viewports(environments)?;
+        if let Some((x, y)) = page.pointer {
+            for (index, &(width, height)) in viewports.iter().enumerate() {
+                if x >= width || y >= height {
+                    return Err(at(
+                        "page.pointer",
+                        format!(
+                            "`[{x}, {y}]` lies outside the viewport {width}x{height} \
+                             (`environments.viewports[{index}]`): the pointer rests in every \
+                             viewport, from [0, 0] to its [width - 1, height - 1]"
+                        ),
+                    ));
+                }
+            }
+        }
         let modes = modes(environments)?;
         let axes = axes(&root, &modes)?;
         let primary = required(&root, "", "primary", "the selector of the primary action")?;
@@ -819,6 +959,16 @@ impl Declaration {
     /// The declared mode of this name.
     pub fn mode(&self, name: &str) -> Option<&Mode> {
         self.modes.iter().find(|mode| mode.name == name)
+    }
+
+    /// Where the pointer rests while an environment is measured, x and y in CSS px of its
+    /// viewport: `page.pointer`, else the viewport's bottom-right corner, the far end from the
+    /// corner a headless pointer starts in and from where a page's navigation usually lies.
+    pub fn pointer(&self, environment: &Environment) -> (u32, u32) {
+        self.page.pointer.unwrap_or((
+            environment.width.saturating_sub(1),
+            environment.height.saturating_sub(1),
+        ))
     }
 
     fn variant(&self, choice: Vec<usize>) -> Variant {

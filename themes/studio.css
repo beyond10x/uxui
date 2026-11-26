@@ -120,6 +120,10 @@
   --ui-tone-warning-fill: var(--ui-color-warning_fill);
   --ui-space-md: 1.1rem;
   --ui-space-lg: 1.75rem;
+  --uxui-page-pad-y: 1.25rem;
+  --uxui-page-pad-x: 2rem;
+  --uxui-header-min: 1.75rem;
+  --uxui-header-pad-bottom: 0.5rem;
   --ui-radius-sm: 6px;
   --ui-radius-md: 8px;
   --ui-radius-lg: 12px;
@@ -135,7 +139,10 @@
   font-size: 0.95rem;
 }
 
-body { background: radial-gradient(1200px 500px at 70% -10%, var(--uxui-glow) 0%, transparent 60%), var(--ui-color-bg); min-height: 100vh; }
+/* The page's background stays where it is while the page scrolls, so that the page header, which stays
+   in view (below), can carry the same background without a seam. */
+html { scroll-padding-top: calc(var(--uxui-page-pad-y) + var(--uxui-header-min) + var(--ui-space-md)); }
+body { background: radial-gradient(1200px 500px at 70% -10%, var(--uxui-glow) 0%, transparent 60%) fixed, var(--ui-color-bg); min-height: 100vh; }
 
 .ui-shell > .ui-region-navigation { position: sticky; top: 0; align-self: start; min-height: 100vh; box-sizing: border-box; background: var(--uxui-nav-bg); color: var(--uxui-nav-text); border-right: 0; padding: 1.25rem 0.9rem; }
 .ui-shell > .ui-region-navigation::before { content: "◆ uxui studio"; display: block; font-weight: 700; letter-spacing: 0.02em; color: #fff; margin: 0 0 1.4rem 0.4rem; }
@@ -144,8 +151,17 @@ body { background: radial-gradient(1200px 500px at 70% -10%, var(--uxui-glow) 0%
 .ui-nav a:hover { background: var(--uxui-nav-hover); }
 .ui-nav a[aria-current="page"] { background: var(--uxui-nav-current); color: #fff; }
 
-.ui-region-page_outlet { padding: 1.25rem 2rem; }
+.ui-region-page_outlet { padding: var(--uxui-page-pad-y) var(--uxui-page-pad-x); }
 h1 { font-size: 1.55rem; letter-spacing: -0.01em; }
+
+/* A page that scrolls keeps its header in view (the title, the connection state, the page's actions),
+   and beside the page's main column its narrow column (on the live climb: the campaign's state). The
+   header reaches over the page's padding and is opaque, so what scrolls passes under it. Where the
+   columns stand under each other (the generated stylesheet, under 48rem) only the header stays. */
+.ui-header { position: sticky; top: 0; z-index: 5; min-height: var(--uxui-header-min); margin: calc(-1 * var(--uxui-page-pad-y)) calc(-1 * var(--uxui-page-pad-x)) calc(-1 * var(--uxui-header-pad-bottom)); padding: var(--uxui-page-pad-y) var(--uxui-page-pad-x) var(--uxui-header-pad-bottom); background: radial-gradient(1200px 500px at 70% -10%, var(--uxui-glow) 0%, transparent 60%) fixed, var(--ui-color-bg); }
+@media (width >= 48rem) {
+  .ui-layout-columns > .ui-column-narrow { position: sticky; top: calc(var(--uxui-page-pad-y) + var(--uxui-header-min) + var(--ui-space-md)); }
+}
 .ui-section { border: 1px solid var(--uxui-section-border); box-shadow: var(--uxui-shadow); }
 .ui-section h2 { font-size: var(--uxui-text-small); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ui-color-muted); }
 
@@ -153,12 +169,32 @@ h1 { font-size: 1.55rem; letter-spacing: -0.01em; }
 .ui-table tbody tr { transition: background 120ms; }
 .ui-table tbody tr:hover { background: var(--ui-color-focus); }
 .ui-table th, .ui-table td { padding-left: 0.4rem; padding-right: 0.4rem; }
+/* The first and the last cell of a row end at the table's edge, in line with the section's title. */
+.ui-table th:first-child, .ui-table td:first-child { padding-left: 0; }
+.ui-table th:last-child, .ui-table td:last-child { padding-right: 0; }
 .ui-table td { padding-top: 0.45rem; padding-bottom: 0.45rem; }
 
 /* A collection drawn as a list (style: list): the fields of a row stand in columns, so the row and its
    actions beside it stay in one view. */
 .ui-list-item > .ui-row-body > dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); column-gap: var(--ui-space-md); }
 .ui-list-item:last-child { border-bottom: 0; padding-bottom: 0; }
+
+/* The gate decision of a promotion (ess/ui/studio.ui.yaml, the section "decision") and the record of
+   the dialog that accepts its trade-off. The generated app draws a list of records as JSON, so those
+   fields are not drawn here; the document declares one member of every record as a field of its own,
+   and those are drawn in rows of three: what gets worse or better, the reference's value, the
+   candidate's value. The requirements take two of the three columns, so that they stay on one line
+   beside their verdicts. */
+[data-ui-path="pages/promotions.detail/sections/decision"] .ui-row-body > dl > div:has(> dd > [data-ui-path$="/columns/losses"]),
+[data-ui-path="pages/promotions.detail/sections/decision"] .ui-row-body > dl > div:has(> dd > [data-ui-path$="/columns/gains"]),
+[data-ui-path="pages/promotions.detail/sections/decision"] .ui-row-body > dl > div:has(> dd > [data-ui-path$="/columns/gate_requirement_verdicts"]),
+[data-ui-path="pages/promotions.detail/overlays/trade_off/record"] .ui-record-fields > div:has(> dd > [data-ui-path$="/fields/losses"]),
+[data-ui-path="pages/promotions.detail/overlays/trade_off/record"] .ui-record-fields > div:has(> dd > [data-ui-path$="/fields/gains"]) { display: none; }
+[data-ui-path="pages/promotions.detail/overlays/trade_off/record"] .ui-record-fields { display: grid; grid-template-columns: 2fr 1fr 1fr; column-gap: var(--ui-space-md); }
+@media (width >= 48rem) {
+  [data-ui-path="pages/promotions.detail/sections/decision"] .ui-row-body > dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  [data-ui-path="pages/promotions.detail/sections/decision"] .ui-row-body > dl > div:has(> dd > [data-ui-path$="/columns/requirements"]) { grid-column: span 2; }
+}
 
 .ui-button { color: var(--ui-color-text); transition: background 120ms, border-color 120ms, box-shadow 120ms; font-weight: 500; }
 .ui-button:hover:not(:disabled) { border-color: var(--ui-color-accent); color: var(--ui-color-accent); }

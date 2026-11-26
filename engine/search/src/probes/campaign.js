@@ -1,15 +1,20 @@
 // The in-page probe of `ux-search campaign`, evaluated once in the declared page after it is
 // ready, with the page's own scripts on. The colour, text and name functions are those of
 // probes/landing.js; a text run and its contrast are counted as the loop round's audit counts
-// them (one run per text node; a disabled control and a text over an image are not judged).
+// them (one run per text node; a disabled control, a text over an image and a text whose colour
+// has alpha 0 are not judged).
 //
 //   __uxuiCampaign.prepare(config)  keeps the declaration's selectors and sizes, sets the mode's
 //                                   attribute when it has one, and counts what each selector
 //                                   matches (-1: the browser does not read it)
-//   __uxuiCampaign.measure(spec)    injects the variant's style sheet (spec.css) after the
-//                                   page's own, checks every property it sets (spec.checks),
-//                                   and returns the numbers of one render; null takes the
-//                                   injected sheet away and measures the page as it is
+//   __uxuiCampaign.apply(spec)      injects the variant's style sheet (spec.css) after the
+//                                   page's own; null takes the injected sheet away. The run
+//                                   calls it, parks the pointer, and then measures
+//   __uxuiCampaign.measure(spec)    injects the same sheet when it is not there, checks every
+//                                   property it sets (spec.checks), and returns the numbers of
+//                                   one render, what the mode's expectation reads on the page,
+//                                   the first elements behind four of the counts, and a digest
+//                                   of every element's box and colours
 (() => {
   if (window.__uxuiCampaign) return true;
   const STYLE_ID = 'uxui-campaign-css';
@@ -119,6 +124,65 @@
       return clean(el.getAttribute('title') || el.getAttribute('placeholder'));
     }
     return clean(textOf(el)) || clean(el.getAttribute('title'));
+  }
+
+  // ---------- naming an element ----------
+  // An element as a note names it: its parent and itself as tag, id or the first two classes
+  // (`main > p.pale`), then the first 40 characters of a text in quotes.
+  const NAMED = 3;
+  function short(el) {
+    const tag = el.tagName.toLowerCase();
+    if (el.id) return `${tag}#${el.id}`;
+    const classes = clean(el.getAttribute('class')).split(' ').filter(Boolean).slice(0, 2);
+    return classes.length ? `${tag}.${classes.join('.')}` : tag;
+  }
+  function named(el, text) {
+    const parent = el.parentElement;
+    const path = parent && parent !== document.body && parent !== document.documentElement ? `${short(parent)} > ${short(el)}` : short(el);
+    const said = clean(text === undefined ? el.textContent : text).slice(0, 40);
+    return said ? `${path} "${said}"` : path;
+  }
+  // The first NAMED of what was found, in document order: an element before what it holds.
+  function first(found) {
+    return found
+      .sort((a, b) => (a.node === b.node ? 0 : a.node.compareDocumentPosition(b.node) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+      .slice(0, NAMED)
+      .map((entry) => entry.says());
+  }
+
+  // ---------- what changes at all ----------
+  // A digest of every element's box, rounded to px, and of the computed styles a theme's custom
+  // properties usually end in (STYLED), for the element and for its `::before` and `::after`
+  // when they are generated: a status dot is often one of those. Two renders of one page with
+  // the same digest look the same in all of that; the run compares each value of an axis with
+  // the shipped one by it. `opacity` and `transform` are left out: an animation without an end
+  // moves them, and a digest that moves by itself says nothing about a variant.
+  const STYLED = [
+    'color', 'backgroundColor', 'backgroundImage', 'fontSize', 'fontWeight', 'borderRadius',
+    'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor', 'outlineColor',
+    'boxShadow', 'fill', 'stroke',
+  ];
+  function digest() {
+    let a = 0x811c9dc5, b = 0x9e3779b9;
+    const feed = (s) => {
+      for (let i = 0; i < s.length; i++) {
+        const c = s.charCodeAt(i);
+        a = Math.imul(a ^ c, 0x01000193);
+        b = Math.imul(b ^ c, 0x85ebca6b);
+      }
+    };
+    const styled = (cs) => STYLED.map((property) => cs[property]).join(';');
+    for (const el of document.querySelectorAll('*')) {
+      if (SKIP.has(el.tagName)) continue;
+      const r = el.getBoundingClientRect();
+      feed(`${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)};${styled(getComputedStyle(el))}|`);
+      for (const pseudo of ['::before', '::after']) {
+        const cs = getComputedStyle(el, pseudo);
+        if (cs.content === 'none' || cs.content === 'normal') continue;
+        feed(`${pseudo};${cs.width};${cs.height};${styled(cs)}|`);
+      }
+    }
+    return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
   }
 
   // A change of the style sheet may start transitions; each is taken to its end, so a render
@@ -239,12 +303,23 @@
       if (unnamed <= 3) notes.push(`named: no accessible name: <${el.tagName.toLowerCase()} class="${el.className}">`);
     }
 
+    // The first elements behind a count, per count.
+    const elements = {};
+    const keep = (term, found) => {
+      if (found.length) elements[term] = first(found);
+    };
+
     let small = 0;
+    const smalls = [];
     for (const el of document.querySelectorAll(TARGETS)) {
       if (!visible(el)) continue;
       const b = el.getBoundingClientRect();
-      if (b.width < config.small_target_px || b.height < config.small_target_px) small++;
+      if (b.width < config.small_target_px || b.height < config.small_target_px) {
+        small++;
+        if (smalls.length < NAMED) smalls.push({ node: el, says: () => `${named(el)}: ${Math.round(b.width)} x ${Math.round(b.height)} px` });
+      }
     }
+    keep('small_targets', smalls);
 
     let regions = 0;
     if (config.regions !== null)
@@ -273,6 +348,7 @@
     };
 
     let runs = 0, under14 = 0, lowContrast = 0, overflow = 0;
+    const pale = [], cut = [];
     const shown = new Map();
     for (const t of textNodes()) {
       const el = t.parentElement;
@@ -284,21 +360,37 @@
       const cs = getComputedStyle(el);
       const size = parseFloat(cs.fontSize);
       if (size < 14) under14++;
-      if (r.right > clip(el).right + 1) overflow++;
+      const within = clip(el).right;
+      if (r.right > within + 1) {
+        overflow++;
+        cut.push({ node: t, says: () => `${named(el, t.data)}: the text ends at ${Math.round(r.right)} px, the box it shows in at ${Math.round(within)}` });
+      }
       if (el.closest(':disabled')) continue;
       const bg = surface(el);
       if (bg === null) continue;
-      const fg = over(parseColor(cs.color), bg);
+      // A colour of alpha 0 paints nothing: the page shows something else in the text's place,
+      // an image or a mask, or nothing. No contrast of the text is there to judge.
+      const ink = parseColor(cs.color);
+      if (ink[3] === 0) continue;
+      const fg = over(ink, bg);
       const ratio = contrast(fg, bg);
       const need = size >= 24 || (+cs.fontWeight >= 700 && size >= 18.66) ? 3 : 4.5;
       if (ratio < need - 0.005) {
         lowContrast++;
         if (lowContrast <= 3) notes.push(`contrast: ${ratio.toFixed(2)} under ${need}: ${toHex(fg)} on ${toHex(bg)}, "${clean(t.data).slice(0, 40)}"`);
+        if (pale.length < NAMED) pale.push({ node: t, says: () => `${named(el, t.data)}: ${ratio.toFixed(2)} under ${need}, ${toHex(fg)} on ${toHex(bg)}` });
       }
     }
     for (const el of document.querySelectorAll(BOXES)) {
-      if (visible(el) && el.getBoundingClientRect().right > clip(el.parentElement).right + 1) overflow++;
+      if (!visible(el)) continue;
+      const right = el.getBoundingClientRect().right, within = clip(el.parentElement).right;
+      if (right > within + 1) {
+        overflow++;
+        cut.push({ node: el, says: () => `${named(el)}: ends at ${Math.round(right)} px, the box it shows in at ${Math.round(within)}` });
+      }
     }
+    keep('low_contrast', pale);
+    keep('overflow', cut);
 
     // An item is there when one of its matches lies fully in the box it shows in, at the top of
     // the page and again at its end.
@@ -317,6 +409,24 @@
         scrollTo(0, 0);
       }
       misses = top.filter((at, i) => !at || !end[i]).length;
+      // The items in the declaration's order, not the document's: an item is a name.
+      const missed = [];
+      config.always_visible.forEach((item, i) => {
+        if (top[i] && end[i]) return;
+        const where = top[i] ? 'at the end of the page' : end[i] ? 'at the top of the page' : 'at the top of the page and at its end';
+        if (missed.length < NAMED) missed.push(`${item.name} (\`${item.selector}\`): not in view ${where}`);
+      });
+      if (missed.length) elements.always_visible_misses = missed;
+    }
+
+    // What the mode expects of the page, as the page has it now.
+    let expect = null;
+    if (config.expect) {
+      const found = config.expect.selector === null ? null : all(config.expect.selector);
+      expect = {
+        attribute: config.expect.attribute === null ? null : document.documentElement.getAttribute(config.expect.attribute.name),
+        selector: config.expect.selector === null ? null : found === null ? -1 : found.length,
+      };
     }
 
     return {
@@ -333,13 +443,22 @@
       always_visible_misses: misses,
       fonts: document.fonts.status,
       attribute: config.attribute ? document.documentElement.getAttribute(config.attribute.name) : null,
+      expect,
+      elements,
+      digest: digest(),
       failed,
       notes,
     };
   }
 
+  function apply(spec) {
+    inject(spec);
+    return true;
+  }
+
   // `config`: primary, regions (or null), always_visible (name, selector), small_target_px,
-  // attribute (name, value; or null).
+  // attribute (name, value; or null), expect (attribute: name, value, or null; selector or
+  // null; or null).
   function prepare(cfg) {
     config = cfg;
     if (cfg.attribute) document.documentElement.setAttribute(cfg.attribute.name, cfg.attribute.value);
@@ -356,6 +475,6 @@
     };
   }
 
-  window.__uxuiCampaign = { prepare, measure };
+  window.__uxuiCampaign = { prepare, apply, measure };
   return true;
 })()

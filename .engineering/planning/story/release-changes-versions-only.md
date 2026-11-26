@@ -2,10 +2,37 @@
 format: aep.planning-md/3
 id: story:release-changes-versions-only
 kind: story
-status: draft
+status: implemented
 title: A release changes versions and nothing else
 summary: One command sets the version; no browser re-record, re-bless or hand edit
-revision: 2
+scope:
+- confidence: cited
+  path: AGENTS.md
+- confidence: cited
+  path: Taskfile.yml
+- confidence: cited
+  path: docs/campaign-2026-11-26-docs-landing-engine.md
+- confidence: cited
+  path: engine/search/tests/fixtures/docs-landing
+- confidence: cited
+  path: engine/search/tests/landing.rs
+- confidence: cited
+  path: engine/static/tests/main.rs
+- confidence: cited
+  path: tools/docs-landing-campaign.sh
+- confidence: cited
+  path: tools/release-set-version.sh
+- confidence: cited
+  path: tools/release-versions.sh
+- confidence: cited
+  path: tools/release.test.sh
+- confidence: cited
+  path: website/product.json
+revision: 16
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-26T07:26:33Z", actor: "human:operator", revision: 3}
+- {from: "proposed", to: "active", at: "2026-11-26T07:26:33Z", actor: "human:operator", revision: 4}
+- {from: "active", to: "implemented", at: "2026-11-26T10:00:59Z", actor: "human:operator", revision: 16, decided_on: {"recorded":{"test_result":1}}}
 ---
 # Story: A release changes versions and nothing else
 

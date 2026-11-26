@@ -11,8 +11,9 @@ changed.
 Code: `engine/search/src/campaign/` (`declaration`, `run`, `record`, `report`), the in-page probe
 `engine/search/src/probes/campaign.js`, the script `tools/studio-campaign.sh`. Recorded in
 `engine/search/tests/fixtures/campaign/studio/`: the declaration `frontier.campaign.yaml` (format
-`ux-search-campaign/1`), `measurements.json` (format `ux-search-campaign-measurements/1`, one line
-of 11 numbers per render) and the report over it, `report.txt`.
+`ux-search-campaign/1`), `measurements.json` (format `ux-search-campaign-measurements/2`, one line
+of 11 numbers per render, where the pointer rested in each environment and how many values of
+each axis change the page at all) and the report over it, `report.txt`.
 
 The two tables of "The run" and "Frontier" and the table of "Made with" are written by the script
 with every recording; the text around them says what the numbers are, not what they were on one
@@ -34,25 +35,26 @@ day.
 | adapter | `ux-browser 0.11.0` |
 | declaration | `sha256:867e6446b66029d69d0a517e074207cd04ebed38f5bd33e9a1e25ef6bb171606` |
 
-| rank | variant | terms | 1366x768 light | 1280x720 dark |
-|---|---|---|---|---|
-| 1 | `space-tight.ink-deep.fill-pale.head-light` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-pale.head-light.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-pale.head-light.1280x720-dark.png) |
-| 2 | `space-tight.ink-deep.fill-pale.head-stock` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-pale.head-stock.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-pale.head-stock.1280x720-dark.png) |
-| 3 | `space-tight.ink-deep.fill-stock.head-light` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-stock.head-light.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-stock.head-light.1280x720-dark.png) |
-| 4 | `space-tight.ink-deep.fill-stock.head-stock` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-stock.head-stock.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-stock.head-stock.1280x720-dark.png) |
-| 5 | `space-tight.ink-mid.fill-pale.head-light` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-pale.head-light.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-pale.head-light.1280x720-dark.png) |
-| 6 | `space-tight.ink-mid.fill-pale.head-stock` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-pale.head-stock.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-pale.head-stock.1280x720-dark.png) |
-| 7 | `space-tight.ink-mid.fill-stock.head-light` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-stock.head-light.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-stock.head-light.1280x720-dark.png) |
-| 8 | `space-tight.ink-mid.fill-stock.head-stock` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-stock.head-stock.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-stock.head-stock.1280x720-dark.png) |
-| 9 | `space-tight.ink-stock.fill-pale.head-light` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-pale.head-light.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-pale.head-light.1280x720-dark.png) |
-| 10 | `space-tight.ink-stock.fill-pale.head-stock` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-pale.head-stock.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-pale.head-stock.1280x720-dark.png) |
-| 11 | `space-tight.ink-stock.fill-stock.head-light` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-stock.head-light.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-stock.head-light.1280x720-dark.png) |
-| 12 | `space-tight.ink-stock.fill-stock.head-stock` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-stock.head-stock.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-stock.head-stock.1280x720-dark.png) |
+| rank | variant | terms | 1366x768 light | 1366x768 dark | 1280x720 dark |
+|---|---|---|---|---|---|
+| 1 | `space-tight.ink-deep.fill-pale.head-light` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-pale.head-light.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-pale.head-light.1366x768-dark.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-pale.head-light.1280x720-dark.png) |
+| 2 | `space-tight.ink-deep.fill-pale.head-stock` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-pale.head-stock.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-pale.head-stock.1366x768-dark.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-pale.head-stock.1280x720-dark.png) |
+| 3 | `space-tight.ink-deep.fill-stock.head-light` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-stock.head-light.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-stock.head-light.1366x768-dark.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-stock.head-light.1280x720-dark.png) |
+| 4 | `space-tight.ink-deep.fill-stock.head-stock` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-stock.head-stock.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-stock.head-stock.1366x768-dark.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-deep.fill-stock.head-stock.1280x720-dark.png) |
+| 5 | `space-tight.ink-mid.fill-pale.head-light` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-pale.head-light.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-pale.head-light.1366x768-dark.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-pale.head-light.1280x720-dark.png) |
+| 6 | `space-tight.ink-mid.fill-pale.head-stock` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-pale.head-stock.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-pale.head-stock.1366x768-dark.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-pale.head-stock.1280x720-dark.png) |
+| 7 | `space-tight.ink-mid.fill-stock.head-light` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-stock.head-light.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-stock.head-light.1366x768-dark.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-stock.head-light.1280x720-dark.png) |
+| 8 | `space-tight.ink-mid.fill-stock.head-stock` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-stock.head-stock.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-stock.head-stock.1366x768-dark.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-mid.fill-stock.head-stock.1280x720-dark.png) |
+| 9 | `space-tight.ink-stock.fill-pale.head-light` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-pale.head-light.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-pale.head-light.1366x768-dark.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-pale.head-light.1280x720-dark.png) |
+| 10 | `space-tight.ink-stock.fill-pale.head-stock` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-pale.head-stock.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-pale.head-stock.1366x768-dark.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-pale.head-stock.1280x720-dark.png) |
+| 11 | `space-tight.ink-stock.fill-stock.head-light` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-stock.head-light.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-stock.head-light.1366x768-dark.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-stock.head-light.1280x720-dark.png) |
+| 12 | `space-tight.ink-stock.fill-stock.head-stock` | `hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4` | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-stock.head-stock.1366x768-light.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-stock.head-stock.1366x768-dark.png) | [png](campaign-2026-11-26-studio-engine/space-tight.ink-stock.fill-stock.head-stock.1280x720-dark.png) |
 <!-- recorded: end -->
 
-The first table is the run, the second its frontier: each variant with its terms and its two
-screenshots, the first screen at the first and at the last environment. Each frontier variant's
-patch stands under its line in `report.txt`, and the full ranking follows there.
+The first table is the run, the second its frontier: each variant with its terms and its
+screenshots, the first screen in each mode at the first viewport and in the last environment.
+Each frontier variant's patch stands under its line in `report.txt`, and the full ranking follows
+there.
 
 ## The page
 
@@ -131,8 +133,9 @@ The run checks that shortcut, and fails when a check does:
 | the page is measured with no sheet injected, and the variant of the shipped values, measured with its sheet, gives the same numbers | a probe that changes the page by measuring it |
 | the first variant, measured again after the last, gives the same numbers | a render that leaves a trace in the next; a page that changes while it is measured (a timer, an event of the fixture channel) |
 | every property a sheet sets is read back from every element its selector matches | a selector that matches nothing; a value another rule of the page outweighs. The refusal names the declaration file and the rule's key, as `axes[2].values[1].rules[1]` |
-| each frontier variant is measured once more on a page loaded anew, in the two environments of its screenshots, and its screenshot is of that page | numbers that depend on the variants measured before |
+| each frontier variant is measured once more on a page loaded anew, in the environments of its screenshots, and its screenshot is of that page | numbers that depend on the variants measured before |
 | the page asks for nothing but its own origin, with `GET` and `HEAD` | a page that was denied a request: the run fails and names the URL |
+| the pointer is moved to the bottom-right corner of the viewport before every measurement and every screenshot (this declaration names no `page.pointer`) | a page measured with whatever opens under a headless pointer at 0, 0 |
 
 A change of the sheet may start transitions; the probe takes each to its end before it measures,
 waits for the fonts and for two frames, and scrolls to the top. The generated app compiles its
@@ -147,16 +150,16 @@ The script runs the campaign twice and fails unless the second run writes the by
 <!-- versions: begin -->
 | | |
 |---|---|
-| `ess/ui/studio.ui.yaml` | `sha256:5e63b46020459e6c8a7dc751852735a46f05bed686449cdc51cf4d14305dbc4e` |
-| `themes/studio.css` | `sha256:705f8dbc9298a9a1427dd7201bb114954c611eabd9b29ccc810ef41305aee165` |
-| the served app, `www/` | `sha256:8cca323fa258cde83424ae788ecbbcc742d17789c701a19f7a5564e6001ed96c` |
+| `ess/ui/studio.ui.yaml` | `sha256:e7fffe33804e6266835294a7150122f04fe809b3004f8b4c6e9cb42ee4db1404` |
+| `themes/studio.css` | `sha256:9e7591d6b161b463c57aedac96598b49cad0bc3d694b3c011c3cdc6a7baaa80e` |
+| the served app, `www/` | `sha256:e3ef71ca68535e01fb5b63e1bd37d64843e532315acb2c67d042e7cdd557a4d5` |
 | generator | `ess 0.99.2` |
 | node, npm | `v22.23.3`, `10.9.9` |
 | react, react-dom, esbuild, typescript | `19.3.1`, `19.3.1`, `0.28.2`, `5.9.3` |
 | Chromium | `Google Chrome for Testing 159.0.8154.6` |
 | engine | `ux-search 0.11.0` |
-| first run | 192 renders in HeadlessChrome/159.0.8154.6, 11.6 s with 4 pages at once |
-| second run | 192 renders in HeadlessChrome/159.0.8154.6, 11.5 s with 4 pages at once; the same bytes of `measurements.json` as the first run, 24 of 24 screenshots the same bytes |
+| first run | 192 renders in HeadlessChrome/159.0.8154.6, 25.1 s with 4 pages at once |
+| second run | 192 renders in HeadlessChrome/159.0.8154.6, 25.2 s with 4 pages at once; the same bytes of `measurements.json` as the first run, 36 of 36 screenshots the same bytes |
 <!-- versions: end -->
 
 ## Reading the frontier
@@ -168,39 +171,58 @@ says how many different sets the space has.
 
 What each axis can move on this page: spacing moves `primary_px`, and `overflow` when the table no
 longer fits its frame; the two status axes and the heading's ink move `low_contrast`, each in the
-mode its rules are for. `low_contrast` is the worst of the environments, so an ink that mends the
-light mode shows in the term only together with one that mends the dark mode, and a fill and an
-ink that each fall short alone can pass together: the axes are not independent, which is what a
-campaign over their product is for. Nothing a variant of this declaration sets moves
+mode its rules are for, on a theme that leaves a text under the threshold. `low_contrast` is the
+worst of the environments, so an ink that mends the light mode shows in the term only together with
+one that mends the dark mode, and a fill and an ink that each fall short alone can pass together:
+the axes are not independent, which is what a campaign over their product is for.
+
+What each axis does on the theme as recorded, by the run's line per axis (`axes` in the
+measurements): all 3 values of the spacing beside the shipped one, both of the status ink and the
+one of the status fill change a box or a computed style of the page, and only the spacing moves a
+term. The axis `nav-head` changes nothing: its one value sets the colour the theme has had for the
+heading since loop round R-02 (`--uxui-nav-head`), so its two values are one page.
+
+Nothing a variant of this declaration sets moves
 `text_under_14`, `small_targets` or `regions`: no axis sets the size of the small text. Since loop
 round R-02 the theme declares that size in `:root` (`--uxui-text-small`), so a later declaration
 can make it an axis.
 
-Which text runs a variant leaves under the threshold is not in the measurements, only their count.
-A run of the campaign with `contrast` among the declaration's hard rules names them on standard
-error, with the two colours and the ratio, per environment.
+Which text runs a variant leaves under the threshold is in the measurements for the page as
+shipped and for the frontier: the first three per environment, each with its element, the two
+colours and the ratio, and the same for `overflow`, `small_targets` and `always_visible_misses`.
+`ux-search campaign report --measurements <measurements.json> --notes` prints them after the
+report. For every other variant the measurements hold the count only.
 
-## Two recordings, two themes
+## Three recordings, three themes
 
-The campaign was recorded twice on 2026-11-26, on two states of `themes/studio.css`, with one
-declaration (the digest in "The run").
+The campaign was recorded three times on 2026-11-26, on three states of `themes/studio.css`, with
+one declaration (the digest in "The run").
 
-| | the theme before loop round R-02 | the theme after it (the tables above) |
-|---|---|---|
-| `low_contrast`, the page as shipped | 3 | 0 |
-| `text_under_14`, the page as shipped | 0.400 | 0.000 |
-| `primary_px`, the page as shipped | 321 | 338 |
-| sets of terms among the 48 variants | 12 | 4 |
-| frontier | 3 variants | 12 variants |
-| the page as shipped | rank 42 of 48 | rank 36 of 48 |
+| | the theme before loop round R-02 | after R-02 | after R-03 (the tables above) |
+|---|---|---|---|
+| `low_contrast`, the page as shipped | 3 | 0 | 0 |
+| `text_under_14`, the page as shipped | 0.400 | 0.000 | 0.000 |
+| `primary_px`, the page as shipped | 321 | 338 | 340 |
+| `primary_px`, the four spacings | not kept | 315, 327, 338, 353 | 318, 329, 340, 356 |
+| sets of terms among the 48 variants | 12 | 4 | 4 |
+| frontier | 3 variants | 12 variants | 12 variants |
+| the page as shipped | rank 42 of 48 | rank 36 of 48 | rank 36 of 48 |
 
 Round R-02 (`ess/ui/rounds/R-02/`, finding UXF-017) set all small text to 14 px and gave each toned
 badge a text colour per mode. On that theme no variant leaves a text under the threshold, so the
 three ink and fill axes move no term: the 12 variants of the frontier are the 12 with the tight
-spacing, and only `primary_px` separates the space (315, 327, 338 and 353 px for the four
-spacings). The first recording is in the commit that added this document; its frontier was three
-variants that mended the contrast the round then mended in the theme. A next campaign on this page
-needs axes the theme has not settled: on this theme three of these four move nothing.
+spacing, and only `primary_px` separates the space. The first recording is in the commit that added
+this document; its frontier was three variants that mended the contrast the round then mended in
+the theme.
+
+Round R-03 (`ess/ui/rounds/R-03/`) keeps the header of a page in view and takes the outer padding
+from the first and last cell of a table row; it gave the page header a least height. The primary
+action stands 2 to 3 px lower for it, and the ranking is the one of the second recording. The third
+recording is the first with the engine that parks the pointer, reads back what a mode expects and
+says what each axis changes; between the second and the third engine on one theme no number moved.
+
+A next campaign on this page needs axes the theme has not settled: on this theme three of these
+four move no term, and one of them changes nothing at all.
 
 ## What the numbers do not say
 

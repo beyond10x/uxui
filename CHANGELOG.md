@@ -42,6 +42,62 @@
   that document runs the gate (`tools/prose-only.sh`).
 - `website/data/status.json` and the limitations page no longer say the specification has no
   scenarios.
+- The third round of the `ui-iteration-loop` skill on the studio is on record
+  (`ess/ui/rounds/R-03/`). Hard gate 2 passes for the first time: the header of a page stays at the
+  top of the viewport and the narrow column under it while the main column scrolls
+  (`themes/studio.css`; UXF-004, the yes side of `R-03/decision.md`, which has no answer yet), so
+  Stop and the campaign state stay in view on the live climb, always-visible misses 20 to 0. The
+  switch action of a variant reads "Switch" and can be clicked at 1280x720 (UXF-002); four pages
+  get a title (UXF-008, held by the new floor `h1` of `studio.audit.json`); the gate decision of a
+  promotion and the dialog that accepts its trade-off read as words, one field per member of each
+  record (UXF-005, for that page only). Against R-02: scenarios not completed 5 to 4 of 11, runs
+  failed 2 to 0, looks 12 to 8, pages without a title 4 to 0. Not built: a notice still names its
+  command (UXF-010); the generated runtime writes those words and `ess-ui/1` has no key for them
+  (`docs/ess-gaps.md`, "A notice's words"); the round counts it, 28 of 44 runs. One value is above
+  R-02's: the largest layout shift, 0.0176 to 0.0284, 0.0008 past the skill's tolerance and
+  unstable on unchanged input (UXF-023). Gates 1 and 3 still fail; 20 findings are open, none S1.
+- `ux-search campaign run` parks the pointer before it measures and shoots (`page.pointer`, else
+  the bottom-right corner of the viewport): a headless pointer rests at 0, 0, and a page with
+  something there that opens on hover was measured open. A mode can say what the page shows in it
+  (`expect`: an attribute of the root element, a selector), read back in every render; a mode set by
+  a query without it is named as not read back. The run says per axis how many values change a box
+  or a computed style of the page, and names an axis that changes nothing. Each frontier variant is
+  shot in every mode. `ux-search campaign report --notes` names the first elements behind the
+  counts; text of alpha 0 is not judged for contrast. Every command answers `--help`. Without
+  `--profile` the browser profile is a directory under the system's temp directory, removed when
+  the run ends. The measurements format is `ux-search-campaign-measurements/2`; a `/1` file is
+  refused. The tests that run a campaign in Chromium (`campaign_live`, 11) are not in the gate,
+  which has no browser; `tools/studio-campaign.sh` runs them before it records. The studio campaign
+  is recorded on the theme of round R-03: the same ranking, a frontier of 12, the page as shipped
+  at rank 36 of 48.
+- The first campaign on a page outside this repository ran: one list page of an admin console in a
+  private repository, on its fixtures (`story:trial-target`, roadmap step 6). 32 variants, 192
+  renders, two runs with the same bytes, a frontier of 6, the page as shipped at rank 28 of 32. The
+  first run measured the page with a navigation open under the resting pointer; the fixes above
+  came from it, and the second run measured the page at rest.
+  `docs/trial-2026-11-26-outside-target.md` holds the generic findings; nothing of the target is in
+  this repository.
+- A release is one command and changes versions only (`story:release-changes-versions-only`).
+  `sh tools/release-set-version.sh <version>` (`task release:set-version -- <version>`) writes the
+  version into every file that carries it: the plugin manifests and the Claude marketplace, the
+  crates and this repository's packages in both lock files, the plugin version of
+  `website/docs/index.md` and `website/data/status.json`, and the current release in
+  `docs/roadmap.md`. It moves the entries of `## Unreleased` under the dated heading, regenerates
+  the pages and ends with `tools/release-versions.sh`, which now checks each of those files and
+  names every one that disagrees. `sh tools/gate.sh` passes on what the command wrote, with no
+  browser run and no golden file blessed. Before it writes a file the command refuses a release
+  without an entry, a version that is not greater than every dated section and a date that is no
+  day of the calendar. Run again for the version it just cut, it moves later entries into that
+  section; run for the version before, it takes a cut that is not released back, byte for byte.
+  A recording keeps the tool version it was recorded with: no release rewrites a recorded campaign
+  or the two example documents of `ux-browser`, and the tests hold a recording's adapter line to
+  the form `ux-browser <version>`, not to this build. For that, the landing page's eyebrow no
+  longer names the plugin version; the documentation landing campaign was recorded once more for
+  it (`words` 2 lower in all 864 renders, `primary_px` 14 or 15 px lower at 390x844, the same
+  frontier of 16 variants, the page as shipped still rank 35). The golden evidence of `ux-static`
+  keeps `{version}` in place of the tool version. `tools/docs-landing-campaign.sh` records in
+  place (measurements, report, golden evidence, screenshots), builds the variant's site in a copy
+  of `website/`, and runs as one job of a build pool with `--pool`.
 
 ## 0.11.0 — 2026-11-26
 

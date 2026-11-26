@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T09:07:39Z",
+  "actor": "human:operator",
+  "artifact": "story:release-changes-versions-only",
+  "kind": "story",
+  "revision": 15,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "sh tools/release-set-version.sh 0.12.0, then sh tools/gate.sh: every step passed with no browser; 0.11.0 again: no difference; tools/release.test.sh 75 cases",
+    "reference": "tools/release.test.sh"
+  }
+}

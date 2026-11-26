@@ -21,12 +21,15 @@
 //!   (`ux-search landing run`, `ux-search landing report`).
 //! - [`campaign`]: a declared campaign on the browser adapter, over custom properties of any
 //!   served page (`ux-search campaign run`, `ux-search campaign report`).
+//! - [`profile`]: the browser profile directory of a run that names none, under the system's
+//!   temp directory.
 
 pub mod campaign;
 pub mod climb;
 pub mod cost;
 pub mod drive;
 pub mod landing;
+pub mod profile;
 pub mod rank;
 pub mod variant;
 

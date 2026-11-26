@@ -1,7 +1,8 @@
 //! The declared browser campaign (`story:trial-target`): a declaration `ux-search-campaign/1`
 //! names the page, the environments, the axes and the terms; `ux-search campaign run` measures
-//! every variant in Chromium and `ux-search campaign report` ranks the record. No test starts a
-//! browser or runs a campaign.
+//! every variant in Chromium and `ux-search campaign report` ranks the record. No test here
+//! starts a browser or runs a campaign: the tests that do are the browser lane, the module
+//! `campaign_live`, which a plain `cargo test` and the gate leave out.
 //!
 //! `fixtures/campaign/small.campaign.yaml` is a declaration no page is behind: the tests read
 //! it, break it, and rank records they make up for it. `fixtures/campaign/studio/` is the
@@ -15,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use ux_search::campaign::declaration::{self, Declaration};
-use ux_search::campaign::record::{self, Recorded, Render};
+use ux_search::campaign::record::{self, Note, Recorded, Render};
 use ux_search::campaign::{report, run};
 use ux_search::landing::patch;
 
@@ -68,6 +69,10 @@ fn a_declaration_names_its_page_its_environments_its_axes_and_its_terms() {
     assert_eq!(declaration.page.ready, "main[data-ready]");
     assert_eq!(declaration.page.ready_timeout_ms, 5000);
     assert_eq!(declaration.page.settle_ms, 100);
+    assert_eq!(declaration.page.pointer, Some((380, 760)));
+    for environment in declaration.environments() {
+        assert_eq!(declaration.pointer(&environment), (380, 760));
+    }
     let environments: Vec<String> = declaration
         .environments()
         .iter()
@@ -90,7 +95,19 @@ fn a_declaration_names_its_page_its_environments_its_axes_and_its_terms() {
         Some(("data-theme".to_owned(), "dark".to_owned()))
     );
     assert_eq!(dark.query.as_deref(), Some("theme=dark"));
+    assert_eq!(
+        dark.expect,
+        Some(declaration::Expect {
+            attribute: Some(("data-theme".to_owned(), "dark".to_owned())),
+            selector: Some("body.dark".to_owned()),
+        })
+    );
+    assert_eq!(
+        dark.set_by(),
+        "the emulated colour scheme `dark` and the attribute `data-theme` `dark` and the query `theme=dark`"
+    );
     assert_eq!(declaration.modes[0].attribute, None);
+    assert_eq!(declaration.modes[0].expect, None);
     let axes: Vec<(&str, Vec<&str>, usize)> = declaration
         .axes
         .iter()
@@ -124,12 +141,20 @@ fn a_declaration_names_its_page_its_environments_its_axes_and_its_terms() {
     assert_eq!(declaration.terms.len(), 7);
 }
 
-/// What a declaration may leave out: the waits, the regions, the always-visible items, the
-/// hard rules and the size of a small target.
+/// What a declaration may leave out: the waits, the pointer, a mode's expectation, the regions,
+/// the always-visible items, the hard rules and the size of a small target. A pointer that is
+/// not named rests in the bottom-right corner of each viewport.
 #[test]
 fn a_declaration_has_defaults_for_what_it_leaves_out() {
     let text = small_text()
-        .replace("  ready_timeout_ms: 5000\n  settle_ms: 100\n", "")
+        .replace(
+            "  ready_timeout_ms: 5000\n  settle_ms: 100\n  pointer: [380, 760]\n",
+            "",
+        )
+        .replace(
+            ", expect: {attribute: {name: data-theme, value: dark}, selector: 'body.dark'}",
+            "",
+        )
         .replace("regions: 'header, main > section, footer'\n", "")
         .replace(
             "always_visible:\n  - {name: navigation, selector: nav}\n  - {name: save, selector: 'button.primary'}\n",
@@ -144,6 +169,14 @@ fn a_declaration_has_defaults_for_what_it_leaves_out() {
     let declaration = Declaration::parse(&text).unwrap_or_else(|error| panic!("{error}"));
     assert_eq!(declaration.page.ready_timeout_ms, 10_000);
     assert_eq!(declaration.page.settle_ms, 0);
+    assert_eq!(declaration.page.pointer, None);
+    let rests: Vec<(u32, u32)> = declaration
+        .environments()
+        .iter()
+        .map(|environment| declaration.pointer(environment))
+        .collect();
+    assert_eq!(rests, [(1365, 767), (1365, 767), (389, 843), (389, 843)]);
+    assert_eq!(declaration.modes[1].expect, None);
     assert_eq!(declaration.regions, None);
     assert!(declaration.always_visible.is_empty());
     assert_eq!(declaration.small_target_px, 44);
@@ -238,7 +271,7 @@ const BROKEN: &[Broken] = &[
         &[
             ("    - {name: light, media: light}\n", ""),
             (
-                "  modes:\n    - {name: dark, media: dark, attribute: {name: data-theme, value: dark}, query: theme=dark}\n",
+                "  modes:\n    - {name: dark, media: dark, attribute: {name: data-theme, value: dark}, query: theme=dark, expect: {attribute: {name: data-theme, value: dark}, selector: 'body.dark'}}\n",
                 "  modes: []\n",
             ),
         ],
@@ -279,6 +312,88 @@ const BROKEN: &[Broken] = &[
         "a query that starts with its mark",
         &[("query: theme=dark", "query: '?theme=dark'")],
         &["`environments.modes[1].query`"],
+    ),
+    (
+        "a pointer that is no position",
+        &[("pointer: [380, 760]", "pointer: [380]")],
+        &["`page.pointer`", "[380]", "[<x>, <y>]"],
+    ),
+    (
+        "a pointer that is no pair of whole numbers",
+        &[("pointer: [380, 760]", "pointer: [left, 760]")],
+        &["`page.pointer`", "left", "[<x>, <y>]"],
+    ),
+    (
+        "a pointer that is a text",
+        &[("pointer: [380, 760]", "pointer: corner")],
+        &["`page.pointer`", "[<x>, <y>]"],
+    ),
+    (
+        "a pointer to the right of the narrowest viewport",
+        &[("pointer: [380, 760]", "pointer: [390, 760]")],
+        &[
+            "`page.pointer`",
+            "[390, 760]",
+            "outside",
+            "390x844",
+            "`environments.viewports[1]`",
+        ],
+    ),
+    (
+        "a pointer under the lowest viewport",
+        &[("pointer: [380, 760]", "pointer: [380, 768]")],
+        &[
+            "`page.pointer`",
+            "[380, 768]",
+            "outside",
+            "1366x768",
+            "`environments.viewports[0]`",
+        ],
+    ),
+    (
+        "an unknown key of an expectation",
+        &[("selector: 'body.dark'}}", "css: 'body.dark'}}")],
+        &["`environments.modes[1].expect.css`", "unknown key"],
+    ),
+    (
+        "an expectation of nothing",
+        &[(
+            "expect: {attribute: {name: data-theme, value: dark}, selector: 'body.dark'}",
+            "expect: {}",
+        )],
+        &["`environments.modes[1].expect`", "attribute", "selector"],
+    ),
+    (
+        "an expectation that is no map",
+        &[(
+            "expect: {attribute: {name: data-theme, value: dark}, selector: 'body.dark'}",
+            "expect: dark",
+        )],
+        &["`environments.modes[1].expect`"],
+    ),
+    (
+        "an expected attribute without a value",
+        &[(
+            "expect: {attribute: {name: data-theme, value: dark}",
+            "expect: {attribute: {name: data-theme}",
+        )],
+        &["`environments.modes[1].expect.attribute.value`"],
+    ),
+    (
+        "an expected attribute whose name is none",
+        &[(
+            "expect: {attribute: {name: data-theme, value: dark}",
+            "expect: {attribute: {name: 'data theme', value: dark}",
+        )],
+        &[
+            "`environments.modes[1].expect.attribute.name`",
+            "data theme",
+        ],
+    ),
+    (
+        "an expected selector that is empty",
+        &[("selector: 'body.dark'}}", "selector: ''}}")],
+        &["`environments.modes[1].expect.selector`"],
     ),
     (
         "an unknown key of an axis",
@@ -716,9 +831,23 @@ fn render(primary_px: u64, low_contrast: u64) -> Render {
     }
 }
 
+fn note(environment: usize, term: &str, elements: &[&str]) -> Note {
+    Note {
+        environment,
+        term: term.to_owned(),
+        elements: elements.iter().map(|&element| element.to_owned()).collect(),
+    }
+}
+
+const PALE_HINT: &str =
+    "main > p.hint \"Updated a minute ago\": 3.10 under 4.5, #8a8a8a on #ffffff";
+const PALE_CELL: &str = "td.muted \"n/a\": 2.32 under 4.5, #aaaaaa on #ffffff";
+const SMALL_ICON: &str = "nav > a.icon: 16 x 16 px";
+
 /// A record made up for the small declaration: the tight spacing brings the primary action
 /// 40 px up, the deep ink takes both low-contrast runs away, and the second environment is
-/// 10 px worse than the others.
+/// 10 px worse than the others. Each axis has one value that changes the page; the page as
+/// shipped and the frontier's one variant name the elements behind their counts.
 fn small_record() -> Recorded {
     let declaration = small();
     let variants = declaration
@@ -738,15 +867,27 @@ fn small_record() -> Recorded {
         browser: "HeadlessChrome/1.2.3.4".to_owned(),
         declaration,
         variants,
+        changing: vec![1, 1],
+        notes: vec![
+            Vec::new(),
+            vec![note(0, "small_targets", &[SMALL_ICON])],
+            vec![
+                note(0, "low_contrast", &[PALE_HINT, PALE_CELL]),
+                note(0, "small_targets", &[SMALL_ICON]),
+                note(3, "low_contrast", &[PALE_CELL]),
+            ],
+            Vec::new(),
+        ],
     }
 }
 
 #[test]
 fn a_record_reads_back_what_was_written_and_writes_the_same_bytes() {
     let recorded = small_record();
+    recorded.check().unwrap_or_else(|error| panic!("{error}"));
     let text = recorded.text();
     assert!(
-        text.starts_with("{\n  \"format\": \"ux-search-campaign-measurements/1\",\n"),
+        text.starts_with("{\n  \"format\": \"ux-search-campaign-measurements/2\",\n"),
         "{text}"
     );
     assert!(text.contains(&format!(
@@ -755,6 +896,36 @@ fn a_record_reads_back_what_was_written_and_writes_the_same_bytes() {
     )));
     assert!(
         text.contains("      [1,0,0,200,1,2,40,10,2,0,0],\n"),
+        "{text}"
+    );
+    // Where the pointer rested, per environment; what each axis changes; a variant's notes.
+    assert!(
+        text.contains(
+            "  \"environments\": [\"1366x768 light\", \"1366x768 dark\", \"390x844 light\", \"390x844 dark\"],\n  \"pointer\": [[380,760],[380,760],[380,760],[380,760]],\n  \"columns\": ["
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "  \"axes\": [{\"name\": \"spacing\", \"changing\": 1}, {\"name\": \"ink\", \"changing\": 1}],\n  \"variants\": [\n"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "      [1,0,0,200,1,2,40,10,0,0,0]\n    ], \"notes\": [\n      {\"environment\": 0, \"term\": \"small_targets\", \"elements\": [\"nav > a.icon: 16 x 16 px\"]}\n    ]},\n"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "      {\"environment\": 0, \"term\": \"low_contrast\", \"elements\": [\"main > p.hint \\\"Updated a minute ago\\\": 3.10 under 4.5, #8a8a8a on #ffffff\", \"td.muted \\\"n/a\\\": 2.32 under 4.5, #aaaaaa on #ffffff\"]},\n"
+        ),
+        "{text}"
+    );
+    // A variant without notes is written as before them.
+    assert!(
+        text.contains("      [1,0,0,200,1,2,40,10,2,0,0]\n    ]},\n"),
         "{text}"
     );
     assert!(
@@ -772,7 +943,7 @@ fn a_record_reads_back_what_was_written_and_writes_the_same_bytes() {
 #[test]
 fn a_tampered_record_is_refused() {
     let text = small_record().text();
-    let changes: [(&str, &str, &str, &str); 11] = [
+    let changes: &[(&str, &str, &str, &str)] = &[
         (
             "a number",
             "[1,0,0,200,1,2,40,10,2,0,0]",
@@ -825,12 +996,78 @@ fn a_tampered_record_is_refused() {
         ),
         (
             "the format",
-            "ux-search-campaign-measurements/1",
+            "ux-search-campaign-measurements/2",
             "ux-search-landing/1",
             "`format`",
         ),
+        (
+            "the format before the pointer was parked",
+            "ux-search-campaign-measurements/2",
+            "ux-search-campaign-measurements/1",
+            "the pointer wherever the browser left it",
+        ),
+        (
+            "where the pointer rested",
+            "\"pointer\": [[380,760],",
+            "\"pointer\": [[0,0],",
+            "`pointer`",
+        ),
+        (
+            "an environment's pointer",
+            "[380,760],[380,760],[380,760],[380,760]",
+            "[380,760],[380,760],[380,760]",
+            "`pointer`",
+        ),
+        (
+            "what an axis changes",
+            "{\"name\": \"ink\", \"changing\": 1}",
+            "{\"name\": \"ink\", \"changing\": 0}",
+            "`digest`",
+        ),
+        (
+            "more changing values than the axis has",
+            "{\"name\": \"ink\", \"changing\": 1}",
+            "{\"name\": \"ink\", \"changing\": 2}",
+            "axis `ink`",
+        ),
+        (
+            "an axis's name",
+            "{\"name\": \"ink\", \"changing\": 1}",
+            "{\"name\": \"paper\", \"changing\": 1}",
+            "`axes`",
+        ),
+        (
+            "an axis",
+            ", {\"name\": \"ink\", \"changing\": 1}",
+            "",
+            "`axes`",
+        ),
+        (
+            "a note's element",
+            "nav > a.icon: 16 x 16 px",
+            "nav > a.icon: 20 x 20 px",
+            "`digest`",
+        ),
+        (
+            "a note of a count the catalogue does not name",
+            "{\"environment\": 3, \"term\": \"low_contrast\",",
+            "{\"environment\": 3, \"term\": \"regions\",",
+            "`regions`",
+        ),
+        (
+            "a note of an environment the record does not have",
+            "{\"environment\": 3, \"term\": \"low_contrast\",",
+            "{\"environment\": 4, \"term\": \"low_contrast\",",
+            "environment 4",
+        ),
+        (
+            "a note of a count that is 0",
+            "{\"environment\": 3, \"term\": \"low_contrast\",",
+            "{\"environment\": 3, \"term\": \"overflow\",",
+            "`overflow`, which counts 0",
+        ),
     ];
-    for (name, from, to, says) in changes {
+    for &(name, from, to, says) in changes {
         assert!(text.contains(from), "{name}: the record has no `{from}`");
         let refused = match Recorded::parse(&text.replacen(from, to, 1)) {
             Ok(_) => panic!("{name}: the record is read"),
@@ -1005,9 +1242,9 @@ const SMALL_MARKDOWN: &str = "| | |
 | adapter | `ux-browser 0.10.0` |
 | declaration | `DIGEST` |
 
-| rank | variant | terms | 1366x768 light | 390x844 dark |
-|---|---|---|---|---|
-| 1 | `tight.deep` | `hard=0 always_visible_misses=0 low_contrast=0 text_under_14=0.250 overflow=0 primary_px=210 regions=2 small_targets=1` | [png](shots/tight.deep.1366x768-light.png) | [png](shots/tight.deep.390x844-dark.png) |
+| rank | variant | terms | 1366x768 light | 1366x768 dark | 390x844 dark |
+|---|---|---|---|---|---|
+| 1 | `tight.deep` | `hard=0 always_visible_misses=0 low_contrast=0 text_under_14=0.250 overflow=0 primary_px=210 regions=2 small_targets=1` | [png](shots/tight.deep.1366x768-light.png) | [png](shots/tight.deep.1366x768-dark.png) | [png](shots/tight.deep.390x844-dark.png) |
 ";
 
 #[test]
@@ -1032,12 +1269,75 @@ fn a_record_of_other_variants_is_not_reported() {
     assert!(refused.contains("tight.stock"), "{refused}");
 }
 
-/// A frontier variant's screenshots are of the first and of the last environment.
+const SMALL_NOTES: &str = "notes: the first elements behind each count, at most 3 per term and environment, of the page as shipped and of the frontier
+shipped stock.stock
+     1366x768 light low_contrast: main > p.hint \"Updated a minute ago\": 3.10 under 4.5, #8a8a8a on #ffffff
+     1366x768 light low_contrast: td.muted \"n/a\": 2.32 under 4.5, #aaaaaa on #ffffff
+     1366x768 light small_targets: nav > a.icon: 16 x 16 px
+     390x844 dark low_contrast: td.muted \"n/a\": 2.32 under 4.5, #aaaaaa on #ffffff
+   1 tight.deep
+     1366x768 light small_targets: nav > a.icon: 16 x 16 px
+";
+
+/// What `campaign report --notes` adds: the elements the record names for the page as shipped
+/// and for each frontier variant, one line per element, in the record's order.
 #[test]
-fn a_frontier_variant_is_shot_in_the_first_and_the_last_environment() {
-    let environments = small().environments();
-    assert_eq!(run::screenshot_environments(environments.len()), [0, 3]);
-    assert_eq!(run::screenshot_environments(1), [0]);
+fn the_notes_name_the_elements_of_the_page_as_shipped_and_of_the_frontier() {
+    let recorded = small_record();
+    assert_eq!(report::notes(&recorded), Ok(SMALL_NOTES.to_owned()));
+
+    // A variant the record names nothing for says so, and why.
+    let mut unnamed = small_record();
+    unnamed.notes[1].clear();
+    let notes = report::notes(&unnamed).expect("the notes");
+    assert!(
+        notes.ends_with("   1 tight.deep\n     the record names no element for it\n"),
+        "{notes}"
+    );
+    let mut clean = small_record();
+    clean.notes[1].clear();
+    for render in &mut clean.variants[1].1 {
+        render.small_targets = 0;
+    }
+    let notes = report::notes(&clean).expect("the notes");
+    assert!(
+        notes.ends_with(
+            "   1 tight.deep\n     nothing to name: low_contrast, overflow, small_targets and always_visible_misses are 0 in every environment\n"
+        ),
+        "{notes}"
+    );
+
+    // The page as shipped on the frontier is named once.
+    let mut alone = small_record();
+    for (_, renders) in &mut alone.variants {
+        *renders = vec![render(200, 2); 4];
+    }
+    alone.notes = vec![Vec::new(); 4];
+    alone.notes[2] = vec![note(0, "low_contrast", &[PALE_CELL])];
+    let notes = report::notes(&alone).expect("the notes");
+    assert!(
+        notes.contains("shipped stock.stock\n     1366x768 light low_contrast: td.muted"),
+        "{notes}"
+    );
+    assert!(
+        notes.contains(" stock.stock\n     the page as shipped, above\n"),
+        "{notes}"
+    );
+}
+
+/// A frontier variant's screenshots: every mode at the first viewport, and the last
+/// environment. So a mode the page does not take shows in a screenshot, and so does the last
+/// viewport.
+#[test]
+fn a_frontier_variant_is_shot_in_every_mode_and_in_the_last_environment() {
+    let declaration = small();
+    let environments = declaration.environments();
+    assert_eq!(run::screenshots_of(&declaration), [0, 1, 3]);
+    assert_eq!(run::screenshot_environments(2, 2), [0, 1, 3]);
+    assert_eq!(run::screenshot_environments(1, 1), [0]);
+    assert_eq!(run::screenshot_environments(1, 2), [0, 1]);
+    assert_eq!(run::screenshot_environments(3, 1), [0, 2]);
+    assert_eq!(run::screenshot_environments(3, 3), [0, 1, 2, 8]);
     assert_eq!(
         run::screenshot_name("tight.deep", &environments[3]),
         "tight.deep.390x844-dark.png"
@@ -1130,12 +1430,46 @@ fn the_studio_record_is_of_the_committed_declaration() {
     );
     assert_eq!(recorded.variants.len(), declaration.variants().len());
     assert!(
-        recorded.adapter.starts_with("ux-browser "),
-        "{}",
+        crate::adapter_version(&recorded.adapter).is_some(),
+        "the adapter line `{}` is not `ux-browser <version>`",
         recorded.adapter
     );
     assert!(recorded.browser.contains("Chrome/"), "{}", recorded.browser);
     assert_eq!(recorded.text(), read(&studio("measurements.json")));
+}
+
+/// The studio campaign's files name versions in three places, and each is the version of the
+/// recording, not of this build, so a release changes none of them: the adapter line of the
+/// measurements (above), the report and the document's recorded block, which are printed from the
+/// measurements (`the_studio_report_is_the_committed_one_and_its_frontier_is_sound`,
+/// `the_campaign_document_holds_the_numbers_of_the_record`), and the engine line of the
+/// document's `versions` block, which the script writes from `ux-search --version` and which is
+/// held to that form here.
+#[test]
+fn the_campaign_document_names_the_engine_of_the_recording() {
+    let document = read(&repository(&format!("{SHOTS}.md")));
+    let made_with = document
+        .split_once("<!-- versions: begin -->\n")
+        .and_then(|(_, rest)| rest.split_once("<!-- versions: end -->"))
+        .map(|(block, _)| block)
+        .unwrap_or_else(|| panic!("{SHOTS}.md has no versions block"));
+    let engines: Vec<&str> = made_with
+        .lines()
+        .filter_map(|line| line.strip_prefix("| engine | `"))
+        .filter_map(|rest| rest.strip_suffix("` |"))
+        .collect();
+    assert_eq!(engines.len(), 1, "one engine line: {made_with}");
+    let version = engines[0].strip_prefix("ux-search ");
+    assert!(
+        version.is_some_and(crate::is_semver),
+        "the engine line `{}` is not `ux-search <version>`; record again: {RECORD}",
+        engines[0]
+    );
+    let adapter = format!("| adapter | `{}` |", studio_record().adapter);
+    assert!(
+        document.lines().any(|line| line == adapter),
+        "{SHOTS}.md has no line `{adapter}`"
+    );
 }
 
 #[test]
@@ -1195,7 +1529,7 @@ fn the_kept_screenshots_are_the_frontier_of_the_studio_record() {
     let environments = recorded.declaration.environments();
     let mut expected = BTreeSet::new();
     for &index in &ranked.frontier {
-        for at in run::screenshot_environments(environments.len()) {
+        for at in run::screenshots_of(&recorded.declaration) {
             expected.insert(run::screenshot_name(
                 &ranked.scored[index].id,
                 &environments[at],
@@ -1437,8 +1771,139 @@ fn the_usage_names_the_campaign_commands() {
     let usage = String::from_utf8_lossy(&help.stdout);
     for line in [
         "ux-search campaign run --declaration <campaign.yaml> --url <origin> --out <measurements.json> [--shots <dir>] [--jobs <n>] [--profile <dir>]",
-        "ux-search campaign report --measurements <measurements.json> [--format text|markdown] [--links <prefix>]",
+        "ux-search campaign report --measurements <measurements.json> [--format text|markdown] [--links <prefix>] [--notes]",
+        "--profile a directory of the run's own under the system's temp directory (TMPDIR), removed when the run ends",
     ] {
         assert!(usage.contains(line), "{usage}");
     }
+    assert!(!usage.contains("profile-<pid>"), "{usage}");
+}
+
+/// `--help` and `-h` after a command are a question, not a flag without a value: the usage on
+/// standard output and exit 0, whatever stands beside them. Every command answers so.
+#[test]
+fn every_command_answers_help_with_the_usage() {
+    let usage = ux_search(&["--help"]).stdout;
+    assert!(String::from_utf8_lossy(&usage).starts_with("usage: ux-search climb"));
+    let small = fixture("small.campaign.yaml");
+    for args in [
+        &["campaign", "--help"][..],
+        &["campaign", "-h"],
+        &["campaign", "run", "--help"],
+        &["campaign", "run", "-h"],
+        &["campaign", "report", "--help"],
+        &["campaign", "report", "-h"],
+        &["campaign", "run", "--declaration", path(&small), "--help"],
+        &["campaign", "report", "--help", "--measurements"],
+        &["landing", "--help"],
+        &["landing", "run", "--help"],
+        &["landing", "report", "-h"],
+        &["landing", "promote", "--help"],
+        &["climb", "--help"],
+        &["cost", "-h"],
+    ] {
+        let output = ux_search(args);
+        assert_eq!(output.status.code(), Some(0), "{args:?}: {output:?}");
+        assert_eq!(output.stdout, usage, "{args:?}");
+        assert!(output.stderr.is_empty(), "{args:?}: {output:?}");
+    }
+    // The value of a flag is not a question.
+    let output = ux_search(&["campaign", "report", "--measurements", "--help"]);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert!(output.stdout.is_empty());
+}
+
+/// Without `--profile` the browser's profile is a directory of the run's own under the system's
+/// temp directory, there when the browser starts and gone when the run ends: the working
+/// directory, which may be another repository, gets nothing but the files the command names.
+/// The browser here is a stand-in that says where its profile is and ends.
+#[test]
+fn without_a_profile_flag_the_profile_is_made_under_the_temp_directory_and_removed() {
+    let directory = crate::state_dir("campaign-default-profile");
+    let _ = std::fs::remove_dir_all(&directory);
+    let (cwd, tmp) = (directory.join("cwd"), directory.join("tmp"));
+    for made in [&cwd, &tmp] {
+        std::fs::create_dir_all(made).expect("a scratch directory");
+    }
+    let (chrome, seen) = (directory.join("chrome"), directory.join("seen"));
+    crate::executable(
+        &chrome,
+        &format!(
+            "#!/bin/sh\nfor arg in \"$@\"; do\n\tcase $arg in\n\t--user-data-dir=*)\n\t\tprofile=${{arg#--user-data-dir=}}\n\t\tif [ -d \"$profile\" ]; then echo \"there $profile\"; else echo \"absent $profile\"; fi >'{}'\n\t\t;;\n\tesac\ndone\nexit 9\n",
+            seen.display()
+        ),
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_ux-search"))
+        .current_dir(&cwd)
+        .env("TMPDIR", &tmp)
+        .env("UXUI_CHROME", &chrome)
+        .args(["campaign", "run", "--declaration"])
+        .arg(studio("frontier.campaign.yaml"))
+        .args(["--url", "http://127.0.0.1:1"])
+        .args(["--out", "measurements.json", "--shots", "shots"])
+        .output()
+        .expect("ux-search runs");
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let said = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        said.contains("Chromium exited before it listened"),
+        "{said}"
+    );
+    let seen = read(&seen);
+    let profile = seen
+        .trim_end()
+        .strip_prefix("there ")
+        .unwrap_or_else(|| panic!("the browser started without its profile directory: {seen}"));
+    assert_eq!(
+        Path::new(profile).parent(),
+        Some(tmp.as_path()),
+        "the profile is not a directory of the temp directory"
+    );
+    assert!(!Path::new(profile).exists(), "{profile} is left behind");
+    for (name, directory) in [("working", &cwd), ("temp", &tmp)] {
+        let left: Vec<_> = std::fs::read_dir(directory)
+            .expect("the directory")
+            .map(|entry| entry.expect("an entry").file_name())
+            .collect();
+        assert!(left.is_empty(), "the {name} directory holds {left:?}");
+    }
+}
+
+/// `--notes` adds the elements behind the counts after the report; the report before them is
+/// the same bytes, and a record without a note says so.
+#[test]
+fn campaign_report_with_notes_prints_the_report_and_then_the_notes() {
+    let measurements = studio("measurements.json");
+    let output = ux_search(&[
+        "campaign",
+        "report",
+        "--measurements",
+        path(&measurements),
+        "--notes",
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let printed = String::from_utf8_lossy(&output.stdout).into_owned();
+    let report = read(&studio("report.txt"));
+    assert!(printed.starts_with(&report), "{printed}");
+    assert!(
+        printed[report.len()..].starts_with(
+            "notes: the first elements behind each count, at most 3 per term and environment, of the page as shipped and of the frontier\nshipped "
+        ),
+        "{}",
+        &printed[report.len()..]
+    );
+    let output = ux_search(&[
+        "campaign",
+        "report",
+        "--measurements",
+        path(&measurements),
+        "--format",
+        "markdown",
+        "--notes",
+    ]);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("--notes goes with --format text"),
+        "{output:?}"
+    );
 }

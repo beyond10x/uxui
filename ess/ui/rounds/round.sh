@@ -101,6 +101,14 @@ bin=$target/debug/ux-browser
 	printf 'studio.ui.yaml: sha256:%s\n' "$(sha256sum ess/ui/studio.ui.yaml | cut -d' ' -f1)"
 	printf 'studio.css: sha256:%s\n' "$(sha256sum themes/studio.css | cut -d' ' -f1)"
 	printf 'www: sha256:%s\n' "$(cd "$app/www" && find . -type f | sed 's|^\./||' | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -d' ' -f1)"
+	# The face each font family of the theme resolves to on the machine that measures (the theme asks
+	# for Inter, then "Segoe UI", then system-ui): the pixel values of two rounds compare only where
+	# these lines are equal. The repository holds no font file.
+	if command -v fc-match >/dev/null 2>&1; then
+		for family in Inter 'Segoe UI' system-ui; do
+			printf 'font %s: %s\n' "$family" "$(fc-match "$family")"
+		done
+	fi
 } >"$out/versions.txt"
 
 # 2. The server: esbuild's, which answers every page path with index.html.

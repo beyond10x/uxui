@@ -1,0 +1,35 @@
+# The campaign the browser lane runs on the fixture page site/list.html (tests/campaign_live.rs).
+# It names no pointer, so the pointer rests in the bottom-right corner of each viewport, and its
+# dark mode is set by a query and expects nothing, so the run says that it is not read back.
+format: ux-search-campaign/1
+page:
+  path: /list
+  ready: 'main[data-ready]'
+environments:
+  viewports: [800x600, 640x480]
+  modes:
+    - {name: light, media: light}
+    - {name: dark, query: theme=dark}
+axes:
+  # The padding of main: it moves the primary action.
+  - name: spacing
+    shipped: stock
+    values:
+      - id: tight
+        rules:
+          - {selector: ':root', set: {--space: 8px}}
+      - id: stock
+  # A property no rule of the page reads: in force, and without effect.
+  - name: unread
+    shipped: unset
+    values:
+      - id: unset
+      - id: set
+        rules:
+          - {selector: ':root', set: {--nothing-reads-this: 1}}
+primary: 'button.primary'
+always_visible:
+  - {name: the end, selector: 'p.end'}
+small_target_px: 24
+hard: [primary_in_view, no_h_scroll, named]
+terms: [low_contrast, small_targets, overflow, always_visible_misses, primary_px]
