@@ -175,7 +175,14 @@ this section are slot's (its `docs/design/ess-ui-gaps.md`), not those of `ess/GA
   name, not a path. The studio declares each list of a promotion's decision twice and hides one in its
   theme. Missing: one rendering of a list of records that both renderers share (one row per record, its
   members as columns, a tone per member), or a field path through a list that both resolve the same way.
-  Not sent yet as a request of its own.
+  Sent to the ESS maintainers on 2026-11-26. They added it to the two stories above and to
+  `a-form-field-edits-a-list-of-records` (that one holds the rendering as rows and columns). Whether a
+  field path may pass through a list is open there (decision LR-D1): until it is decided, such a path is
+  unsupported. The studio uses three such paths since round R-03, in the decision of a promotion and in
+  the dialog that accepts its trade-off (`ess/ui/studio.ui.yaml`: `losses.requirement_id`,
+  `gains.requirement_id`, `gate_requirement_verdicts.requirement_id`). They draw as words in the React app
+  of ESS 0.99.2 and nothing in ESS promises that they keep doing so; the round's scenario
+  `owner-trade-off` (steps 4 and 10) fails when they stop.
 - **A notice's words** (loop round R-03, 2026-11-26, ESS 0.99.2; UXF-010). An action, a confirm and a form
   of an `ess-ui/1` document cannot name the text of the notice their command answers with. The generated
   React runtime writes it in one place (`src/runtime/actions.tsx`, `runCommand`) from the command's
@@ -184,7 +191,9 @@ this section are slot's (its `docs/design/ess-ui-gaps.md`), not those of `ess/GA
   confirm and the form, with the row's fields at hand, so that the studio can say "Campaign cp-01
   stopped". Until then every notice of the studio reads `uxsearch.search.StopCampaign done`; the round
   counts it as `trial.runs_notice_expectation_missed`, 28 of 44 runs. Sent to the ESS maintainers on
-  2026-11-26; no story of ESS named yet.
+  2026-11-26 and filed there as the draft
+  `an-action-a-confirm-and-a-form-name-the-notice-text-of-each-outcome-of-their-command-with-the-row-s-fields-at-hand`
+  (not scheduled; three decisions open, NW-D1 to NW-D3).
 - **A cell that opens a page** (C4). `as: link` takes the value as an external address and `act` on a cell
   is refused. D3, filed as `a-column-or-record-field-opens-a-page-of-the-document-and-a-test-acts-on-that-cell.md`
   (`draft`, accepted in its fit review; the key would be `navigate`).
