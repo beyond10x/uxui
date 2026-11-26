@@ -78,6 +78,12 @@ types:
     kind: enum
     variants: [cells, css_px]
 
+  # The inputs of an environment that must be positive; `MeasureNotPositive` names the one that
+  # is not.
+  - name: uxsearch.evaluation.EnvironmentMeasure
+    kind: enum
+    variants: [viewport_width, viewport_height, text_scale]
+
 entities:
   # An evaluation condition, not a design choice. A component or widget target is rendered in a
   # harness container of the environment's container width; a wider target in the viewport.
@@ -267,6 +273,12 @@ errors:
       - name: target_id
         type: uxsearch.design.TargetId
 
+  - name: uxsearch.evaluation.MeasureNotPositive
+    summary: A viewport side or the text scale is not above 0, so nothing was declared.
+    fields:
+      - name: measure
+        type: uxsearch.evaluation.EnvironmentMeasure
+
   - name: uxsearch.evaluation.VariantPruned
     summary: The variant has a hard Violated verdict, so it is not evaluated.
     fields:
@@ -361,6 +373,32 @@ commands:
       - name: reduced_motion
         type: Boolean
     outcomes:
+      # An environment's viewport sides and text scale are above 0 (the entity's invariants); each
+      # input that is not is refused by name.
+      - name: viewport-width-not-positive
+        when: viewport_width_px <= 0
+        error: uxsearch.evaluation.MeasureNotPositive
+        payload:
+          uxsearch.evaluation.MeasureNotPositive:
+            measure: viewport_width
+        summary: Nothing was declared.
+
+      - name: viewport-height-not-positive
+        when: viewport_height_px <= 0
+        error: uxsearch.evaluation.MeasureNotPositive
+        payload:
+          uxsearch.evaluation.MeasureNotPositive:
+            measure: viewport_height
+        summary: Nothing was declared.
+
+      - name: text-scale-not-positive
+        when: text_scale_percent <= 0
+        error: uxsearch.evaluation.MeasureNotPositive
+        payload:
+          uxsearch.evaluation.MeasureNotPositive:
+            measure: text_scale
+        summary: Nothing was declared.
+
       - name: no-target
         when_related:
           via: input.target_id

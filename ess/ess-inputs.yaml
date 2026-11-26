@@ -12,16 +12,53 @@ specification:
   - domains/promotion.yaml
   - domains/ratchet.yaml
 scenarios:
+  - scenarios/accepted-promotion-is-applied-as-the-next-revision.yaml
+  - scenarios/axis-is-added-to-an-open-space-only.yaml
+  - scenarios/axis-switch-ends-once.yaml
+  - scenarios/axis-switch-names-a-value-of-its-axis.yaml
+  - scenarios/axis-value-is-added-while-the-space-is-open.yaml
   - scenarios/browser-journey-names-nodes-by-selector.yaml
   - scenarios/browser-target-from-patch-to-promotion.yaml
+  - scenarios/campaign-ends-once.yaml
+  - scenarios/campaign-policy-is-pinned-once.yaml
+  - scenarios/campaign-starts-on-a-frozen-space-with-members-of-its-target.yaml
+  - scenarios/climb-counts-are-not-negative.yaml
+  - scenarios/climb-is-recorded-while-the-campaign-runs.yaml
   - scenarios/complete-count-matches-its-states.yaml
+  - scenarios/design-space-freezes-once.yaml
+  - scenarios/design-space-needs-a-drawn-target.yaml
+  - scenarios/environment-measures-are-above-zero.yaml
+  - scenarios/evaluation-is-requested-over-a-closed-state-space.yaml
   - scenarios/evaluation-key-matches-its-inputs.yaml
+  - scenarios/evaluation-result-is-recorded-once.yaml
   - scenarios/evidence-copies-its-evaluation.yaml
+  - scenarios/frontier-entry-leaves-once.yaml
   - scenarios/frontier-needs-evidence.yaml
+  - scenarios/gate-decision-answers-for-the-promoted-variant.yaml
+  - scenarios/inner-component-is-bound-in-an-open-space.yaml
   - scenarios/latest-gate-decides.yaml
   - scenarios/lift-must-reproduce-the-component.yaml
+  - scenarios/metric-evidence-names-a-bound-requirement-of-its-metric.yaml
+  - scenarios/metric-key-is-defined-once.yaml
+  - scenarios/metric-version-starts-at-one.yaml
   - scenarios/only-the-owner-accepts-a-trade-off.yaml
+  - scenarios/promotion-is-accepted-on-a-passed-gate-and-checked-hard-rules.yaml
+  - scenarios/promotion-is-proposed-for-a-frontier-variant.yaml
+  - scenarios/promotion-is-rejected-or-superseded-once.yaml
+  - scenarios/reference-is-proposed-once-per-accepted-promotion.yaml
+  - scenarios/requirement-id-binds-one-target-and-metric.yaml
+  - scenarios/rule-evidence-names-the-verdict-of-its-requirement.yaml
+  - scenarios/rule-strength-matches-its-metric-and-requirement.yaml
+  - scenarios/rule-verdict-names-a-rule-and-a-variant.yaml
+  - scenarios/state-space-closes-once.yaml
+  - scenarios/state-space-inputs-stay-in-range.yaml
+  - scenarios/state-space-key-names-one-enumeration.yaml
+  - scenarios/trade-off-is-accepted-with-gains-on-checked-hard-rules.yaml
   - scenarios/trade-off-needs-a-clean-fail.yaml
+  - scenarios/truncation-names-the-bound-it-hit.yaml
+  - scenarios/ui-state-is-recorded-once-within-the-bounds.yaml
   - scenarios/unevaluable-state-is-insufficient.yaml
+  - scenarios/variant-is-admitted-on-computed-evidence-of-its-own.yaml
   - scenarios/variant-keeps-every-route.yaml
+  - scenarios/variant-route-runs-in-a-frozen-space-of-its-target.yaml
   - scenarios/verdicts-of-live-rules-only.yaml

@@ -2,17 +2,18 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use ux_search::landing::{record::Recorded, report, run};
+use ux_search::landing::{promote, record::Recorded, report, run};
 use ux_search::{climb, cost, drive};
 
 const USAGE: &str = "usage: ux-search climb --doc <ui.yaml> --page <page> [--param <name>=<value>]... [--sizes <W>x<H>[,<W>x<H>]...] [--cap <1-8>] [--state-dir <dir>]
        ux-search cost --doc <ui.yaml> --page <page> [--param <name>=<value>]... [--keys <key spec>] [--size <W>x<H>] [--repeat <n>] [--format text|json] [--state-dir <dir>]
        ux-search landing run --build <built site> --product <product.json> --css <landing.css> --out <dir> [--jobs <n>] [--profile <dir>] [--rebuilt <variant id>=<built site>]
        ux-search landing report --measurements <measurements.json>
+       ux-search landing promote --measurements <measurements.json> --variant <variant id> --product <product.json> --css <landing.css> --evidence <evidence.json> [--chosen-by \"<who chose>\"] [--shipped-file <shipped.txt>]
        ux-search -V | --version
        ux-search -h | --help
 defaults: --sizes 120x40,48x40, --cap 5, --keys <tab><tab><tab><tab><tab>, --size 120x40, --repeat 5, --format text, --state-dir target/ux-search/state, --jobs the CPUs (at most 4), --profile target/ux-search/profile-<pid>
-landing run renders the 144 variants of the documentation landing page in 6 environments in Chromium (UXUI_CHROME, else the Playwright cache), writes <dir>/measurements.json and two screenshots per frontier variant, and prints the report; landing report prints the report of a measurements file";
+landing run renders the 144 variants of the documentation landing page in 6 environments in Chromium (UXUI_CHROME, else the Playwright cache), writes <dir>/measurements.json and two screenshots per frontier variant, and prints the report; landing report prints the report of a measurements file; landing promote applies the patch of one variant of that file's frontier to the two sources in place and writes, all or none, one ratchet-evidence/1 document that names the campaign, a copy of the measurements beside it (<name>.measurements.json beside <name>.evidence.json) and, with --shipped-file, the variant's id to that file; the document names each file by its path from the working directory; it refuses, and writes nothing, a variant off the frontier, sources the measurements were not recorded on, a place that is a directory and one file named twice";
 
 /// 1: the inputs are refused (a document that does not load, a page it lacks); nothing printed.
 const REFUSED: u8 = 1;
@@ -53,8 +54,9 @@ fn main() -> ExitCode {
         Some("landing") => match args.get(1).map(String::as_str) {
             Some("run") => run_landing(&args[2..]),
             Some("report") => report_landing(&args[2..]),
+            Some("promote") => promote_landing(&args[2..]),
             Some(other) => wrong(&format!("unknown command `landing {other}`")),
-            None => wrong("landing needs `run` or `report`"),
+            None => wrong("landing needs `run`, `report` or `promote`"),
         },
         Some(other) => wrong(&format!("unknown command `{other}`")),
         None => wrong("no command"),
@@ -291,6 +293,67 @@ fn report_landing(args: &[String]) -> ExitCode {
     match text {
         Ok(text) => {
             print!("{text}");
+            ExitCode::SUCCESS
+        }
+        Err(message) => refused(&message),
+    }
+}
+
+fn promote_landing(args: &[String]) -> ExitCode {
+    let parsed = match parse(
+        args,
+        &[
+            "--measurements",
+            "--variant",
+            "--product",
+            "--css",
+            "--evidence",
+            "--chosen-by",
+            "--shipped-file",
+        ],
+    ) {
+        Ok(parsed) if parsed.params.is_empty() => parsed,
+        Ok(_) => return wrong("landing promote takes no --param"),
+        Err(message) => return wrong(&message),
+    };
+    let (Some(measurements), Some(variant), Some(product), Some(css), Some(evidence)) = (
+        parsed.get("--measurements"),
+        parsed.get("--variant"),
+        parsed.get("--product"),
+        parsed.get("--css"),
+        parsed.get("--evidence"),
+    ) else {
+        return wrong(
+            "landing promote needs --measurements, --variant, --product, --css and --evidence",
+        );
+    };
+    if parsed
+        .get("--chosen-by")
+        .is_some_and(|name| name.trim().is_empty())
+    {
+        return wrong("--chosen-by is empty");
+    }
+    let options = promote::Options {
+        measurements: PathBuf::from(measurements),
+        variant: variant.to_owned(),
+        product: PathBuf::from(product),
+        css: PathBuf::from(css),
+        evidence: PathBuf::from(evidence),
+        chosen_by: parsed.get("--chosen-by").map(str::to_owned),
+        shipped_file: parsed.get("--shipped-file").map(PathBuf::from),
+    };
+    match promote::promote(&options) {
+        Ok(outcome) => {
+            for path in &outcome.written {
+                eprintln!("ux-search: wrote {}", path.display());
+            }
+            for note in &outcome.notes {
+                eprintln!("ux-search: note: {note}");
+            }
+            println!(
+                "promoted {variant}: rank {} of {}, on the frontier of {}",
+                outcome.rank, outcome.variants, outcome.frontier
+            );
             ExitCode::SUCCESS
         }
         Err(message) => refused(&message),

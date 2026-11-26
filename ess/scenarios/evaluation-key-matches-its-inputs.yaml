@@ -1,4 +1,9 @@
-type: ess-scenario/6
+type: ess-scenario/7
+covers:
+  - uxsearch.evaluation.RequestEvaluation/outcome/state-space-of-another-variant
+  - uxsearch.evaluation.RequestEvaluation/outcome/already-requested
+  - uxsearch.evaluation.ReuseEvaluation/outcome/key-collision
+  - uxsearch.evaluation.ReuseEvaluation/outcome/cached
 domain: uxsearch.evaluation
 scenario: evaluation-key-matches-its-inputs
 # Hardening target 4 (R12): an evaluation of variant A over the state space of variant B is

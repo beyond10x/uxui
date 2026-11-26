@@ -6,7 +6,7 @@
 //! product of each column's orders (the first `cap` of each column permuted): a variant writes
 //! each column's `sections: [...]` in its order and the page's `sections:` column by column,
 //! the sections no column lists after them as written. The terminal renderer draws no columns
-//! (ESS 0.99.4 lacks `no_columns` and stacks the page's `sections:` in the order written), so
+//! (ESS 0.99.5 lacks `no_columns` and stacks the page's `sections:` in the order written), so
 //! the stack it draws is the columns read one after another, as the variant lists them.
 //!
 //! The terms, in ranking order, each a count where lower is better:
@@ -25,7 +25,7 @@
 //! `button` child of tone `primary` among the page's sections in the order written, else the
 //! page header's first action, else none (the term is then 0 for every variant).
 //!
-//! No theme term: at ESS 0.99.4 the terminal renderer reads no theme (`ess-ui-tui/src` names no
+//! No theme term: at ESS 0.99.5 the terminal renderer reads no theme (`ess-ui-tui/src` names no
 //! theme), so the drawing of two variants that differ only in theme is the same, and they tie
 //! on every term; the id orders them.
 
@@ -195,8 +195,10 @@ impl Climb {
             .collect::<Vec<_>>()
             .join(", ");
         let mut out = vec![
-            "# ux-search climb: layout model v0, the terminal renderer of ESS 0.99.4, in process"
-                .to_owned(),
+            format!(
+                "# ux-search climb: layout model v0, the terminal renderer of ESS {}, in process",
+                crate::ESS_TAG
+            ),
             format!(
                 "# document {} (app {}), page {}, params {}",
                 self.file,

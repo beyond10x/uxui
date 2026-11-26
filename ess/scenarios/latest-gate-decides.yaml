@@ -1,4 +1,10 @@
-type: ess-scenario/6
+type: ess-scenario/7
+covers:
+  - uxsearch.promotion.RecordGateDecision/outcome/recorded-pass
+  - uxsearch.promotion.RecordGateDecision/outcome/recorded-fail
+  - uxsearch.promotion.Promotion/transition/record_gate/by/uxsearch.promotion.RecordGateDecision/recorded-pass
+  - uxsearch.promotion.Promotion/transition/record_gate/by/uxsearch.promotion.RecordGateDecision/recorded-fail
+  - uxsearch.promotion.AcceptPromotion/outcome/gate-not-passed
 domain: uxsearch.promotion
 scenario: latest-gate-decides
 # Hardening target 7 (R8): the gate is a field of the promotion that each decision overwrites,

@@ -1,4 +1,9 @@
-type: ess-scenario/6
+type: ess-scenario/7
+covers:
+  - uxsearch.journeys.CompleteStateSpace/outcome/over-bound
+  - uxsearch.journeys.CompleteStateSpace/outcome/count-below-recorded
+  - uxsearch.journeys.CompleteStateSpace/outcome/completed
+  - uxsearch.journeys.StateSpace/transition/complete/by/uxsearch.journeys.CompleteStateSpace/completed
 domain: uxsearch.journeys
 scenario: complete-count-matches-its-states
 # Hardening target 9 (R27): a completion counting more states than the bound, or fewer than were

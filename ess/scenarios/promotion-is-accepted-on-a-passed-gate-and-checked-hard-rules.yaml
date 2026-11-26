@@ -1,0 +1,292 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.promotion.AcceptPromotion/outcome/variant-mismatch
+  - uxsearch.promotion.AcceptPromotion/outcome/trade-off
+  - uxsearch.promotion.AcceptPromotion/outcome/not-on-frontier
+  - uxsearch.promotion.AcceptPromotion/outcome/hard-rule-not-passed
+  - uxsearch.promotion.AcceptPromotion/outcome/hard-rule-unchecked
+  - uxsearch.promotion.AcceptPromotion/outcome/accepted
+  - uxsearch.promotion.Promotion/transition/accept/by/uxsearch.promotion.AcceptPromotion/accepted
+  - uxsearch.promotion.Promotion/invariant/after/uxsearch.promotion.AcceptPromotion/accepted
+domain: uxsearch.promotion
+scenario: promotion-is-accepted-on-a-passed-gate-and-checked-hard-rules
+# Story spec-round-2-scenarios; docs/ratchet.md § 5, docs/concept.md § 6. A promotion is accepted
+# for the variant it names, when its gate passed, the variant is still on the frontier of its
+# campaign, and every Active hard rule of the target has a recorded pass on the variant: no
+# verdict other than pass, and no hard rule left unchecked. A trade-off is not accepted this way;
+# it needs a person and its own command. The acceptance records who accepted.
+summary: A promotion is accepted when its gate passed and every Active hard rule of the target passed on the variant
+arrange:
+  - instance: hard-rule
+    entity: uxsearch.rules.DesignRule
+    setup:
+      identity: 00000000-0000-4000-8000-000000000080
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: required nodes visible
+        strength: hard
+        scope: journey
+        check: required_visible
+        node_paths: []
+        metric_key: attention.visible_required
+        requirement_id: settings.visible_required
+      state: Active
+  # Variant a: on the frontier, the hard rule passed, the gate passed.
+  - instance: entry-a
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000a0
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-a"
+        evaluation_keys: ["sha256:eval-a"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+      state: OnFrontier
+  - instance: pass-a
+    entity: uxsearch.rules.RuleVerdict
+    setup:
+      identity: 00000000-0000-4000-8000-000000000090
+      fields:
+        rule_id: 00000000-0000-4000-8000-000000000080
+        variant_digest: "sha256:variant-a"
+        target_id: 00000000-0000-4000-8000-000000000001
+        strength: hard
+        requirement_id: settings.visible_required
+        stage: full
+        verdict: pass
+        findings: []
+      state: Recorded
+  - instance: promotion
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000070
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-a"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: fewer actions
+        gate: pass
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: [{requirement_id: settings.actions, verdict: pass}]
+        losses: []
+        gains: [{requirement_id: settings.actions, reference: 8, candidate: 5}]
+      state: Proposed
+  # Variant b is on the frontier too, but the promotion above does not name it.
+  - instance: entry-b
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000a1
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-b"
+        evaluation_keys: ["sha256:eval-b"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 4}]
+      state: OnFrontier
+  # Variant t: the gate failed on a named trade-off only.
+  - instance: entry-t
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000a2
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-t"
+        evaluation_keys: ["sha256:eval-t"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 2}]
+      state: OnFrontier
+  - instance: trade-off
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000071
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-t"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: fewer actions, one more glance
+        gate: fail
+        gate_trade_off_only: true
+        gate_evidence_ids: []
+        gate_requirement_verdicts: [{requirement_id: settings.glance_cost, verdict: fail}]
+        losses: [{requirement_id: settings.glance_cost, reference: 2, candidate: 3}]
+        gains: [{requirement_id: settings.actions, reference: 8, candidate: 5}]
+      state: Proposed
+  # Variant o: the gate passed, then the variant was dominated.
+  - instance: entry-o
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000a3
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-o"
+        evaluation_keys: ["sha256:eval-o"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 6}]
+        dominated_by: "sha256:variant-a"
+      state: Dominated
+  - instance: off-frontier
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000072
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-o"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: an early candidate
+        gate: pass
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: []
+        losses: []
+        gains: []
+      state: Proposed
+  # Variant h: the gate passed, then the hard rule was violated at a later stage.
+  - instance: entry-h
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000a4
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-h"
+        evaluation_keys: ["sha256:eval-h"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 2}]
+      state: OnFrontier
+  - instance: violation-h
+    entity: uxsearch.rules.RuleVerdict
+    setup:
+      identity: 00000000-0000-4000-8000-000000000091
+      fields:
+        rule_id: 00000000-0000-4000-8000-000000000080
+        variant_digest: "sha256:variant-h"
+        target_id: 00000000-0000-4000-8000-000000000001
+        strength: hard
+        requirement_id: settings.visible_required
+        stage: full
+        verdict: violated
+        findings: []
+      state: Recorded
+  - instance: hard-failed
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000073
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-h"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: fewest actions
+        gate: pass
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: []
+        losses: []
+        gains: []
+      state: Proposed
+  # Variant u: the gate passed, but the hard rule has no verdict on it.
+  - instance: entry-u
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000a5
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-u"
+        evaluation_keys: ["sha256:eval-u"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+      state: OnFrontier
+  - instance: unchecked
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000074
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-u"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: the same actions, less scrolling
+        gate: pass
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: []
+        losses: []
+        gains: []
+      state: Proposed
+timeline:
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.promotion.AcceptPromotion
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-b"
+    outcome: variant-mismatch
+    error: {name: uxsearch.promotion.VariantMismatch, fields: {promotion_id: 00000000-0000-4000-8000-000000000070}}
+    no_events: [uxsearch.promotion.PromotionAccepted]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.promotion.AcceptPromotion
+    actor: uxsearch.promotion.AcceptancePolicy
+    caller: {principal: policy-web-ux}
+    input:
+      promotion_id: {$instance: trade-off}
+      variant_digest: "sha256:variant-t"
+    outcome: trade-off
+    error: {name: uxsearch.promotion.TradeOffNeedsPerson, fields: {promotion_id: 00000000-0000-4000-8000-000000000071}}
+    no_events: [uxsearch.promotion.PromotionAccepted]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.promotion.AcceptPromotion
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: off-frontier}
+      variant_digest: "sha256:variant-o"
+    outcome: not-on-frontier
+    error: {name: uxsearch.promotion.NotOnFrontier, fields: {variant_digest: "sha256:variant-o"}}
+    no_events: [uxsearch.promotion.PromotionAccepted]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.promotion.AcceptPromotion
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: hard-failed}
+      variant_digest: "sha256:variant-h"
+    outcome: hard-rule-not-passed
+    error: {name: uxsearch.promotion.HardRuleNotPassed, fields: {variant_digest: "sha256:variant-h"}}
+    no_events: [uxsearch.promotion.PromotionAccepted]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.promotion.AcceptPromotion
+    actor: uxsearch.promotion.Owner
+    caller: {principal: owner-1}
+    input:
+      promotion_id: {$instance: unchecked}
+      variant_digest: "sha256:variant-u"
+    outcome: hard-rule-unchecked
+    error: {name: uxsearch.promotion.HardRuleUnchecked, fields: {variant_digest: "sha256:variant-u"}}
+    no_events: [uxsearch.promotion.PromotionAccepted]
+  # An authorized policy accepts a promotion that is no trade-off.
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.promotion.AcceptPromotion
+    actor: uxsearch.promotion.AcceptancePolicy
+    caller: {principal: policy-web-ux}
+    input:
+      promotion_id: {$instance: promotion}
+      variant_digest: "sha256:variant-a"
+    outcome: accepted
+    events: [{event: uxsearch.promotion.PromotionAccepted, payload: {promotion_id: 00000000-0000-4000-8000-000000000070, variant_digest: "sha256:variant-a", trade_off: false}}]
+assert:
+  - view: uxsearch.promotion.Promotions
+    contains: {promotion_id: {$instance: promotion}, gate: pass, gate_trade_off_only: false, accepted_by: policy-web-ux, state: Accepted}
+  - view: uxsearch.promotion.Promotions
+    contains: {promotion_id: {$instance: trade-off}, accepted_by: null, state: Proposed}
+  - view: uxsearch.promotion.Promotions
+    contains: {promotion_id: {$instance: off-frontier}, accepted_by: null, state: Proposed}
+  - view: uxsearch.promotion.Promotions
+    contains: {promotion_id: {$instance: hard-failed}, accepted_by: null, state: Proposed}
+  - view: uxsearch.promotion.Promotions
+    contains: {promotion_id: {$instance: unchecked}, accepted_by: null, state: Proposed}
+  - view: uxsearch.promotion.Promotions
+    satisfies: {any: [gate_trade_off_only == false, gate == fail]}

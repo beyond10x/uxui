@@ -14,7 +14,7 @@ scope:
   path: ess/GAPS.md
 - confidence: cited
   path: ess/domains
-revision: 6
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 5, decided_on: {"recorded":{"review_outcome":3}}}
 - {from: "proposed", to: "active", at: "2026-11-25T13:54:15Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"review_outcome":3}}}
@@ -40,8 +40,14 @@ and round 3 brings scenarios for the outcomes it adds.
 
 ## Acceptance
 
-`ess specify validate --path ess --format json` reports 0 unscenarioed outcomes, and every UNMAPPED
-marker left in `ess/` is listed in `ess/GAPS.md`.
+`ess verify conform synthesize --path ess --scenarios ess --suite-format 5` exits 0: every refusal
+that synthesis cannot reach is covered by an authored scenario, and every authored scenario passes on
+the interpreted target. Every UNMAPPED marker left in `ess/` is listed in `ess/GAPS.md`.
+
+Changed on 2026-11-26 (decided in the wave of that day, reported to the owner). The measure before
+was `ess specify validate --path ess --format json` reporting 0 unscenarioed outcomes. On ESS 0.99.2
+that count does not move with authored scenarios: 289 with 13 scenarios, 291 with 50 (`ess/GAPS.md`,
+G19). The story returns to that count when an ESS release makes it follow the scenarios.
 
 ## Provenance
 

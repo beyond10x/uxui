@@ -1,4 +1,7 @@
-type: ess-scenario/6
+type: ess-scenario/7
+covers:
+  - uxsearch.search.AdmitToFrontier/outcome/no-evidence
+  - uxsearch.search.AdmitToFrontier/outcome/kpi-values-mismatch
 domain: uxsearch.search
 scenario: frontier-needs-evidence
 # Hardening target 1 (R1): no evaluation, a repeated evaluation, or a missing KPI value is refused.

@@ -1,0 +1,265 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.search.MarkDominated/outcome/self-dominated
+  - uxsearch.search.MarkDominated/outcome/no-campaign
+  - uxsearch.search.MarkDominated/outcome/entry-mismatch
+  - uxsearch.search.MarkDominated/outcome/not-running
+  - uxsearch.search.MarkDominated/outcome/dominator-not-on-frontier
+  - uxsearch.search.MarkDominated/outcome/dominated
+  - uxsearch.search.WithdrawFromFrontier/outcome/no-hard-failure
+  - uxsearch.search.WithdrawFromFrontier/outcome/withdrawn
+  - uxsearch.search.FrontierEntry/transition/dominate/by/uxsearch.search.MarkDominated/dominated
+  - uxsearch.search.FrontierEntry/transition/withdraw/by/uxsearch.search.WithdrawFromFrontier/withdrawn
+  - uxsearch.search.FrontierEntry/state/Dominated/refuses/uxsearch.search.MarkDominated
+  - uxsearch.search.FrontierEntry/state/Dominated/refuses/uxsearch.search.WithdrawFromFrontier
+  - uxsearch.search.FrontierEntry/state/Withdrawn/refuses/uxsearch.search.MarkDominated
+  - uxsearch.search.FrontierEntry/state/Withdrawn/refuses/uxsearch.search.WithdrawFromFrontier
+domain: uxsearch.search
+scenario: frontier-entry-leaves-once
+# Story spec-round-2-scenarios; docs/concept.md § 5. An entry leaves the frontier in one of two
+# ways. It is Dominated by another variant that is on the frontier of the same running campaign,
+# never by itself; or it is Withdrawn because a hard rule failed on its variant at a later stage.
+# Both are terminal.
+summary: A frontier entry is dominated by an entry of its running campaign or withdrawn on a hard failure, once
+arrange:
+  - instance: campaign
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000050
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 1
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+      state: Running
+  - instance: stopped
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000051
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 2
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+      state: Stopped
+  - instance: entry-a
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000d0
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-a"
+        evaluation_keys: ["sha256:eval-a"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 5}]
+      state: OnFrontier
+  - instance: entry-b
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000d1
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-b"
+        evaluation_keys: ["sha256:eval-b"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+      state: OnFrontier
+  # Admitted at the static stage; the full stage then found a hard violation on its variant.
+  - instance: entry-c
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000d2
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-c"
+        evaluation_keys: ["sha256:eval-c"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 4}]
+      state: OnFrontier
+  - instance: stopped-entry-s
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000d3
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000051
+        variant_digest: "sha256:variant-s"
+        evaluation_keys: ["sha256:eval-s"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 5}]
+      state: OnFrontier
+  - instance: stopped-entry-t
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000d4
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000051
+        variant_digest: "sha256:variant-t"
+        evaluation_keys: ["sha256:eval-t"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+      state: OnFrontier
+  - instance: violation
+    entity: uxsearch.rules.RuleVerdict
+    setup:
+      identity: 00000000-0000-4000-8000-000000000090
+      fields:
+        rule_id: 00000000-0000-4000-8000-000000000080
+        variant_digest: "sha256:variant-c"
+        target_id: 00000000-0000-4000-8000-000000000001
+        strength: hard
+        requirement_id: settings.visible_required
+        stage: full
+        verdict: violated
+        findings: []
+      state: Recorded
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.search.MarkDominated
+    actor: uxsearch.search.Searcher
+    input:
+      frontier_entry_id: {$instance: entry-a}
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      dominated_by: "sha256:variant-a"
+    outcome: self-dominated
+    error: {name: uxsearch.search.SelfDominated, fields: {variant_digest: "sha256:variant-a"}}
+    no_events: [uxsearch.search.FrontierChanged]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.search.MarkDominated
+    actor: uxsearch.search.Searcher
+    input:
+      frontier_entry_id: {$instance: entry-a}
+      campaign_id: 00000000-0000-4000-8000-0000000000ff
+      variant_digest: "sha256:variant-a"
+      dominated_by: "sha256:variant-b"
+    outcome: no-campaign
+    error: {name: uxsearch.search.CampaignNotFound, fields: {campaign_id: 00000000-0000-4000-8000-0000000000ff}}
+    no_events: [uxsearch.search.FrontierChanged]
+  # The entry named is the entry of variant a, not of variant c.
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.search.MarkDominated
+    actor: uxsearch.search.Searcher
+    input:
+      frontier_entry_id: {$instance: entry-a}
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-c"
+      dominated_by: "sha256:variant-b"
+    outcome: entry-mismatch
+    error: {name: uxsearch.search.EntryMismatch, fields: {frontier_entry_id: 00000000-0000-4000-8000-0000000000d0}}
+    no_events: [uxsearch.search.FrontierChanged]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.search.MarkDominated
+    actor: uxsearch.search.Searcher
+    input:
+      frontier_entry_id: {$instance: stopped-entry-s}
+      campaign_id: {$instance: stopped}
+      variant_digest: "sha256:variant-s"
+      dominated_by: "sha256:variant-t"
+    outcome: not-running
+    error: {name: uxsearch.search.CampaignNotRunning, fields: {campaign_id: 00000000-0000-4000-8000-000000000051}}
+    no_events: [uxsearch.search.FrontierChanged]
+  # Variant z has no entry on the campaign's frontier.
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.search.MarkDominated
+    actor: uxsearch.search.Searcher
+    input:
+      frontier_entry_id: {$instance: entry-a}
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      dominated_by: "sha256:variant-z"
+    outcome: dominator-not-on-frontier
+    error: {name: uxsearch.search.Dominated, fields: {variant_digest: "sha256:variant-z"}}
+    no_events: [uxsearch.search.FrontierChanged]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.search.MarkDominated
+    actor: uxsearch.search.Searcher
+    input:
+      frontier_entry_id: {$instance: entry-a}
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      dominated_by: "sha256:variant-b"
+    outcome: dominated
+    events: [{event: uxsearch.search.FrontierChanged, payload: {frontier_entry_id: 00000000-0000-4000-8000-0000000000d0, campaign_id: 00000000-0000-4000-8000-000000000050, variant_digest: "sha256:variant-a", admitted: false}}]
+  # Dominated is terminal.
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.search.MarkDominated
+    actor: uxsearch.search.Searcher
+    input:
+      frontier_entry_id: {$instance: entry-a}
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      dominated_by: "sha256:variant-b"
+    outcome: wrong-state
+    error: {name: uxsearch.search.FrontierEntryStateConflict}
+    no_events: [uxsearch.search.FrontierChanged]
+  - at: 2026-01-05T09:00:07Z
+    command: uxsearch.search.WithdrawFromFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      frontier_entry_id: {$instance: entry-a}
+      reason: a late withdrawal
+    outcome: wrong-state
+    error: {name: uxsearch.search.FrontierEntryStateConflict}
+    no_events: [uxsearch.search.FrontierChanged]
+  # No hard rule failed on variant b.
+  - at: 2026-01-05T09:00:08Z
+    command: uxsearch.search.WithdrawFromFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      frontier_entry_id: {$instance: entry-b}
+      reason: looks wrong
+    outcome: no-hard-failure
+    error: {name: uxsearch.search.NoHardFailure, fields: {variant_digest: "sha256:variant-b"}}
+    no_events: [uxsearch.search.FrontierChanged]
+  - at: 2026-01-05T09:00:09Z
+    command: uxsearch.search.WithdrawFromFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      frontier_entry_id: {$instance: entry-c}
+      reason: required nodes are not visible at the full stage
+    outcome: withdrawn
+    events: [{event: uxsearch.search.FrontierChanged, payload: {frontier_entry_id: 00000000-0000-4000-8000-0000000000d2, campaign_id: 00000000-0000-4000-8000-000000000050, variant_digest: "sha256:variant-c", admitted: false}}]
+  # Withdrawn is terminal.
+  - at: 2026-01-05T09:00:10Z
+    command: uxsearch.search.WithdrawFromFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      frontier_entry_id: {$instance: entry-c}
+      reason: a second withdrawal
+    outcome: wrong-state
+    error: {name: uxsearch.search.FrontierEntryStateConflict}
+    no_events: [uxsearch.search.FrontierChanged]
+  - at: 2026-01-05T09:00:11Z
+    command: uxsearch.search.MarkDominated
+    actor: uxsearch.search.Searcher
+    input:
+      frontier_entry_id: {$instance: entry-c}
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-c"
+      dominated_by: "sha256:variant-b"
+    outcome: wrong-state
+    error: {name: uxsearch.search.FrontierEntryStateConflict}
+    no_events: [uxsearch.search.FrontierChanged]
+assert:
+  - view: uxsearch.search.FrontierEntries
+    contains: {frontier_entry_id: {$instance: entry-a}, dominated_by: "sha256:variant-b", withdraw_reason: null, state: Dominated}
+  - view: uxsearch.search.FrontierEntries
+    contains: {frontier_entry_id: {$instance: entry-c}, dominated_by: null, withdraw_reason: required nodes are not visible at the full stage, state: Withdrawn}
+  - view: uxsearch.search.Frontier
+    params: {campaign_id: {$instance: campaign}}
+    contains: {variant_digest: "sha256:variant-b"}
+  - view: uxsearch.search.Frontier
+    params: {campaign_id: {$instance: campaign}}
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.search.Frontier
+    params: {campaign_id: {$instance: stopped}}
+    counts: {at_least: 2, at_most: 2}

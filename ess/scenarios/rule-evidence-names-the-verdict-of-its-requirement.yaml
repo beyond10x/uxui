@@ -1,0 +1,249 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.ratchet.RecordRuleEvidence/outcome/no-requirement
+  - uxsearch.ratchet.RecordRuleEvidence/outcome/no-metric
+  - uxsearch.ratchet.RecordRuleEvidence/outcome/requirement-unbound
+  - uxsearch.ratchet.RecordRuleEvidence/outcome/requirement-mismatch
+  - uxsearch.ratchet.RecordRuleEvidence/outcome/verdict-of-another-requirement
+  - uxsearch.ratchet.RecordRuleEvidence/outcome/insufficient
+  - uxsearch.ratchet.RecordRuleEvidence/outcome/observed
+domain: uxsearch.ratchet
+scenario: rule-evidence-names-the-verdict-of-its-requirement
+# Story spec-round-2-scenarios; docs/ratchet.md § 4. Rule evidence answers for a Bound
+# requirement with the metric it is bound to, from a verdict of a rule that names that
+# requirement. A soft rule's verdict names none, so it is evidence for none. A verdict of
+# insufficient evidence is recorded as insufficient, without findings.
+summary: Rule evidence is recorded from a verdict that names the requirement, and is insufficient when the verdict is
+arrange:
+  - instance: visible
+    entity: uxsearch.metrics.MetricDefinition
+    setup:
+      identity: attention.visible_required
+      fields:
+        summary: Required nodes inside the viewport
+        unit: ratio
+        direction: higher_is_better
+        scope: state
+        kind: exact
+        timing: static
+        role: hard_rule
+        target_scopes: [page]
+        preset_family: attention
+        version: 3
+      state: Active
+  - instance: contrast
+    entity: uxsearch.metrics.MetricDefinition
+    setup:
+      identity: perception.contrast
+      fields:
+        summary: Lowest text contrast
+        unit: ratio
+        direction: higher_is_better
+        scope: state
+        kind: exact
+        timing: static
+        role: hard_rule
+        target_scopes: [page]
+        preset_family: perception
+        version: 1
+      state: Active
+  - instance: requirement
+    entity: uxsearch.ratchet.RequirementBinding
+    setup:
+      identity: settings.visible_required
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        metric_key: attention.visible_required
+      state: Bound
+  # A second requirement over the same metric, for another target.
+  - instance: sibling
+    entity: uxsearch.ratchet.RequirementBinding
+    setup:
+      identity: billing.visible_required
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000002
+        metric_key: attention.visible_required
+      state: Bound
+  - instance: dropped
+    entity: uxsearch.ratchet.RequirementBinding
+    setup:
+      identity: settings.visible_required.old
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        metric_key: attention.visible_required
+      state: Unbound
+  - instance: violation
+    entity: uxsearch.rules.RuleVerdict
+    setup:
+      identity: 00000000-0000-4000-8000-000000000090
+      fields:
+        rule_id: 00000000-0000-4000-8000-000000000080
+        variant_digest: "sha256:variant-a"
+        target_id: 00000000-0000-4000-8000-000000000001
+        strength: hard
+        requirement_id: settings.visible_required
+        stage: full
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        verdict: violated
+        findings: [{node_path: pages/settings/sections/security/save, message: the save action is below the fold}]
+      state: Recorded
+  - instance: cannot-tell
+    entity: uxsearch.rules.RuleVerdict
+    setup:
+      identity: 00000000-0000-4000-8000-000000000091
+      fields:
+        rule_id: 00000000-0000-4000-8000-000000000080
+        variant_digest: "sha256:variant-b"
+        target_id: 00000000-0000-4000-8000-000000000001
+        strength: hard
+        requirement_id: settings.visible_required
+        stage: full
+        verdict: insufficient_evidence
+        findings: []
+      state: Recorded
+  - instance: soft-verdict
+    entity: uxsearch.rules.RuleVerdict
+    setup:
+      identity: 00000000-0000-4000-8000-000000000092
+      fields:
+        rule_id: 00000000-0000-4000-8000-000000000081
+        variant_digest: "sha256:variant-a"
+        target_id: 00000000-0000-4000-8000-000000000001
+        strength: soft
+        stage: full
+        verdict: violated
+        findings: []
+        score: 0.4
+      state: Recorded
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.ratchet.RecordRuleEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: settings.unknown
+      rule_verdict_id: {$instance: violation}
+      metric_key: {$instance: visible}
+      findings: []
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: no-requirement
+    error: {name: uxsearch.ratchet.RequirementNotBound, fields: {requirement_id: settings.unknown}}
+    no_events: [uxsearch.ratchet.EvidenceRecorded]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.ratchet.RecordRuleEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: requirement}
+      rule_verdict_id: {$instance: violation}
+      metric_key: attention.unknown
+      findings: []
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: no-metric
+    error: {name: uxsearch.ratchet.MetricNotFound, fields: {metric_key: attention.unknown}}
+    no_events: [uxsearch.ratchet.EvidenceRecorded]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.ratchet.RecordRuleEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: dropped}
+      rule_verdict_id: {$instance: violation}
+      metric_key: {$instance: visible}
+      findings: []
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: requirement-unbound
+    error: {name: uxsearch.ratchet.RequirementNotBound, fields: {requirement_id: settings.visible_required.old}}
+    no_events: [uxsearch.ratchet.EvidenceRecorded]
+  # The requirement is bound to attention.visible_required, not to perception.contrast.
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.ratchet.RecordRuleEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: requirement}
+      rule_verdict_id: {$instance: violation}
+      metric_key: {$instance: contrast}
+      findings: []
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: requirement-mismatch
+    error: {name: uxsearch.ratchet.RequirementMismatch, fields: {requirement_id: settings.visible_required}}
+    no_events: [uxsearch.ratchet.EvidenceRecorded]
+  # The verdict answers for the settings requirement, not for the billing one.
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.ratchet.RecordRuleEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: sibling}
+      rule_verdict_id: {$instance: violation}
+      metric_key: {$instance: visible}
+      findings: []
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: verdict-of-another-requirement
+    error: {name: uxsearch.ratchet.RequirementMismatch, fields: {requirement_id: billing.visible_required}}
+    no_events: [uxsearch.ratchet.EvidenceRecorded]
+  # A soft rule's verdict names no requirement.
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.ratchet.RecordRuleEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: requirement}
+      rule_verdict_id: {$instance: soft-verdict}
+      metric_key: {$instance: visible}
+      findings: []
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: verdict-of-another-requirement
+    error: {name: uxsearch.ratchet.RequirementMismatch, fields: {requirement_id: settings.visible_required}}
+    no_events: [uxsearch.ratchet.EvidenceRecorded]
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.ratchet.RecordRuleEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: requirement}
+      rule_verdict_id: {$instance: cannot-tell}
+      metric_key: {$instance: visible}
+      findings: []
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: insufficient
+    events: [{event: uxsearch.ratchet.EvidenceRecorded, payload: {requirement_id: settings.visible_required, status: insufficient_evidence}}]
+  - at: 2026-01-05T09:00:07Z
+    command: uxsearch.ratchet.RecordRuleEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: requirement}
+      rule_verdict_id: {$instance: violation}
+      metric_key: {$instance: visible}
+      findings: [{check: required_visible, node_path: pages/settings/sections/security/save}]
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: observed
+    events: [{event: uxsearch.ratchet.EvidenceRecorded, payload: {requirement_id: settings.visible_required, status: observed}}]
+assert:
+  - view: uxsearch.ratchet.Evidence
+    contains:
+      requirement_id: settings.visible_required
+      metric_key: attention.visible_required
+      metric_version: 3
+      variant_digest: "sha256:variant-a"
+      stage: full
+      environment_id: 00000000-0000-4000-8000-000000000040
+      layout_model_version: layout-model/0
+      status: observed
+  - view: uxsearch.ratchet.Evidence
+    contains: {requirement_id: settings.visible_required, variant_digest: "sha256:variant-b", status: insufficient_evidence, findings: []}
+  - view: uxsearch.ratchet.Evidence
+    excludes: {requirement_id: billing.visible_required}
+  - view: uxsearch.ratchet.Evidence
+    counts: {at_least: 2, at_most: 2}

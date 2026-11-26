@@ -1,16 +1,24 @@
 # ESS gaps uxui needs, in priority order
 
-Status: 2026-11-25. Every gap uxui has found in ESS, ordered by what blocks the engine first. Found on ESS
-0.98.0; read again on 2026-11-25 against ESS's planning store on its `main` (newest tag 0.99.4; the CLI
-installed here is 0.99.2). The owner, 2026-11-24: "make sure that all ESS gaps are implemented ASAP". Sent
+Status: 2026-11-26. Every gap uxui has found in ESS, ordered by what blocks the engine first. Found on ESS
+0.98.0; read again on 2026-11-26 against ESS's releases up to 0.99.5 (the newest, and the tag
+`engine/search` builds on) and its planning store on its `main`; the CLI installed here is 0.99.2. The
+owner, 2026-11-24: "make sure that all ESS gaps are implemented ASAP". Sent
 to the ESS maintainers on 2026-11-24 as gap reports; ESS filed them as stories of
 its own, tagged `gap-reports-2026-11-24` and `gap-p0`, `gap-p1` or `gap-p2`, and maps each item to them in
 its `.engineering/waves/gap-reports-2026-11-24.md`. Below, "ESS:" names those stories by file under
-`.engineering/planning/story/` of the ESS repository, with the status read that day. No story named here is
-in an ESS release; item 6 is on ESS's unreleased `main`. The requirements of the generator round that ESS
-has no story for yet are draft stories uxui sends ([Needs per way](#needs-per-way)). Styling is not an ESS
-gap: themes and templates belong to uxui (`AGENTS.md`, Direction), and so do the UX declarations
+`.engineering/planning/story/` of the ESS repository, with the status read on 2026-11-25; no status of an
+item's story had moved on 2026-11-26, and none is `implemented`. The requirements of the generator round
+that ESS has no story for yet are draft stories uxui sends ([Needs per way](#needs-per-way)). Styling is
+not an ESS gap: themes and templates belong to uxui (`AGENTS.md`, Direction), and so do the UX declarations
 (`uxui-declarations/1`).
+
+Closed: 1 of the 18 items (item 9), and two needs of the generator round (the loop period and
+`insert_top` of a held key, [Needs per way](#own-generator)). A closed entry says **Closed**, the ESS
+release that closed it and the uxui change that adopted it. The other 17 items are open in ESS 0.99.5:
+no story of theirs is in a release, and item 6 is on ESS's unreleased `main`. Releases 0.99.1 to 0.99.5
+are patch releases: they change conformance synthesis and, in 0.99.2, where `ess ui check` and the
+renderers read an overlay's `params:`; none adds a key to `ess-ui/1` or to the specification format.
 
 Sources: `ess/GAPS.md` (G1-G11), `docs/roadmap.md` step 2, `docs/generator-round.md` (F1, F3, stories 4
 to 7), `docs/change-list.md` (C1-C10), `docs/own-generator.md`.
@@ -19,7 +27,7 @@ to 7), `docs/change-list.md` (C1-C10), `docs/own-generator.md`.
 
 ESS accepted all of P0 (status `active`, tag `gap-p0`) and builds it in eight rounds, R1 to R8; R5 to R8
 ship as one release, which publishes `ess-ui-resolved/1` and `ess-ui-state/1` once, complete. None of it is
-in a tag yet.
+in a tag yet (read at 0.99.5).
 
 1. **UI state API** (roadmap 2a). For a UI state of an `ess-ui/1` document: the list of actions available
    in it, and a cloneable state (or a replay-free way to reach it). Exhaustive search over the state space
@@ -94,6 +102,15 @@ in a tag yet.
 ESS maps items 9 to 17 to stories in its wave page named in the status above, section "P2, first report".
 
 9. **For all over related rows** (G4). "Every Active hard rule of the target has a `pass` verdict."
+   **Closed.** ESS release: 0.63.0, which let a row-set `when_related:` test each candidate's related
+   rows in its `where:` (`exists: {in: {entity: …}, as, that}`), so the rule reads "no Active hard rule
+   of the target without a Recorded `pass` verdict of this variant"; the gap report carried an earlier
+   text of `ess/GAPS.md`, which said it could not be stated. uxui change: pull request #1 (the refusal
+   `hard-rule-unchecked` of `AcceptPromotion` and `AcceptTradeOff` in `ess/domains/promotion.yaml`;
+   `ess/GAPS.md`, G4), recorded here on 2026-11-26.
+   ESS keeps a story for the reference text and a test of the idiom:
+   `every-row-of-a-selection-has-a-related-row-that-passes-is-stated-with-a-row-set-guard-and-a-rows-quantifier.md`
+   (`draft`).
 10. **A list-reference guard beside another related guard** (G1).
 11. **A related-row guard beside a held-state guard** (G3).
 12. **A secondary effect beside a create** (G2).
@@ -208,14 +225,21 @@ this section are slot's (its `docs/design/ess-ui-gaps.md`), not those of `ess/GA
   (`draft`, fit review: defer; the parts that need a new execution surface are the owner's).
 - **Behaviour the renderers left open** (`docs/own-generator.md`, "Decisions ESS left open"), which that
   suite has to pin:
-  - the loop period of a fixture script (own-generator gap 3). ESS:
+  - the loop period of a fixture script (own-generator gap 3). **Closed.** ESS release: 0.98.1 (the
+    generated React app repeats a looping script at its last entry's time, as the terminal and
+    `ess ui test` do). uxui change: none needed in code, the own generator took the terminal's period
+    from the start; this change records it in `docs/own-generator.md`. ESS:
     `a-looping-fixture-script-repeats-at-its-last-entry-s-offset-in-the-browser-too-as-in-the-terminal-and-the-test.md`
-    (`draft`);
+    (`draft`; it names 0.98.1 as the release that carries it);
   - an event played as the page opens (gap 4). ESS:
     `in-the-browser-a-live-event-that-arrives-before-the-section-s-read-has-answered-is-applied-once-it-answers-as.md`
     (`draft`);
-  - `insert_top` of a key already held (gap 1). ESS:
-    `a-live-insert-of-a-key-the-section-already-holds-shows-one-row-in-both-renderers.md` (`draft`);
+  - `insert_top` of a key already held (gap 1). **Closed.** ESS release: 0.98.1 (one row per key: the
+    held row takes the event's fields and moves to the top, `max_rows` applies after the move). uxui
+    change: this change, `apply` in `generators/own/assets/runtime.js`, which inserted the key again
+    as ESS 0.98.0 did. ESS:
+    `a-live-insert-of-a-key-the-section-already-holds-shows-one-row-in-both-renderers.md` (`draft`; it
+    records the fix);
   - a confirm's button text and a field's label. ESS settled both in P0 3 (the button reads `Confirm`; a
     label is the name with `_` as a space):
     `the-loader-fills-the-defaults-a-renderer-reads-differently-today-and-both-renderers-then-show-what-the-schema.md`;

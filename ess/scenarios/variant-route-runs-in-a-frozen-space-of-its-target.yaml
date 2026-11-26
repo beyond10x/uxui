@@ -1,0 +1,130 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.design.MaterializeVariant/outcome/route-elsewhere
+  - uxsearch.design.MaterializeVariant/outcome/operator-defect
+  - uxsearch.design.MaterializeVariant/outcome/no-design-space
+  - uxsearch.design.MaterializeVariant/outcome/space-open
+  - uxsearch.design.MaterializeVariant/outcome/space-of-another-target
+domain: uxsearch.design
+scenario: variant-route-runs-in-a-frozen-space-of-its-target
+# Story spec-round-2-scenarios. A route names the design space the command names; a route whose
+# operators or patches yield an invalid result is the engine's answer, given before any row is
+# read. A further route to a variant that exists is refused when its design space is unknown,
+# still Open, or declared on another target than the one the command names; the variant keeps
+# its routes.
+#
+# The three design-space refusals are witnessed here on a variant that exists. For a digest no
+# variant has yet, the command answers `new` before it reads the design space (the addressed
+# record's existence is answered before the rows around it), so they do not guard a first route.
+summary: A further route to a variant is admitted only through a Frozen design space of the target named
+arrange:
+  - instance: frozen
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000020
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: settings page
+        component_treatment: fixed
+        space_digest: "sha256:space-decl"
+      state: Frozen
+  - instance: open
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000021
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: settings page, draft
+        component_treatment: fixed
+      state: Open
+  - instance: elsewhere
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000022
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000002
+        name: billing page
+        component_treatment: fixed
+        space_digest: "sha256:space-billing"
+      state: Frozen
+  - instance: variant
+    entity: uxsearch.design.Variant
+    setup:
+      identity: "sha256:variant-a"
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        target_id: 00000000-0000-4000-8000-000000000001
+        first_route: {design_space_id: 00000000-0000-4000-8000-000000000020, origin: search, choices: [], applications: []}
+        routes: []
+      state: Candidate
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.design.MaterializeVariant
+    actor: uxsearch.design.Engine
+    input:
+      variant_digest: "sha256:variant-a"
+      base_document_id: 00000000-0000-4000-8000-000000000010
+      target_id: 00000000-0000-4000-8000-000000000001
+      design_space_id: {$instance: frozen}
+      route: {design_space_id: 00000000-0000-4000-8000-000000000022, origin: manual, choices: [], applications: []}
+    outcome: route-elsewhere
+    error: {name: uxsearch.design.RouteMismatch, fields: {design_space_id: 00000000-0000-4000-8000-000000000020}}
+    no_events: [uxsearch.design.VariantMaterialized, uxsearch.design.VariantReachedAgain]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.design.MaterializeVariant
+    actor: uxsearch.design.Engine
+    input:
+      variant_digest: "sha256:variant-a"
+      base_document_id: 00000000-0000-4000-8000-000000000010
+      target_id: 00000000-0000-4000-8000-000000000001
+      design_space_id: {$instance: frozen}
+      route:
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        origin: manual
+        choices: []
+        applications: [{operator: reorder_sections, at: pages/settings/sections, args: {order: [security]}}]
+    outcome: operator-defect
+    error: {name: uxsearch.design.OperatorRefused}
+    no_events: [uxsearch.design.VariantMaterialized, uxsearch.design.VariantReachedAgain]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.design.MaterializeVariant
+    actor: uxsearch.design.Engine
+    input:
+      variant_digest: "sha256:variant-a"
+      base_document_id: 00000000-0000-4000-8000-000000000010
+      target_id: 00000000-0000-4000-8000-000000000001
+      design_space_id: 00000000-0000-4000-8000-0000000000ff
+      route: {design_space_id: 00000000-0000-4000-8000-0000000000ff, origin: manual, choices: [], applications: []}
+    outcome: no-design-space
+    error: {name: uxsearch.design.RouteMismatch, fields: {design_space_id: 00000000-0000-4000-8000-0000000000ff}}
+    no_events: [uxsearch.design.VariantMaterialized, uxsearch.design.VariantReachedAgain]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.design.MaterializeVariant
+    actor: uxsearch.design.Engine
+    input:
+      variant_digest: "sha256:variant-a"
+      base_document_id: 00000000-0000-4000-8000-000000000010
+      target_id: 00000000-0000-4000-8000-000000000001
+      design_space_id: {$instance: open}
+      route: {design_space_id: 00000000-0000-4000-8000-000000000021, origin: manual, choices: [], applications: []}
+    outcome: space-open
+    error: {name: uxsearch.design.RouteMismatch, fields: {design_space_id: 00000000-0000-4000-8000-000000000021}}
+    no_events: [uxsearch.design.VariantMaterialized, uxsearch.design.VariantReachedAgain]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.design.MaterializeVariant
+    actor: uxsearch.design.Engine
+    input:
+      variant_digest: "sha256:variant-a"
+      base_document_id: 00000000-0000-4000-8000-000000000010
+      target_id: 00000000-0000-4000-8000-000000000001
+      design_space_id: {$instance: elsewhere}
+      route: {design_space_id: 00000000-0000-4000-8000-000000000022, origin: manual, choices: [], applications: []}
+    outcome: space-of-another-target
+    error: {name: uxsearch.design.RouteMismatch, fields: {design_space_id: 00000000-0000-4000-8000-000000000022}}
+    no_events: [uxsearch.design.VariantMaterialized, uxsearch.design.VariantReachedAgain]
+assert:
+  - view: uxsearch.design.VariantById
+    params: {variant_digest: "sha256:variant-a"}
+    contains:
+      first_route: {design_space_id: 00000000-0000-4000-8000-000000000020, origin: search, choices: [], applications: []}
+      routes: []

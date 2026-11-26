@@ -1,0 +1,206 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.journeys.AbandonStateSpace/outcome/abandoned
+  - uxsearch.journeys.StateSpace/transition/abandon/by/uxsearch.journeys.AbandonStateSpace/abandoned
+  - uxsearch.journeys.StateSpace/invariant/after/uxsearch.journeys.AbandonStateSpace/abandoned
+  - uxsearch.journeys.StateSpace/state/Abandoned/refuses/uxsearch.journeys.AbandonStateSpace
+  - uxsearch.journeys.StateSpace/state/Abandoned/refuses/uxsearch.journeys.CompleteStateSpace
+  - uxsearch.journeys.StateSpace/state/Abandoned/refuses/uxsearch.journeys.TruncateStateSpace
+  - uxsearch.journeys.StateSpace/state/Complete/refuses/uxsearch.journeys.AbandonStateSpace
+  - uxsearch.journeys.StateSpace/state/Complete/refuses/uxsearch.journeys.CompleteStateSpace
+  - uxsearch.journeys.StateSpace/state/Complete/refuses/uxsearch.journeys.TruncateStateSpace
+  - uxsearch.journeys.StateSpace/state/Incomplete/refuses/uxsearch.journeys.AbandonStateSpace
+  - uxsearch.journeys.StateSpace/state/Incomplete/refuses/uxsearch.journeys.CompleteStateSpace
+  - uxsearch.journeys.StateSpace/state/Incomplete/refuses/uxsearch.journeys.TruncateStateSpace
+  - uxsearch.journeys.StateSpace/state/Truncated/refuses/uxsearch.journeys.AbandonStateSpace
+  - uxsearch.journeys.StateSpace/state/Truncated/refuses/uxsearch.journeys.CompleteStateSpace
+  - uxsearch.journeys.StateSpace/state/Truncated/refuses/uxsearch.journeys.TruncateStateSpace
+domain: uxsearch.journeys
+scenario: state-space-closes-once
+# Story spec-round-2-scenarios; docs/state-space.md. An enumeration ends one way: Complete,
+# Incomplete, Truncated or Abandoned. Each of the four is terminal: a closed state space is not
+# completed, truncated or abandoned again, and it keeps the count and the reason it closed with.
+summary: An enumeration that stopped is Abandoned, and no closed state space is closed a second time
+arrange:
+  - instance: running
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-running"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-a"
+        stage: full
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 0
+      state: Enumerating
+  - instance: complete
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-complete"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-b"
+        stage: full
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 3
+      state: Complete
+  - instance: incomplete
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-incomplete"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-c"
+        stage: full
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 4
+      state: Incomplete
+  - instance: truncated
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-truncated"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-d"
+        stage: full
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 10
+        bound_hit: max_states
+      state: Truncated
+timeline:
+  # The enumerator crashed: the enumeration ends without a count.
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.journeys.AbandonStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: running}
+      reason: the enumerator process ended
+    outcome: abandoned
+    events: [{event: uxsearch.journeys.StateSpaceAbandoned, payload: {state_space_key: "sha256:space-running", reason: the enumerator process ended}}]
+  # Abandoned is terminal.
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.journeys.AbandonStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: running}
+      reason: a second stop
+    outcome: wrong-state
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.StateSpaceAbandoned]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.journeys.CompleteStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: running}
+      states_count: 0
+    outcome: wrong-state
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.journeys.TruncateStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: running}
+      states_count: 0
+      bound_hit: max_depth
+    outcome: wrong-state
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  # Complete is terminal.
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.journeys.AbandonStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: complete}
+      reason: a late cancel
+    outcome: wrong-state
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.StateSpaceAbandoned]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.journeys.CompleteStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: complete}
+      states_count: 3
+    outcome: wrong-state
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.journeys.TruncateStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: complete}
+      states_count: 3
+      bound_hit: max_states
+    outcome: wrong-state
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  # Incomplete is terminal.
+  - at: 2026-01-05T09:00:07Z
+    command: uxsearch.journeys.AbandonStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: incomplete}
+      reason: a late cancel
+    outcome: wrong-state
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.StateSpaceAbandoned]
+  - at: 2026-01-05T09:00:08Z
+    command: uxsearch.journeys.CompleteStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: incomplete}
+      states_count: 4
+    outcome: wrong-state
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  - at: 2026-01-05T09:00:09Z
+    command: uxsearch.journeys.TruncateStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: incomplete}
+      states_count: 4
+      bound_hit: max_states
+    outcome: wrong-state
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  # Truncated is terminal.
+  - at: 2026-01-05T09:00:10Z
+    command: uxsearch.journeys.AbandonStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: truncated}
+      reason: a late cancel
+    outcome: wrong-state
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.StateSpaceAbandoned]
+  - at: 2026-01-05T09:00:11Z
+    command: uxsearch.journeys.CompleteStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: truncated}
+      states_count: 10
+    outcome: wrong-state
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+  - at: 2026-01-05T09:00:12Z
+    command: uxsearch.journeys.TruncateStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: truncated}
+      states_count: 10
+      bound_hit: max_depth
+    outcome: wrong-state
+    error: {name: uxsearch.journeys.StateSpaceStateConflict}
+    no_events: [uxsearch.journeys.StateSpaceClosed]
+assert:
+  - view: uxsearch.journeys.StateSpaces
+    contains: {state_space_key: {$instance: running}, states_count: 0, abandon_reason: the enumerator process ended, state: Abandoned}
+  - view: uxsearch.journeys.StateSpaces
+    contains: {state_space_key: {$instance: complete}, states_count: 3, abandon_reason: null, state: Complete}
+  - view: uxsearch.journeys.StateSpaces
+    contains: {state_space_key: {$instance: incomplete}, states_count: 4, abandon_reason: null, state: Incomplete}
+  - view: uxsearch.journeys.StateSpaces
+    contains: {state_space_key: {$instance: truncated}, states_count: 10, bound_hit: max_states, abandon_reason: null, state: Truncated}
+  - view: uxsearch.journeys.StateSpaces
+    satisfies: states_count >= 0

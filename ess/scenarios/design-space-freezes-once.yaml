@@ -1,0 +1,41 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.design.FreezeDesignSpace/outcome/frozen
+  - uxsearch.design.DesignSpace/transition/freeze/by/uxsearch.design.FreezeDesignSpace/frozen
+  - uxsearch.design.DesignSpace/state/Frozen/refuses/uxsearch.design.FreezeDesignSpace
+domain: uxsearch.design
+scenario: design-space-freezes-once
+# Story spec-round-2-scenarios. Freezing an Open design space records the digest of its
+# declaration; a campaign copies it, so a frozen space is never frozen again.
+summary: An Open design space freezes with a digest, and a Frozen one refuses a second freeze
+arrange:
+  - instance: space
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000020
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: settings layout
+        component_treatment: fixed
+      state: Open
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.design.FreezeDesignSpace
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: space}
+    outcome: frozen
+    events: [{event: uxsearch.design.DesignSpaceFrozenEvent, payload: {design_space_id: 00000000-0000-4000-8000-000000000020}}]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.design.FreezeDesignSpace
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: space}
+    outcome: wrong-state
+    error: {name: uxsearch.design.DesignSpaceStateConflict}
+    no_events: [uxsearch.design.DesignSpaceFrozenEvent]
+assert:
+  - view: uxsearch.design.DesignSpaces
+    contains: {design_space_id: {$instance: space}, state: Frozen}
+  - view: uxsearch.design.DesignSpaces
+    satisfies: defined(space_digest)

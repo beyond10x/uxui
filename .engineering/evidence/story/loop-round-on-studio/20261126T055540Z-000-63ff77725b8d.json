@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T05:55:40Z",
+  "actor": "human:operator",
+  "artifact": "story:loop-round-on-studio",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "round R-01, 2026-11-26: the ui-iteration-loop skill ran one round on the React app generated from ess/ui/studio.ui.yaml with fixtures (ess generate ui --target react --fixtures), measured with ux-browser 0.10.0: 10 pages x 5 viewports x 2 themes, 870 page checks (782 passed, 38 failed), 11 scenario cards in 44 runs; gates 1, 2 and 3 fail; 22 findings (4 S1, 12 S2, 6 S3), each recorded as ess/ui/findings/UXF-001.md to UXF-022.md; round record in ess/ui/rounds/R-01/; sh tools/gate.sh: every step passed",
+    "reference": "ess/ui/rounds/R-01/report.md"
+  }
+}

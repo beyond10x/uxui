@@ -1,9 +1,10 @@
 # The studio climb
 
 Status: built and measured 2026-11-25 (`story:studio-climb`, roadmap step 5). The engine climbs its own
-studio, `ess/ui/studio.ui.yaml`, on layout model v0 (ESS's terminal renderer at tag 0.99.4, in
+studio, `ess/ui/studio.ui.yaml`, on layout model v0 (ESS's terminal renderer at tag 0.99.5, in
 process) and prints the ranked frontier. Method and terms: `docs/cost-spike.md` and
-`engine/search/src/climb.rs`.
+`engine/search/src/climb.rs`. Measured on tag 0.99.4; on 0.99.5 (2026-11-26) the climb prints the same
+frontier and ranking, and only the first line of its output, which names the tag, differs.
 
 ## Page
 
@@ -17,7 +18,7 @@ primary button).
 
 | axis | values | read by the terminal renderer | in the climb |
 |---|---|---|---|
-| theme | `light` (the one key of `themes`, also `theme.default`) | no: ESS 0.99.4 draws no theme | yes, 1 value |
+| theme | `light` (the one key of `themes`, also `theme.default`) | no: ESS 0.99.5 draws no theme | yes, 1 value |
 | section order in column `side` | `[summary]`: 1! = 1 | yes, as the stack order | yes |
 | section order in column `main` | `[hill_kpis, hill, progress, points, frontier]`: 5! = 120 | yes, as the stack order | yes |
 | column order (`side`, `main`) | 2 | only through the stack order | no |

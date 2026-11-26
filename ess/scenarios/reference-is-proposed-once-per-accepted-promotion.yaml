@@ -1,0 +1,168 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.ratchet.ProposeReference/outcome/not-accepted
+  - uxsearch.ratchet.ProposeReference/outcome/proposed
+  - uxsearch.ratchet.ProposeReference/outcome/already-proposed
+  - uxsearch.ratchet.RecordReferenceDecision/outcome/adopted
+  - uxsearch.ratchet.RecordReferenceDecision/outcome/declined
+  - uxsearch.ratchet.ReferenceProposal/transition/adopt/by/uxsearch.ratchet.RecordReferenceDecision/adopted
+  - uxsearch.ratchet.ReferenceProposal/transition/decline/by/uxsearch.ratchet.RecordReferenceDecision/declined
+  - uxsearch.ratchet.ReferenceProposal/state/Adopted/refuses/uxsearch.ratchet.RecordReferenceDecision
+  - uxsearch.ratchet.ReferenceProposal/state/Declined/refuses/uxsearch.ratchet.RecordReferenceDecision
+domain: uxsearch.ratchet
+scenario: reference-is-proposed-once-per-accepted-promotion
+# Story spec-round-2-scenarios; docs/ratchet.md § 6. Only an Accepted or Applied promotion is
+# proposed as the next reference of the ratchet, and once. The proposal copies the promotion's
+# variant, its losses and gains and who authorized it. The ratchet's decision, adopt or decline,
+# is recorded once.
+summary: An accepted promotion is proposed as the reference once, and the proposal is adopted or declined once
+arrange:
+  - instance: accepted
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000070
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-a"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: fewer actions, one more glance
+        gate: fail
+        gate_trade_off_only: true
+        gate_evidence_ids: []
+        gate_requirement_verdicts: [{requirement_id: settings.glance_cost, verdict: fail}]
+        losses: [{requirement_id: settings.glance_cost, reference: 2, candidate: 3}]
+        gains: [{requirement_id: settings.actions, reference: 8, candidate: 5}]
+        accepted_by: owner-1
+      state: Accepted
+  - instance: applied
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000071
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000051
+        target_id: 00000000-0000-4000-8000-000000000002
+        variant_digest: "sha256:variant-b"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: less scrolling
+        gate: pass
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: []
+        losses: []
+        gains: [{requirement_id: billing.scroll, reference: 3, candidate: 1}]
+        accepted_by: policy-web-ux
+        applied_as: 00000000-0000-4000-8000-000000000011
+      state: Applied
+  - instance: undecided
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000072
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-c"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: a new order
+        gate: pass
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: []
+        losses: []
+        gains: []
+      state: Proposed
+  - {instance: trade-reference, entity: uxsearch.ratchet.ReferenceProposal}
+  - {instance: clean-reference, entity: uxsearch.ratchet.ReferenceProposal}
+timeline:
+  # Nobody accepted this promotion.
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.ratchet.ProposeReference
+    actor: uxsearch.ratchet.Assessor
+    input:
+      promotion_id: {$instance: undecided}
+    outcome: not-accepted
+    error: {name: uxsearch.ratchet.PromotionNotAccepted, fields: {promotion_id: 00000000-0000-4000-8000-000000000072}}
+    no_events: [uxsearch.ratchet.ReferenceProposed]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.ratchet.ProposeReference
+    actor: uxsearch.ratchet.Assessor
+    input:
+      promotion_id: {$instance: accepted}
+    outcome: proposed
+    capture: {instance: trade-reference, event: uxsearch.ratchet.ReferenceProposed, field: reference_proposal_id}
+    events: [{event: uxsearch.ratchet.ReferenceProposed, payload: {promotion_id: 00000000-0000-4000-8000-000000000070}}]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.ratchet.ProposeReference
+    actor: uxsearch.ratchet.Assessor
+    input:
+      promotion_id: {$instance: accepted}
+    outcome: already-proposed
+    error: {name: uxsearch.ratchet.ReferenceAlreadyProposed, fields: {promotion_id: 00000000-0000-4000-8000-000000000070}}
+    no_events: [uxsearch.ratchet.ReferenceProposed]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.ratchet.ProposeReference
+    actor: uxsearch.ratchet.Assessor
+    input:
+      promotion_id: {$instance: applied}
+    outcome: proposed
+    capture: {instance: clean-reference, event: uxsearch.ratchet.ReferenceProposed, field: reference_proposal_id}
+    events: [{event: uxsearch.ratchet.ReferenceProposed, payload: {promotion_id: 00000000-0000-4000-8000-000000000071}}]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.ratchet.RecordReferenceDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      reference_proposal_id: {$instance: trade-reference}
+      adopted: false
+      decided_by: ratchet-policy-3
+    outcome: declined
+    events: [{event: uxsearch.ratchet.ReferenceDecided, payload: {adopted: false}}]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.ratchet.RecordReferenceDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      reference_proposal_id: {$instance: clean-reference}
+      adopted: true
+      decided_by: ratchet-policy-3
+    outcome: adopted
+    events: [{event: uxsearch.ratchet.ReferenceDecided, payload: {adopted: true}}]
+  # Declined is final.
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.ratchet.RecordReferenceDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      reference_proposal_id: {$instance: trade-reference}
+      adopted: true
+      decided_by: ratchet-policy-4
+    outcome: wrong-state
+    error: {name: uxsearch.ratchet.ReferenceProposalStateConflict}
+    no_events: [uxsearch.ratchet.ReferenceDecided]
+  # Adopted is final.
+  - at: 2026-01-05T09:00:07Z
+    command: uxsearch.ratchet.RecordReferenceDecision
+    actor: uxsearch.ratchet.Ratchet
+    input:
+      reference_proposal_id: {$instance: clean-reference}
+      adopted: false
+      decided_by: ratchet-policy-4
+    outcome: wrong-state
+    error: {name: uxsearch.ratchet.ReferenceProposalStateConflict}
+    no_events: [uxsearch.ratchet.ReferenceDecided]
+assert:
+  - view: uxsearch.ratchet.ReferenceProposals
+    contains:
+      reference_proposal_id: {$instance: trade-reference}
+      promotion_id: {$instance: accepted}
+      variant_digest: "sha256:variant-a"
+      trade_off: true
+      losses: [{requirement_id: settings.glance_cost, reference: 2, candidate: 3}]
+      gains: [{requirement_id: settings.actions, reference: 8, candidate: 5}]
+      authorized_by: owner-1
+      decided_by: ratchet-policy-3
+      state: Declined
+  - view: uxsearch.ratchet.ReferenceProposals
+    contains: {reference_proposal_id: {$instance: clean-reference}, promotion_id: {$instance: applied}, variant_digest: "sha256:variant-b", trade_off: false, authorized_by: policy-web-ux, decided_by: ratchet-policy-3, state: Adopted}
+  - view: uxsearch.ratchet.ReferenceProposals
+    counts: {at_least: 2, at_most: 2}

@@ -2,18 +2,24 @@
 //! variants, each a patch to the page's two sources. Every axis value is written here and
 //! nowhere else.
 //!
-//! | axis | source | values (the shipped one marked) |
+//! | axis | source | values |
 //! |---|---|---|
-//! | theme | `landing.css`, the docs-system colour tokens | `docs-system` (shipped): none set; `studio`: [`STUDIO_PALETTE`] |
-//! | hero | `landing.css` `--uxui-hero-align`, `--uxui-hero-lede-inline` | `left` (shipped): `start`, `0`; `centred`: `center`, `auto` |
-//! | actions | `product.json` `/product/actions` | `1+3`: two links added; `1+1` (shipped); `1+0`: the link removed |
-//! | section order | `product.json` `/sections` | `features-first` (shipped); `status-first`: the status section moved to the top |
-//! | density | `landing.css` `--uxui-density` | `0.85`, `1` (shipped), `1.15` |
-//! | heading scale | `landing.css` `--uxui-heading-scale` | `0.85` (shipped), `1` |
+//! | theme | `landing.css`, the docs-system colour tokens | `docs-system`: none set; `studio`: [`STUDIO_PALETTE`] |
+//! | hero | `landing.css` `--uxui-hero-align`, `--uxui-hero-lede-inline` | `left`: `start`, `0`; `centred`: `center`, `auto` |
+//! | actions | `product.json` `/product/actions` | `1+3`: two links added; `1+1`; `1+0`: the link removed |
+//! | section order | `product.json` `/sections` | `features-first`; `status-first`: the status section moved to the top |
+//! | density | `landing.css` `--uxui-density` | `0.85`, `1`, `1.15` |
+//! | heading scale | `landing.css` `--uxui-heading-scale` | `0.85`, `1` |
+//!
+//! Which variant the page ships stands in one place, the file `shipped.txt` beside this one
+//! ([`shipped`]); a promotion rewrites it (`ux-search landing promote --shipped-file`). The
+//! custom properties of `:root` are written as values, so they hold whatever the page ships.
+//! The operations on `product.json` and the palette rules are written for a shipped page with
+//! the values of [`ANCHOR`]: `1+1`, `features-first`, `docs-system`.
 
 use super::patch::{self, CssRule, Op, Value};
 
-/// One axis: its values in enumeration order and which of them the page ships.
+/// One axis: its values in enumeration order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Axis {
     /// The axis as the report names it.
@@ -22,8 +28,6 @@ pub struct Axis {
     pub ids: &'static [&'static str],
     /// Each value as the report's header writes it.
     pub labels: &'static [&'static str],
-    /// The index of the value the page ships.
-    pub shipped: usize,
 }
 
 const THEME: usize = 0;
@@ -39,38 +43,45 @@ pub const AXES: [Axis; 6] = [
         name: "theme",
         ids: &["docs-system", "studio"],
         labels: &["docs-system", "studio"],
-        shipped: 0,
     },
     Axis {
         name: "hero",
         ids: &["left", "centred"],
         labels: &["left", "centred"],
-        shipped: 0,
     },
     Axis {
         name: "actions",
         ids: &["1+3", "1+1", "1+0"],
         labels: &["1+3", "1+1", "1+0"],
-        shipped: 1,
     },
     Axis {
         name: "section order",
         ids: &["features-first", "status-first"],
         labels: &["features-first", "status-first"],
-        shipped: 0,
     },
     Axis {
         name: "density",
         ids: &["d85", "d100", "d115"],
         labels: &["0.85", "1", "1.15"],
-        shipped: 1,
     },
     Axis {
         name: "heading scale",
         ids: &["h85", "h100"],
         labels: &["0.85", "1"],
-        shipped: 0,
     },
+];
+
+/// The id of the variant the page ships, and a newline: the one place it stands.
+const SHIPPED: &str = include_str!("shipped.txt");
+
+/// The values [`Variant::patch`] writes its operations on `product.json` and its palette rules
+/// against, by axis: a shipped page with one link beside the primary action, the features
+/// section first and the docs-system palette. A promotion that moves the shipped page off one
+/// of them needs those operations written for the new sources before the next campaign.
+pub const ANCHOR: [(usize, &str); 3] = [
+    (THEME, "docs-system"),
+    (ACTIONS, "1+1"),
+    (SECTION_ORDER, "features-first"),
 ];
 
 /// The rule of `landing.css` that holds the page's own custom properties.
@@ -270,9 +281,38 @@ pub fn variants() -> Vec<Variant> {
     choices.into_iter().map(variant).collect()
 }
 
-/// The variant the page ships.
+/// The variant with this id, if the space has one: a value of every axis, in the order of
+/// [`AXES`], joined by `.`.
+pub fn find(id: &str) -> Option<Variant> {
+    let values: Vec<&str> = id.split('.').collect();
+    if values.len() != AXES.len() {
+        return None;
+    }
+    let mut choice = [0usize; 6];
+    for (at, (axis, value)) in AXES.iter().zip(values).enumerate() {
+        choice[at] = axis.ids.iter().position(|id| *id == value)?;
+    }
+    Some(variant(choice))
+}
+
+/// The variant the page ships: the one `shipped.txt` names.
+///
+/// # Panics
+///
+/// When `shipped.txt` does not name a variant of the space; a test holds the file to one.
 pub fn shipped() -> Variant {
-    variant(std::array::from_fn(|at| AXES[at].shipped))
+    let id = SHIPPED.trim_end();
+    find(id).unwrap_or_else(|| {
+        panic!("src/landing/shipped.txt names `{id}`, which is no variant of the space")
+    })
+}
+
+/// Whether the variant has the values of [`ANCHOR`]: the operations of [`Variant::patch`] hold
+/// on a page that ships it.
+pub fn anchored(variant: &Variant) -> bool {
+    ANCHOR
+        .iter()
+        .all(|&(at, value)| AXES[at].ids[variant.choice[at]] == value)
 }
 
 fn variant(choice: [usize; 6]) -> Variant {
@@ -309,7 +349,8 @@ impl Variant {
         AXES[at].labels[self.choice[at]]
     }
 
-    /// The variant's patch. The operations on `product.json` are made for the page as shipped:
+    /// The variant's patch. The operations on `product.json` are made for a shipped page with the
+    /// values of [`ANCHOR`]:
     /// each group starts with a `test` of what it changes, so other sources refuse it.
     pub fn patch(&self) -> Patch {
         let mut product = Vec::new();

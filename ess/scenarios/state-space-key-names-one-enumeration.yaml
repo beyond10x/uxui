@@ -1,0 +1,106 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.journeys.EnumerateStateSpace/outcome/already-enumerated
+  - uxsearch.journeys.ReuseStateSpace/outcome/cached
+  - uxsearch.journeys.ReuseStateSpace/outcome/key-collision
+  - uxsearch.journeys.StateSpace/invariant/after/uxsearch.journeys.ReuseStateSpace/cached
+domain: uxsearch.journeys
+scenario: state-space-key-names-one-enumeration
+# Story spec-round-2-scenarios; docs/state-space.md. The key of a state space is the digest of
+# what was enumerated: the journey, the variant and the stage. A key that exists is not enumerated
+# again; it is reused, and only for the same three inputs. The same key with another variant or
+# another stage is a collision, and the stored state space stays as it is.
+summary: A state space is enumerated once per key and reused only for the inputs it was enumerated for
+arrange:
+  - instance: journey
+    entity: uxsearch.journeys.Journey
+    setup:
+      identity: 00000000-0000-4000-8000-000000000030
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: change the email
+        test_file: tests/settings.yaml
+        test_name: change the email
+        required_nodes: []
+        required_selectors: []
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+      state: Active
+  - instance: variant
+    entity: uxsearch.design.Variant
+    setup:
+      identity: "sha256:variant-a"
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        target_id: 00000000-0000-4000-8000-000000000001
+        first_route: {design_space_id: 00000000-0000-4000-8000-000000000020, origin: search, choices: [], applications: []}
+        routes: []
+      state: Candidate
+  - instance: space
+    entity: uxsearch.journeys.StateSpace
+    setup:
+      identity: "sha256:space-a"
+      fields:
+        journey_id: 00000000-0000-4000-8000-000000000030
+        variant_digest: "sha256:variant-a"
+        stage: full
+        bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
+        states_count: 4
+      state: Complete
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.journeys.EnumerateStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      journey_id: {$instance: journey}
+      variant_digest: {$instance: variant}
+      stage: full
+    outcome: already-enumerated
+    error: {name: uxsearch.journeys.StateSpaceExists, fields: {state_space_key: "sha256:space-a"}}
+    no_events: [uxsearch.journeys.StateSpaceStarted]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.journeys.ReuseStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      journey_id: {$instance: journey}
+      variant_digest: {$instance: variant}
+      stage: full
+    outcome: cached
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.journeys.ReuseStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      journey_id: {$instance: journey}
+      variant_digest: "sha256:variant-b"
+      stage: full
+    outcome: key-collision
+    error: {name: uxsearch.journeys.KeyCollision, fields: {state_space_key: "sha256:space-a"}}
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.journeys.ReuseStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      journey_id: {$instance: journey}
+      variant_digest: {$instance: variant}
+      stage: journey_paths
+    outcome: key-collision
+    error: {name: uxsearch.journeys.KeyCollision, fields: {state_space_key: "sha256:space-a"}}
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.journeys.ReuseStateSpace
+    actor: uxsearch.journeys.Enumerator
+    input:
+      state_space_key: {$instance: space}
+      journey_id: 00000000-0000-4000-8000-000000000031
+      variant_digest: {$instance: variant}
+      stage: full
+    outcome: key-collision
+    error: {name: uxsearch.journeys.KeyCollision, fields: {state_space_key: "sha256:space-a"}}
+assert:
+  - view: uxsearch.journeys.StateSpaces
+    contains: {state_space_key: {$instance: space}, journey_id: {$instance: journey}, variant_digest: "sha256:variant-a", stage: full, states_count: 4, state: Complete}
+  - view: uxsearch.journeys.StateSpaces
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.journeys.StateSpaces
+    satisfies: states_count >= 0

@@ -1,0 +1,69 @@
+type: ess-scenario/7
+domain: uxsearch.metrics
+scenario: metric-version-starts-at-one
+# Story spec-round-2-scenarios; docs/metrics.md. A metric's version is at least 1 (the invariant
+# of MetricDefinition). A definition with version 0 or below is refused with the version it
+# named, and no definition is stored under its key.
+summary: A metric definition with a version below 1 is refused and nothing is stored under its key
+arrange: []
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.metrics.DefineMetric
+    actor: uxsearch.metrics.CatalogueAuthor
+    input:
+      metric_key: effort.actions
+      summary: Actions a journey takes
+      unit: actions
+      direction: lower_is_better
+      scope: journey
+      kind: exact
+      timing: dynamic
+      role: kpi_candidate
+      target_scopes: [page, section]
+      preset_family: effort
+      version: 0
+    outcome: invalid-version
+    error: {name: uxsearch.metrics.InvalidVersion, fields: {version: 0}}
+    no_events: [uxsearch.metrics.MetricDefined]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.metrics.DefineMetric
+    actor: uxsearch.metrics.CatalogueAuthor
+    input:
+      metric_key: effort.actions
+      summary: Actions a journey takes
+      unit: actions
+      direction: lower_is_better
+      scope: journey
+      kind: exact
+      timing: dynamic
+      role: kpi_candidate
+      target_scopes: [page, section]
+      preset_family: effort
+      version: -3
+    outcome: invalid-version
+    error: {name: uxsearch.metrics.InvalidVersion, fields: {version: -3}}
+    no_events: [uxsearch.metrics.MetricDefined]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.metrics.DefineMetric
+    actor: uxsearch.metrics.CatalogueAuthor
+    input:
+      metric_key: effort.actions
+      summary: Actions a journey takes
+      unit: actions
+      direction: lower_is_better
+      scope: journey
+      kind: exact
+      timing: dynamic
+      role: kpi_candidate
+      target_scopes: [page, section]
+      preset_family: effort
+      version: 1
+    outcome: defined
+    events: [{event: uxsearch.metrics.MetricDefined}]
+assert:
+  - view: uxsearch.metrics.Metrics
+    contains: {metric_key: effort.actions, version: 1, state: Active}
+  - view: uxsearch.metrics.Metrics
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.metrics.Metrics
+    satisfies: version >= 1

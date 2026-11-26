@@ -1,0 +1,70 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.design.AddAxis/outcome/frozen
+  - uxsearch.design.AddAxis/outcome/not-found
+  - uxsearch.design.AddAxis/outcome/added
+domain: uxsearch.design
+scenario: axis-is-added-to-an-open-space-only
+# Story spec-round-2-scenarios. A frozen design space no longer changes (a campaign recorded its
+# digest), so it takes no axis; an axis path the base document does not hold, or a host slot, is
+# the engine's answer; otherwise the axis exists with no values.
+summary: An axis is added to an Open design space at a node the document holds
+arrange:
+  - instance: open
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000020
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: settings layout
+        component_treatment: fixed
+      state: Open
+  - instance: frozen
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000021
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: settings theme
+        component_treatment: fixed
+        space_digest: "sha256:space-theme"
+      state: Frozen
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.design.AddAxis
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: frozen}
+      name: density
+      kind: layout
+    outcome: frozen
+    error: {name: uxsearch.design.DesignSpaceFrozen, fields: {design_space_id: 00000000-0000-4000-8000-000000000021}}
+    no_events: [uxsearch.design.AxisAdded]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.design.AddAxis
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: open}
+      name: section order
+      kind: layout
+      at: pages/settings/sections/missing
+    outcome: not-found
+    error: {name: uxsearch.design.NodeNotFound}
+    no_events: [uxsearch.design.AxisAdded]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.design.AddAxis
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: open}
+      name: section order
+      kind: layout
+      at: pages/settings/sections
+    outcome: added
+    events: [{event: uxsearch.design.AxisAdded, payload: {design_space_id: 00000000-0000-4000-8000-000000000020, kind: layout}}]
+assert:
+  - view: uxsearch.design.Axes
+    contains: {design_space_id: {$instance: open}, name: section order, kind: layout, at: pages/settings/sections, state: Declared}
+  - view: uxsearch.design.Axes
+    excludes: {design_space_id: {$instance: frozen}}
+  - view: uxsearch.design.Axes
+    excludes: {at: pages/settings/sections/missing}

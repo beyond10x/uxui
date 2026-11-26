@@ -1,0 +1,35 @@
+format: ratchet-assessor/1
+name: ux-search
+version: "1"
+command: ux-search landing promote
+targets: [document]
+inputs:
+  measurements: {type: path, required: true}
+  variant: {type: string, required: true}
+  product: {type: path, required: true}
+  css: {type: path, required: true}
+  chosen-by: {type: string}
+  evidence: {type: path, required: true, local: true}
+  shipped-file: {type: path, local: true}
+conditions: [measurements_format, page, environments]
+coverage_unit: variant
+coverage: [executed, skipped, not_run, unsupported, passed, failed]
+outputs:
+  landing.rank@1:
+    {value_type: number, kind: exact, scopes: [variant], unit: place}
+  landing.hard@1:
+    {value_type: number, kind: exact, scopes: [variant], unit: rules}
+  landing.words@1:
+    {value_type: number, kind: exact, scopes: [variant], unit: words}
+  landing.primary_px@1:
+    {value_type: number, kind: exact, scopes: [variant], unit: px}
+  landing.regions@1:
+    {value_type: number, kind: exact, scopes: [variant], unit: regions}
+  landing.small_targets@1:
+    {value_type: number, kind: exact, scopes: [variant], unit: targets}
+  landing.actions@1:
+    {value_type: number, kind: exact, scopes: [variant], unit: actions}
+  landing.frontier_size@1:
+    {value_type: number, kind: exact, scopes: [], unit: variants}
+  landing.source@1:
+    {value_type: digest, kind: exact, scopes: [source]}

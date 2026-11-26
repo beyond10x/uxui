@@ -215,10 +215,12 @@ fn one_finding_breaks_its_hard_rule() {
 }
 
 /// The line of the page as shipped when it stands on the frontier: with equal terms everywhere
-/// all 144 stand on it, and the page's rank is its id's place (36 ids of `docs-system.centred`,
-/// 12 of `docs-system.left.1+0` and `...d100.h100` sort before it). Fails on `report.rs`
-/// `report` with `ranked.frontier.contains(&at)` written `false`: the recorded campaign has the
-/// page off the frontier, so the golden report holds only that word.
+/// all 144 stand on it, and the page's rank is its id's place among the ids (for
+/// `docs-system.left.1+1.features-first.d100.h85` the 50th: 36 ids of `docs-system.centred`,
+/// 12 of `docs-system.left.1+0` and `...d100.h100` sort before it). The shipped id is the one
+/// `src/landing/shipped.txt` names, so the place is counted here, from the ids. Fails on
+/// `report.rs` `report` with `ranked.frontier.contains(&at)` written `false`: a recorded
+/// campaign may have the page off the frontier, and its golden report then holds only that word.
 #[test]
 fn the_page_as_shipped_is_said_to_be_on_the_frontier_when_it_is() {
     let recorded = Recorded {
@@ -236,10 +238,17 @@ fn the_page_as_shipped_is_said_to_be_on_the_frontier_when_it_is() {
         .lines()
         .find(|line| line.starts_with("shipped "))
         .expect("the line of the page as shipped");
+    let id = space::shipped().id;
+    let place = 1 + space::variants()
+        .iter()
+        .filter(|variant| variant.id < id)
+        .count();
     assert_eq!(
         shipped,
-        "shipped docs-system.left.1+1.features-first.d100.h85: rank 50 of 144, 0 variants before \
-         it on their terms, 143 equal to it, on the frontier"
+        format!(
+            "shipped {id}: rank {place} of 144, 0 variants before it on their terms, 143 equal \
+             to it, on the frontier"
+        )
     );
     assert!(text.contains("\nfrontier 144\n"), "{text}");
 }

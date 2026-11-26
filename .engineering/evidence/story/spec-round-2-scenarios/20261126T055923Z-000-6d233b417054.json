@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T05:59:23Z",
+  "actor": "human:operator",
+  "artifact": "story:spec-round-2-scenarios",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "2026-11-26, ESS 0.99.2: ess verify conform synthesize --path ess --scenarios ess --suite-format 5 prints 221 selected scenarios, 50 authored sources, 291 refusal occurrences, 286 covered by authored, exit 1; the 5 uncovered are not-found outcomes no command sequence reaches (ess/GAPS.md G20: CompleteStateSpace and TruncateStateSpace no-state-space; RecordGateDecision, AcceptPromotion and AcceptTradeOff no-promotion); all 50 authored scenarios pass on the interpreted target; ess specify validate: 10 files, 50 scenarios, valid; 19 UNMAPPED markers left, each listed in ess/GAPS.md; sh tools/gate.sh: every step passed. The story stays active until the command exits 0",
+    "reference": "ess/GAPS.md"
+  }
+}

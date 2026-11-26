@@ -1,0 +1,102 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.search.PinPolicy/outcome/not-running
+  - uxsearch.search.PinPolicy/outcome/no-layout-model
+  - uxsearch.search.PinPolicy/outcome/pinned
+  - uxsearch.search.PinPolicy/outcome/already-pinned
+domain: uxsearch.search
+scenario: campaign-policy-is-pinned-once
+# Story spec-round-2-scenarios; docs/concept.md § 5, docs/ratchet.md § 4. A running campaign pins
+# the rules it searches under, the layout model and the metric catalogue once. Every evaluation of
+# the campaign is then comparable; a rule declared later applies to later campaigns.
+summary: A running campaign pins its policy, layout model and catalogue once
+arrange:
+  - instance: campaign
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000050
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 1
+        budget: {max_variants: 10, max_wall_time_s: 60}
+      state: Running
+  - instance: stopped
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000051
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 2
+        budget: {max_variants: 10, max_wall_time_s: 60}
+      state: Stopped
+  - instance: layout
+    entity: uxsearch.evaluation.LayoutModel
+    setup:
+      identity: layout-model/0
+      fields:
+        summary: terminal renderer
+        adapter: ess-ui
+        geometry: cells
+      state: Available
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.search.PinPolicy
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: stopped}
+      policy_digest: "sha256:policy-1"
+      layout_model_version: {$instance: layout}
+      catalogue_digest: "sha256:catalogue-1"
+    outcome: not-running
+    error: {name: uxsearch.search.CampaignNotRunning, fields: {campaign_id: 00000000-0000-4000-8000-000000000051}}
+    no_events: [uxsearch.search.PolicyPinned]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.search.PinPolicy
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      policy_digest: "sha256:policy-1"
+      layout_model_version: layout-model/9
+      catalogue_digest: "sha256:catalogue-1"
+    outcome: no-layout-model
+    error: {name: uxsearch.search.LayoutModelNotFound, fields: {layout_model_version: layout-model/9}}
+    no_events: [uxsearch.search.PolicyPinned]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.search.PinPolicy
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      policy_digest: "sha256:policy-1"
+      layout_model_version: {$instance: layout}
+      catalogue_digest: "sha256:catalogue-1"
+    outcome: pinned
+    events: [{event: uxsearch.search.PolicyPinned, payload: {campaign_id: 00000000-0000-4000-8000-000000000050, policy_digest: "sha256:policy-1"}}]
+  # A rule was declared since: the campaign keeps the policy it pinned.
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.search.PinPolicy
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      policy_digest: "sha256:policy-2"
+      layout_model_version: {$instance: layout}
+      catalogue_digest: "sha256:catalogue-1"
+    outcome: already-pinned
+    error: {name: uxsearch.search.PolicyAlreadyPinned, fields: {campaign_id: 00000000-0000-4000-8000-000000000050}}
+    no_events: [uxsearch.search.PolicyPinned]
+assert:
+  - view: uxsearch.search.CampaignById
+    params: {campaign_id: {$instance: campaign}}
+    contains: {policy_digest: "sha256:policy-1", layout_model_version: layout-model/0, catalogue_digest: "sha256:catalogue-1", state: Running}
+  - view: uxsearch.search.CampaignById
+    params: {campaign_id: {$instance: stopped}}
+    contains: {policy_digest: null, layout_model_version: null, catalogue_digest: null, state: Stopped}

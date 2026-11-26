@@ -1,0 +1,50 @@
+format: ux-browser-checks/1
+base_path: /
+pages:
+  paths:
+    - /targets/catalog
+    - /campaigns/start/tg-02
+    - /campaigns/list
+    - /campaigns/climb/cp-01
+    - /campaigns/frontier/cp-01
+    - /variants/detail/sha256%3Av-a1
+    - /variants/compare/sha256%3Av-a1/sha256%3Av-b2
+    - /promotions/list
+    - /promotions/detail/pr-02
+    - /judgements/list
+viewports:
+  - {name: 1366x768, width: 1366, height: 768}
+  - {name: 1280x720, width: 1280, height: 720}
+  - {name: 1366x657, width: 1366, height: 657}
+  - {name: 1536x754, width: 1536, height: 754}
+  - {name: 960x1080, width: 960, height: 1080}
+modes: [light, dark]
+reduced_motion: true
+ready: {selector: 'main.ui-page:not(:has([role=status][aria-label=Loading]))'}
+ready_timeout_ms: 10000
+settle_ms: 750
+scroll_settle_ms: 200
+mode_settle_ms: 100
+clock: {at: '2026-11-23T10:01:00Z'}
+always_visible:
+  - name: navigation
+    css: nav.ui-nav
+  - name: theme toggle
+    role: button
+    name_contains: [switch to]
+  - name: stop campaign
+    css: '[data-ui-path="pages/campaigns.climb/header/actions/stop"]'
+    path_prefix: /campaigns/climb
+  - name: campaign state
+    css: '[data-ui-path="pages/campaigns.climb/sections/summary/fields/state"]'
+    path_prefix: /campaigns/climb
+  - name: gate
+    css: '[data-ui-path="pages/promotions.detail/sections/decision/columns/gate"]'
+    path_prefix: /promotions/detail
+keyboard:
+  must_reach: [navigation, theme toggle]
+  max_tabs: 80
+  focus_mark: true
+  modes: [light, dark]
+  viewports: [1366x768, 1280x720]
+  focus_settle_ms: 100

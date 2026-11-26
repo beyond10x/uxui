@@ -1,0 +1,110 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.search.StopCampaign/outcome/stopped
+  - uxsearch.search.EndCampaign/outcome/ended
+  - uxsearch.search.Campaign/transition/stop/by/uxsearch.search.StopCampaign/stopped
+  - uxsearch.search.Campaign/transition/end/by/uxsearch.search.EndCampaign/ended
+  - uxsearch.search.Campaign/state/Stopped/refuses/uxsearch.search.StopCampaign
+  - uxsearch.search.Campaign/state/Stopped/refuses/uxsearch.search.EndCampaign
+  - uxsearch.search.Campaign/state/Ended/refuses/uxsearch.search.StopCampaign
+  - uxsearch.search.Campaign/state/Ended/refuses/uxsearch.search.EndCampaign
+domain: uxsearch.search
+scenario: campaign-ends-once
+# Story spec-round-2-scenarios; docs/concept.md § 5. A running campaign is stopped by a person or
+# ended by its strategy with the reason. Both are terminal: a stopped campaign is not ended, an
+# ended one is not stopped, and neither happens twice.
+summary: A campaign is stopped by a person or ended by its strategy, once
+arrange:
+  - instance: first
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000050
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 1
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+      state: Running
+  - instance: second
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000051
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: hill_climb
+        seed: 2
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+      state: Running
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.search.StopCampaign
+    actor: uxsearch.search.Operator
+    input:
+      campaign_id: {$instance: first}
+    outcome: stopped
+    events: [{event: uxsearch.search.CampaignStopped, payload: {campaign_id: 00000000-0000-4000-8000-000000000050}}]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.search.EndCampaign
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: second}
+      reason: converged
+    outcome: ended
+    events: [{event: uxsearch.search.CampaignEnded, payload: {campaign_id: 00000000-0000-4000-8000-000000000051, reason: converged}}]
+  # Stopped is terminal.
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.search.StopCampaign
+    actor: uxsearch.search.Operator
+    input:
+      campaign_id: {$instance: first}
+    outcome: wrong-state
+    error: {name: uxsearch.search.CampaignStateConflict}
+    no_events: [uxsearch.search.CampaignStopped]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.search.EndCampaign
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: first}
+      reason: space_exhausted
+    outcome: wrong-state
+    error: {name: uxsearch.search.CampaignStateConflict}
+    no_events: [uxsearch.search.CampaignEnded]
+  # Ended is terminal.
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.search.StopCampaign
+    actor: uxsearch.search.Operator
+    input:
+      campaign_id: {$instance: second}
+    outcome: wrong-state
+    error: {name: uxsearch.search.CampaignStateConflict}
+    no_events: [uxsearch.search.CampaignStopped]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.search.EndCampaign
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: second}
+      reason: time_budget_spent
+    outcome: wrong-state
+    error: {name: uxsearch.search.CampaignStateConflict}
+    no_events: [uxsearch.search.CampaignEnded]
+assert:
+  - view: uxsearch.search.Campaigns
+    contains: {campaign_id: {$instance: first}, ended_because: null, state: Stopped}
+  - view: uxsearch.search.Campaigns
+    contains: {campaign_id: {$instance: second}, ended_because: converged, state: Ended}
+  - view: uxsearch.search.Campaigns
+    excludes: {state: Running}

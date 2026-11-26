@@ -1,0 +1,65 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.design.DeclareDesignSpace/outcome/host-slot
+  - uxsearch.design.DeclareDesignSpace/outcome/declared
+domain: uxsearch.design
+scenario: design-space-needs-a-drawn-target
+# Story spec-round-2-scenarios. A host slot is a node ESS does not draw (`host_slot`, read from the
+# document when the target is declared), so no operator may change it: it takes no design space.
+# A drawn target takes one, Open.
+summary: A design space is declared on a target ESS draws, never on a host slot
+arrange:
+  - instance: slot
+    entity: uxsearch.design.Target
+    setup:
+      identity: 00000000-0000-4000-8000-000000000002
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        name: map slot
+        scope: component
+        node_path: pages/partners.detail/sections/map
+        members: []
+        host_slot: true
+        harness_widths_px: [320, 640]
+        adapter: ess-ui
+      state: Declared
+  - instance: page
+    entity: uxsearch.design.Target
+    setup:
+      identity: 00000000-0000-4000-8000-000000000001
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        name: settings page
+        scope: page
+        node_path: pages/settings
+        members: []
+        host_slot: false
+        harness_widths_px: []
+        adapter: ess-ui
+      state: Declared
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.design.DeclareDesignSpace
+    actor: uxsearch.design.Designer
+    input:
+      target_id: {$instance: slot}
+      name: map variants
+      component_treatment: fixed
+    outcome: host-slot
+    error: {name: uxsearch.design.HostSlotNotMutable, fields: {target_id: 00000000-0000-4000-8000-000000000002}}
+    no_events: [uxsearch.design.DesignSpaceDeclared]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.design.DeclareDesignSpace
+    actor: uxsearch.design.Designer
+    input:
+      target_id: {$instance: page}
+      name: settings layout
+      component_treatment: fixed
+    outcome: declared
+    events: [{event: uxsearch.design.DesignSpaceDeclared, payload: {target_id: 00000000-0000-4000-8000-000000000001}}]
+assert:
+  - view: uxsearch.design.DesignSpacesOfTarget
+    params: {target_id: {$instance: page}}
+    contains: {name: settings layout, state: Open}
+  - view: uxsearch.design.DesignSpaces
+    excludes: {target_id: {$instance: slot}}
