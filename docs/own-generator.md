@@ -72,13 +72,15 @@ behaviour, not form, and only a conformance suite every generator can run (story
 
 ### Decisions ESS left open
 
-Each of these is specified nowhere, or the renderers disagree; the own generator had to pick.
+Each of these is specified nowhere, or the renderers disagree; the own generator had to pick. The
+ESS column is 0.98.0 unless a row names a later release; ESS 0.98.1 settled the first and the third
+row, and the own generator follows it.
 
 | Question | ESS | Own generator |
 |---|---|---|
-| Period of a looping fixture script | terminal and test clock: the last entry's `at` (`ess-ui-test/src/clock.rs`); React: the last `at` plus 1 s, at least 1 s (generated `runtime/live.ts`, `fixturePlayer`) | the terminal's, so `ess-ui-test` timings hold |
+| Period of a looping fixture script | 0.98.0: terminal and test clock: the last entry's `at` (`ess-ui-test/src/clock.rs`); React: the last `at` plus 1 s, at least 1 s (generated `runtime/live.ts`, `fixturePlayer`). From 0.98.1 both: the last entry's `at`, and a script whose last entry is at `0s` plays once | the terminal's, so `ess-ui-test` timings hold; unchanged by 0.98.1 |
 | An event the script plays at `0s`, as the page opens | terminal: the step table loses it; React: the coalesced chart draws it, the step table loses it | every section receives it (reads from fixtures are synchronous) |
-| `insert_top` of a key already held | both renderers insert it again: two rows share one row path | the same, to compare like with like |
+| `insert_top` of a key already held | 0.98.0: both renderers insert it again: two rows share one row path. From 0.98.1 both show one row: the held row takes the event's fields and moves to the top, and `max_rows` applies after the move | the rule of 0.98.1 (`apply` in `assets/runtime.js`); it inserted again while ESS did |
 | `resume: refetch` in fixture mode | the fixture holds no live rows; React keeps live rows only because the re-read rows compare equal | the section keeps the events it applied and re-applies them over the re-read rows |
 | Where `insert_or_patch` inserts | React: at the top | at the top |
 | A confirm's button text when the short form names none | schema: `confirm_label` default `Delete`; React: `Confirm` | `Confirm` |
@@ -151,9 +153,12 @@ against the own page yet; its `data-ui-path` attributes follow the paths the Pla
 
 ## ESS gaps found
 
-Each reproduces on `ess` 0.98.0 in this repository.
+Each reproduces on `ess` 0.98.0 in this repository. ESS 0.98.1 fixed 1 and 3; 2, 4 and 5 are open
+in ESS 0.99.5 (`docs/ess-gaps.md`, Needs per way).
 
-1. **`insert_top` inserts a key the section already holds, so two rows share one row path.** With a
+1. **`insert_top` inserts a key the section already holds, so two rows share one row path.** Fixed
+   in ESS 0.98.1: the held row takes the event's fields and moves to the top, in the terminal, in
+   `ess ui test` and in the generated React app; the own generator does the same. On 0.98.0: with a
    looping script, every cycle inserts `pt-04`, `pt-05` and `pt-06` again; row paths
    (`…/rows/<key>`) stop naming one row, and `max_rows` fills with repeats. Reproduction:
 
@@ -168,10 +173,11 @@ Each reproduces on `ess` 0.98.0 in this repository.
          - expect: {at: pages/campaigns.climb/sections/points, rows: 6}
    ```
 
-   `ess ui test --path ess/ui/studio.ui.yaml --model ess <file>` fails: `it shows 9 [pt-05, pt-04,
-   pt-06, pt-05, pt-04, pt-06, pt-01, pt-02, pt-03]`. The generated React app does the same
-   (`apply` in `runtime/live.ts`). Needs: `insert_top` patches a held key in place (or the format
-   says what a repeated key means), and a check that a looping script with `insert_top` replays keys.
+   `ess ui test --path ess/ui/studio.ui.yaml --model ess <file>` fails on 0.98.0: `it shows 9
+   [pt-05, pt-04, pt-06, pt-05, pt-04, pt-06, pt-01, pt-02, pt-03]`; the generated React app did the
+   same (`apply` in `runtime/live.ts`). On `ess` 0.99.2 the file passes. Needed: `insert_top` patches
+   a held key in place (or the format says what a repeated key means), and a check that a looping
+   script with `insert_top` replays keys; ESS took the first.
 2. **No check that a live event can fill the rows it inserts.** `CampaignProgressed` carries no
    `insufficient`, `best` or `at`, yet the chart and the step table insert its payload as a row of
    `uxsearch.search.Climb`: the `insufficient` line drops to zero at each live point and live steps
@@ -179,10 +185,11 @@ Each reproduces on `ess` 0.98.0 in this repository.
    `pages/campaigns.climb/sections/points/live: uxsearch.search.CampaignProgressed carries no
    insufficient, best, at of uxsearch.search.Climb`. (The model is this repository's to fix; the
    check is ESS's.)
-3. **The loop period of a fixture script differs between renderers.** Terminal and test clock: the
-   last entry's `at` (`ess-ui-test/src/clock.rs`); generated React: the last `at` plus 1 s
-   (`fixturePlayer` in `runtime/live.ts`). The format says only "in a loop". A test that advances
-   past one cycle sees different rows in the terminal and in the browser.
+3. **The loop period of a fixture script differs between renderers.** Fixed in ESS 0.98.1: the
+   generated React app repeats a looping script at its last entry's `at`, as the terminal does. On
+   0.98.0: terminal and test clock: the last entry's `at` (`ess-ui-test/src/clock.rs`); generated
+   React: the last `at` plus 1 s (`fixturePlayer` in `runtime/live.ts`). The format says only "in a
+   loop". A test that advances past one cycle sees different rows in the terminal and in the browser.
 4. **An event at `0s` lands in one section and not in its neighbour.** The climb script plays
    `pt-04` at `0s`. In the generated React app the chart (`coalesce: 500ms`) draws it and the step
    table beside it (no `coalesce`) does not; in the terminal the step table does not either (`play`

@@ -1,7 +1,7 @@
 //! The cost of one evaluation on layout model v0 (`ux-search cost`).
 //!
 //! A UI state is the page opened (state 0) and then the first `n` keys of a key sequence typed
-//! (state `n`). ESS 0.99.4 has no UI state API: `App` cannot be cloned, so every state is reached
+//! (state `n`). ESS 0.99.5 has no UI state API: `App` cannot be cloned, so every state is reached
 //! by opening the document again and replaying its keys from the opened page. Per state and run:
 //!
 //! - open: `App::from_text` (it loads the fixtures and opens the home page), `open_page`, and
@@ -180,6 +180,14 @@ pub fn measure(document: &Path, options: &Options) -> Result<Cost, String> {
     })
 }
 
+/// The first line of the report: the layout model and the ESS release it was measured on.
+pub fn header() -> String {
+    format!(
+        "# ux-search cost: layout model v0, the terminal renderer of ESS {}, in process",
+        crate::ESS_TAG
+    )
+}
+
 impl Cost {
     /// The mean open, step and geometry times over the states: the step over the states that
     /// typed a key.
@@ -214,8 +222,7 @@ impl Cost {
     /// The report as text: a header, one row per state, and the means.
     pub fn text(&self) -> String {
         let mut out = vec![
-            "# ux-search cost: layout model v0, the terminal renderer of ESS 0.99.4, in process"
-                .to_owned(),
+            header(),
             format!(
                 "# document {}, page {}, params {}, size {}x{}, median of {} runs, times in µs",
                 self.file,
@@ -225,7 +232,10 @@ impl Cost {
                 self.size.1,
                 self.runs
             ),
-            "# a state is the opened page and its first n keys, replayed from open: ESS 0.99.4 has no UI state API, so the app cannot be forked".to_owned(),
+            format!(
+                "# a state is the opened page and its first n keys, replayed from open: ESS {} has no UI state API, so the app cannot be forked",
+                crate::ESS_TAG
+            ),
             format!(
                 "# peak memory before the first open: VmHWM {} KiB",
                 optional(self.baseline_kib)
