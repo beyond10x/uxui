@@ -291,6 +291,70 @@ pub fn report(recorded: &Recorded) -> Result<String, String> {
     Ok(out)
 }
 
+/// The lines of one variant's notes: one per element, `<environment> <term>: <element>`.
+fn note_lines(recorded: &Recorded, read: &Read, index: usize, out: &mut String) {
+    let notes = recorded
+        .notes
+        .get(index)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    for note in notes {
+        let environment = read.environments[note.environment].name();
+        for element in &note.elements {
+            out.push_str(&format!("     {environment} {}: {element}\n", note.term));
+        }
+    }
+    if notes.is_empty() {
+        let counted = recorded.variants[index].1.iter().any(|render| {
+            render.low_contrast
+                + render.overflow
+                + render.small_targets
+                + render.always_visible_misses
+                > 0
+        });
+        out.push_str(if counted {
+            "     the record names no element for it\n"
+        } else {
+            "     nothing to name: low_contrast, overflow, small_targets and \
+             always_visible_misses are 0 in every environment\n"
+        });
+    }
+}
+
+/// What `--notes` adds after the report: for the page as shipped and for each frontier
+/// variant, the first elements behind `low_contrast`, `overflow`, `small_targets` and
+/// `always_visible_misses`, per environment, as the run recorded them. A count says how many;
+/// these lines say which, so a reader can look at the element before taking the number.
+pub fn notes(recorded: &Recorded) -> Result<String, String> {
+    let read = read(recorded)?;
+    let shipped = recorded.declaration.shipped();
+    let at = read
+        .variants
+        .iter()
+        .position(|variant| *variant == shipped)
+        .ok_or("the space holds no shipped variant")?;
+    let mut out = format!(
+        "notes: the first elements behind each count, at most {} per term and environment, of \
+         the page as shipped and of the frontier\n",
+        super::record::NOTE_ELEMENTS
+    );
+    out.push_str(&format!("shipped {}\n", shipped.id));
+    note_lines(recorded, &read, at, &mut out);
+    for &index in &read.ranked.frontier {
+        out.push_str(&format!(
+            "{:>4} {}\n",
+            read.place(index),
+            read.ranked.scored[index].id
+        ));
+        if index == at {
+            out.push_str("     the page as shipped, above\n");
+        } else {
+            note_lines(recorded, &read, index, &mut out);
+        }
+    }
+    Ok(out)
+}
+
 /// The run and the frontier as two Markdown tables, for a document that keeps the campaign's
 /// numbers: what ran, then each frontier variant with its terms and a link to each of its
 /// screenshots (`links` before the file name `run::screenshot_name` gives).
@@ -351,7 +415,7 @@ pub fn markdown(recorded: &Recorded, links: &str) -> Result<String, String> {
         out.push_str(&format!("| {name} | {value} |\n"));
     }
 
-    let shot: Vec<&Environment> = run::screenshot_environments(read.environments.len())
+    let shot: Vec<&Environment> = run::screenshots_of(declaration)
         .into_iter()
         .map(|at| &read.environments[at])
         .collect();

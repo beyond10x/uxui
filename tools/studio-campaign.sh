@@ -3,7 +3,8 @@
 # generates the React app from ess/ui/studio.ui.yaml on its fixtures, links the studio theme,
 # builds and serves it on a loopback port, runs `ux-search campaign run` over the declaration
 # engine/search/tests/fixtures/campaign/studio/frontier.campaign.yaml, runs it a second time and
-# compares the two measurements files byte for byte, and records the result.
+# compares the two measurements files byte for byte, and records the result. Before the runs it
+# runs the engine's tests that start a browser (`campaign_live`), which the gate does not run.
 # Usage: sh tools/studio-campaign.sh [--pool]
 # Needs: ess, node and npm (the registry, for the generated app's own packages), cargo, and
 # Chromium: UXUI_CHROME, else the newest Chromium headless shell under the Playwright cache.
@@ -102,6 +103,11 @@ if [ ! -x "$bin" ]; then
 	echo "studio-campaign: no $bin" >&2
 	exit 1
 fi
+
+# The engine's tests that need a browser (module `campaign_live`: the pointer, a mode's read-back,
+# the screenshots, the notes). The gate has no browser and starts none of them, so a recording is
+# where they run: a campaign is recorded only with an engine that passes them.
+cargo test --manifest-path engine/search/Cargo.toml --locked -- --ignored campaign_live >&2
 
 # 3. The server: esbuild's, which answers every page path with index.html.
 (cd "$app" && exec ./node_modules/.bin/esbuild --servedir=www --serve-fallback=www/index.html --serve=127.0.0.1:0 --watch=forever) >"$work/serve.log" 2>&1 &

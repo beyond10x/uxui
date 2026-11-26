@@ -324,6 +324,23 @@ impl Page {
         )
     }
 
+    /// Moves the pointer to `x`, `y` (viewport coordinates) as a mouse does, no button held: the
+    /// page gets the pointer and mouse events of the move, and `:hover` is of the element there.
+    /// A headless pointer that was never moved rests at 0, 0, on whatever lies in that corner.
+    pub fn move_pointer(&self, conn: &mut Conn, x: f64, y: f64) -> Result<(), String> {
+        self.call(
+            conn,
+            "Input.dispatchMouseEvent",
+            map(vec![
+                ("type", s("mouseMoved")),
+                ("x", Value::Float(x)),
+                ("y", Value::Float(y)),
+                ("buttons", Value::Int(0)),
+            ]),
+        )?;
+        Ok(())
+    }
+
     /// A click of the left mouse button at `x`, `y` (viewport coordinates), as a mouse does it: a
     /// move there, a press and a release.
     pub fn click(&self, conn: &mut Conn, x: f64, y: f64) -> Result<(), String> {

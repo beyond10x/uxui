@@ -5,11 +5,12 @@ page:
   ready: 'main[data-ready]'
   ready_timeout_ms: 5000
   settle_ms: 100
+  pointer: [380, 760]
 environments:
   viewports: [1366x768, 390x844]
   modes:
     - {name: light, media: light}
-    - {name: dark, media: dark, attribute: {name: data-theme, value: dark}, query: theme=dark}
+    - {name: dark, media: dark, attribute: {name: data-theme, value: dark}, query: theme=dark, expect: {attribute: {name: data-theme, value: dark}, selector: 'body.dark'}}
 axes:
   - name: spacing
     shipped: stock
