@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T04:04:42Z",
+  "actor": "human:operator",
+  "artifact": "story:docs-site-first-climb",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "phase A, 2026-11-26: ux-search landing run on the browser adapter (ux-browser 0.10.0, HeadlessChrome/158.0.8127.18) over the documentation landing page: 144 variants x 6 environments = 864 renders, no hard rule broken, frontier 16 (2 distinct sets of terms), the page as shipped ranks 35 of 144; three runs wrote the same measurements file; report equals engine/search/tests/fixtures/docs-landing/report.txt; engine/search tests 74 passed (adversary's 14 included); sh tools/gate.sh: every step passed (workspace 207 + 23 + 7, engine/search 74). Not yet: a person's pick promoted as a pull request with ratchet evidence",
+    "reference": "docs/campaign-2026-11-26-docs-landing-engine.md"
+  }
+}

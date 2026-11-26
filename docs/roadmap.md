@@ -74,6 +74,10 @@ second; the first code is a thin vertical slice that measures the assumption the
    Not yet: exploring UI states (each variant is its page as opened) and the browser stage.
    **Then the first real target, this repository's documentation site,** on a browser adapter: the engine
    with a headless browser as renderer, for any page with a URL (`docs/targets.md`).
+   Exists: `ux-search landing` (`engine/search`), the engine's first campaign on the browser adapter, over
+   the documentation landing page: 144 variants, 864 renders, a frontier of 16; the page as shipped ranks
+   35th (`docs/campaign-2026-11-26-docs-landing-engine.md`). Not yet: a person's pick promoted as a pull
+   request.
 6. **Trial target.** One page or component of an admin console generated from an `ess-ui/1` document (a
    private repository; its fixtures make it I/O-free). Results stay in that repository; only generic findings
    come back here.

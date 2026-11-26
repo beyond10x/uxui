@@ -18,7 +18,7 @@ sh script `tools/docs.sh`.
 | `data/status.json` | Written by hand from `docs/roadmap.md`; the landing page and `docs/status.md` read it |
 | `docs/index.md`, `docs/getting-started.md`, `docs/limitations.md`, `docs/concepts/`, `docs/guides/` | Written by hand; concept and guide pages name their sources in `source` |
 | `product.json` | The landing page (`b10x-product-landing/1`), written by hand |
-| `src/css/landing.css` | The landing page's density and heading scale over the docs-system theme, written by hand; the values come from `docs/campaign-2026-11-24-docs-landing.md` |
+| `src/css/landing.css` | The landing page's four custom properties over the docs-system theme, written by hand: `--uxui-density` and `--uxui-heading-scale` (their values come from `docs/campaign-2026-11-24-docs-landing.md`), `--uxui-hero-align` and `--uxui-hero-lede-inline` (the hero's alignment). They are the style axes of the campaign in `docs/campaign-2026-11-26-docs-landing-engine.md`; a variant of it also sets the docs-system colour tokens `--b10x-color-*` in two rules it appends |
 | `docusaurus.config.ts`, `sidebars.ts` | Site configuration and the explicit sidebar |
 
 Never edit a generated file by hand. From the repository root:

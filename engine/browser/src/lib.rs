@@ -30,3 +30,6 @@ pub mod target;
 pub mod value;
 pub mod values;
 pub mod ws;
+
+/// The adapter's version, for a consumer of the library that names the adapter in what it records.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");

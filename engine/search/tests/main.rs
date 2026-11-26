@@ -4,13 +4,19 @@
 //! `README.md` gives each file's SHA-256). `fixtures/partner-portal.frontier.txt` is the climb's
 //! own output over it, written by `ux-search climb` (the command is in that test's message).
 //! `fixtures/studio.frontier.txt` is the same over the studio, `ess/ui/studio.ui.yaml` of this
-//! repository (`docs/studio-climb.md`).
+//! repository (`docs/studio-climb.md`). `fixtures/docs-landing/` is the campaign over the
+//! documentation landing page on the browser adapter: its sources, its recorded measurements and
+//! the report over them (the module `landing` names each file;
+//! `docs/campaign-2026-11-26-docs-landing-engine.md`).
 //!
 //! Budget: no test runs longer than 60 s; a climb over the fixture is 18 variants, each checked,
-//! opened once and drawn four times; the studio climb is 120 such variants, run once.
+//! opened once and drawn four times; the studio climb is 120 such variants, run once. The module
+//! `landing` starts no browser and runs no campaign: it reads the recorded one.
 
 mod climb;
 mod cost;
+mod landing;
+mod landing_adversary;
 mod rank;
 mod studio;
 mod studio_adversary;

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- `ux-search` gets a second backend, the browser adapter (`ux_browser`, by path), and runs its first
+  campaign on it: the documentation landing page `/uxui/`, 144 variants (palette x hero alignment x
+  hero actions x section order x density x heading scale) in 6 environments, 864 renders in 6 page
+  loads. A variant is a patch to the page's sources: RFC 6902 operations on `website/product.json`
+  and custom-property values of `website/src/css/landing.css`. `ux-search landing run` measures and
+  writes `measurements.json` (`ux-search-landing/1`) and two screenshots per frontier variant;
+  `ux-search landing report` ranks a measurements file: lexicographic terms, ties by id, the Pareto
+  frontier first with each variant's patch. Measured in `HeadlessChrome/158.0.8127.18`: no variant
+  breaks a hard rule, the frontier is 16 variants with 2 sets of terms, and the page as shipped ranks
+  35th of 144. The run checks the probe's render against the built page and against a site built
+  from one variant's patched sources. A golden file holds the report over the committed measurements;
+  no test starts a browser. `landing.css` gains `--uxui-hero-align` and `--uxui-hero-lede-inline`,
+  which change nothing at their shipped values. `ux_browser::VERSION` names the adapter's version.
+  `tools/docs-landing-campaign.sh`, `docs/campaign-2026-11-26-docs-landing-engine.md`.
 - `ux-search climb` climbs the studio: on `campaigns.climb` of `ess/ui/studio.ui.yaml` it permutes the
   sections inside each layout column (the terminal renderer draws the columns as one stack), 120 variants;
   the frontier of 42 trades a chart last in the main column (1 region below the fold, 2 cut) against the

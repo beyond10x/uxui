@@ -1,0 +1,140 @@
+{
+  "format": "b10x-product-landing/1",
+  "product": {
+    "name": "uxui",
+    "mark": "Ux",
+    "eyebrow": "Measured UI improvement · plugin 0.10.0",
+    "promise": [
+      "Measure the UI.",
+      "Never merge it worse."
+    ],
+    "lede": "A plugin for Claude Code and Codex that improves a web UI in measured rounds and never merges it worse, usable today. And a UX search engine, specified, whose first search runs on a toy page.",
+    "actions": [
+      {
+        "label": "Install the plugin",
+        "href": "/docs/getting-started",
+        "kind": "primary"
+      },
+      {
+        "label": "Run one round",
+        "href": "/docs/guides/run-a-round"
+      },
+      {
+        "label": "The search engine design",
+        "href": "/docs/concepts/search-engine"
+      },
+      {
+        "label": "What exists today",
+        "href": "/docs/status"
+      }
+    ],
+    "meta": "Agent plugin for Claude Code and Codex · ESS specification · Apache-2.0",
+    "kpis": [
+      "shipped",
+      "decided",
+      "planned"
+    ]
+  },
+  "sections": [
+    {
+      "kind": "status",
+      "eyebrow": "Status",
+      "title": "Here is exactly what exists.",
+      "lede": "Shipped means on main and usable today. Decided means designed and specified, with no code. Planned means a roadmap step that has not started.",
+      "items": "data/status.json"
+    },
+    {
+      "kind": "features",
+      "eyebrow": "Two parts, two states",
+      "title": "A loop you can run today. An engine on paper.",
+      "lede": "The plugin is the shipped part. The engine is a design and an ESS specification with no code behind it; the roadmap says what comes first.",
+      "items": [
+        {
+          "title": "Rounds with people",
+          "description": "Trial, measure, triage, design decision, build and gate. At most five changes per round, so each metric movement can be attributed to a change.",
+          "status": "shipped",
+          "href": "/docs/concepts/the-loop"
+        },
+        {
+          "title": "Hard gates on every merge",
+          "description": "No unwanted scroll, always-visible controls fully in view, an unmissable completion state, a screen-only user that completes every scenario, and 0 serious or critical axe-core violations.",
+          "status": "shipped",
+          "href": "/docs/reference/skill"
+        },
+        {
+          "title": "Ratchets against a baseline",
+          "description": "Lower-is-better values in a committed baseline.json. A merge that makes one worse fails; an improvement becomes the new baseline in the same merge.",
+          "status": "shipped",
+          "href": "/docs/concepts/the-loop"
+        },
+        {
+          "title": "Variants from the specification",
+          "description": "The design space of an ess-ui/1 document, declared as axes: themes, templates, layouts, components, interactions and copy.",
+          "status": "decided",
+          "href": "/docs/concepts/spaces"
+        },
+        {
+          "title": "Evaluation without I/O",
+          "description": "Every reachable UI state from fixtures, scripted events and a virtual clock, laid out by a deterministic model, scored by 47 declared metrics.",
+          "status": "decided",
+          "href": "/docs/reference/metrics"
+        },
+        {
+          "title": "Watch the climb in the studio",
+          "description": "The studio is an ess-ui/1 document, generated into an application that runs today on fixtures and scripted live events: watch a search climb, compare variants, promote one through ratchet. The search behind it is planned.",
+          "status": "decided",
+          "href": "/docs/concepts/studio"
+        }
+      ]
+    },
+    {
+      "kind": "flow",
+      "eyebrow": "One round of the loop",
+      "title": "Findings become tests. Values only get better.",
+      "lede": "The round loop runs with people at most twice a week; the fast loop runs Build and Gate on every merge, hermetic and without API keys.",
+      "steps": [
+        {
+          "label": "People",
+          "title": "Trial",
+          "description": "Scripted sessions from scenario cards, each recorded."
+        },
+        {
+          "label": "Round command",
+          "title": "Measure",
+          "description": "Metrics against the bars, the baseline and the last round."
+        },
+        {
+          "label": "Agent, by rule",
+          "title": "Triage",
+          "description": "A priority formula picks at most five changes."
+        },
+        {
+          "label": "Person",
+          "title": "Decide",
+          "description": "At most one yes-or-no design decision per round."
+        },
+        {
+          "label": "Build agent",
+          "title": "Build",
+          "description": "Each finding's regression test runs red, then the change makes it green."
+        },
+        {
+          "label": "Every merge",
+          "title": "Gate",
+          "description": "Hard gates and ratchets; no measured value gets worse."
+        }
+      ]
+    },
+    {
+      "kind": "related",
+      "eyebrow": "Related tools",
+      "title": "Where uxui sits.",
+      "tools": [
+        {
+          "id": "ess",
+          "relation": "uses"
+        }
+      ]
+    }
+  ]
+}

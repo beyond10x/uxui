@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-11-25",
+  "asOf": "2026-11-26",
   "format": "b10x-status/1",
   "source": "website/data/status.json, written by hand from docs/roadmap.md",
   "items": [
@@ -84,7 +84,7 @@
       "area": "Search engine",
       "label": "First climb on a toy",
       "status": "planned",
-      "detail": "Two axes on one example page, searched exhaustively, a ranked frontier printed as text; then the studio. The search ux-search climb is written for theme x section order on layout model v0; it also climbs the studio's live climb page (120 section orders, frontier 42); no UI state exploration.",
+      "detail": "Two axes on one example page, searched exhaustively, a ranked frontier printed as text; then the studio. The search ux-search climb is written for theme x section order on layout model v0; it also climbs the studio's live climb page (120 section orders, frontier 42); no UI state exploration. The engine ran its first campaign on the browser adapter over the documentation landing page (144 variants, 864 renders, frontier 16, the page as shipped ranks 35th); a person's pick promoted as a pull request is not there yet.",
       "href": "/docs/roadmap"
     },
     {

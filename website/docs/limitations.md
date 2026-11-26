@@ -21,8 +21,12 @@ regions cut by the frame, rows above the primary action); themes tie, because th
 reads no theme. `ux-search cost` measures what one evaluation costs per UI state; its numbers are
 not measured yet.
 
+One campaign has run in a browser: the engine's first on the browser adapter, over this site's
+landing page (144 variants, 864 renders, a frontier of 16; the page as shipped ranks 35th). A
+person's pick promoted as a pull request does not exist yet.
+
 Everything else about the engine on this site is a design. No search explores UI states: each
-variant is its page as opened. No search runs in a browser, and no climb reaches the studio. The ESS
+variant is its page as opened. No climb reaches the studio. The ESS
 specification is valid and compiled, but has no scenarios. The numbers in the design (evaluation
 counts, seconds per stage) rest on an assumed 50 µs per layout call and one measurement on a loaded
 host; the roadmap's step 3 replaces them.
