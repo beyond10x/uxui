@@ -1,0 +1,130 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.design.AddAxisValue/outcome/no-axis
+  - uxsearch.design.AddAxisValue/outcome/frozen
+  - uxsearch.design.AddAxisValue/outcome/adapter-mismatch
+  - uxsearch.design.AddAxisValue/outcome/operator-refused
+  - uxsearch.design.AddAxisValue/outcome/patch-refused
+  - uxsearch.design.AddAxisValue/outcome/added
+domain: uxsearch.design
+scenario: axis-value-is-added-while-the-space-is-open
+# Story spec-round-2-scenarios. A value names an axis that exists; the axis's design space, two
+# relations away, must still be Open. Whether the value fits the target's adapter, whether its
+# operators hold on the base document and whether its patches name what the source tree holds are
+# the engine's answers. A value that passes all of them can be chosen on its axis.
+summary: An axis value is added to an existing axis of an Open design space, after the engine's checks
+arrange:
+  - instance: open
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000020
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: settings layout
+        component_treatment: fixed
+      state: Open
+  - instance: frozen
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000021
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: settings theme
+        component_treatment: fixed
+        space_digest: "sha256:space-theme"
+      state: Frozen
+  - instance: order
+    entity: uxsearch.design.Axis
+    setup:
+      identity: 00000000-0000-4000-8000-000000000022
+      fields:
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        name: section order
+        kind: layout
+        at: pages/settings/sections
+      state: Declared
+  - instance: theme
+    entity: uxsearch.design.Axis
+    setup:
+      identity: 00000000-0000-4000-8000-000000000023
+      fields:
+        design_space_id: 00000000-0000-4000-8000-000000000021
+        name: theme
+        kind: theme
+      state: Declared
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.design.AddAxisValue
+    actor: uxsearch.design.Designer
+    input:
+      axis_id: 00000000-0000-4000-8000-0000000000ff
+      name: dense
+      applications: [{operator: reorder_sections, at: pages/settings/sections, args: {order: [profile, security]}}]
+      patches: []
+    outcome: no-axis
+    error: {name: uxsearch.design.AxisNotFound, fields: {axis_id: 00000000-0000-4000-8000-0000000000ff}}
+    no_events: [uxsearch.design.AxisValueAdded]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.design.AddAxisValue
+    actor: uxsearch.design.Designer
+    input:
+      axis_id: {$instance: theme}
+      name: dark
+      applications: [{operator: select_theme, at: theme, args: {theme: dark}}]
+      patches: []
+    outcome: frozen
+    error: {name: uxsearch.design.DesignSpaceFrozen, fields: {design_space_id: 00000000-0000-4000-8000-000000000021}}
+    no_events: [uxsearch.design.AxisValueAdded]
+  # Source patches on an ess-ui target: the engine reads the target's adapter.
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.design.AddAxisValue
+    actor: uxsearch.design.Designer
+    input:
+      axis_id: {$instance: order}
+      name: patched
+      applications: []
+      patches: [{file: website/product.json, operations: [{op: replace, path: /theme/default, value: dark}], rules: []}]
+    outcome: adapter-mismatch
+    error: {name: uxsearch.design.AdapterMismatch}
+    no_events: [uxsearch.design.AxisValueAdded]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.design.AddAxisValue
+    actor: uxsearch.design.Designer
+    input:
+      axis_id: {$instance: order}
+      name: security first
+      applications: [{operator: reorder_sections, at: pages/settings/sections, args: {order: [security, billing]}}]
+      patches: []
+    outcome: operator-refused
+    error: {name: uxsearch.design.OperatorRefused}
+    no_events: [uxsearch.design.AxisValueAdded]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.design.AddAxisValue
+    actor: uxsearch.design.Designer
+    input:
+      axis_id: {$instance: order}
+      name: missing file
+      applications: []
+      patches: [{file: website/absent.json, operations: [{op: replace, path: /theme/default, value: dark}], rules: []}]
+    outcome: patch-refused
+    error: {name: uxsearch.design.PatchRefused}
+    no_events: [uxsearch.design.AxisValueAdded]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.design.AddAxisValue
+    actor: uxsearch.design.Designer
+    input:
+      axis_id: {$instance: order}
+      name: security first
+      applications: [{operator: reorder_sections, at: pages/settings/sections, args: {order: [security, profile]}}]
+      patches: []
+    outcome: added
+    events: [{event: uxsearch.design.AxisValueAdded, payload: {axis_id: 00000000-0000-4000-8000-000000000022}}]
+assert:
+  - view: uxsearch.design.AxisValues
+    contains: {axis_id: {$instance: order}, name: security first, patches: [], state: Declared}
+  - view: uxsearch.design.AxisValues
+    excludes: {axis_id: {$instance: theme}}
+  - view: uxsearch.design.AxisValues
+    excludes: {name: patched}
+  - view: uxsearch.design.AxisValues
+    excludes: {name: missing file}

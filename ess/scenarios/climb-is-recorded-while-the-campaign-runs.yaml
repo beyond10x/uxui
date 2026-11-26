@@ -1,0 +1,206 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.search.RecordProgress/outcome/not-running
+  - uxsearch.search.RecordProgress/outcome/recorded
+  - uxsearch.search.RecordClimbReading/outcome/no-kpi
+  - uxsearch.search.RecordClimbReading/outcome/not-running
+  - uxsearch.search.RecordClimbReading/outcome/kpi-not-of-campaign
+  - uxsearch.search.RecordClimbReading/outcome/no-climb-point
+  - uxsearch.search.RecordClimbReading/outcome/recorded
+  - uxsearch.search.RecordClimbReading/outcome/reading-exists
+domain: uxsearch.search
+scenario: climb-is-recorded-while-the-campaign-runs
+# Story spec-round-2-scenarios; docs/studio-climb.md. The climb of a campaign is a row of points
+# (how many variants were evaluated, pruned and insufficient, and how large the frontier is) and,
+# per point and KPI of the campaign, the best value so far. Both are recorded only while the
+# campaign runs; a reading needs its point, a KPI of the campaign, and is recorded once.
+summary: Climb points and their KPI readings are recorded while the campaign runs, one reading per point and KPI
+arrange:
+  - instance: campaign
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000050
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 1
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+      state: Running
+  - instance: ended
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000051
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 2
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        ended_because: space_exhausted
+      state: Ended
+  # The last point the ended campaign recorded.
+  - instance: ended-point
+    entity: uxsearch.search.ClimbPoint
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000c0
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000051
+        seq: 0
+        evaluated: 8
+        pruned: 2
+        insufficient: 0
+        frontier_size: 2
+        at: 2026-01-05T08:00:00Z
+      state: Recorded
+  - instance: effort
+    entity: uxsearch.metrics.Kpi
+    setup:
+      identity: 00000000-0000-4000-8000-000000000060
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: effort
+        aggregation: weighted_sum
+        terms: [{metric_key: effort.actions, weight: 1}]
+        direction: lower_is_better
+        weight: 1
+      state: Active
+  # A KPI of the same target the campaign was not started with.
+  - instance: reading-time
+    entity: uxsearch.metrics.Kpi
+    setup:
+      identity: 00000000-0000-4000-8000-000000000061
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: reading time
+        aggregation: sum
+        terms: [{metric_key: reading.time, weight: 1}]
+        direction: lower_is_better
+        weight: 1
+      state: Active
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.search.RecordProgress
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: ended}
+      seq: 1
+      evaluated: 9
+      pruned: 2
+      insufficient: 0
+      frontier_size: 2
+      at: 2026-01-05T09:00:00Z
+    outcome: not-running
+    error: {name: uxsearch.search.CampaignNotRunning, fields: {campaign_id: 00000000-0000-4000-8000-000000000051}}
+    no_events: [uxsearch.search.CampaignProgressed]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.search.RecordProgress
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: 0
+      evaluated: 3
+      pruned: 1
+      insufficient: 0
+      frontier_size: 1
+      last_variant: "sha256:variant-a"
+      at: 2026-01-05T09:00:01Z
+    outcome: recorded
+    events: [{event: uxsearch.search.CampaignProgressed, payload: {campaign_id: 00000000-0000-4000-8000-000000000050, seq: 0, evaluated: 3, pruned: 1, frontier_size: 1}}]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.search.RecordClimbReading
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: 0
+      kpi_id: 00000000-0000-4000-8000-0000000000ff
+      best: 3
+    outcome: no-kpi
+    error: {name: uxsearch.search.KpiNotFound, fields: {kpi_id: 00000000-0000-4000-8000-0000000000ff}}
+    no_events: [uxsearch.search.ClimbReadingRecorded]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.search.RecordClimbReading
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: ended}
+      seq: 0
+      kpi_id: {$instance: effort}
+      best: 3
+    outcome: not-running
+    error: {name: uxsearch.search.CampaignNotRunning, fields: {campaign_id: 00000000-0000-4000-8000-000000000051}}
+    no_events: [uxsearch.search.ClimbReadingRecorded]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.search.RecordClimbReading
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: 0
+      kpi_id: {$instance: reading-time}
+      best: 40
+    outcome: kpi-not-of-campaign
+    error: {name: uxsearch.search.KpiNotOfCampaign, fields: {kpi_id: 00000000-0000-4000-8000-000000000061}}
+    no_events: [uxsearch.search.ClimbReadingRecorded]
+  # No point with sequence number 5 was recorded for the campaign.
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.search.RecordClimbReading
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: 5
+      kpi_id: {$instance: effort}
+      best: 3
+    outcome: no-climb-point
+    error: {name: uxsearch.search.ClimbPointMissing, fields: {seq: 5}}
+    no_events: [uxsearch.search.ClimbReadingRecorded]
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.search.RecordClimbReading
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: 0
+      kpi_id: {$instance: effort}
+      best: 3
+    outcome: recorded
+    events: [{event: uxsearch.search.ClimbReadingRecorded, payload: {campaign_id: 00000000-0000-4000-8000-000000000050, seq: 0, kpi_id: 00000000-0000-4000-8000-000000000060, best: 3}}]
+  - at: 2026-01-05T09:00:07Z
+    command: uxsearch.search.RecordClimbReading
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: 0
+      kpi_id: {$instance: effort}
+      best: 2
+    outcome: reading-exists
+    error: {name: uxsearch.search.ReadingExists, fields: {kpi_id: 00000000-0000-4000-8000-000000000060}}
+    no_events: [uxsearch.search.ClimbReadingRecorded]
+assert:
+  - view: uxsearch.search.Climb
+    params: {campaign_id: {$instance: campaign}}
+    contains: {seq: 0, evaluated: 3, pruned: 1, insufficient: 0, frontier_size: 1}
+  - view: uxsearch.search.Climb
+    params: {campaign_id: {$instance: campaign}}
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.search.Climb
+    params: {campaign_id: {$instance: ended}}
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.search.ClimbOfKpi
+    params: {campaign_id: {$instance: campaign}, kpi_id: {$instance: effort}}
+    contains: {seq: 0, best: 3}
+  - view: uxsearch.search.ClimbOfKpi
+    params: {campaign_id: {$instance: campaign}, kpi_id: {$instance: effort}}
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.search.ClimbOfKpi
+    params: {campaign_id: {$instance: campaign}, kpi_id: {$instance: reading-time}}
+    counts: {at_least: 0, at_most: 0}

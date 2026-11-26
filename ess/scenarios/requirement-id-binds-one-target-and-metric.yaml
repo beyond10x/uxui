@@ -1,0 +1,100 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.ratchet.BindRequirement/outcome/same
+domain: uxsearch.ratchet
+scenario: requirement-id-binds-one-target-and-metric
+# Story spec-round-2-scenarios; docs/ratchet.md § 3. A requirement id is bound to one target and
+# one metric. Binding it again to the same two changes nothing and announces nothing; binding it
+# to another metric or another target is refused, and the first binding stays.
+summary: Binding a requirement again to the same target and metric changes nothing; to another it is refused
+arrange:
+  - instance: page
+    entity: uxsearch.design.Target
+    setup:
+      identity: 00000000-0000-4000-8000-000000000001
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        name: settings page
+        scope: page
+        node_path: pages/settings
+        members: []
+        host_slot: false
+        harness_widths_px: []
+        adapter: ess-ui
+      state: Declared
+  - instance: actions
+    entity: uxsearch.metrics.MetricDefinition
+    setup:
+      identity: effort.actions
+      fields:
+        summary: Actions a journey takes
+        unit: actions
+        direction: lower_is_better
+        scope: journey
+        kind: exact
+        timing: dynamic
+        role: kpi_candidate
+        target_scopes: [page]
+        preset_family: effort
+        version: 1
+      state: Active
+  - instance: keys
+    entity: uxsearch.metrics.MetricDefinition
+    setup:
+      identity: effort.keys
+      fields:
+        summary: Key presses a journey takes
+        unit: keys
+        direction: lower_is_better
+        scope: journey
+        kind: exact
+        timing: dynamic
+        role: kpi_candidate
+        target_scopes: [page]
+        preset_family: effort
+        version: 1
+      state: Active
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.ratchet.BindRequirement
+    actor: uxsearch.ratchet.QualityOwner
+    input:
+      requirement_id: settings.actions
+      target_id: {$instance: page}
+      metric_key: {$instance: actions}
+    outcome: bound
+    events: [{event: uxsearch.ratchet.RequirementBound, payload: {requirement_id: settings.actions, target_id: 00000000-0000-4000-8000-000000000001}}]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.ratchet.BindRequirement
+    actor: uxsearch.ratchet.QualityOwner
+    input:
+      requirement_id: settings.actions
+      target_id: {$instance: page}
+      metric_key: {$instance: actions}
+    outcome: same
+    no_events: [uxsearch.ratchet.RequirementBound]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.ratchet.BindRequirement
+    actor: uxsearch.ratchet.QualityOwner
+    input:
+      requirement_id: settings.actions
+      target_id: {$instance: page}
+      metric_key: {$instance: keys}
+    outcome: bound-elsewhere
+    error: {name: uxsearch.ratchet.RequirementBoundElsewhere, fields: {requirement_id: settings.actions}}
+    no_events: [uxsearch.ratchet.RequirementBound]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.ratchet.BindRequirement
+    actor: uxsearch.ratchet.QualityOwner
+    input:
+      requirement_id: settings.new
+      target_id: 00000000-0000-4000-8000-0000000000ff
+      metric_key: {$instance: actions}
+    outcome: no-target
+    error: {name: uxsearch.ratchet.TargetNotFound, fields: {target_id: 00000000-0000-4000-8000-0000000000ff}}
+    no_events: [uxsearch.ratchet.RequirementBound]
+assert:
+  - view: uxsearch.ratchet.Requirements
+    contains: {requirement_id: settings.actions, target_id: {$instance: page}, metric_key: effort.actions, state: Bound}
+  - view: uxsearch.ratchet.Requirements
+    counts: {at_least: 1, at_most: 1}

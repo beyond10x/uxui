@@ -1,0 +1,176 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.search.RecordProgress/outcome/negative-seq
+  - uxsearch.search.RecordProgress/outcome/negative-evaluated
+  - uxsearch.search.RecordProgress/outcome/negative-pruned
+  - uxsearch.search.RecordProgress/outcome/negative-insufficient
+  - uxsearch.search.RecordProgress/outcome/negative-frontier-size
+  - uxsearch.search.RecordClimbReading/outcome/negative-seq
+  - uxsearch.search.ClimbPoint/invariant/after/uxsearch.search.RecordProgress/recorded
+  - uxsearch.search.ClimbReading/invariant/after/uxsearch.search.RecordClimbReading/recorded
+domain: uxsearch.search
+scenario: climb-counts-are-not-negative
+# Story spec-round-2-scenarios; docs/studio-climb.md. The step number of a climb point and its
+# four counts (evaluated, pruned and insufficient variants, frontier entries) are 0 or above (the
+# invariants of ClimbPoint and ClimbReading). A point or a reading that names one of them below 0
+# is refused with the name of that count, on a running campaign too, and nothing is recorded.
+summary: A climb point or reading with a step number or a count below 0 is refused by the name of that count
+arrange:
+  - instance: campaign
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000050
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 1
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+      state: Running
+  - instance: effort
+    entity: uxsearch.metrics.Kpi
+    setup:
+      identity: 00000000-0000-4000-8000-000000000060
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: effort
+        aggregation: weighted_sum
+        terms: [{metric_key: effort.actions, weight: 1}]
+        direction: lower_is_better
+        weight: 1
+      state: Active
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.search.RecordProgress
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: -1
+      evaluated: 3
+      pruned: 1
+      insufficient: 0
+      frontier_size: 1
+      at: 2026-01-05T09:00:00Z
+    outcome: negative-seq
+    error: {name: uxsearch.search.NegativeCount, fields: {count: step}}
+    no_events: [uxsearch.search.CampaignProgressed]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.search.RecordProgress
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: 0
+      evaluated: -3
+      pruned: 1
+      insufficient: 0
+      frontier_size: 1
+      at: 2026-01-05T09:00:01Z
+    outcome: negative-evaluated
+    error: {name: uxsearch.search.NegativeCount, fields: {count: evaluated_variants}}
+    no_events: [uxsearch.search.CampaignProgressed]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.search.RecordProgress
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: 0
+      evaluated: 3
+      pruned: -1
+      insufficient: 0
+      frontier_size: 1
+      at: 2026-01-05T09:00:02Z
+    outcome: negative-pruned
+    error: {name: uxsearch.search.NegativeCount, fields: {count: pruned_variants}}
+    no_events: [uxsearch.search.CampaignProgressed]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.search.RecordProgress
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: 0
+      evaluated: 3
+      pruned: 1
+      insufficient: -1
+      frontier_size: 1
+      at: 2026-01-05T09:00:03Z
+    outcome: negative-insufficient
+    error: {name: uxsearch.search.NegativeCount, fields: {count: insufficient_variants}}
+    no_events: [uxsearch.search.CampaignProgressed]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.search.RecordProgress
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: 0
+      evaluated: 3
+      pruned: 1
+      insufficient: 0
+      frontier_size: -1
+      at: 2026-01-05T09:00:04Z
+    outcome: negative-frontier-size
+    error: {name: uxsearch.search.NegativeCount, fields: {count: frontier_entries}}
+    no_events: [uxsearch.search.CampaignProgressed]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.search.RecordClimbReading
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: -1
+      kpi_id: {$instance: effort}
+      best: 3
+    outcome: negative-seq
+    error: {name: uxsearch.search.NegativeCount, fields: {count: step}}
+    no_events: [uxsearch.search.ClimbReadingRecorded]
+  # The same point with every count at 0 or above is recorded.
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.search.RecordProgress
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: 0
+      evaluated: 3
+      pruned: 1
+      insufficient: 0
+      frontier_size: 1
+      at: 2026-01-05T09:00:06Z
+    outcome: recorded
+    events: [{event: uxsearch.search.CampaignProgressed}]
+  - at: 2026-01-05T09:00:07Z
+    command: uxsearch.search.RecordClimbReading
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      seq: 0
+      kpi_id: {$instance: effort}
+      best: 3
+    outcome: recorded
+    events: [{event: uxsearch.search.ClimbReadingRecorded}]
+assert:
+  - view: uxsearch.search.Climb
+    params: {campaign_id: {$instance: campaign}}
+    contains: {seq: 0, evaluated: 3, pruned: 1, insufficient: 0, frontier_size: 1}
+  - view: uxsearch.search.Climb
+    params: {campaign_id: {$instance: campaign}}
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.search.ClimbPoints
+    satisfies: seq >= 0
+  - view: uxsearch.search.ClimbPoints
+    satisfies: evaluated >= 0
+  - view: uxsearch.search.ClimbPoints
+    satisfies: pruned >= 0
+  - view: uxsearch.search.ClimbPoints
+    satisfies: insufficient >= 0
+  - view: uxsearch.search.ClimbPoints
+    satisfies: frontier_size >= 0
+  - view: uxsearch.search.ClimbOfKpi
+    params: {campaign_id: {$instance: campaign}, kpi_id: {$instance: effort}}
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.search.ClimbOfKpi
+    params: {campaign_id: {$instance: campaign}, kpi_id: {$instance: effort}}
+    satisfies: seq >= 0

@@ -558,7 +558,7 @@ commands:
         summary: The observed value goes to ratchet, which compares it with its requirement.
       # UNMAPPED: the requirement's target should be the evaluated variant's target; the
       # evaluation holds the variant, not the target, and a guard over the variant's target is a
-      # second hop (GAPS.md G1). The engine binds requirements per target, so it is not checked.
+      # second hop (GAPS.md G8). The engine binds requirements per target, so it is not checked.
 
   - name: uxsearch.ratchet.RecordRuleEvidence
     naming:

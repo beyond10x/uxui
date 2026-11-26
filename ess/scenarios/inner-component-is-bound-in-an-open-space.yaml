@@ -1,0 +1,190 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.design.BindComponent/outcome/top-k-missing
+  - uxsearch.design.BindComponent/outcome/source-campaign-missing
+  - uxsearch.design.BindComponent/outcome/no-source-campaign
+  - uxsearch.design.BindComponent/outcome/no-design-space
+  - uxsearch.design.BindComponent/outcome/frozen
+  - uxsearch.design.BindComponent/outcome/source-campaign-of-another-target
+  - uxsearch.design.BindComponent/outcome/not-inside
+  - uxsearch.design.BindComponent/outcome/bound
+domain: uxsearch.design
+scenario: inner-component-is-bound-in-an-open-space
+# Story spec-round-2-scenarios; docs/concept.md § 3. A design space on a wider target fixes an
+# inner component, or makes the top-k frontier variants of a campaign on that component one axis.
+# An axis needs its size and its source campaign, the campaign must exist and must have searched
+# the inner target, and the space must exist and still be Open. Whether the inner target lies
+# inside the space's target is the engine's answer.
+summary: An inner component is fixed, or made an axis from a campaign on it, while the space is Open
+arrange:
+  - instance: open
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000020
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: settings page
+        component_treatment: axes
+      state: Open
+  - instance: frozen
+    entity: uxsearch.design.DesignSpace
+    setup:
+      identity: 00000000-0000-4000-8000-000000000021
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: settings page, frozen
+        component_treatment: axes
+        space_digest: "sha256:space-frozen"
+      state: Frozen
+  # The campaign that searched the inner component (target ...03), ended with a frontier.
+  - instance: inner-campaign
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000050
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000003
+        design_space_id: 00000000-0000-4000-8000-000000000028
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 1
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        ended_because: space_exhausted
+      state: Ended
+  # A campaign on another target (...04).
+  - instance: other-campaign
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000051
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000004
+        design_space_id: 00000000-0000-4000-8000-000000000029
+        journeys: [00000000-0000-4000-8000-000000000031]
+        environments: [00000000-0000-4000-8000-000000000041]
+        kpis: [00000000-0000-4000-8000-000000000061]
+        strategy: exhaustive
+        seed: 1
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        ended_because: space_exhausted
+      state: Ended
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.design.BindComponent
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: open}
+      inner_target_id: 00000000-0000-4000-8000-000000000003
+      treatment: axes
+      source_campaign_id: {$instance: inner-campaign}
+    outcome: top-k-missing
+    error: {name: uxsearch.design.TopKMissing, fields: {inner_target_id: 00000000-0000-4000-8000-000000000003}}
+    no_events: [uxsearch.design.ComponentBound]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.design.BindComponent
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: open}
+      inner_target_id: 00000000-0000-4000-8000-000000000003
+      treatment: axes
+      top_k: 3
+    outcome: source-campaign-missing
+    error: {name: uxsearch.design.SourceCampaignMissing, fields: {inner_target_id: 00000000-0000-4000-8000-000000000003}}
+    no_events: [uxsearch.design.ComponentBound]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.design.BindComponent
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: open}
+      inner_target_id: 00000000-0000-4000-8000-000000000003
+      treatment: axes
+      top_k: 3
+      source_campaign_id: 00000000-0000-4000-8000-0000000000ff
+    outcome: no-source-campaign
+    error: {name: uxsearch.design.SourceCampaignMismatch, fields: {inner_target_id: 00000000-0000-4000-8000-000000000003}}
+    no_events: [uxsearch.design.ComponentBound]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.design.BindComponent
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: 00000000-0000-4000-8000-0000000000fe
+      inner_target_id: 00000000-0000-4000-8000-000000000003
+      treatment: axes
+      top_k: 3
+      source_campaign_id: {$instance: inner-campaign}
+    outcome: no-design-space
+    error: {name: uxsearch.design.DesignSpaceNotFound, fields: {design_space_id: 00000000-0000-4000-8000-0000000000fe}}
+    no_events: [uxsearch.design.ComponentBound]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.design.BindComponent
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: frozen}
+      inner_target_id: 00000000-0000-4000-8000-000000000003
+      treatment: axes
+      top_k: 3
+      source_campaign_id: {$instance: inner-campaign}
+    outcome: frozen
+    error: {name: uxsearch.design.DesignSpaceFrozen, fields: {design_space_id: 00000000-0000-4000-8000-000000000021}}
+    no_events: [uxsearch.design.ComponentBound]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.design.BindComponent
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: open}
+      inner_target_id: 00000000-0000-4000-8000-000000000003
+      treatment: axes
+      top_k: 3
+      source_campaign_id: {$instance: other-campaign}
+    outcome: source-campaign-of-another-target
+    error: {name: uxsearch.design.SourceCampaignMismatch, fields: {inner_target_id: 00000000-0000-4000-8000-000000000003}}
+    no_events: [uxsearch.design.ComponentBound]
+  # The inner target is not a component or widget inside the space's target: the engine's answer.
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.design.BindComponent
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: open}
+      inner_target_id: 00000000-0000-4000-8000-000000000003
+      treatment: axes
+      top_k: 3
+      source_campaign_id: {$instance: inner-campaign}
+    outcome: not-inside
+    error: {name: uxsearch.design.NodeNotFound}
+    no_events: [uxsearch.design.ComponentBound]
+  - at: 2026-01-05T09:00:07Z
+    command: uxsearch.design.BindComponent
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: open}
+      inner_target_id: 00000000-0000-4000-8000-000000000003
+      treatment: axes
+      top_k: 3
+      source_campaign_id: {$instance: inner-campaign}
+    outcome: bound
+    events: [{event: uxsearch.design.ComponentBound, payload: {design_space_id: 00000000-0000-4000-8000-000000000020, treatment: axes}}]
+  # A fixed inner component needs neither a size nor a source campaign.
+  - at: 2026-01-05T09:00:08Z
+    command: uxsearch.design.BindComponent
+    actor: uxsearch.design.Designer
+    input:
+      design_space_id: {$instance: open}
+      inner_target_id: 00000000-0000-4000-8000-000000000005
+      treatment: fixed
+    outcome: bound
+    events: [{event: uxsearch.design.ComponentBound, payload: {design_space_id: 00000000-0000-4000-8000-000000000020, treatment: fixed}}]
+assert:
+  - view: uxsearch.design.ComponentBindings
+    contains: {design_space_id: {$instance: open}, inner_target_id: 00000000-0000-4000-8000-000000000003, treatment: axes, top_k: 3, state: Bound}
+  - view: uxsearch.design.ComponentBindings
+    contains: {design_space_id: {$instance: open}, inner_target_id: 00000000-0000-4000-8000-000000000005, treatment: fixed, top_k: null, pinned_variant: null, state: Bound}
+  - view: uxsearch.design.ComponentBindings
+    excludes: {design_space_id: {$instance: frozen}}
+  - view: uxsearch.design.ComponentBindings
+    counts: {at_least: 2, at_most: 2}

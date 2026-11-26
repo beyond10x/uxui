@@ -1,0 +1,187 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.ratchet.RecordMetricEvidence/outcome/no-requirement
+  - uxsearch.ratchet.RecordMetricEvidence/outcome/no-metric
+  - uxsearch.ratchet.RecordMetricEvidence/outcome/requirement-unbound
+  - uxsearch.ratchet.RecordMetricEvidence/outcome/requirement-mismatch
+  - uxsearch.ratchet.RecordMetricEvidence/outcome/insufficient
+domain: uxsearch.ratchet
+scenario: metric-evidence-names-a-bound-requirement-of-its-metric
+# Story spec-round-2-scenarios; docs/ratchet.md § 4. Metric evidence answers for a requirement
+# that is Bound, with the metric the requirement is bound to. Evidence from an evaluation that is
+# not Computed is recorded as insufficient evidence, with no observed value: it is never a pass.
+summary: Metric evidence is recorded for a Bound requirement of the same metric, and is insufficient unless the evaluation is Computed
+arrange:
+  - instance: actions
+    entity: uxsearch.metrics.MetricDefinition
+    setup:
+      identity: effort.actions
+      fields:
+        summary: Actions a journey takes
+        unit: actions
+        direction: lower_is_better
+        scope: journey
+        kind: exact
+        timing: dynamic
+        role: kpi_candidate
+        target_scopes: [page]
+        preset_family: effort
+        version: 2
+      state: Active
+  - instance: keys
+    entity: uxsearch.metrics.MetricDefinition
+    setup:
+      identity: effort.keys
+      fields:
+        summary: Key presses a journey takes
+        unit: keys
+        direction: lower_is_better
+        scope: journey
+        kind: exact
+        timing: dynamic
+        role: kpi_candidate
+        target_scopes: [page]
+        preset_family: effort
+        version: 1
+      state: Active
+  - instance: requirement
+    entity: uxsearch.ratchet.RequirementBinding
+    setup:
+      identity: settings.actions
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        metric_key: effort.actions
+      state: Bound
+  - instance: dropped
+    entity: uxsearch.ratchet.RequirementBinding
+    setup:
+      identity: settings.actions.old
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        metric_key: effort.actions
+      state: Unbound
+  - instance: computed
+    entity: uxsearch.evaluation.Evaluation
+    setup:
+      identity: "sha256:eval-a"
+      fields:
+        variant_digest: "sha256:variant-a"
+        state_space_key: "sha256:space-a"
+        journey_id: 00000000-0000-4000-8000-000000000030
+        state_space_state: Complete
+        stage: full
+        states_count: 4
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        values: [{metric_key: effort.actions, at: journey, value: 5}]
+        result_digest: "sha256:result-a"
+      state: Computed
+  - instance: truncated
+    entity: uxsearch.evaluation.Evaluation
+    setup:
+      identity: "sha256:eval-b"
+      fields:
+        variant_digest: "sha256:variant-b"
+        state_space_key: "sha256:space-b"
+        journey_id: 00000000-0000-4000-8000-000000000030
+        state_space_state: Truncated
+        stage: full
+        states_count: 10
+        bound_hit: max_states
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        values: [{metric_key: effort.actions, at: journey, value: 3}]
+        result_digest: "sha256:result-b"
+        insufficient_because: bound_hit
+      state: Insufficient
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.ratchet.RecordMetricEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: settings.unknown
+      evaluation_key: {$instance: computed}
+      metric_key: {$instance: actions}
+      value: 5
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: no-requirement
+    error: {name: uxsearch.ratchet.RequirementNotBound, fields: {requirement_id: settings.unknown}}
+    no_events: [uxsearch.ratchet.EvidenceRecorded]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.ratchet.RecordMetricEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: requirement}
+      evaluation_key: {$instance: computed}
+      metric_key: effort.unknown
+      value: 5
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: no-metric
+    error: {name: uxsearch.ratchet.MetricNotFound, fields: {metric_key: effort.unknown}}
+    no_events: [uxsearch.ratchet.EvidenceRecorded]
+  # The requirement was unbound.
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.ratchet.RecordMetricEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: dropped}
+      evaluation_key: {$instance: computed}
+      metric_key: {$instance: actions}
+      value: 5
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: requirement-unbound
+    error: {name: uxsearch.ratchet.RequirementNotBound, fields: {requirement_id: settings.actions.old}}
+    no_events: [uxsearch.ratchet.EvidenceRecorded]
+  # The requirement is bound to effort.actions, not to effort.keys.
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.ratchet.RecordMetricEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: requirement}
+      evaluation_key: {$instance: computed}
+      metric_key: {$instance: keys}
+      value: 5
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: requirement-mismatch
+    error: {name: uxsearch.ratchet.RequirementMismatch, fields: {requirement_id: settings.actions}}
+    no_events: [uxsearch.ratchet.EvidenceRecorded]
+  # The evaluation is Insufficient: its value is not evidence of a pass.
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.ratchet.RecordMetricEvidence
+    actor: uxsearch.ratchet.Assessor
+    input:
+      requirement_id: {$instance: requirement}
+      evaluation_key: {$instance: truncated}
+      metric_key: {$instance: actions}
+      value: 3
+      base_revision: rev-1
+      ess_version: 0.98.0
+      assessor: engine
+    outcome: insufficient
+    events: [{event: uxsearch.ratchet.EvidenceRecorded, payload: {requirement_id: settings.actions, status: insufficient_evidence}}]
+assert:
+  - view: uxsearch.ratchet.Evidence
+    contains:
+      requirement_id: settings.actions
+      metric_key: effort.actions
+      metric_version: 2
+      variant_digest: "sha256:variant-b"
+      evaluation_key: "sha256:eval-b"
+      states_count: 10
+      bound_hit: max_states
+      status: insufficient_evidence
+      observed: null
+  - view: uxsearch.ratchet.Evidence
+    excludes: {status: observed}
+  - view: uxsearch.ratchet.Evidence
+    counts: {at_least: 1, at_most: 1}

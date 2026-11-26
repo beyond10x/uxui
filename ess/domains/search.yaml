@@ -66,6 +66,12 @@ types:
       - name: value
         type: Decimal
 
+  # The inputs of a climb point and a climb reading that are never below 0; `NegativeCount` names
+  # the one that is.
+  - name: uxsearch.search.ClimbCount
+    kind: enum
+    variants: [step, evaluated_variants, pruned_variants, insufficient_variants, frontier_entries]
+
 entities:
   # A product campaign treats the component and widget targets inside its target as its design
   # space says (`component_treatment`): fixed as declared, or one `component` axis each.
@@ -234,7 +240,7 @@ entities:
       - name: evaluation_keys
         type: List<uxsearch.evaluation.EvaluationKey>
       # UNMAPPED: each value should be the KPI's aggregation over the evaluations' metric values;
-      # ESS cannot compute an aggregation over a list of related rows (GAPS.md), so the engine
+      # ESS cannot compute an aggregation over a list of related rows (GAPS.md G17), so the engine
       # supplies it. AdmitToFrontier checks one value per campaign KPI, by distinct `kpi_id`.
       - name: kpi_values
         type: List<uxsearch.search.KpiReading>
@@ -349,6 +355,12 @@ errors:
     fields:
       - name: strategy
         type: uxsearch.search.Strategy
+
+  - name: uxsearch.search.NegativeCount
+    summary: A step number or a count of the climb is below 0, so nothing was recorded.
+    fields:
+      - name: count
+        type: uxsearch.search.ClimbCount
 
   - name: uxsearch.search.CampaignNotFound
     summary: No campaign has this id.
@@ -653,7 +665,7 @@ commands:
 
       # UNMAPPED: a missing journey, environment or KPI would be `when_related: {via:
       # input.journeys, exists: false}`; ESS 0.98.0 refuses a list-of-references guard beside
-      # any other related guard on one command (GAPS.md), so it is an external cause here.
+      # any other related guard on one command (GAPS.md G1), so it is an external cause here.
       - name: unknown-member
         external: a journey, environment or KPI the input names does not exist
         error: uxsearch.search.UnknownMember
@@ -822,6 +834,48 @@ commands:
       - name: at
         type: Timestamp
     outcomes:
+      # A climb point's step number and counts are never below 0 (the entity's invariants); each
+      # input that is is refused by name.
+      - name: negative-seq
+        when: seq < 0
+        error: uxsearch.search.NegativeCount
+        payload:
+          uxsearch.search.NegativeCount:
+            count: step
+        summary: Nothing was recorded.
+
+      - name: negative-evaluated
+        when: evaluated < 0
+        error: uxsearch.search.NegativeCount
+        payload:
+          uxsearch.search.NegativeCount:
+            count: evaluated_variants
+        summary: Nothing was recorded.
+
+      - name: negative-pruned
+        when: pruned < 0
+        error: uxsearch.search.NegativeCount
+        payload:
+          uxsearch.search.NegativeCount:
+            count: pruned_variants
+        summary: Nothing was recorded.
+
+      - name: negative-insufficient
+        when: insufficient < 0
+        error: uxsearch.search.NegativeCount
+        payload:
+          uxsearch.search.NegativeCount:
+            count: insufficient_variants
+        summary: Nothing was recorded.
+
+      - name: negative-frontier-size
+        when: frontier_size < 0
+        error: uxsearch.search.NegativeCount
+        payload:
+          uxsearch.search.NegativeCount:
+            count: frontier_entries
+        summary: Nothing was recorded.
+
       - name: no-campaign
         when_related:
           via: input.campaign_id
@@ -880,6 +934,15 @@ commands:
       - name: best
         type: Decimal
     outcomes:
+      # A reading's step number is never below 0 (the entity's invariant).
+      - name: negative-seq
+        when: seq < 0
+        error: uxsearch.search.NegativeCount
+        payload:
+          uxsearch.search.NegativeCount:
+            count: step
+        summary: Nothing was recorded.
+
       - name: no-campaign
         when_related:
           via: input.campaign_id
@@ -1108,7 +1171,7 @@ commands:
         summary: Nothing changed.
 
       # UNMAPPED: as in StartCampaign, a missing evaluation key is an external cause, since a
-      # list-of-references guard does not stand beside other related guards (GAPS.md). So is an
+      # list-of-references guard does not stand beside other related guards (GAPS.md G1). So is an
       # evaluation of a journey or environment outside the campaign, and a KPI value of a KPI
       # outside it: a guard comparing the campaign's lists with the evaluation rows is G1.
       - name: evaluation-missing
@@ -1133,7 +1196,7 @@ commands:
 
       # UNMAPPED: dominance over the campaign's KPIs (at least as good on every KPI, better on
       # one, by each KPI's direction) is a relation between this input and every OnFrontier entry
-      # of the campaign; ESS cannot state it (GAPS.md), so it is an external cause here.
+      # of the campaign; ESS cannot state it (GAPS.md G5), so it is an external cause here.
       - name: dominated
         external: an OnFrontier entry of the campaign dominates the variant over the campaign's KPIs
         error: uxsearch.search.Dominated

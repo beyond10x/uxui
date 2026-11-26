@@ -159,7 +159,7 @@ entities:
   # UNMAPPED: for an `ess-ui` target, `Promotion.diff` and its one SourceDiff state the same change
   # twice. Open question for the owner: does `diff` go, leaving the per-file rows its one home?
   # A second diff of the same file for one promotion is not refused: ESS reads no other row of the
-  # same entity here without a row-set guard (GAPS.md G14).
+  # same entity here without a row-set guard (GAPS.md G16).
   - name: uxsearch.promotion.SourceDiff
     naming:
       summary: A promotion's change to one source file, as a unified diff.

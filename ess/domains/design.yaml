@@ -76,7 +76,8 @@ types:
   # kinds merged, maps in key order, written as canonical JSON, hashed with SHA-256. Two routes
   # that reach the same canonical document reach the same digest.
   # UNMAPPED: the canonical form is not defined by ESS today (`ess ui load` prints what a document
-  # holds, not a canonical byte form). The engine needs one; whether ESS owns it is open (GAPS.md).
+  # holds, not a canonical byte form). The engine needs one; whether ESS owns it is open (GAPS.md
+  # G7).
   - name: uxsearch.design.DocumentDigest
     kind: newtype
     of: String
@@ -147,28 +148,64 @@ types:
     kind: newtype
     of: String
 
-  # How a source patch addresses its place in the file (docs/targets.md:80): a JSON pointer into a
-  # JSON file, or the name of a CSS custom property.
-  - name: uxsearch.design.SourcePatchKind
+  # The operation of one RFC 6902 step, as the engine's patch has them (`Op` in
+  # `engine/search/src/landing/patch.rs`).
+  - name: uxsearch.design.JsonPatchOp
     kind: enum
-    variants: [json_pointer, css_variable]
+    variants: [add, remove, replace, move, copy, test]
 
-  # One change an axis value makes to a named source file of a `browser` target: the value at a
-  # JSON pointer, or the value of a CSS variable. `file` is relative to the base's source root.
-  # UNMAPPED: docs/targets.md:80 names the two kinds and no other (a whole replaced file, a text
-  # patch); open question for the owner whether these two are all.
+  # One RFC 6902 operation on a JSON source, with the members the RFC gives it: `path` is a JSON
+  # pointer (RFC 6901); `from` goes with `move` and `copy`; `value` with `add`, `replace` and
+  # `test`. A `test` refuses the whole patch unless the value at `path` equals `value`.
+  - name: uxsearch.design.JsonPatchOperation
+    kind: struct
+    fields:
+      - name: op
+        type: uxsearch.design.JsonPatchOp
+      - name: path
+        type: String
+      - name: from
+        type: Optional<String>
+      - name: value
+        type: Optional<Json>
+
+  # One custom property (`--uxui-heading-scale`) and the value it is set to, as CSS text.
+  - name: uxsearch.design.CssCustomProperty
+    kind: struct
+    fields:
+      - name: name
+        type: String
+      - name: value
+        type: String
+
+  # The custom properties set in one rule of a style sheet, the rule named by its selector as the
+  # sheet writes it at the top level (`CssRule` in `engine/search/src/landing/patch.rs`). A value
+  # is written in place of the one the rule has; a property the rule lacks is added as its last
+  # declaration; a rule the sheet lacks is added at its end.
+  - name: uxsearch.design.CssRulePatch
+    kind: struct
+    fields:
+      - name: selector
+        type: uxsearch.design.CssSelector
+      - name: values
+        type: List<uxsearch.design.CssCustomProperty>
+
+  # The change an axis value makes to one named source file of a `browser` target, as the engine's
+  # browser campaign patches its sources (docs/campaign-2026-11-26-docs-landing-engine.md § Space;
+  # docs/targets.md:80): a JSON source takes RFC 6902 operations, applied in order, each group
+  # opened by a `test` of what it changes; a CSS source takes custom-property values per rule.
+  # The list of the other kind is empty. `file` is relative to the base's source root. A patch
+  # that does not hold is refused whole (AddAxisValue `patch-refused`). No whole replaced file and
+  # no text patch.
   - name: uxsearch.design.SourcePatch
     kind: struct
     fields:
       - name: file
         type: String
-      - name: kind
-        type: uxsearch.design.SourcePatchKind
-      # The JSON pointer (`/theme/default`) or the CSS variable (`--ifm-background-color`).
-      - name: at
-        type: String
-      - name: value
-        type: Json
+      - name: operations
+        type: List<uxsearch.design.JsonPatchOperation>
+      - name: rules
+        type: List<uxsearch.design.CssRulePatch>
 
   - name: uxsearch.design.LiftId
     kind: newtype
@@ -187,9 +224,10 @@ types:
   # The funnel's binding table (node path <-> CSS selector): what makes "when the scaffold moves,
   # the page moves". A change to the lifted document is a change to known nodes of the real page,
   # so stage 2 applies a variant of stage 1 to the page through it (docs/targets.md:44).
-  # UNMAPPED: whether one node binds one element, or a node may bind several (a list's rows), is
-  # not stated. Taken here: one selector per node, which may match several elements. Open
-  # question for the owner.
+  # One selector per node, and the node stands for one element: the browser adapter records the
+  # first element a node's selector matches, with the number of matches (docs/browser-adapter.md,
+  # `ux-browser render`, `nodes`), and the lift of the documentation landing page was checked for
+  # 15 selectors that each match one element (docs/campaign-2026-11-24-docs-landing.md, stage 0).
   - name: uxsearch.design.BindingTable
     kind: struct
     fields:
@@ -297,10 +335,10 @@ entities:
   # For an `ess-ui` target the base is the ess-ui/1 document. For a `browser` target it is the
   # site's source tree: `path` is its source root and `document_digest` the digest of its source
   # files, so a variant's digest is the digest of the patched files.
-  # UNMAPPED: docs/targets.md names the base of a browser target only by example (`product.json`
-  # plus a CSS file, lines 15 and 74). Taken here: the source tree registered as a base document
-  # whose adapter is `browser`. Open question for the owner: is the base the whole tree, or only
-  # the files the design space patches?
+  # The source files are the ones the design space patches, not the whole tree: the engine's
+  # browser campaign keeps the two sources it patches (`product.json` and one CSS file) and names
+  # the digest of each in its measurements (docs/campaign-2026-11-26-docs-landing-engine.md § Run
+  # it again; docs/targets.md:15 and 74 name the same two files).
   - name: uxsearch.design.BaseDocument
     naming:
       summary: The ess-ui/1 document, or a browser target's source tree, being improved, at one revision.
@@ -381,11 +419,11 @@ entities:
       # Absent for `product`; for every other scope the node path the target stands at.
       - name: node_path
         type: Optional<uxsearch.design.NodePath>
-      # UNMAPPED: the brief and the owner's note name `composition` as a scope but not what it holds.
-      # Taken here: the node paths of the nodes optimised together, empty for every other scope;
-      # docs/concept.md § 3 reads it as "the shell, navigation and pages one journey crosses".
-      # Open question for the owner: is that the meaning, or is a composition a page kind
-      # (template) with the pages using it?
+      # For `composition` scope: the node paths of the nodes optimised together, empty for every
+      # other scope. A composition is "several targets optimised together, e.g. the shell,
+      # navigation and pages one journey crosses" (docs/concept.md § 3), sized as the pages on one
+      # journey with the shell's axes (docs/state-space.md § 2, row "composition"). No document
+      # reads it as a page kind (template) with the pages using it.
       - name: members
         type: List<uxsearch.design.NodePath>
       # True when the node is a host slot (`host:` in ess-ui/1): ESS does not draw it, so no
@@ -535,7 +573,7 @@ entities:
       # For an `ess-ui` target: the operator applications on the document.
       - name: applications
         type: List<uxsearch.design.OperatorApplication>
-      # For a `browser` target: the patches to named source files (docs/targets.md:80).
+      # For a `browser` target: one patch per named source file it changes (docs/targets.md:80).
       - name: patches
         type: List<uxsearch.design.SourcePatch>
     lifecycle:
@@ -547,7 +585,7 @@ entities:
   # document. Each declares its preconditions; an application whose result fails `ess ui check`
   # is an operator defect, refused where it is applied (AddAxisValue, MaterializeVariant).
   # UNMAPPED: a precondition is held here as text (`preconditions`); ESS has no construct for a
-  # predicate over an ess-ui/1 document (GAPS.md).
+  # predicate over an ess-ui/1 document (GAPS.md G9).
   - name: uxsearch.design.MutationOperator
     naming:
       summary: A deterministic transform of an ess-ui/1 document that keeps it valid.
@@ -884,7 +922,7 @@ errors:
         type: uxsearch.design.LiftedComponent.State
 
   - name: uxsearch.design.PatchRefused
-    summary: A source patch names a file the base does not hold, or a JSON pointer or CSS variable the file does not have; nothing was added.
+    summary: A source patch names a file the base does not hold, or does not hold on that file; nothing was added.
     fields:
       - name: file
         type: String
@@ -1544,7 +1582,7 @@ commands:
         summary: Nothing was added.
 
       - name: patch-refused
-        external: a patch names a file the base's source tree does not hold, or a JSON pointer or CSS variable the file does not have
+        external: a patch names a file the base does not hold, carries both operations and rules or neither, an operation fails on the file (a `test` that does not hold, a path the document does not have, a member the operation needs is missing), or a rule names something other than a custom property or one the sheet declares for the selector more than once or only inside another rule
         error: uxsearch.design.PatchRefused
         summary: Nothing was added.
 

@@ -1,0 +1,79 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.rules.RecordRuleVerdict/outcome/no-rule
+  - uxsearch.rules.RecordRuleVerdict/outcome/no-variant
+  - uxsearch.rules.RecordRuleVerdict/outcome/recorded
+domain: uxsearch.rules
+scenario: rule-verdict-names-a-rule-and-a-variant
+# Story spec-round-2-scenarios; docs/concept.md § 4. A verdict is recorded for a rule that exists
+# on a variant that exists. The verdict copies the rule's target, strength and requirement, so a
+# reader of the verdict needs no second lookup to know whether it prunes and what it answers for.
+summary: A rule verdict names a known rule and a known variant and copies the rule's strength and requirement
+arrange:
+  - instance: variant
+    entity: uxsearch.design.Variant
+    setup:
+      identity: "sha256:variant-a"
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        target_id: 00000000-0000-4000-8000-000000000001
+        first_route: {design_space_id: 00000000-0000-4000-8000-000000000020, origin: search, choices: [], applications: []}
+        routes: []
+      state: Candidate
+  - instance: rule
+    entity: uxsearch.rules.DesignRule
+    setup:
+      identity: 00000000-0000-4000-8000-000000000080
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        name: required nodes visible
+        strength: hard
+        scope: journey
+        check: required_visible
+        node_paths: []
+        metric_key: attention.visible_required
+        requirement_id: settings.visible_required
+      state: Active
+  - {instance: verdict, entity: uxsearch.rules.RuleVerdict}
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.rules.RecordRuleVerdict
+    actor: uxsearch.rules.RuleChecker
+    input:
+      rule_id: 00000000-0000-4000-8000-0000000000ff
+      variant_digest: {$instance: variant}
+      stage: static
+      verdict: pass
+      findings: []
+    outcome: no-rule
+    error: {name: uxsearch.rules.RuleNotFound, fields: {rule_id: 00000000-0000-4000-8000-0000000000ff}}
+    no_events: [uxsearch.rules.RuleVerdictRecorded]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.rules.RecordRuleVerdict
+    actor: uxsearch.rules.RuleChecker
+    input:
+      rule_id: {$instance: rule}
+      variant_digest: "sha256:variant-unknown"
+      stage: static
+      verdict: pass
+      findings: []
+    outcome: no-variant
+    error: {name: uxsearch.rules.VariantNotFound, fields: {variant_digest: "sha256:variant-unknown"}}
+    no_events: [uxsearch.rules.RuleVerdictRecorded]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.rules.RecordRuleVerdict
+    actor: uxsearch.rules.RuleChecker
+    input:
+      rule_id: {$instance: rule}
+      variant_digest: {$instance: variant}
+      stage: static
+      verdict: violated
+      findings: [{node_path: pages/settings/sections/security/save, message: the save action is below the fold}]
+    outcome: recorded
+    capture: {instance: verdict, event: uxsearch.rules.RuleVerdictRecorded, field: rule_verdict_id}
+    events: [{event: uxsearch.rules.RuleVerdictRecorded, payload: {variant_digest: "sha256:variant-a", verdict: violated}}]
+assert:
+  - view: uxsearch.rules.RuleVerdicts
+    contains: {rule_verdict_id: {$instance: verdict}, rule_id: {$instance: rule}, variant_digest: "sha256:variant-a", target_id: 00000000-0000-4000-8000-000000000001, strength: hard, requirement_id: settings.visible_required, stage: static, verdict: violated, state: Recorded}
+  - view: uxsearch.rules.RuleVerdicts
+    counts: {at_least: 1, at_most: 1}

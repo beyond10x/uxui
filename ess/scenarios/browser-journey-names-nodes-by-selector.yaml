@@ -1,14 +1,14 @@
 type: ess-scenario/6
 domain: uxsearch.journeys
 scenario: browser-journey-names-nodes-by-selector
-# Wave 2 (story browser-adapter; docs/browser-adapter.md): what the browser adapter ux-browser@1
-# answers by being built. A scripted journey's steps open a URL, press a key, scroll and wait, as
-# the shared page checks do (the keyboard walk presses Tab and Enter; the always-visible check
-# scrolls to the bottom and waits before it looks again). Its required nodes and completion signal
-# are CSS selectors, as every node the adapter reads is named (render record `nodes[].selector`,
-# page checks `css`). A browser journey that names ess-ui/1 node paths, and a model journey that
-# names selectors, are refused.
-summary: A scripted journey presses, scrolls and waits, and names its nodes by CSS selector, never by node path
+# Wave 2 (story browser-adapter; docs/browser-adapter.md § Journeys): what the browser adapter
+# ux-browser@1 answers by being built. A scripted journey starts on its page and takes the
+# adapter's steps: click, type a text, press a key, wait for a selector, scroll, and name a state,
+# at which the checks run. Its required nodes and completion signal are CSS selectors, as every
+# node the adapter reads is named (render record `nodes[].selector`, page checks `css`). A script
+# the adapter refuses (here: one without a `state` step), a browser journey that names ess-ui/1
+# node paths, and a model journey that names selectors are refused.
+summary: A scripted journey takes the adapter's steps from its page and names its nodes by CSS selector, never by node path
 arrange:
   - instance: site
     entity: uxsearch.design.BaseDocument
@@ -59,9 +59,10 @@ arrange:
         adapter: ess-ui
       state: Declared
   - {instance: keyboard, entity: uxsearch.journeys.Journey}
+  - {instance: search, entity: uxsearch.journeys.Journey}
 timeline:
-  # The keyboard walk of the page checks as a journey: open the page, Tab to the skip link, Enter,
-  # scroll to the bottom and wait; it completes when the main region holds focus.
+  # The keyboard walk as a journey: from the landing page, Tab to the skip link, Enter, wait until
+  # the main region holds focus, and check there; then scroll to the bottom and check again.
   - at: 2026-01-05T09:00:00Z
     command: uxsearch.journeys.DeclareJourney
     actor: uxsearch.journeys.JourneyAuthor
@@ -69,12 +70,14 @@ timeline:
       target_id: {$instance: landing}
       name: skip to the content
       script:
+        page: /uxui/
         steps:
-          - {action: visit, target: /uxui/}
           - {action: press, target: Tab}
           - {action: press, target: Enter}
+          - {action: wait, target: "main:focus-within"}
+          - {action: state, target: at the content}
           - {action: scroll, target: bottom}
-          - {action: wait, target: "200"}
+          - {action: state, target: at the bottom}
       required_nodes: []
       required_selectors: ["a[href='#__docusaurus_skipToContent_fallback']", nav.navbar]
       completion_selector: "main:focus-within"
@@ -82,31 +85,74 @@ timeline:
     outcome: declared
     events: [{event: uxsearch.journeys.JourneyDeclared}]
     capture: {instance: keyboard, event: uxsearch.journeys.JourneyDeclared, field: journey_id}
-  # The same journey naming an ess-ui/1 node path: a browser page has none.
+  # A journey that clicks and types: open the search, type a word, wait for a result. Its `wait`
+  # step waits 2 s at most, not the adapter's 5.
   - at: 2026-01-05T09:00:01Z
+    command: uxsearch.journeys.DeclareJourney
+    actor: uxsearch.journeys.JourneyAuthor
+    input:
+      target_id: {$instance: landing}
+      name: find the metric catalogue
+      script:
+        page: /uxui/
+        timeout_ms: 2000
+        steps:
+          - {action: click, target: button.search}
+          - {action: type, target: "#q", text: metric catalogue}
+          - {action: wait, target: "#results a"}
+          - {action: state, target: results}
+      required_nodes: []
+      required_selectors: ["#q"]
+      completion_selector: "#results a"
+      bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 0}
+    outcome: declared
+    events: [{event: uxsearch.journeys.JourneyDeclared}]
+    capture: {instance: search, event: uxsearch.journeys.JourneyDeclared, field: journey_id}
+  # A script without a `state` step names no UI state: the adapter refuses it when it reads it.
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.journeys.DeclareJourney
+    actor: uxsearch.journeys.JourneyAuthor
+    input:
+      target_id: {$instance: landing}
+      name: skip to nowhere
+      script:
+        page: /uxui/
+        steps:
+          - {action: press, target: Tab}
+          - {action: press, target: Enter}
+      required_nodes: []
+      required_selectors: []
+      bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 0}
+    outcome: script-refused
+    error: {name: uxsearch.journeys.ScriptRefused, fields: {name: skip to nowhere}}
+    no_events: [uxsearch.journeys.JourneyDeclared]
+  # The same journey naming an ess-ui/1 node path: a browser page has none.
+  - at: 2026-01-05T09:00:03Z
     command: uxsearch.journeys.DeclareJourney
     actor: uxsearch.journeys.JourneyAuthor
     input:
       target_id: {$instance: landing}
       name: skip to the content by node path
       script:
+        page: /uxui/
         steps:
-          - {action: visit, target: /uxui/}
           - {action: press, target: Tab}
+          - {action: state, target: on the skip link}
       required_nodes: [pages/home/sections/hero]
       required_selectors: []
       bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 0}
     outcome: node-paths-on-browser
     no_events: [uxsearch.journeys.JourneyDeclared]
-  - at: 2026-01-05T09:00:02Z
+  - at: 2026-01-05T09:00:04Z
     command: uxsearch.journeys.DeclareJourney
     actor: uxsearch.journeys.JourneyAuthor
     input:
       target_id: {$instance: landing}
       name: skip to the content by signal path
       script:
+        page: /uxui/
         steps:
-          - {action: visit, target: /uxui/}
+          - {action: state, target: landed}
       required_nodes: []
       required_selectors: []
       completion_signal: pages/home/sections/hero
@@ -114,7 +160,7 @@ timeline:
     outcome: node-paths-on-browser
     no_events: [uxsearch.journeys.JourneyDeclared]
   # A model journey naming a CSS selector: an ess-ui target's nodes are node paths.
-  - at: 2026-01-05T09:00:03Z
+  - at: 2026-01-05T09:00:05Z
     command: uxsearch.journeys.DeclareJourney
     actor: uxsearch.journeys.JourneyAuthor
     input:
@@ -127,7 +173,7 @@ timeline:
       bounds: {max_states: 10, max_depth: 5, max_virtual_time_ms: 1000}
     outcome: selectors-on-ess-ui
     no_events: [uxsearch.journeys.JourneyDeclared]
-  - at: 2026-01-05T09:00:04Z
+  - at: 2026-01-05T09:00:06Z
     command: uxsearch.journeys.DeclareJourney
     actor: uxsearch.journeys.JourneyAuthor
     input:
@@ -146,7 +192,22 @@ assert:
     contains:
       journey_id: {$instance: keyboard}
       name: skip to the content
+      script.page: /uxui/
       required_selectors: ["a[href='#__docusaurus_skipToContent_fallback']", nav.navbar]
       completion_selector: "main:focus-within"
   - view: uxsearch.journeys.Journeys
+    contains:
+      journey_id: {$instance: search}
+      name: find the metric catalogue
+      script:
+        page: /uxui/
+        timeout_ms: 2000
+        steps:
+          - {action: click, target: button.search}
+          - {action: type, target: "#q", text: metric catalogue}
+          - {action: wait, target: "#results a"}
+          - {action: state, target: results}
+  - view: uxsearch.journeys.Journeys
     excludes: {name: skip to the content by node path}
+  - view: uxsearch.journeys.Journeys
+    excludes: {name: skip to nowhere}

@@ -1,0 +1,279 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.search.AdmitToFrontier/outcome/kpi-values-repeat
+  - uxsearch.search.AdmitToFrontier/outcome/not-running
+  - uxsearch.search.AdmitToFrontier/outcome/policy-not-pinned
+  - uxsearch.search.AdmitToFrontier/outcome/variant-pruned
+  - uxsearch.search.AdmitToFrontier/outcome/evaluation-of-another-variant
+  - uxsearch.search.AdmitToFrontier/outcome/insufficient-evidence
+  - uxsearch.search.AdmitToFrontier/outcome/evaluation-missing
+  - uxsearch.search.AdmitToFrontier/outcome/evidence-incomplete
+  - uxsearch.search.AdmitToFrontier/outcome/dominated
+  - uxsearch.search.AdmitToFrontier/outcome/admitted
+  - uxsearch.search.AdmitToFrontier/outcome/already-on-frontier
+domain: uxsearch.search
+scenario: variant-is-admitted-on-computed-evidence-of-its-own
+# Story spec-round-2-scenarios; docs/concept.md § 5, docs/ratchet.md § 4. A variant enters the
+# frontier of a running campaign with a pinned policy, on Computed evaluations of that variant,
+# with one value per KPI. A variant a hard rule pruned, an evaluation of another variant and an
+# Insufficient evaluation admit nothing. Whether the keys cover every journey and environment of
+# the campaign, and whether a frontier entry dominates the variant, are the engine's answers.
+summary: A variant enters the frontier once, on Computed evaluations of its own, in a running campaign with a pinned policy
+arrange:
+  - instance: campaign
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000050
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 1
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+      state: Running
+  - instance: stopped
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000051
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 2
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+      state: Stopped
+  # Started, but its policy is not pinned yet.
+  - instance: unpinned
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000052
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 3
+        budget: {max_variants: 10, max_wall_time_s: 60}
+      state: Running
+  - instance: evaluation
+    entity: uxsearch.evaluation.Evaluation
+    setup:
+      identity: "sha256:eval-a"
+      fields:
+        variant_digest: "sha256:variant-a"
+        state_space_key: "sha256:space-a"
+        journey_id: 00000000-0000-4000-8000-000000000030
+        state_space_state: Complete
+        stage: full
+        states_count: 4
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        values: [{metric_key: effort.actions, at: journey, value: 3}]
+        result_digest: "sha256:result-a"
+      state: Computed
+  - instance: evaluation-of-b
+    entity: uxsearch.evaluation.Evaluation
+    setup:
+      identity: "sha256:eval-b"
+      fields:
+        variant_digest: "sha256:variant-b"
+        state_space_key: "sha256:space-b"
+        journey_id: 00000000-0000-4000-8000-000000000030
+        state_space_state: Complete
+        stage: full
+        states_count: 4
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        values: [{metric_key: effort.actions, at: journey, value: 2}]
+        result_digest: "sha256:result-b"
+      state: Computed
+  - instance: truncated-evaluation
+    entity: uxsearch.evaluation.Evaluation
+    setup:
+      identity: "sha256:eval-a-truncated"
+      fields:
+        variant_digest: "sha256:variant-a"
+        state_space_key: "sha256:space-a-reduced"
+        journey_id: 00000000-0000-4000-8000-000000000030
+        state_space_state: Truncated
+        stage: full
+        states_count: 10
+        bound_hit: max_states
+        environment_id: 00000000-0000-4000-8000-000000000040
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        values: []
+        result_digest: "sha256:result-a-truncated"
+        insufficient_because: bound_hit
+      state: Insufficient
+  - instance: violation
+    entity: uxsearch.rules.RuleVerdict
+    setup:
+      identity: 00000000-0000-4000-8000-000000000090
+      fields:
+        rule_id: 00000000-0000-4000-8000-000000000080
+        variant_digest: "sha256:variant-pruned"
+        target_id: 00000000-0000-4000-8000-000000000001
+        strength: hard
+        requirement_id: settings.visible_required
+        stage: full
+        verdict: violated
+        findings: []
+      state: Recorded
+timeline:
+  # Two values for one KPI.
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: [{$instance: evaluation}]
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}, {kpi_id: 00000000-0000-4000-8000-000000000060, value: 4}]
+    outcome: kpi-values-repeat
+    error: {name: uxsearch.search.KpiValuesMismatch, fields: {variant_digest: "sha256:variant-a"}}
+    no_events: [uxsearch.search.FrontierChanged]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: stopped}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: [{$instance: evaluation}]
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+    outcome: not-running
+    error: {name: uxsearch.search.CampaignNotRunning, fields: {campaign_id: 00000000-0000-4000-8000-000000000051}}
+    no_events: [uxsearch.search.FrontierChanged]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: unpinned}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: [{$instance: evaluation}]
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+    outcome: policy-not-pinned
+    error: {name: uxsearch.search.PolicyNotPinned, fields: {campaign_id: 00000000-0000-4000-8000-000000000052}}
+    no_events: [uxsearch.search.FrontierChanged]
+  # A hard rule's recorded violation prunes the variant.
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-pruned"
+      evaluation_keys: ["sha256:eval-pruned"]
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 1}]
+    outcome: variant-pruned
+    error: {name: uxsearch.search.VariantPruned, fields: {variant_digest: "sha256:variant-pruned"}}
+    no_events: [uxsearch.search.FrontierChanged]
+  # The evidence named is the evaluation of variant b.
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: [{$instance: evaluation-of-b}]
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 2}]
+    outcome: evaluation-of-another-variant
+    error: {name: uxsearch.search.EvaluationOfAnotherVariant, fields: {variant_digest: "sha256:variant-a"}}
+    no_events: [uxsearch.search.FrontierChanged]
+  # An Insufficient evaluation is never a pass.
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: [{$instance: evaluation}, {$instance: truncated-evaluation}]
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+    outcome: insufficient-evidence
+    error: {name: uxsearch.search.InsufficientEvidence, fields: {variant_digest: "sha256:variant-a"}}
+    no_events: [uxsearch.search.FrontierChanged]
+  # A key no evaluation has: the engine's answer.
+  - at: 2026-01-05T09:00:06Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: [{$instance: evaluation}, "sha256:eval-unknown"]
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+    outcome: evaluation-missing
+    error: {name: uxsearch.search.EvaluationMissing}
+    no_events: [uxsearch.search.FrontierChanged]
+  # The keys leave out a journey or an environment of the campaign: the engine's answer.
+  - at: 2026-01-05T09:00:07Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: [{$instance: evaluation}]
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+    outcome: evidence-incomplete
+    error: {name: uxsearch.search.EvidenceIncomplete}
+    no_events: [uxsearch.search.FrontierChanged]
+  # An entry on the frontier dominates the variant: the engine's answer.
+  - at: 2026-01-05T09:00:08Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: [{$instance: evaluation}]
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+    outcome: dominated
+    error: {name: uxsearch.search.Dominated}
+    no_events: [uxsearch.search.FrontierChanged]
+  - at: 2026-01-05T09:00:09Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: [{$instance: evaluation}]
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+    outcome: admitted
+    events: [{event: uxsearch.search.FrontierChanged, payload: {campaign_id: 00000000-0000-4000-8000-000000000050, variant_digest: "sha256:variant-a", admitted: true}}]
+  - at: 2026-01-05T09:00:10Z
+    command: uxsearch.search.AdmitToFrontier
+    actor: uxsearch.search.Searcher
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      evaluation_keys: [{$instance: evaluation}]
+      kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+    outcome: already-on-frontier
+    error: {name: uxsearch.search.AlreadyOnFrontier, fields: {variant_digest: "sha256:variant-a"}}
+    no_events: [uxsearch.search.FrontierChanged]
+assert:
+  - view: uxsearch.search.Frontier
+    params: {campaign_id: {$instance: campaign}}
+    contains: {variant_digest: "sha256:variant-a", kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}], evaluation_keys: ["sha256:eval-a"]}
+  - view: uxsearch.search.Frontier
+    params: {campaign_id: {$instance: campaign}}
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.search.FrontierEntries
+    excludes: {variant_digest: "sha256:variant-pruned"}
+  - view: uxsearch.search.FrontierEntries
+    excludes: {campaign_id: {$instance: stopped}}
+  - view: uxsearch.search.FrontierEntries
+    excludes: {campaign_id: {$instance: unpinned}}

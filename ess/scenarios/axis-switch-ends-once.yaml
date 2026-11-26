@@ -1,0 +1,92 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.design.ResolveAxisSwitch/outcome/resolved
+  - uxsearch.design.FailAxisSwitch/outcome/failed
+  - uxsearch.design.AxisSwitch/transition/resolve/by/uxsearch.design.ResolveAxisSwitch/resolved
+  - uxsearch.design.AxisSwitch/transition/fail/by/uxsearch.design.FailAxisSwitch/failed
+  - uxsearch.design.AxisSwitch/state/Resolved/refuses/uxsearch.design.ResolveAxisSwitch
+  - uxsearch.design.AxisSwitch/state/Resolved/refuses/uxsearch.design.FailAxisSwitch
+  - uxsearch.design.AxisSwitch/state/Failed/refuses/uxsearch.design.ResolveAxisSwitch
+  - uxsearch.design.AxisSwitch/state/Failed/refuses/uxsearch.design.FailAxisSwitch
+domain: uxsearch.design
+scenario: axis-switch-ends-once
+# Story spec-round-2-scenarios. The engine ends a requested switch once: Resolved with the variant
+# it reached, or Failed with the reason. Neither end is replaced by the other or repeated.
+summary: A requested axis switch is resolved or failed once, and stays as it ended
+arrange:
+  - instance: made
+    entity: uxsearch.design.AxisSwitch
+    setup:
+      identity: 00000000-0000-4000-8000-000000000090
+      fields:
+        from_variant: "sha256:variant-a"
+        axis_id: 00000000-0000-4000-8000-000000000022
+        axis_value_id: 00000000-0000-4000-8000-000000000024
+      state: Requested
+  - instance: broken
+    entity: uxsearch.design.AxisSwitch
+    setup:
+      identity: 00000000-0000-4000-8000-000000000091
+      fields:
+        from_variant: "sha256:variant-a"
+        axis_id: 00000000-0000-4000-8000-000000000022
+        axis_value_id: 00000000-0000-4000-8000-000000000025
+      state: Requested
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.design.ResolveAxisSwitch
+    actor: uxsearch.design.Engine
+    input:
+      axis_switch_id: {$instance: made}
+      reached: "sha256:variant-b"
+    outcome: resolved
+    events: [{event: uxsearch.design.AxisSwitchResolved, payload: {axis_switch_id: 00000000-0000-4000-8000-000000000090, reached: "sha256:variant-b"}}]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.design.FailAxisSwitch
+    actor: uxsearch.design.Engine
+    input:
+      axis_switch_id: {$instance: broken}
+      failure: reorder_sections leaves a section without its heading
+    outcome: failed
+    events: [{event: uxsearch.design.AxisSwitchFailed, payload: {axis_switch_id: 00000000-0000-4000-8000-000000000091}}]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.design.ResolveAxisSwitch
+    actor: uxsearch.design.Engine
+    input:
+      axis_switch_id: {$instance: made}
+      reached: "sha256:variant-c"
+    outcome: wrong-state
+    error: {name: uxsearch.design.AxisSwitchStateConflict}
+    no_events: [uxsearch.design.AxisSwitchResolved]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.design.FailAxisSwitch
+    actor: uxsearch.design.Engine
+    input:
+      axis_switch_id: {$instance: made}
+      failure: late failure
+    outcome: wrong-state
+    error: {name: uxsearch.design.AxisSwitchStateConflict}
+    no_events: [uxsearch.design.AxisSwitchFailed]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.design.ResolveAxisSwitch
+    actor: uxsearch.design.Engine
+    input:
+      axis_switch_id: {$instance: broken}
+      reached: "sha256:variant-c"
+    outcome: wrong-state
+    error: {name: uxsearch.design.AxisSwitchStateConflict}
+    no_events: [uxsearch.design.AxisSwitchResolved]
+  - at: 2026-01-05T09:00:05Z
+    command: uxsearch.design.FailAxisSwitch
+    actor: uxsearch.design.Engine
+    input:
+      axis_switch_id: {$instance: broken}
+      failure: second failure
+    outcome: wrong-state
+    error: {name: uxsearch.design.AxisSwitchStateConflict}
+    no_events: [uxsearch.design.AxisSwitchFailed]
+assert:
+  - view: uxsearch.design.AxisSwitches
+    contains: {axis_switch_id: {$instance: made}, reached: "sha256:variant-b", failure: null, state: Resolved}
+  - view: uxsearch.design.AxisSwitches
+    contains: {axis_switch_id: {$instance: broken}, reached: null, failure: reorder_sections leaves a section without its heading, state: Failed}

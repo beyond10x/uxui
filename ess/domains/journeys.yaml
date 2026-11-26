@@ -4,7 +4,7 @@ summary: >-
   Journeys a target is evaluated on, taken from ess-ui-test/1 tests or, on a browser target, from
   scripted steps, and the state space each journey reaches on one variant within declared bounds:
   every UI state the engine enumerates from fixtures, scripted live events and a virtual clock, or
-  the pages the scripted steps reach.
+  the states a script names.
 
 naming:
   wire: journeys
@@ -55,43 +55,61 @@ types:
     kind: enum
     variants: [max_states, max_depth, max_virtual_time]
 
-  # What one scripted step of a `browser` journey does (docs/targets.md:17: "scripted steps (URLs,
-  # clicks) for a site"): open a URL, click the element a CSS selector finds, press one key, scroll
-  # the page to its top or bottom, or wait. `press`, `scroll` and `wait` are the steps the browser
-  # adapter `ux-browser@1` takes in the shared page checks (docs/browser-adapter.md): the keyboard
-  # walk presses Tab and Enter, the always-visible check scrolls to the bottom and waits before it
-  # looks again.
-  # UNMAPPED: typing text and an assertion step ("find the install command", docs/targets.md:65)
-  # are not stated. Open question for the owner.
+  # What one scripted step of a `browser` journey does, as the browser adapter `ux-browser@1` has
+  # its journey steps (docs/browser-adapter.md § Journeys; `engine/browser/src/journey.rs`):
+  # `click` the first rendered element a CSS selector matches; `type` a text into that element in
+  # place of its content; `press` one key on the focused element; `wait` until a selector matches
+  # a rendered element; `scroll` the page to its top or its bottom; `state` names a UI state, at
+  # which the checks run. There is no assertion step: a `click`, `type` or `wait` whose selector
+  # matches no rendered element in time fails the journey there ("find the install command",
+  # docs/targets.md:65, is a `wait`).
   - name: uxsearch.journeys.ScriptedAction
     kind: enum
-    variants: [visit, click, press, scroll, wait]
+    variants: [click, type, press, wait, scroll, state]
 
   - name: uxsearch.journeys.ScriptedStep
     kind: struct
     fields:
       - name: action
         type: uxsearch.journeys.ScriptedAction
-      # The URL or URL path for `visit`, the CSS selector for `click`, the key for `press` (`Tab`,
-      # `Enter`), `top` or `bottom` for `scroll`, the milliseconds for `wait`.
+      # The CSS selector for `click`, `type` and `wait`; the key for `press` (`Tab`, `Enter`,
+      # `Space` or `Escape`); `top` or `bottom` for `scroll`; the state's name for `state`, unique
+      # in its journey, not empty and without `/`.
       - name: target
         type: String
+      # The text a `type` step types; absent for every other step.
+      - name: text
+        type: Optional<String>
 
-  # The steps of a scripted journey, in order. Each step's page is one UI state of the journey.
+  # A scripted journey as the adapter runs it: the path it starts on (`page`, starting with `/`,
+  # served as the adapter serves a page of the site), its steps in order, and how long a `wait`
+  # step waits (absent: the adapter's default, 5000 ms). Its UI states are its `state` steps, at
+  # least one; each is a state of the journey's `page` as the steps before it left it.
+  # DeclareJourney answers a script the adapter refuses as `script-refused`.
   - name: uxsearch.journeys.JourneyScript
     kind: struct
     fields:
+      - name: page
+        type: String
       - name: steps
         type: List<uxsearch.journeys.ScriptedStep>
+      - name: timeout_ms
+        type: Optional<Integer>
+
+  # The inputs of a state space and a UI state that have a range; `ValueOutOfRange` names the one
+  # outside it.
+  - name: uxsearch.journeys.RangedValue
+    kind: enum
+    variants: [enumeration_stage, count_of_states, sequence_number, virtual_time, state_depth]
 
 entities:
   # A journey has either a model or a script (docs/targets.md:82). On an `ess-ui` target it is a
   # named test of an ess-ui-test/1 file over the target's document, and its states are enumerated
-  # from the model. On a `browser` target it is a script of steps, and its states are the pages
-  # the steps reach. Its steps must stay inside the target: a component journey drives only nodes
-  # under the component's path (a table's sort, filter and page states), rendered in the target's
-  # harness. It is the one home of the journey's required nodes and completion signal, which the
-  # task-completion metrics read.
+  # from the model. On a `browser` target it is a script of steps, and its states are the `state`
+  # steps the script names. Its steps must stay inside the target: a component journey drives
+  # only nodes under the component's path (a table's sort, filter and page states), rendered in
+  # the target's harness. It is the one home of the journey's required nodes and completion
+  # signal, which the task-completion metrics read.
   # The model fields and the script are Optional so that one record holds either; DeclareJourney
   # refuses a journey with both, with neither, or of the other adapter than its target's.
   # A model journey names its required nodes and completion signal by ess-ui/1 node path; a
@@ -231,9 +249,10 @@ entities:
         type: Integer
       - name: state_digest
         type: uxsearch.journeys.UiStateDigest
-      # The page node path; for a scripted journey's state, the URL path its step reached.
-      # UNMAPPED: docs/targets.md does not say how a browser state names its page; taken here: the
-      # URL path, held in the node path's place. Open question for the owner.
+      # The page node path; for a scripted journey's state, the journey's `page` (the script's
+      # start path), held in the node path's place: the browser adapter gives every state of a
+      # journey that page (`details.page` on each state's results, docs/browser-adapter.md
+      # § Journeys, "Identity"; `JourneyResult.page` in `engine/browser/src/journey.rs`).
       - name: page
         type: uxsearch.design.NodePath
       - name: overlay
@@ -294,6 +313,12 @@ errors:
 
   - name: uxsearch.journeys.JourneySourceInvalid
     summary: A journey has either a test file and a test name, or a script, and not both; nothing was declared.
+    fields:
+      - name: name
+        type: String
+
+  - name: uxsearch.journeys.ScriptRefused
+    summary: The script is not one the browser adapter runs, so nothing was declared.
     fields:
       - name: name
         type: String
@@ -387,6 +412,12 @@ errors:
     fields:
       - name: state_space_key
         type: uxsearch.journeys.StateSpaceKey
+
+  - name: uxsearch.journeys.ValueOutOfRange
+    summary: The stage is `static`, which has no state space, or a count, sequence number, virtual time or depth is below 0; nothing was recorded.
+    fields:
+      - name: value
+        type: uxsearch.journeys.RangedValue
 
 commands:
   - name: uxsearch.journeys.DeclareJourney
@@ -501,6 +532,16 @@ commands:
             test_file: input.test_file
         summary: Nothing was declared.
 
+      # What the adapter refuses when it reads a journey (docs/browser-adapter.md § Journeys,
+      # "Refused"); a guard over the steps inside the script's list is G18.
+      - name: script-refused
+        external: the script is not one the browser adapter runs (its page does not start with `/`; it has no `state` step or names a state twice; a `type` step has no text or another step has one; a `click`, `type` or `wait` names no selector; a `press` names a key other than Tab, Enter, Space and Escape; a `scroll` names neither `top` nor `bottom`; its `timeout_ms` is not above 0)
+        error: uxsearch.journeys.ScriptRefused
+        payload:
+          uxsearch.journeys.ScriptRefused:
+            name: input.name
+        summary: Nothing was declared.
+
       - name: outside-target
         external: a step of the test, a required node or the completion signal names a node path outside the target's node path or members; a scripted step leaves the target's base URL
         error: uxsearch.journeys.OutsideTarget
@@ -568,6 +609,16 @@ commands:
       - name: stage
         type: uxsearch.evaluation.Stage
     outcomes:
+      # A `static` evaluation reads the document alone and has no state space (the entity's
+      # invariant).
+      - name: static-stage
+        when: stage == static
+        error: uxsearch.journeys.ValueOutOfRange
+        payload:
+          uxsearch.journeys.ValueOutOfRange:
+            value: enumeration_stage
+        summary: Nothing was enumerated.
+
       # A stored key is never enumerated again: ReuseStateSpace answers from it or refuses a
       # collision.
       - name: already-enumerated
@@ -713,6 +764,32 @@ commands:
       - name: unevaluable_reason
         type: Optional<String>
     outcomes:
+      # A state's sequence number, virtual time and depth are never below 0 (the entity's
+      # invariants); each input that is is refused by name.
+      - name: negative-seq
+        when: seq < 0
+        error: uxsearch.journeys.ValueOutOfRange
+        payload:
+          uxsearch.journeys.ValueOutOfRange:
+            value: sequence_number
+        summary: Nothing was recorded.
+
+      - name: negative-virtual-time
+        when: virtual_time_ms < 0
+        error: uxsearch.journeys.ValueOutOfRange
+        payload:
+          uxsearch.journeys.ValueOutOfRange:
+            value: virtual_time
+        summary: Nothing was recorded.
+
+      - name: negative-depth
+        when: depth < 0
+        error: uxsearch.journeys.ValueOutOfRange
+        payload:
+          uxsearch.journeys.ValueOutOfRange:
+            value: state_depth
+        summary: Nothing was recorded.
+
       - name: no-state-space
         when_related:
           via: input.state_space_key
@@ -800,6 +877,15 @@ commands:
       - name: states_count
         type: Integer
     outcomes:
+      # A state space never counts fewer than 0 states (the entity's invariant).
+      - name: negative-count
+        when: states_count < 0
+        error: uxsearch.journeys.ValueOutOfRange
+        payload:
+          uxsearch.journeys.ValueOutOfRange:
+            value: count_of_states
+        summary: Nothing was closed.
+
       - name: no-state-space
         when_related:
           via: input.state_space_key
@@ -886,6 +972,15 @@ commands:
       - name: bound_hit
         type: uxsearch.journeys.BoundKind
     outcomes:
+      # A state space never counts fewer than 0 states (the entity's invariant).
+      - name: negative-count
+        when: states_count < 0
+        error: uxsearch.journeys.ValueOutOfRange
+        payload:
+          uxsearch.journeys.ValueOutOfRange:
+            value: count_of_states
+        summary: Nothing was closed.
+
       - name: no-state-space
         when_related:
           via: input.state_space_key

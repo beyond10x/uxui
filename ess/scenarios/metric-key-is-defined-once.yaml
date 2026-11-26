@@ -1,0 +1,71 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.metrics.DefineMetric/outcome/same
+  - uxsearch.metrics.MetricDefinition/invariant/after/uxsearch.metrics.DefineMetric/same
+domain: uxsearch.metrics
+scenario: metric-key-is-defined-once
+# Story spec-round-2-scenarios; docs/metrics.md. A metric key names one definition. Loading the
+# catalogue again with the same definition changes nothing and says nothing; the same key with
+# another definition is refused (whether the definition differs is the engine's answer), and the
+# stored definition stays.
+summary: Defining a metric key again keeps the stored definition, and another definition under it is refused
+arrange:
+  - instance: metric
+    entity: uxsearch.metrics.MetricDefinition
+    setup:
+      identity: effort.actions
+      fields:
+        summary: Actions a journey takes
+        unit: actions
+        direction: lower_is_better
+        scope: journey
+        kind: exact
+        timing: dynamic
+        role: kpi_candidate
+        target_scopes: [page, section]
+        preset_family: effort
+        version: 1
+      state: Active
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.metrics.DefineMetric
+    actor: uxsearch.metrics.CatalogueAuthor
+    input:
+      metric_key: {$instance: metric}
+      summary: Actions a journey takes
+      unit: actions
+      direction: lower_is_better
+      scope: journey
+      kind: exact
+      timing: dynamic
+      role: kpi_candidate
+      target_scopes: [page, section]
+      preset_family: effort
+      version: 1
+    outcome: same
+    no_events: [uxsearch.metrics.MetricDefined]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.metrics.DefineMetric
+    actor: uxsearch.metrics.CatalogueAuthor
+    input:
+      metric_key: {$instance: metric}
+      summary: Key presses a journey takes
+      unit: keys
+      direction: lower_is_better
+      scope: journey
+      kind: exact
+      timing: dynamic
+      role: kpi_candidate
+      target_scopes: [page, section]
+      preset_family: effort
+      version: 2
+    outcome: differs
+    error: {name: uxsearch.metrics.MetricExists, fields: {metric_key: effort.actions}}
+    no_events: [uxsearch.metrics.MetricDefined]
+assert:
+  - view: uxsearch.metrics.Metrics
+    contains: {metric_key: effort.actions, unit: actions, role: kpi_candidate, version: 1, state: Active}
+  - view: uxsearch.metrics.Metrics
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.metrics.Metrics
+    satisfies: version >= 1

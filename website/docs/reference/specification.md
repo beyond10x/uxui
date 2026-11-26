@@ -55,7 +55,7 @@ Views: `LiftedComponents`, `BaseDocuments`, `Targets`, `TargetCatalog`, `TargetB
 
 ## `uxsearch.journeys`
 
-Journeys a target is evaluated on, taken from ess-ui-test/1 tests or, on a browser target, from scripted steps, and the state space each journey reaches on one variant within declared bounds: every UI state the engine enumerates from fixtures, scripted live events and a virtual clock, or the pages the scripted steps reach.
+Journeys a target is evaluated on, taken from ess-ui-test/1 tests or, on a browser target, from scripted steps, and the state space each journey reaches on one variant within declared bounds: every UI state the engine enumerates from fixtures, scripted live events and a virtual clock, or the states a script names.
 
 Source: [`ess/domains/journeys.yaml`](https://github.com/beyond10x/uxui/blob/main/ess/domains/journeys.yaml).
 

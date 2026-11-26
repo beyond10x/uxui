@@ -1,0 +1,164 @@
+type: ess-scenario/7
+covers:
+  - uxsearch.promotion.ProposePromotion/outcome/not-on-frontier
+  - uxsearch.promotion.ProposePromotion/outcome/hard-rule-not-passed
+  - uxsearch.promotion.ProposePromotion/outcome/proposed
+  - uxsearch.promotion.Promotion/invariant/after/uxsearch.promotion.ProposePromotion/proposed
+  - uxsearch.promotion.RecordSourceDiff/outcome/not-proposed
+domain: uxsearch.promotion
+scenario: promotion-is-proposed-for-a-frontier-variant
+# Story spec-round-2-scenarios; docs/concept.md § 6, docs/ratchet.md. A promotion is proposed for
+# a variant that is on the frontier of its campaign and on which no hard rule has a verdict other
+# than pass. It starts with a pending gate and no trade-off. The source diffs of a promotion are
+# recorded while it is Proposed, not after it was decided.
+summary: A promotion is proposed for a variant on its campaign's frontier that no hard rule holds back
+arrange:
+  - instance: campaign
+    entity: uxsearch.search.Campaign
+    setup:
+      identity: 00000000-0000-4000-8000-000000000050
+      fields:
+        target_id: 00000000-0000-4000-8000-000000000001
+        design_space_id: 00000000-0000-4000-8000-000000000020
+        journeys: [00000000-0000-4000-8000-000000000030]
+        environments: [00000000-0000-4000-8000-000000000040]
+        kpis: [00000000-0000-4000-8000-000000000060]
+        strategy: exhaustive
+        seed: 1
+        budget: {max_variants: 10, max_wall_time_s: 60}
+        policy_digest: "sha256:policy"
+        layout_model_version: layout-model/0
+        catalogue_digest: "sha256:catalogue"
+        ended_because: space_exhausted
+      state: Ended
+  - instance: entry
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000a0
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-a"
+        evaluation_keys: ["sha256:eval-a"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 3}]
+      state: OnFrontier
+  # On the frontier, but a hard rule could not be checked on it at the full stage.
+  - instance: unsettled-entry
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000a1
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-h"
+        evaluation_keys: ["sha256:eval-h"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 2}]
+      state: OnFrontier
+  - instance: cannot-tell
+    entity: uxsearch.rules.RuleVerdict
+    setup:
+      identity: 00000000-0000-4000-8000-000000000090
+      fields:
+        rule_id: 00000000-0000-4000-8000-000000000080
+        variant_digest: "sha256:variant-h"
+        target_id: 00000000-0000-4000-8000-000000000001
+        strength: hard
+        requirement_id: settings.visible_required
+        stage: full
+        verdict: insufficient_evidence
+        findings: []
+      state: Recorded
+  # A dominated variant of the same campaign.
+  - instance: dominated-entry
+    entity: uxsearch.search.FrontierEntry
+    setup:
+      identity: 00000000-0000-4000-8000-0000000000a2
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        variant_digest: "sha256:variant-d"
+        evaluation_keys: ["sha256:eval-d"]
+        kpi_values: [{kpi_id: 00000000-0000-4000-8000-000000000060, value: 5}]
+        dominated_by: "sha256:variant-a"
+      state: Dominated
+  - instance: rejected
+    entity: uxsearch.promotion.Promotion
+    setup:
+      identity: 00000000-0000-4000-8000-000000000071
+      fields:
+        campaign_id: 00000000-0000-4000-8000-000000000050
+        target_id: 00000000-0000-4000-8000-000000000001
+        variant_digest: "sha256:variant-a"
+        diff: {patches: []}
+        propagates_to: []
+        rationale: an earlier proposal
+        gate: pass
+        gate_trade_off_only: false
+        gate_evidence_ids: []
+        gate_requirement_verdicts: []
+        losses: []
+        gains: []
+        rejection_reason: the owner wants the old order
+      state: Rejected
+  - {instance: promotion, entity: uxsearch.promotion.Promotion}
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.promotion.ProposePromotion
+    actor: uxsearch.design.Designer
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-d"
+      rationale: fewer actions
+    outcome: not-on-frontier
+    error: {name: uxsearch.promotion.NotOnFrontier, fields: {variant_digest: "sha256:variant-d"}}
+    no_events: [uxsearch.promotion.PromotionProposed]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.promotion.ProposePromotion
+    actor: uxsearch.design.Designer
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-h"
+      rationale: fewest actions
+    outcome: hard-rule-not-passed
+    error: {name: uxsearch.promotion.HardRuleNotPassed, fields: {variant_digest: "sha256:variant-h"}}
+    no_events: [uxsearch.promotion.PromotionProposed]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.promotion.ProposePromotion
+    actor: uxsearch.design.Designer
+    input:
+      campaign_id: {$instance: campaign}
+      variant_digest: "sha256:variant-a"
+      rationale: fewer actions
+    outcome: proposed
+    capture: {instance: promotion, event: uxsearch.promotion.PromotionProposed, field: promotion_id}
+    events: [{event: uxsearch.promotion.PromotionProposed, payload: {campaign_id: 00000000-0000-4000-8000-000000000050, variant_digest: "sha256:variant-a"}}]
+  # The earlier proposal was rejected: it takes no further source diff.
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.promotion.RecordSourceDiff
+    actor: uxsearch.design.Engine
+    input:
+      promotion_id: {$instance: rejected}
+      path: ess/ui/settings.ui.yaml
+      unified_diff: "@@ -1 +1 @@"
+    outcome: not-proposed
+    error: {name: uxsearch.promotion.PromotionStateConflict}
+    no_events: [uxsearch.promotion.SourceDiffRecorded]
+  - at: 2026-01-05T09:00:04Z
+    command: uxsearch.promotion.RecordSourceDiff
+    actor: uxsearch.design.Engine
+    input:
+      promotion_id: {$instance: promotion}
+      path: ess/ui/settings.ui.yaml
+      unified_diff: "@@ -1 +1 @@"
+    outcome: recorded
+    events: [{event: uxsearch.promotion.SourceDiffRecorded, payload: {path: ess/ui/settings.ui.yaml}}]
+assert:
+  - view: uxsearch.promotion.Promotions
+    contains: {promotion_id: {$instance: promotion}, campaign_id: {$instance: campaign}, variant_digest: "sha256:variant-a", rationale: fewer actions, gate: pending, gate_trade_off_only: false, accepted_by: null, state: Proposed}
+  - view: uxsearch.promotion.Promotions
+    counts: {at_least: 2, at_most: 2}
+  - view: uxsearch.promotion.Promotions
+    satisfies: {any: [gate_trade_off_only == false, gate == fail]}
+  - view: uxsearch.promotion.SourceDiffsOfPromotion
+    params: {promotion_id: {$instance: promotion}}
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.promotion.SourceDiffsOfPromotion
+    params: {promotion_id: {$instance: rejected}}
+    counts: {at_least: 0, at_most: 0}

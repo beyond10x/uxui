@@ -1,0 +1,101 @@
+type: ess-scenario/7
+domain: uxsearch.evaluation
+scenario: environment-measures-are-above-zero
+# Story spec-round-2-scenarios; docs/evaluation.md. An environment's viewport sides and its text
+# scale are above 0 (the invariants of Environment). A declaration with one of them at 0 or below
+# is refused with the name of that measure, and no environment row is written; the same
+# declaration with every measure above 0 is taken.
+summary: An environment with a viewport side or a text scale of 0 or below is refused by the name of that measure
+arrange:
+  - instance: catalog
+    entity: uxsearch.design.Target
+    setup:
+      identity: 00000000-0000-4000-8000-000000000001
+      fields:
+        base_document_id: 00000000-0000-4000-8000-000000000010
+        name: target catalog
+        scope: page
+        node_path: pages/targets.catalog
+        members: []
+        host_slot: false
+        harness_widths_px: []
+        adapter: ess-ui
+      state: Declared
+  - {instance: desktop, entity: uxsearch.evaluation.Environment}
+timeline:
+  - at: 2026-01-05T09:00:00Z
+    command: uxsearch.evaluation.DeclareEnvironment
+    actor: uxsearch.evaluation.EnvironmentAuthor
+    input:
+      target_id: {$instance: catalog}
+      name: No width
+      viewport_width_px: 0
+      viewport_height_px: 900
+      theme_mode: light
+      input_mode: pointer
+      text_scale_percent: 100
+      reduced_motion: false
+    outcome: viewport-width-not-positive
+    error: {name: uxsearch.evaluation.MeasureNotPositive, fields: {measure: viewport_width}}
+    no_events: [uxsearch.evaluation.EnvironmentDeclared]
+  - at: 2026-01-05T09:00:01Z
+    command: uxsearch.evaluation.DeclareEnvironment
+    actor: uxsearch.evaluation.EnvironmentAuthor
+    input:
+      target_id: {$instance: catalog}
+      name: Negative height
+      viewport_width_px: 1440
+      viewport_height_px: -900
+      theme_mode: light
+      input_mode: pointer
+      text_scale_percent: 100
+      reduced_motion: false
+    outcome: viewport-height-not-positive
+    error: {name: uxsearch.evaluation.MeasureNotPositive, fields: {measure: viewport_height}}
+    no_events: [uxsearch.evaluation.EnvironmentDeclared]
+  - at: 2026-01-05T09:00:02Z
+    command: uxsearch.evaluation.DeclareEnvironment
+    actor: uxsearch.evaluation.EnvironmentAuthor
+    input:
+      target_id: {$instance: catalog}
+      name: No text
+      viewport_width_px: 1440
+      viewport_height_px: 900
+      theme_mode: light
+      input_mode: pointer
+      text_scale_percent: 0
+      reduced_motion: false
+    outcome: text-scale-not-positive
+    error: {name: uxsearch.evaluation.MeasureNotPositive, fields: {measure: text_scale}}
+    no_events: [uxsearch.evaluation.EnvironmentDeclared]
+  - at: 2026-01-05T09:00:03Z
+    command: uxsearch.evaluation.DeclareEnvironment
+    actor: uxsearch.evaluation.EnvironmentAuthor
+    input:
+      target_id: {$instance: catalog}
+      name: Desktop light
+      viewport_width_px: 1440
+      viewport_height_px: 900
+      theme_mode: light
+      input_mode: pointer
+      text_scale_percent: 100
+      reduced_motion: false
+    outcome: declared
+    events: [{event: uxsearch.evaluation.EnvironmentDeclared}]
+    capture: {instance: desktop, event: uxsearch.evaluation.EnvironmentDeclared, field: environment_id}
+assert:
+  - view: uxsearch.evaluation.Environments
+    contains:
+      environment_id: {$instance: desktop}
+      name: Desktop light
+      viewport_width_px: 1440
+      viewport_height_px: 900
+      text_scale_percent: 100
+  - view: uxsearch.evaluation.Environments
+    counts: {at_least: 1, at_most: 1}
+  - view: uxsearch.evaluation.Environments
+    satisfies: viewport_width_px > 0
+  - view: uxsearch.evaluation.Environments
+    satisfies: viewport_height_px > 0
+  - view: uxsearch.evaluation.Environments
+    satisfies: text_scale_percent > 0
