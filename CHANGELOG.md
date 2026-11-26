@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.11.0 — 2026-11-26
+
 - `ux-search landing promote` makes one variant of the landing-page campaign the page as shipped:
   it applies the variant's patch to `website/product.json` and `website/src/css/landing.css`, names
   the variant in `engine/search/src/landing/shipped.txt` (the one place the shipped variant stands

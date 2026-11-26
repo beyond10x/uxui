@@ -1,9 +1,9 @@
 {
   "format": "ux-search-landing/1",
-  "adapter": "ux-browser 0.10.0",
+  "adapter": "ux-browser 0.11.0",
   "browser": "HeadlessChrome/158.0.8127.18",
   "page": "/uxui/",
-  "sources": {"product.json": "sha256:ff4bacd3b9b7714b4a9310642787a3c1690d5ab0acd222c346ed083ce1b965e9", "landing.css": "sha256:057666f723ea58c06cd44fab39429b3afa47cc8bbd4348ab42c17247d403070b"},
+  "sources": {"product.json": "sha256:2df2c58fd3b2828f3ac593b1dfda0d3d51b65d25afb542653dbee00bf52f3bc8", "landing.css": "sha256:057666f723ea58c06cd44fab39429b3afa47cc8bbd4348ab42c17247d403070b"},
   "environments": ["1440x900 light", "1440x900 dark", "1024x768 light", "1024x768 dark", "390x844 light", "390x844 dark"],
   "journeys": ["install the plugin", "what exists today", "find the metric catalogue"],
   "columns": ["primary_in_view", "h_scroll", "contrast_failures", "unnamed", "content_missing", "words", "primary_px", "small_targets", "install_actions", "install_regions", "status_actions", "status_regions", "metrics_actions", "metrics_regions"],
