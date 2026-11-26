@@ -155,8 +155,8 @@ fn the_studio_climb_prints_the_committed_frontier() {
 }
 
 /// The ranking separates variants on a term: `below_fold`, the regions the 48x40 drawing leaves
-/// out. The top variant and the document as written tie on every other term and differ on
-/// `below_fold`, so the top one dominates it and the document as written is off the frontier.
+/// out. The top variant is no worse than the document as written on every other term and better
+/// on `below_fold`, so it dominates it and the document as written is off the frontier.
 #[test]
 fn the_studio_ranking_separates_variants_on_below_fold() {
     let climb = shared();
@@ -170,7 +170,7 @@ fn the_studio_ranking_separates_variants_on_below_fold() {
     let top = &climb.variants[ranking[0]];
     let written = &climb.variants[as_written];
     assert_eq!(top.terms.errors, written.terms.errors, "{}", climb.render());
-    assert_eq!(top.terms.cut, written.terms.cut, "{}", climb.render());
+    assert!(top.terms.cut <= written.terms.cut, "{}", climb.render());
     assert_eq!(
         top.terms.primary_rows,
         written.terms.primary_rows,

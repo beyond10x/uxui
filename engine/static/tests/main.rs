@@ -25,7 +25,7 @@ const J_START: &str = "starting a campaign from the catalog opens the form on th
 const JOURNEYS: [&str; 5] = [J_STOP, J_PROGRESS, J_SWITCH, J_OWNER, J_START];
 /// The two tests `story:studio-stock-generator` added: the first reads values on two pages, the
 /// second plays a live event; neither acts on a control.
-const J_BUDGET: &str = "the budget reads as a map and the KPI values as a list";
+const J_BUDGET: &str = "the budget reads as its members and the KPI values as a list";
 const J_STEPS: &str = "the step table shows its rows by seq, a live step included";
 
 /// The row action `stop` of the campaign list, as the studio document writes it.

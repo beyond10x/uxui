@@ -163,7 +163,7 @@ pages:
       - name: summary
         component: record
         reads: {view: uxsearch.search.CampaignById, key: campaign_id, params: {campaign_id: params.campaign_id}}
-        fields: [target_id, design_space_id, {field: strategy, as: badge}, {field: state, as: badge, tone_by: campaign_state}, {field: budget, as: map}, policy_digest, layout_model_version, ended_because]
+        fields: [target_id, design_space_id, {field: strategy, as: badge}, {field: state, as: badge, tone_by: campaign_state}, {field: budget.max_variants, name: max_variants, label: Budget in variants}, {field: budget.max_wall_time_s, name: max_wall_time_s, label: Budget in seconds}, policy_digest, layout_model_version, ended_because]
         live: {channel: climb, on: [uxsearch.search.CampaignStopped, uxsearch.search.CampaignEnded], effect: refetch}
       - name: hill_kpis
         component: collection
@@ -256,7 +256,7 @@ pages:
       - name: summary
         component: record
         reads: {view: uxsearch.design.VariantById, key: variant_digest, params: {variant_digest: params.variant_digest}}
-        fields: [variant_digest, target_id, {field: state, as: badge}, {field: first_route, as: map}, {field: routes, as: list}]
+        fields: [variant_digest, target_id, {field: state, as: badge}, {field: first_route.origin, name: reached_by, label: Reached by}, {field: first_route.design_space_id, name: reached_in, label: In design space}, {field: routes, as: list}]
       - name: axes
         component: collection
         title: Switch one axis
@@ -306,14 +306,14 @@ pages:
         component: record
         title: Left
         reads: {view: uxsearch.design.VariantById, key: variant_digest, params: {variant_digest: params.left}}
-        fields: [variant_digest, {field: state, as: badge}, {field: first_route, as: map}]
+        fields: [variant_digest, {field: state, as: badge}, {field: first_route.origin, name: reached_by, label: Reached by}, {field: first_route.design_space_id, name: reached_in, label: In design space}]
         unmapped:
           - "UNMAPPED: no view holds a variant's rendered or laid-out result per UI state and environment, so the two variants are compared by their verdicts and evaluations, not side by side in one state"
       - name: right_summary
         component: record
         title: Right
         reads: {view: uxsearch.design.VariantById, key: variant_digest, params: {variant_digest: params.right}}
-        fields: [variant_digest, {field: state, as: badge}, {field: first_route, as: map}]
+        fields: [variant_digest, {field: state, as: badge}, {field: first_route.origin, name: reached_by, label: Reached by}, {field: first_route.design_space_id, name: reached_in, label: In design space}]
       - name: left_verdicts
         component: collection
         title: Left rule verdicts
@@ -367,7 +367,7 @@ pages:
       - name: summary
         component: record
         reads: {view: uxsearch.promotion.PromotionById, key: promotion_id, params: {promotion_id: params.promotion_id}}
-        fields: [variant_digest, {field: state, as: badge, tone_by: promotion_state}, rationale, {field: propagates_to, as: list}, {field: diff, as: map}, accepted_by]
+        fields: [variant_digest, {field: state, as: badge, tone_by: promotion_state}, rationale, {field: propagates_to, as: list}, {field: diff.changed, name: changed, as: list, label: Changed nodes}, accepted_by]
       - name: decision
         component: collection
         title: Gate decision from ratchet

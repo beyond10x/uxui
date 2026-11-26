@@ -1,0 +1,15 @@
+ess: ess 0.99.2
+node: v22.23.3
+npm: 10.9.9
+react: 19.3.1
+react-dom: 19.3.1
+esbuild: 0.28.2
+typescript: 5.9.3
+ux-browser: ux-browser 0.11.0
+chromium: Google Chrome for Testing 159.0.8154.6
+studio.ui.yaml: sha256:535b859c9eb17b6e254d1ea6ed2410149bd41de58d9fb9d1841f4c0ba58bb629
+studio.css: sha256:d599a6cfe57ff3d2377e24fddc8b106c14bd51c20693c9553712826c3e89cb6e
+www: sha256:3772050ca339f233ac0f5cbc382b4d6a0a63a42a2164b0f6b55e4a58f799a2d3
+font Inter: Inter.ttc: "Inter" "Regular"
+font Segoe UI: NotoSans-Regular.ttf: "Noto Sans" "Regular"
+font system-ui: NotoSans-Regular.ttf: "Noto Sans" "Regular"

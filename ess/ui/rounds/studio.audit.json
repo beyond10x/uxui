@@ -1,10 +1,16 @@
 {
-  "about": "The bars the page audit of a round on the studio is held to. trial.mjs writes the audit, one cell per page, gating viewport and mode; summary.mjs counts the cells over a bar into round.json (audit.cells_over_a_bar, audit_bars). A bar is the most one cell may show of a key of the audit. text_under_14px: text runs drawn under 14 px. text_low_contrast: text runs on a plain colour under 4.5:1, or under 3:1 from 24 px, or from 18.66 px in bold. A floor is the least one cell must show of a key; summary.mjs counts the cells under a floor (audit.cells_under_a_floor, audit_floors). h1: drawn first-level headings, the title of the page.",
+  "about": "The bars the page audit of a round on the studio is held to. trial.mjs writes the audit, one cell per page, gating viewport and mode; summary.mjs counts the cells over a bar into round.json (audit.cells_over_a_bar, audit_bars). A bar is the most one cell may show of a key of the audit. text_under_14px: text runs drawn under 14 px. text_low_contrast: text runs on a plain colour under 4.5:1, or under 3:1 from 24 px, or from 18.66 px in bold. A floor is the least one cell must show of a key; summary.mjs counts the cells under a floor (audit.cells_under_a_floor, audit_floors). h1: drawn first-level headings, the title of the page. A page bar is the most one cell of one page may show of a key (page_bars, per page path); summary.mjs counts the cells over a page bar (audit.cells_over_a_page_bar, audit_page_bars). document_overflow: the height of the document past the height of the viewport, in px; scrollable_elements: drawn elements that scroll. The live climb is to fit the gating viewports (UXF-026).",
   "bars": {
     "text_under_14px": 0,
     "text_low_contrast": 0
   },
   "floors": {
     "h1": 1
+  },
+  "page_bars": {
+    "/campaigns/climb/cp-01": {
+      "document_overflow": 0,
+      "scrollable_elements": 0
+    }
   }
 }

@@ -79,6 +79,12 @@ end `main` with the step table (`points`): 20 regions left out, none cut.
 `errors` (0 for every variant) and `primary_rows` (4: the header's `stop` sits above every section) do
 not separate any two variants.
 
+Since loop round R-04 on the studio (2026-11-26) the summary draws the budget as two fields, one per
+member, where it drew one (UXF-005). The climb of that document ranks otherwise: 12 of 120 variants on
+the frontier, all with `below_fold=2 cut=0`, each ending `main` with the two line charts; the document as
+written ranks 87th (`below_fold=15 cut=2`), dominated by the top variant on `below_fold` and on `cut`.
+The section above is the climb of the document before that change.
+
 `below_fold` counts regions, so a section with many row regions (the step table) weighs more when it is
 pushed out than a chart of one region. A term that weighs what a person on this page looks for first is
 not in v0.

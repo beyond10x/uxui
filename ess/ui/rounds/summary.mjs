@@ -8,6 +8,14 @@
 // `floors` holds the least one cell must show per key: `audit.cells_under_a_floor` and
 // `audit_floors`. A cell is one page at one viewport in one mode. It prints one line per bar and per
 // floor and never fails on one: a round is a measurement.
+// `page_bars` holds bars of one page (`{<page path>: {<key>: <bar>}}`), for what only some pages are
+// held to, such as fitting the viewport (`document_overflow`: the document's height past the
+// viewport's, in px): `audit.cells_over_a_page_bar` and `audit_page_bars`.
+// Where round.sh ran the page checks more than once (repeat/<n>.evidence.json), it reads the layout
+// shift after ready of every run, the first included: per page the value of each run
+// (`page_checks_repeat`), the largest of all runs (`page_checks.layout_shift.max_of_runs`) and the
+// largest spread of one page between its runs (`page_checks.layout_shift.spread`). A measure that
+// repeated runs agree on has a spread under the tolerance of the skill, 0.01.
 // Where the scenario cards hold an expectation on notices (studio.scenarios.json `notices`, recorded
 // per run by trial.mjs), it counts the runs that showed a notice missing it:
 // `trial.runs_notice_expectation_missed` and `trial_notices`. A run is not less completed for it.
@@ -58,6 +66,7 @@ for (const a of audits) {
     document_height: a.document.scroll_height,
     viewport_height: a.document.client_height,
     document_scrolls: a.document.scroll_height > a.document.client_height + 1 || a.document.scroll_width > a.document.client_width + 1,
+    document_overflow: Math.max(0, a.document.scroll_height - a.document.client_height),
     scrollable_elements: a.scrollers.length,
     sideways_scrollable_elements: a.scrollers.filter((s) => s.scroll_width > s.client_width + 1).length,
     h1: a.headings.filter((h) => h.startsWith('h1 ')).length,
@@ -104,6 +113,53 @@ for (const [key, floor] of Object.entries(floors)) {
 }
 const hasFloors = Object.keys(floors).length > 0;
 
+// The audit against the bars of single pages: per page and key the cells over the bar.
+const pageBars = barsFile ? json(barsFile).page_bars ?? {} : {};
+const auditPageBars = {};
+for (const [path, keys] of Object.entries(pageBars)) {
+  const page = pages[path];
+  if (!page) {
+    console.error(`summary: ${barsFile}: the page audit has no page "${path}"`);
+    process.exit(2);
+  }
+  for (const [key, bar] of Object.entries(keys)) {
+    const own = Object.entries(page);
+    if (own.some(([, cell]) => typeof cell[key] !== 'number')) {
+      console.error(`summary: ${barsFile}: the page audit has no number "${key}"`);
+      process.exit(2);
+    }
+    const over = own.filter(([, cell]) => cell[key] > bar).map(([cell, values]) => ({ cell, value: values[key] }));
+    (auditPageBars[path] ??= {})[key] = { bar, cells: own.length, cells_over: over.length, worst: max(own.map(([, cell]) => cell[key])), over };
+    console.log(`summary: bar ${key} <= ${bar} on ${path}: ${over.length === 0 ? 'held' : 'missed'}, ${over.length} of ${own.length} cells over it, worst ${auditPageBars[path][key].worst}`);
+  }
+}
+const hasPageBars = Object.keys(pageBars).length > 0;
+
+// The layout shift after ready over repeated runs of the page checks, the first run included.
+const repeatDir = join(dir, 'repeat');
+const repeatFiles = (() => {
+  try {
+    return readdirSync(repeatDir).filter((f) => f.endsWith('.evidence.json')).sort();
+  } catch {
+    return [];
+  }
+})();
+const shiftsOf = (doc) => Object.fromEntries(doc.evidence.results.filter((r) => r.output === 'layout_shift.after_ready@1').map((r) => [r.item, Number(r.value)]));
+let repeat = null;
+if (repeatFiles.length > 0) {
+  const runsOfShift = [shiftsOf({ evidence }), ...repeatFiles.map((f) => shiftsOf(json(join(repeatDir, f))))];
+  const perPage = {};
+  for (const run of runsOfShift) for (const [page, value] of Object.entries(run)) (perPage[page] ??= []).push(value);
+  const spreads = Object.fromEntries(Object.entries(perPage).map(([page, values]) => [page, Math.round((Math.max(...values) - Math.min(...values)) * 10000) / 10000]));
+  repeat = {
+    runs: runsOfShift.length,
+    max_of_runs: max(Object.values(perPage).flat()),
+    spread: max(Object.values(spreads)),
+    pages: Object.fromEntries(Object.entries(perPage).filter(([, values]) => values.some((v) => v !== 0)).map(([page, values]) => [page, { values, spread: spreads[page] }])),
+  };
+  console.log(`summary: layout shift after ready over ${repeat.runs} runs: largest ${repeat.max_of_runs}, largest spread of a page ${repeat.spread}`);
+}
+
 const runs = list('trial');
 const scenarios = {};
 for (const run of runs) {
@@ -149,6 +205,7 @@ const summary = {
     'page_checks.always_visible.misses': outputs['always_visible.misses@1']?.total ?? null,
     'page_checks.keyboard.misses': outputs['keyboard.misses@1']?.total ?? null,
     'page_checks.layout_shift.max': outputs['layout_shift.after_ready@1']?.max ?? null,
+    ...(repeat ? { 'page_checks.layout_shift.max_of_runs': repeat.max_of_runs, 'page_checks.layout_shift.spread': repeat.spread } : {}),
     'audit.pages_with_document_scroll': pagesWhere((c) => c.document_scrolls).length,
     'audit.pages_with_scrollable_element': pagesWhere((c) => c.scrollable_elements > 0).length,
     'audit.pages_without_h1': pagesWhere((c) => c.h1 === 0).length,
@@ -160,6 +217,7 @@ const summary = {
     'audit.pages_tab_starts_outside_navigation': pagesWhere((c) => c.tab_first_region !== 'nav').length,
     ...(bars ? { 'audit.cells_over_a_bar': sum(Object.values(auditBars).map((b) => b.cells_over)) } : {}),
     ...(hasFloors ? { 'audit.cells_under_a_floor': sum(Object.values(auditFloors).map((f) => f.cells_under)) } : {}),
+    ...(hasPageBars ? { 'audit.cells_over_a_page_bar': sum(Object.values(auditPageBars).flatMap((keys) => Object.values(keys).map((b) => b.cells_over))) } : {}),
     'trial.scenarios': names.length,
     'trial.scenarios_not_completed': notCompleted.length,
     'trial.runs_failed': runs.filter((r) => r.failed).length,
@@ -170,8 +228,10 @@ const summary = {
   },
   page_checks: outputs,
   page_check_misses: misses,
+  ...(repeat ? { page_checks_repeat: repeat } : {}),
   ...(bars ? { audit_bars: auditBars } : {}),
   ...(hasFloors ? { audit_floors: auditFloors } : {}),
+  ...(hasPageBars ? { audit_page_bars: auditPageBars } : {}),
   ...(trialNotices ? { trial_notices: trialNotices } : {}),
   audit: pages,
   trial: scenarios,

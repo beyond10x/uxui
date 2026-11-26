@@ -183,6 +183,16 @@ this section are slot's (its `docs/design/ess-ui-gaps.md`), not those of `ess/GA
   `gains.requirement_id`, `gate_requirement_verdicts.requirement_id`). They draw as words in the React app
   of ESS 0.99.2 and nothing in ESS promises that they keep doing so; the round's scenario
   `owner-trade-off` (steps 4 and 10) fails when they stop.
+  Loop round R-04 (2026-11-26, ESS 0.99.2; UXF-005) adds no path through a list. It draws the maps of the
+  studio as one field per member, with paths through an object, which both renderers read alike:
+  `budget.max_variants` and `budget.max_wall_time_s` (the live climb), `first_route.origin` and
+  `first_route.design_space_id` (a variant, both sides of a comparison), `diff.changed` (a promotion).
+  The reference does not name such a path either (`field` is a name), so they hang on the same answer:
+  if LR-D1 refuses paths, these five go too. What R-04 would need a path through a list for, and leaves
+  as JSON: the KPI values of a frontier entry (`kpi_values.kpi_id`, `kpi_values.value`; the live climb and
+  the frontier), the values of an evaluation (a variant, a comparison), the findings of a rule verdict
+  (a variant), and the choices and applications of a variant's first route (`first_route.choices`, a list
+  of records under an object; not drawn since R-04).
 - **A notice's words** (loop round R-03, 2026-11-26, ESS 0.99.2; UXF-010). An action, a confirm and a form
   of an `ess-ui/1` document cannot name the text of the notice their command answers with. The generated
   React runtime writes it in one place (`src/runtime/actions.tsx`, `runCommand`) from the command's

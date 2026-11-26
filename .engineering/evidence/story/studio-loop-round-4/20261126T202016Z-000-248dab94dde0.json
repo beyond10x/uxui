@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-26T20:20:16Z",
+  "actor": "human:operator",
+  "artifact": "story:studio-loop-round-4",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "sh ess/ui/rounds/round.sh R-04",
+    "reference": "ess/ui/rounds/R-04/round.json"
+  }
+}
