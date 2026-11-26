@@ -8,102 +8,102 @@
 # frontier: of the variants with hard=0, those no other of them beats on one term without losing on another; equal terms stand on it together
 shipped space-stock.ink-stock.fill-stock.head-stock: rank 36 of 48, 24 variants before it on their terms, 11 equal to it, off the frontier
 frontier 12, sets of terms 1
-   1 space-tight.ink-deep.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
+   1 space-tight.ink-deep.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
      :root { --ui-space-md: 0.8rem }
      light: :root { --ui-color-success: #14633f; --ui-color-info: #2a55b3 }
      light: :root { --ui-color-success_fill: #f2fbf6; --ui-color-info_fill: #f3f6fe }
      dark: :root:not([data-uxui-mode="light"]) { --ui-color-success_fill: #172a26; --ui-color-info_fill: #1a2340 }
      dark: :root:not([data-uxui-mode="light"]) { --uxui-nav-head: #8b90b3 }
-   2 space-tight.ink-deep.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
+   2 space-tight.ink-deep.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
      :root { --ui-space-md: 0.8rem }
      light: :root { --ui-color-success: #14633f; --ui-color-info: #2a55b3 }
      light: :root { --ui-color-success_fill: #f2fbf6; --ui-color-info_fill: #f3f6fe }
      dark: :root:not([data-uxui-mode="light"]) { --ui-color-success_fill: #172a26; --ui-color-info_fill: #1a2340 }
-   3 space-tight.ink-deep.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
+   3 space-tight.ink-deep.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
      :root { --ui-space-md: 0.8rem }
      light: :root { --ui-color-success: #14633f; --ui-color-info: #2a55b3 }
      dark: :root:not([data-uxui-mode="light"]) { --uxui-nav-head: #8b90b3 }
-   4 space-tight.ink-deep.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
+   4 space-tight.ink-deep.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
      :root { --ui-space-md: 0.8rem }
      light: :root { --ui-color-success: #14633f; --ui-color-info: #2a55b3 }
-   5 space-tight.ink-mid.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
+   5 space-tight.ink-mid.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
      :root { --ui-space-md: 0.8rem }
      light: :root { --ui-color-success: #1c7f53; --ui-color-info: #3467cf }
      light: :root { --ui-color-success_fill: #f2fbf6; --ui-color-info_fill: #f3f6fe }
      dark: :root:not([data-uxui-mode="light"]) { --ui-color-success_fill: #172a26; --ui-color-info_fill: #1a2340 }
      dark: :root:not([data-uxui-mode="light"]) { --uxui-nav-head: #8b90b3 }
-   6 space-tight.ink-mid.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
+   6 space-tight.ink-mid.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
      :root { --ui-space-md: 0.8rem }
      light: :root { --ui-color-success: #1c7f53; --ui-color-info: #3467cf }
      light: :root { --ui-color-success_fill: #f2fbf6; --ui-color-info_fill: #f3f6fe }
      dark: :root:not([data-uxui-mode="light"]) { --ui-color-success_fill: #172a26; --ui-color-info_fill: #1a2340 }
-   7 space-tight.ink-mid.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
+   7 space-tight.ink-mid.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
      :root { --ui-space-md: 0.8rem }
      light: :root { --ui-color-success: #1c7f53; --ui-color-info: #3467cf }
      dark: :root:not([data-uxui-mode="light"]) { --uxui-nav-head: #8b90b3 }
-   8 space-tight.ink-mid.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
+   8 space-tight.ink-mid.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
      :root { --ui-space-md: 0.8rem }
      light: :root { --ui-color-success: #1c7f53; --ui-color-info: #3467cf }
-   9 space-tight.ink-stock.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
+   9 space-tight.ink-stock.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
      :root { --ui-space-md: 0.8rem }
      light: :root { --ui-color-success_fill: #f2fbf6; --ui-color-info_fill: #f3f6fe }
      dark: :root:not([data-uxui-mode="light"]) { --ui-color-success_fill: #172a26; --ui-color-info_fill: #1a2340 }
      dark: :root:not([data-uxui-mode="light"]) { --uxui-nav-head: #8b90b3 }
-  10 space-tight.ink-stock.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
+  10 space-tight.ink-stock.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
      :root { --ui-space-md: 0.8rem }
      light: :root { --ui-color-success_fill: #f2fbf6; --ui-color-info_fill: #f3f6fe }
      dark: :root:not([data-uxui-mode="light"]) { --ui-color-success_fill: #172a26; --ui-color-info_fill: #1a2340 }
-  11 space-tight.ink-stock.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
+  11 space-tight.ink-stock.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
      :root { --ui-space-md: 0.8rem }
      dark: :root:not([data-uxui-mode="light"]) { --uxui-nav-head: #8b90b3 }
-  12 space-tight.ink-stock.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
+  12 space-tight.ink-stock.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
      :root { --ui-space-md: 0.8rem }
 ranking 48, sets of terms 4
-   1 space-tight.ink-deep.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
-   2 space-tight.ink-deep.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
-   3 space-tight.ink-deep.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
-   4 space-tight.ink-deep.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
-   5 space-tight.ink-mid.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
-   6 space-tight.ink-mid.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
-   7 space-tight.ink-mid.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
-   8 space-tight.ink-mid.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
-   9 space-tight.ink-stock.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
-  10 space-tight.ink-stock.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
-  11 space-tight.ink-stock.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
-  12 space-tight.ink-stock.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=315 text_under_14=0.000 regions=4
-  13 space-snug.ink-deep.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=327 text_under_14=0.000 regions=4
-  14 space-snug.ink-deep.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=327 text_under_14=0.000 regions=4
-  15 space-snug.ink-deep.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=327 text_under_14=0.000 regions=4
-  16 space-snug.ink-deep.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=327 text_under_14=0.000 regions=4
-  17 space-snug.ink-mid.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=327 text_under_14=0.000 regions=4
-  18 space-snug.ink-mid.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=327 text_under_14=0.000 regions=4
-  19 space-snug.ink-mid.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=327 text_under_14=0.000 regions=4
-  20 space-snug.ink-mid.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=327 text_under_14=0.000 regions=4
-  21 space-snug.ink-stock.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=327 text_under_14=0.000 regions=4
-  22 space-snug.ink-stock.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=327 text_under_14=0.000 regions=4
-  23 space-snug.ink-stock.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=327 text_under_14=0.000 regions=4
-  24 space-snug.ink-stock.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=327 text_under_14=0.000 regions=4
-  25 space-stock.ink-deep.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=338 text_under_14=0.000 regions=4
-  26 space-stock.ink-deep.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=338 text_under_14=0.000 regions=4
-  27 space-stock.ink-deep.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=338 text_under_14=0.000 regions=4
-  28 space-stock.ink-deep.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=338 text_under_14=0.000 regions=4
-  29 space-stock.ink-mid.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=338 text_under_14=0.000 regions=4
-  30 space-stock.ink-mid.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=338 text_under_14=0.000 regions=4
-  31 space-stock.ink-mid.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=338 text_under_14=0.000 regions=4
-  32 space-stock.ink-mid.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=338 text_under_14=0.000 regions=4
-  33 space-stock.ink-stock.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=338 text_under_14=0.000 regions=4
-  34 space-stock.ink-stock.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=338 text_under_14=0.000 regions=4
-  35 space-stock.ink-stock.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=338 text_under_14=0.000 regions=4
-  36 space-stock.ink-stock.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=338 text_under_14=0.000 regions=4
-  37 space-roomy.ink-deep.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=353 text_under_14=0.000 regions=4
-  38 space-roomy.ink-deep.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=353 text_under_14=0.000 regions=4
-  39 space-roomy.ink-deep.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=353 text_under_14=0.000 regions=4
-  40 space-roomy.ink-deep.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=353 text_under_14=0.000 regions=4
-  41 space-roomy.ink-mid.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=353 text_under_14=0.000 regions=4
-  42 space-roomy.ink-mid.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=353 text_under_14=0.000 regions=4
-  43 space-roomy.ink-mid.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=353 text_under_14=0.000 regions=4
-  44 space-roomy.ink-mid.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=353 text_under_14=0.000 regions=4
-  45 space-roomy.ink-stock.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=353 text_under_14=0.000 regions=4
-  46 space-roomy.ink-stock.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=353 text_under_14=0.000 regions=4
-  47 space-roomy.ink-stock.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=353 text_under_14=0.000 regions=4
-  48 space-roomy.ink-stock.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=353 text_under_14=0.000 regions=4
+   1 space-tight.ink-deep.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
+   2 space-tight.ink-deep.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
+   3 space-tight.ink-deep.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
+   4 space-tight.ink-deep.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
+   5 space-tight.ink-mid.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
+   6 space-tight.ink-mid.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
+   7 space-tight.ink-mid.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
+   8 space-tight.ink-mid.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
+   9 space-tight.ink-stock.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
+  10 space-tight.ink-stock.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
+  11 space-tight.ink-stock.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
+  12 space-tight.ink-stock.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=318 text_under_14=0.000 regions=4
+  13 space-snug.ink-deep.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=329 text_under_14=0.000 regions=4
+  14 space-snug.ink-deep.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=329 text_under_14=0.000 regions=4
+  15 space-snug.ink-deep.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=329 text_under_14=0.000 regions=4
+  16 space-snug.ink-deep.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=329 text_under_14=0.000 regions=4
+  17 space-snug.ink-mid.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=329 text_under_14=0.000 regions=4
+  18 space-snug.ink-mid.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=329 text_under_14=0.000 regions=4
+  19 space-snug.ink-mid.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=329 text_under_14=0.000 regions=4
+  20 space-snug.ink-mid.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=329 text_under_14=0.000 regions=4
+  21 space-snug.ink-stock.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=329 text_under_14=0.000 regions=4
+  22 space-snug.ink-stock.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=329 text_under_14=0.000 regions=4
+  23 space-snug.ink-stock.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=329 text_under_14=0.000 regions=4
+  24 space-snug.ink-stock.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=329 text_under_14=0.000 regions=4
+  25 space-stock.ink-deep.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=340 text_under_14=0.000 regions=4
+  26 space-stock.ink-deep.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=340 text_under_14=0.000 regions=4
+  27 space-stock.ink-deep.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=340 text_under_14=0.000 regions=4
+  28 space-stock.ink-deep.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=340 text_under_14=0.000 regions=4
+  29 space-stock.ink-mid.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=340 text_under_14=0.000 regions=4
+  30 space-stock.ink-mid.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=340 text_under_14=0.000 regions=4
+  31 space-stock.ink-mid.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=340 text_under_14=0.000 regions=4
+  32 space-stock.ink-mid.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=340 text_under_14=0.000 regions=4
+  33 space-stock.ink-stock.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=340 text_under_14=0.000 regions=4
+  34 space-stock.ink-stock.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=340 text_under_14=0.000 regions=4
+  35 space-stock.ink-stock.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=340 text_under_14=0.000 regions=4
+  36 space-stock.ink-stock.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=340 text_under_14=0.000 regions=4
+  37 space-roomy.ink-deep.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=356 text_under_14=0.000 regions=4
+  38 space-roomy.ink-deep.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=356 text_under_14=0.000 regions=4
+  39 space-roomy.ink-deep.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=356 text_under_14=0.000 regions=4
+  40 space-roomy.ink-deep.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=356 text_under_14=0.000 regions=4
+  41 space-roomy.ink-mid.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=356 text_under_14=0.000 regions=4
+  42 space-roomy.ink-mid.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=356 text_under_14=0.000 regions=4
+  43 space-roomy.ink-mid.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=356 text_under_14=0.000 regions=4
+  44 space-roomy.ink-mid.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=356 text_under_14=0.000 regions=4
+  45 space-roomy.ink-stock.fill-pale.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=356 text_under_14=0.000 regions=4
+  46 space-roomy.ink-stock.fill-pale.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=356 text_under_14=0.000 regions=4
+  47 space-roomy.ink-stock.fill-stock.head-light hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=356 text_under_14=0.000 regions=4
+  48 space-roomy.ink-stock.fill-stock.head-stock hard=0 low_contrast=0 overflow=0 always_visible_misses=0 small_targets=0 primary_px=356 text_under_14=0.000 regions=4
