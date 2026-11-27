@@ -177,7 +177,8 @@ release without asking (the operator's order of 2026-11-24) and reports the fact
    `b10x-gates bot --repository beyond10x/uxui -- push origin refs/tags/<version>`
    (`b10x-gates publish` takes branch refs only).
 3. The tag push runs `.github/workflows/release.yml`: the gate without `claude`, the versions check,
-   `ux-browser` and `ux-static` built for x86_64-unknown-linux-gnu with their assessor declarations,
+   `ux-browser`, `ux-static` and `ux-search` (`--manifest-path engine/search/Cargo.toml`) built
+   for x86_64-unknown-linux-gnu with their assessor declarations and their `--version` held to the tag,
    `SHA256SUMS` and `notes.md` (the changelog section) in the artifact `uxui-<version>-release`.
 4. `gh run download <run> -n uxui-<version>-release -D target/release-assets`, then
    `sha256sum -c SHA256SUMS` there.

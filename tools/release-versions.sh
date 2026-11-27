@@ -1,8 +1,8 @@
 #!/bin/sh
 # release-versions.sh <version> [<binary directory>]: exit 0 when every file that carries the
 # release's version carries <version> and, with a binary directory, each released binary in it
-# (ux-browser, ux-static) answers `--version` with exactly `<name> <version>` and a newline on
-# stdout and exit 0; print each disagreement as `<file>: <what>` and exit 1 otherwise.
+# (ux-browser, ux-static, ux-search) answers `--version` with exactly `<name> <version>` and a
+# newline on stdout and exit 0; print each disagreement as `<file>: <what>` and exit 1 otherwise.
 #
 # The carriers, all written by `sh tools/release-set-version.sh <version>`:
 # - the two plugin manifests and the plugin entry of the Claude marketplace;
@@ -24,7 +24,7 @@ nl='
 '
 
 if [ -n "$bins" ]; then
-  for name in ux-browser ux-static; do
+  for name in ux-browser ux-static ux-search; do
     if [ ! -x "$bins/$name" ]; then
       echo "$bins/$name: no binary"
       bad=1

@@ -13,6 +13,12 @@
   names the report's top three. The measurements file is the same bytes with and without it; a run
   restricted to one variant or one environment refuses it. `docs/targets.md`, The live view. Closes
   `story:campaign-live-view`.
+
+## 0.12.0 — 2026-11-27
+
+- Releases carry `ux-search` for x86_64-unknown-linux-gnu, packaged with its declaration
+  `ux-search.assessor.yaml` like `ux-browser` and `ux-static`; a consumer runs `ux-search campaign`
+  without building it. `tools/release-versions.sh` holds its `--version` answer to the release.
 - ux-browser checks holds a page to its design tokens: an optional `tokens` section of
   `ux-browser-checks/1` declares the font-size scale (a list of sizes, or a base and ratio), the
   colours (custom properties read from the page's root in each mode, `--prefix*` for a family, and
