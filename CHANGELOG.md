@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.13.1 — 2026-11-27
+
 - The released `ux-search` binary no longer names the build machine's directories. 0.13.0's held
   71 paths into the runner's cargo home (the sources of its third-party crates) and 9 into its
   checkout, and the bot's scan of release assets refuses a home directory, so its archive could

@@ -2,7 +2,7 @@
   "name": "uxui",
   "displayName": "UX/UI",
   "description": "Measured UI improvement loop: rounds of trial, measure, triage, design decision, build and gate, with hard gates on every merge and lower-is-better ratchets against a baseline.",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "author": {
     "name": "Beyond10x"
   },
