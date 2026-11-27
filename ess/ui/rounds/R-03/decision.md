@@ -44,9 +44,10 @@ Recommendation: B, from step 2.
 Default if unanswered by the next round: B, because the order recommends it and B makes no count
 worse.
 
-Answer: none yet. B is built in the change of this round. An answer A takes it back: remove the
-rules of `.ui-header` and `.ui-layout-columns > .ui-column-narrow` under "A page that scrolls keeps
-its header in view" from `themes/studio.css`; UXF-004 is open again and UXF-026 is closed with it.
+Answer: B, the owner, 2026-11-27 (R-03). B is built in the change of this round and stays. An answer
+A would have taken it back: remove the rules of `.ui-header` and `.ui-layout-columns >
+.ui-column-narrow` under "A page that scrolls keeps its header in view" from `themes/studio.css`;
+UXF-004 open again and UXF-026 closed with it.
 
 ## How the table was filled
 

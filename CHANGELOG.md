@@ -11,6 +11,28 @@
   a failure (`visual.diff_share:<shot>:not-run`, the line names the missing baseline), never a pass.
   Without a visual gate the values files are the bytes they were. `docs/browser-adapter.md`, Visual
   ratchet. Closes `story:visual-diff-as-gate`.
+
+- ux-search campaign run has a live view: with `--events <dir>` it appends, while it measures, one
+  JSON line per finished variant to the candidates file `<dir>/hill-climb.jsonl` (`iteration`, `at`,
+  `kind` `baseline` for the page as shipped, `change` the variant and its axis values, `accepted` on the
+  frontier so far, `score` its place in the ranking so far with 1 the best, `score_keys`, `metrics`,
+  `deltas` and `worse` against the page as shipped, and with `--shots` a screenshot per environment
+  taken as it is measured) and one per phase to the phase file `<dir>/hill-climb-events.jsonl`
+  (`start`, `measuring`, `ranking` with the top three so far, `end` or `failed`), for a live page that
+  polls two JSON-lines files. The ranking so far is the report's `rank` code, so the last ranking line
+  names the report's top three. The measurements file is the same bytes with and without it; a run
+  restricted to one variant or one environment refuses it. `docs/targets.md`, The live view. Closes
+  `story:campaign-live-view`.
+
+- `tools/release-ready.sh` counts a required workflow as green when one of its runs on the commit
+  ended `success` and the others ended `success` or `skipped`; a skipped run beside a success is
+  printed as not counted, and a workflow whose only runs are skipped is still red.
+
+## 0.12.0 — 2026-11-27
+
+- Releases carry `ux-search` for x86_64-unknown-linux-gnu, packaged with its declaration
+  `ux-search.assessor.yaml` like `ux-browser` and `ux-static`; a consumer runs `ux-search campaign`
+  without building it. `tools/release-versions.sh` holds its `--version` answer to the release.
 - ux-browser checks holds a page to its design tokens: an optional `tokens` section of
   `ux-browser-checks/1` declares the font-size scale (a list of sizes, or a base and ratio), the
   colours (custom properties read from the page's root in each mode, `--prefix*` for a family, and

@@ -105,8 +105,8 @@ loopback port.
   neither term. The browser lane holds the three on `site/rows.html` (`rows.campaign.yaml`). Not built: the
   ink of a disabled control is still not judged.
 - **Run**: `ux-search campaign run --declaration <file> --url <origin> --out <measurements.json> [--shots
-  <dir>] [--jobs <n>] [--profile <dir>]` renders every variant in every environment as an injected style
-  sheet and writes the measurements with the declaration inside and a digest over both. `--jobs` is the
+  <dir>] [--jobs <n>] [--profile <dir>] [--events <dir>]` renders every variant in every environment as an
+  injected style sheet and writes the measurements with the declaration inside and a digest over both. `--jobs` is the
   number of pages measured at once (default: the CPUs, at most 4). `--profile` is the directory of the
   browser's profile; without it the run makes one of its own under the system's temp directory (`TMPDIR`) and
   removes it when it ends, so the working directory gets nothing but the files the command names.
@@ -187,6 +187,55 @@ A number is of the page in one state. The run sets that state the same way for e
   every element the rule's selector matches, is the declared value. It says the page's cascade did not
   override it. It does not say that any rule of the page reads the property: that is what the run's line per
   axis says.
+
+### The live view: `--events`
+
+`ux-search campaign run ... --events <dir>` writes two JSON-lines files in `<dir>` while the run goes, for a
+live page that polls two JSON-lines files: the candidates file `hill-climb.jsonl` and the phase file
+`hill-climb-events.jsonl`. Both are made empty when the run starts; each line is appended with one write
+as soon as it is known, so a reader sees whole lines while the run measures. Without `--events` the run
+writes nothing of it, and the measurements file is the same bytes with and without it (the browser lane
+holds both). `--events` goes with a whole campaign: with `--variant` or `--environment` it is refused,
+because a restricted run ranks nothing.
+
+A variant is finished when every environment has measured it. Each environment's page measures the page as
+shipped first and then the variants in the declaration's order, so the variants finish in that order and
+`iteration` is the variant's place in it, from 1. With fewer pages at once (`--jobs`) than environments,
+the first variant finishes when the pages of the last environments measure it. The candidates file has one
+line per finished variant:
+
+| field | what |
+|---|---|
+| `iteration` | the variant's place in the run's order, from 1 |
+| `at` | when the line was written: local time with its offset, RFC 3339 (`2026-11-27T10:48:05+01:00`) |
+| `kind` | `baseline` for the variant of the shipped values (the page as shipped), else `candidate` |
+| `change` | the variant's id and its value of each axis: `tight.unset: spacing=tight unread=unset` |
+| `accepted` | whether the variant stands on the frontier of the variants finished so far (`campaign report`'s frontier over those) |
+| `score` | the variant's place in the ranking of the variants finished so far, when it finished: 1 is the best so far, lower is better |
+| `score_keys` | the terms in ranking order, as the report names them: `hard`, then the declared terms |
+| `metrics` | the variant's value of each term, as the report prints it: `text_under_14` a share (`0.564`), `rows_in_view` the count, every other term a count or px; `hard` summed over the environments, every other term the worst of them |
+| `deltas` | each metric less the same metric of the page as shipped (lower is better for every term but `rows_in_view`) |
+| `worse` | the terms on which the variant is worse than the page as shipped, in ranking order: a higher value, for `rows_in_view` a lower one |
+| `screenshots` | optional, only with `--shots`: the variant's screenshot per environment, by the environment's name (`800x600 light`), each a path from `<dir>`; the environments are those of the frontier's screenshots (`shots/<variant>.<W>x<H>-<mode>.png`) |
+
+`score` is a single number: the ranking is the report's (lexicographic over the terms, ties by variant id),
+taken over the variants finished so far by the same `rank` code. The ranking over all variants, after the
+last one, is the report's. The live screenshots are taken in the campaign's own page right after the
+variant is measured there, with the caret not hidden: they show the render, and are not the frontier's
+screenshots of `--shots`, which are taken on pages loaded anew.
+
+The phase file has one line per phase:
+
+| field | what |
+|---|---|
+| `at` | when the line was written, as in the candidates file |
+| `iteration` | the variant the line is about; 0 for `start`, the number of finished variants for `end` and `failed` |
+| `phase` | `start`, `measuring`, `ranking`, `end` or `failed` |
+| `text` | `start`: the number of variants, the environments and the renders; `measuring`: the variant's `change`, when its first environment starts it; `ranking`, after each finished variant: `top 3: <id>, <id>, <id>`, the first three of the ranking so far; `end`, after the measurements file is written: the variants, the frontier's size and the best variant; `failed`: why the run stopped |
+
+The `measuring` and `ranking` lines interleave as the pages go: each kind comes in the order of the
+variants. After the run the last `ranking` line names the same top three as `campaign report` on the run's
+measurements.
 
 ### A private target
 

@@ -1,7 +1,8 @@
 #!/bin/sh
 # Proves that tools/release-ready.sh exits 0 only when every required workflow (Gate,
-# Documentation validation, Documentation site) has a run on the commit and every such run ended
-# success, and refuses, naming the run, when one is absent, pending or red. `gh` is a stub on PATH
+# Documentation validation, Documentation site) has a run on the commit that ended success and every
+# other such run ended success or skipped, and refuses, naming the run, when one is absent, pending
+# or red (a workflow whose only runs are skipped is red). `gh` is a stub on PATH
 # that prints a recorded run list; no case reaches the network. Exit 0 when every case holds.
 set -u
 
@@ -40,11 +41,12 @@ list() {
 	rm -f "$work/exit"
 }
 
-# expect <pass|fail|usage> <label> [text the output must hold]
+# expect <pass|fail|usage> <label> [text the output must hold] [text the output must not hold]
 expect() {
 	want=$1
 	label=$2
 	text=${3:-}
+	absent=${4:-}
 	STUB_DIR=$work PATH="$work/bin:$PATH" sh "$root/tools/release-ready.sh" ${commit-$sha} >"$work/out" 2>&1
 	got=$?
 	case $want in pass) code=0 ;; fail) code=1 ;; usage) code=2 ;; esac
@@ -53,6 +55,9 @@ expect() {
 		cat "$work/out"
 	elif [ -n "$text" ] && ! grep -qF -- "$text" "$work/out"; then
 		bad "$label: the output does not name '$text'"
+		cat "$work/out"
+	elif [ -n "$absent" ] && grep -qF -- "$absent" "$work/out"; then
+		bad "$label: the output names '$absent'"
 		cat "$work/out"
 	else
 		printf 'ok   %s (%s)\n' "$label" "$(tail -1 "$work/out")"
@@ -109,6 +114,35 @@ expect fail "red: Gate cancelled" "Gate: red (cancelled)"
 
 list "$green_gate" "$(run Gate completed failure)" "$green_validation" "$green_site"
 expect fail "red: one of two Gate runs on the commit failed" "Gate: red (failure)"
+
+# One concurrency group: a run of Documentation site on the commit can end skipped beside one that
+# ended success (the 7268398 case: one run skipped, re-run skipped again, one run success).
+skipped_site=$(run 'Documentation site' completed skipped)
+list "$green_gate" "$green_validation" "$skipped_site" "$green_site" "$skipped_site"
+expect pass "skipped beside a success: Documentation site may be tagged" \
+	"not counted: Documentation site: skipped beside a success"
+
+list "$green_gate" "$green_validation" "$skipped_site"
+expect fail "only skipped: Documentation site is red" "Documentation site: red (skipped)"
+
+list "$green_gate" "$green_validation" "$skipped_site" "$skipped_site"
+expect fail "only skipped twice: Documentation site is red" "Documentation site: red (skipped)"
+
+list "$green_gate" "$green_validation" "$skipped_site" "$(run 'Documentation site' in_progress '')"
+expect fail "skipped beside pending: Documentation site is pending, not red" \
+	"Documentation site: pending (in_progress)" "red (skipped)"
+
+list "$green_gate" "$green_validation" "$(run 'Documentation site' completed failure)" "$green_site"
+expect fail "failure beside a success: Documentation site is red" "Documentation site: red (failure)"
+
+list "$green_gate" "$green_validation" "$skipped_site" "$green_site" \
+	"$(run 'Documentation site' completed cancelled)"
+expect fail "cancelled beside a success and a skipped run: Documentation site is red" \
+	"Documentation site: red (cancelled)" "red (skipped)"
+
+list "$green_gate" "$green_validation" "$green_site" "$(run 'Documentation site' completed skipped "$other")"
+expect pass "a skipped run on another commit does not count" \
+	"not counted: Documentation site: skipped on $other, another commit"
 
 list "$(run Gate completed failure)" "$(run 'Documentation validation' in_progress '')"
 expect fail "every blocking run is named: Gate red" "Gate: red (failure)"
