@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-27T21:19:25Z",
+  "actor": "human:operator",
+  "artifact": "story:campaign-chrome-args",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "merged as pull request 78 (5b7b8ea); engine/search 180 passed (174 before), 4 red first (unknown argument --chrome-arg); browser lane campaign_live 23 passed in 6.36 s, measurements byte-equal with and without switches; command line without the flag held to 0.13.1's against a stand-in browser; released in 0.14.0",
+    "reference": "engine/search/tests/campaign.rs"
+  }
+}

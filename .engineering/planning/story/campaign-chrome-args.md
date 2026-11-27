@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:campaign-chrome-args
 kind: story
-status: active
+status: implemented
 title: A campaign passes Chromium switches its caller names
 relations:
 - decomposes: epic:engine-slices
@@ -11,10 +11,11 @@ scope:
   path: engine/search/src/campaign
 - confidence: inferred
   path: engine/search/src/main.rs
-revision: 7
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-27T20:00:37Z", actor: "human:operator", revision: 5}
 - {from: "proposed", to: "active", at: "2026-11-27T20:00:37Z", actor: "human:operator", revision: 6}
+- {from: "active", to: "implemented", at: "2026-11-27T21:19:25Z", actor: "human:operator", revision: 8, decided_on: {"recorded":{"test_result":1}}}
 ---
 ## Outcome
 
