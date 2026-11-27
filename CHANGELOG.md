@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- `ux-search campaign run` takes `--chrome-arg <switch>`, repeatable, as `ux-browser checks` does: each
+  value (one switch, or a JSON list of them) reaches Chromium's command line in the order given, after
+  the engine's own switches. An empty value, a word that is no switch, a switch the engine sets with
+  another value and `--user-data-dir` are refused with exit 2, naming the flag, before a browser starts.
+  The engine adds no switch on its own, so a container that runs as root passes `--chrome-arg
+  --no-sandbox` itself. Without the flag the command line is that of 0.13.1, and the measurements are
+  the same bytes with and without a switch (`docs/targets.md`, Run). Closes `story:campaign-chrome-args`.
+
 - The `Gate` job keeps the test budget. Before, the forge built `engine/search`'s third-party
   crates from nothing on every run, with debug info: in run 46039866893 its lint build took
   1m55s and its test build 3m58s of a 7m19s job, the tests 3.42 s and 15.67 s. Now both gate jobs

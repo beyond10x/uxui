@@ -92,6 +92,10 @@ pub struct Options {
     /// The directory of the live view (`events`): the candidates file and the phase file, and
     /// with `shots` a screenshot of each variant as it is measured; `None`: no live view.
     pub events: Option<PathBuf>,
+    /// The switches Chromium starts with after the engine's own, in this order
+    /// (`ux_browser::chrome::switches`); empty: the engine's alone. The engine adds none of its
+    /// own, and the measurements do not name them.
+    pub chrome_args: Vec<String>,
 }
 
 /// What a run measured: a campaign, every variant in every environment, or the renders of a run
@@ -1365,7 +1369,7 @@ fn measured_and_written(
     live: Option<&Live>,
 ) -> Result<Outcome, String> {
     let chrome = ux_browser::chrome::find(None)?;
-    let browser = Browser::start_binary(&chrome, &options.profile, &[])?;
+    let browser = Browser::start_binary(&chrome, &options.profile, &options.chrome_args)?;
     let rendered = render(&browser, options, plan, live);
     browser.close();
     let rendered = rendered?;

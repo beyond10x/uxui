@@ -2099,6 +2099,240 @@ fn without_a_profile_flag_the_profile_is_made_under_the_temp_directory_and_remov
     }
 }
 
+// Chromium switches of the caller (`story:campaign-chrome-args`).
+
+/// The switches Chromium started with in 0.13.1, in their order: a campaign without
+/// `--chrome-arg` starts it with these, the profile and a blank page, and nothing else.
+const SWITCHES_OF_0_13_1: &[&str] = &[
+    "--headless=new",
+    "--disable-gpu",
+    "--in-process-gpu",
+    "--remote-debugging-port=0",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-extensions",
+    "--disable-background-networking",
+    "--disable-component-update",
+    "--disable-sync",
+    "--disable-default-apps",
+    "--disable-breakpad",
+    "--disable-dev-shm-usage",
+    "--metrics-recording-only",
+    "--password-store=basic",
+    "--use-mock-keychain",
+    "--hide-scrollbars",
+    "--mute-audio",
+    "--force-color-profile=srgb",
+    "--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4",
+];
+
+/// What one `ux-search campaign run` with a stand-in browser did: the run's output, and the
+/// browser's command line, one argument per line, or `None` when no browser was started.
+struct Started {
+    output: std::process::Output,
+    line: Option<Vec<String>>,
+    profile: PathBuf,
+}
+
+/// Runs the studio campaign with `args` after its outputs and a stand-in browser that writes
+/// its arguments, one per line, and ends without listening.
+fn started_with(test: &str, args: &[&str]) -> Started {
+    let directory = crate::state_dir(test);
+    let _ = std::fs::remove_dir_all(&directory);
+    std::fs::create_dir_all(&directory).expect("a scratch directory");
+    let (chrome, seen) = (directory.join("chrome"), directory.join("seen"));
+    crate::executable(
+        &chrome,
+        &format!(
+            "#!/bin/sh\nfor arg in \"$@\"; do printf '%s\\n' \"$arg\"; done >'{}'\nexit 9\n",
+            seen.display()
+        ),
+    );
+    let profile = directory.join("profile");
+    let output = Command::new(env!("CARGO_BIN_EXE_ux-search"))
+        .current_dir(&directory)
+        .env("UXUI_CHROME", &chrome)
+        .args(["campaign", "run", "--declaration"])
+        .arg(studio("frontier.campaign.yaml"))
+        .args(["--url", "http://127.0.0.1:1", "--out", "measurements.json"])
+        .arg("--profile")
+        .arg(&profile)
+        .args(args)
+        .output()
+        .expect("ux-search runs");
+    let line = std::fs::read_to_string(&seen)
+        .ok()
+        .map(|text| text.lines().map(str::to_owned).collect());
+    Started {
+        output,
+        line,
+        profile,
+    }
+}
+
+impl Started {
+    /// The command line of a browser that was started, after the run ended as it does when the
+    /// browser does not listen.
+    fn line(&self) -> &[String] {
+        assert_eq!(self.output.status.code(), Some(1), "{:?}", self.output);
+        assert!(
+            String::from_utf8_lossy(&self.output.stderr)
+                .contains("Chromium exited before it listened"),
+            "{:?}",
+            self.output
+        );
+        self.line.as_deref().expect("the browser was started")
+    }
+
+    /// The command line of 0.13.1 with `added` after the engine's switches.
+    fn expected(&self, added: &[&str]) -> Vec<String> {
+        SWITCHES_OF_0_13_1
+            .iter()
+            .chain(added)
+            .map(|arg| arg.to_string())
+            .chain([
+                format!("--user-data-dir={}", self.profile.display()),
+                "about:blank".to_owned(),
+            ])
+            .collect()
+    }
+
+    /// A refused invocation: exit 2, a message that names `--chrome-arg`, and no browser.
+    fn refused_naming_the_flag(&self, part: &str) {
+        let said = String::from_utf8_lossy(&self.output.stderr);
+        assert_eq!(self.output.status.code(), Some(2), "{said}");
+        assert!(said.contains("--chrome-arg"), "{said}");
+        assert!(said.contains(part), "`{said}` lacks `{part}`");
+        assert!(self.line.is_none(), "a browser started: {:?}", self.line);
+    }
+}
+
+#[test]
+fn without_a_chrome_arg_chromium_starts_with_the_command_line_of_0_13_1() {
+    let started = started_with("chrome-arg-none", &[]);
+    assert_eq!(started.line(), started.expected(&[]));
+}
+
+/// Each `--chrome-arg` reaches Chromium's command line in the order given, after the engine's
+/// own switches; a switch given twice is passed twice. The engine adds none of its own: no
+/// `--no-sandbox` unless the caller names it.
+#[test]
+fn each_chrome_arg_reaches_chromium_in_the_order_given_after_the_engines_switches() {
+    let started = started_with(
+        "chrome-arg-order",
+        &[
+            "--chrome-arg",
+            "--no-sandbox",
+            "--chrome-arg",
+            "--disable-features=Translate",
+            "--chrome-arg",
+            "--lang=de-DE",
+            "--chrome-arg",
+            "--disable-features=Translate",
+        ],
+    );
+    assert_eq!(
+        started.line(),
+        started.expected(&[
+            "--no-sandbox",
+            "--disable-features=Translate",
+            "--lang=de-DE",
+            "--disable-features=Translate",
+        ])
+    );
+    let alone = started_with("chrome-arg-alone", &["--chrome-arg", "--lang=de-DE"]);
+    assert_eq!(alone.line(), alone.expected(&["--lang=de-DE"]));
+    assert!(!alone.line().iter().any(|arg| arg == "--no-sandbox"));
+}
+
+/// The value of `--chrome-arg` is the browser adapter's: one switch, or a JSON list of them.
+#[test]
+fn a_chrome_arg_may_be_a_json_list_of_switches_as_in_the_browser_adapter() {
+    let started = started_with(
+        "chrome-arg-list",
+        &[
+            "--chrome-arg",
+            r#"["--no-sandbox", "--lang=de-DE"]"#,
+            "--chrome-arg",
+            "--mute-audio",
+        ],
+    );
+    assert_eq!(
+        started.line(),
+        started.expected(&["--no-sandbox", "--lang=de-DE", "--mute-audio"])
+    );
+}
+
+/// An empty value, a word that is no switch, a switch the engine sets with another value and
+/// the profile's switch are refused as a wrong invocation that names the flag, before a browser
+/// starts.
+#[test]
+fn a_chrome_arg_that_is_empty_or_no_allowed_switch_is_refused_naming_the_flag() {
+    for (test, value, part) in [
+        ("chrome-arg-empty", "", "empty"),
+        ("chrome-arg-blank", "  ", "empty"),
+        ("chrome-arg-word", "no-sandbox", "not a Chromium switch"),
+        ("chrome-arg-headless", "--headless=old", "--headless=new"),
+        ("chrome-arg-profile", "--user-data-dir=x", "--profile"),
+    ] {
+        started_with(test, &["--chrome-arg", value]).refused_naming_the_flag(part);
+    }
+    let output = ux_search(&[
+        "campaign",
+        "run",
+        "--declaration",
+        path(&studio("frontier.campaign.yaml")),
+        "--chrome-arg",
+    ]);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("`--chrome-arg` has no value"),
+        "{output:?}"
+    );
+}
+
+/// `--chrome-arg` belongs to the command that starts a browser: `campaign report` starts none
+/// and takes no such flag.
+#[test]
+fn campaign_report_takes_no_chrome_arg() {
+    let output = ux_search(&[
+        "campaign",
+        "report",
+        "--measurements",
+        path(&studio("measurements.json")),
+        "--chrome-arg",
+        "--no-sandbox",
+    ]);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("unknown argument `--chrome-arg`"),
+        "{output:?}"
+    );
+}
+
+/// The usage names the flag on the line of `campaign run`, says it repeats, and says that the
+/// engine adds no switch of its own.
+#[test]
+fn the_usage_of_campaign_run_names_chrome_arg() {
+    let output = ux_search(&["campaign", "run", "--help"]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let usage = String::from_utf8_lossy(&output.stdout);
+    let run_line = usage
+        .lines()
+        .find(|line| line.contains("ux-search campaign run "))
+        .unwrap_or_else(|| panic!("{usage}"));
+    assert!(
+        run_line.contains("[--chrome-arg <Chromium switch, or a JSON list of them>]..."),
+        "{run_line}"
+    );
+    assert!(
+        usage.contains(
+            "--chrome-arg adds a switch to Chromium's command line after the engine's own"
+        ),
+        "{usage}"
+    );
+}
+
 /// `--notes` adds the elements behind the counts after the report; the report before them is
 /// the same bytes, and a record without a note says so.
 #[test]
