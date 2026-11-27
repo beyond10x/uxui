@@ -1,7 +1,7 @@
 # partner-portal fixture
 
-A copy of ESS's example `examples/partner-portal/` at tag `0.99.5` (commit
-`3cdf39f157acced18513d506e84fffd49a72d58c`, github.com/beyond10x/ess, Apache-2.0): the document
+A copy of ESS's example `examples/partner-portal/` at tag `0.99.9` (commit
+`88d3d695df3742a382c8188b41863d464f368568`, github.com/beyond10x/ess, Apache-2.0): the document
 and every file it needs to load. Unchanged; `ux-search` tests climb and measure its page
 `tickets.detail`. The files were copied at an earlier tag and are the same bytes at this one: the
 digests below hold for both.

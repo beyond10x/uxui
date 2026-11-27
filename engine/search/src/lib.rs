@@ -36,4 +36,4 @@ pub mod variant;
 /// The ESS release the terminal renderer is taken from: the git tag of the ESS crates in this
 /// crate's `Cargo.toml`. The reports name it in their first line; a test holds the manifest, the
 /// lock file and the documents that name the tag to it (`tests/ess_tag.rs`).
-pub const ESS_TAG: &str = "0.99.5";
+pub const ESS_TAG: &str = "0.99.9";
