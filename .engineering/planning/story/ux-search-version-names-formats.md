@@ -2,17 +2,18 @@
 format: aep.planning-md/3
 id: story:ux-search-version-names-formats
 kind: story
-status: active
+status: implemented
 title: ux-search --version names the campaign formats
 relations:
 - decomposes: epic:engine-slices
 scope:
 - confidence: inferred
   path: engine/search/src/main.rs
-revision: 5
+revision: 6
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-27T09:57:01Z", actor: "human:operator", revision: 4}
 - {from: "proposed", to: "active", at: "2026-11-27T09:57:01Z", actor: "human:operator", revision: 5}
+- {from: "active", to: "implemented", at: "2026-11-27T14:02:41Z", actor: "human:operator", revision: 6, decided_on: {"recorded":{"test_result":1}}}
 ---
 ## Outcome
 

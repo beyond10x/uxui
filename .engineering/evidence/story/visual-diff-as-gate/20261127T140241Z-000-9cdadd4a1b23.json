@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-27T14:02:41Z",
+  "actor": "human:operator",
+  "artifact": "story:visual-diff-as-gate",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "merged as pull request 66 (4118806); slot sh tools/gate.sh 19 steps exit 0; ux-browser 246 tests in 1.55 s; 4 tests red first (gate config refused): over the bound exit 1 naming page, viewport and mode; within the bound exit 0; no baseline is a gate failure and incomplete",
+    "reference": "engine/browser/tests/visual.rs"
+  }
+}

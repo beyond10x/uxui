@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-27T14:02:41Z",
+  "actor": "human:operator",
+  "artifact": "story:docs-site-phone-and-sidebar",
+  "kind": "story",
+  "revision": 6,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "merged as pull request 68 (c6c35c4); ux-browser on a local build, 15 pages x 2 sizes x 2 modes, 566 checks: 103 failed -> 0 (390x844 theme toggle 4 + 1 keyboard misses -> 0 per page; 1440x900 sidebar 2 misses -> 0); overflow and page scroll 0 before and after; slot sh tools/gate.sh 19 steps exit 0. Not met: the acceptance line that the gate's docs step runs these checks; no CI job starts a browser on the site, the gap and the manual commands are in website/README.md (Layout)",
+    "reference": "website/README.md"
+  }
+}
