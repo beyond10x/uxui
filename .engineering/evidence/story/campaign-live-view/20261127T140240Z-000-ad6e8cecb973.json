@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-27T14:02:40Z",
+  "actor": "human:operator",
+  "artifact": "story:campaign-live-view",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "merged as pull request 64 (652085d); slot sh tools/gate.sh exit 0; engine/search 172 passed, browser lane 22 passed in 6.5 s; campaign_events 14 tests red first against an empty stub; campaign_live::a_run_with_events_writes_the_live_view_and_the_same_measurements red first (unknown argument), measurements byte-equal with and without --events; last ranking line names the report's top three; documented fields held to the writer",
+    "reference": "engine/search/tests/campaign_events.rs"
+  }
+}

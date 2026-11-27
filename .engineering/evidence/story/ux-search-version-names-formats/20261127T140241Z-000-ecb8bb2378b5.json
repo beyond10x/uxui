@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-27T14:02:41Z",
+  "actor": "human:operator",
+  "artifact": "story:ux-search-version-names-formats",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "merged as pull request 70; slot sh tools/gate.sh 19 steps exit 0; engine/search 174 tests; tests/version.rs holds the format lines to the source constants (red first against the old binary) and pins the first line; release-versions.sh compares the first line, release.test.sh 4 new cases",
+    "reference": "engine/search/tests/version.rs"
+  }
+}
