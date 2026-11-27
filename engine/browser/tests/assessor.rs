@@ -232,6 +232,7 @@ fn the_documents_write_every_declared_output_and_nothing_else() {
     written.extend(agrees(&decl, &crate::evidence::server_document()));
     written.extend(agrees(&decl, &crate::values::round_document()));
     written.extend(agrees(&decl, &crate::journey::document()));
+    written.extend(agrees(&decl, &crate::tokens::document()));
     for (name, _) in decl.get("outputs").unwrap().entries() {
         assert!(
             written.contains(name),
