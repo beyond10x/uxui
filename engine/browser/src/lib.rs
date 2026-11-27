@@ -12,6 +12,7 @@
 //! - [`journey`]: journeys, steps by CSS selector to a page state, and the checks of each state;
 //! - [`pool`]: the worker threads a checks run measures its pages with;
 //! - [`values`]: the values file a consumer's ratchet and hard gates read, from a checks document.
+//! - [`visual`], [`png`]: the visual ratchet, each page's screenshots against a baseline of PNG files.
 
 pub mod base64;
 pub mod cdp;
@@ -21,6 +22,7 @@ pub mod evidence;
 pub mod journey;
 pub mod json;
 pub mod measure;
+pub mod png;
 pub mod pool;
 pub mod render;
 pub mod serve;
@@ -29,6 +31,7 @@ pub mod sha1;
 pub mod target;
 pub mod value;
 pub mod values;
+pub mod visual;
 pub mod ws;
 
 /// The adapter's version, for a consumer of the library that names the adapter in what it records.

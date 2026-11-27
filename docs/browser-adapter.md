@@ -85,7 +85,7 @@ fixture `tests/fixtures/render/landing.capture.json`.
 ux-browser checks --config engine/browser/examples/llm.checks.yaml --build <llm>/website/build \
   --project llm-docs --assessment page-checks --out llm-docs.evidence.json \
   [--root .] [--class local] [--pages /llm/,/llm/search] [--capture <dir>] [--jobs 4] \
-  [--values page-checks.json] [--chrome-arg <switch>]...
+  [--values page-checks.json] [--chrome-arg <switch>]... [--visual compare|update]
 ux-browser checks --config ux/ux-browser.checks.yaml --url http://127.0.0.1:4173 \
   --project my-app --assessment page-checks --out page-checks.evidence.json
 ```
@@ -158,6 +158,7 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `request_methods` | the HTTP methods a page may send to the measured server, in capitals, each once, `GET` among them; default `[GET, HEAD]`. A request with another method fails as one to another origin does (A running server) |
 | `layout` | the page-scroll slack and the overflow rule (below); optional, each key left out keeps its default |
 | `values` | how `ux-browser values` and `checks --values` turn the document into the consumer's values file (`ux-browser values`); optional |
+| `visual` | the visual ratchet: where the baseline, the shots and the diff images lie, whether the full page is shot, the mask selectors and the tolerances; per page, viewport and mode a screenshot compared with its baseline (Visual ratchet). Default: none, no screenshot |
 | `clock` | the page's clock: `{at: <RFC 3339 instant>, advance: true \| false}`; every load starts its `Date` at `at`, running on from there (`advance`, default true) or standing still. Default: none, the host's clock (A fixed page clock) |
 | `chrome_args` | switches Chromium starts with after the defaults, a list: `[--enable-gpu]`; a switch the defaults set with another value is refused. Default: none (Chromium switches) |
 | `chrome` | the Chrome build the run uses: `{build: <n>}`, the Playwright build `chromium-<n>`, or `{version: <major>}`, the newest build whose Chrome has that major version; exactly one key, a whole number above 0. Default: none, the newest build (The Chrome build) |
@@ -774,7 +775,7 @@ As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
 | `evidence.inputs.build` | `{value: <path>}` for a build under `--root`, absent for one outside it; no digest beside it, the candidate is its digest |
 | `evidence.inputs.pages` | `{value: <the --pages list>}` when the run measured a list and not the whole sitemap |
 | `evidence.conditions` | `tools: {ux-browser, chromium}`, `other: {viewports, modes, ready, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude, clock}`; `ready` is `load` without a ready condition, else `selector <css>` or `global <name>`. A document of 0.3.0 has no `ready`; its ready was `load`. The layout keys are the rule values the run used, defaults included (`"0"`, `"1"`, the elements joined by `, `, the exclusions joined by `, ` or `""`); a document of 0.4.0 or before has none, its rule was the default. `clock` is `real` without a clock, else `from <instant>` or `frozen at <instant>` in UTC (A fixed page clock); a document of 0.4.0 or before has none, its clock was the host's |
-| `run.local_inputs` | `jobs` (the value used), `capture` and `profile` when given, and `chrome-arg`, the switches added by `chrome_args` and `--chrome-arg` as a JSON list, when there are any: they differ per machine and change no value, so they stay outside the evidence |
+| `run.local_inputs` | `jobs` (the value used), `capture`, `profile`, `values` and `visual` when given, and `chrome-arg`, the switches added by `chrome_args` and `--chrome-arg` as a JSON list, when there are any: they differ per machine and change no value, so they stay outside the evidence |
 | `run.timing` | where the run spent its time (Timings, The run's times): `{unit: ms, pages: [...]}`, one entry per page and viewport measured. Outside the evidence: the evidence of the same measurements is the same bytes with and without it. Absent when no page was measured |
 | `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk check (The keyboard walk: the skip link's two when declared, each target, each focus mark, each activation), and one counted layout-shift reading per viewport; per state of a journey and its viewport and mode, page scroll, overflow and each applicable item once. A page that did not load is one `not_run` entry, id the page path; a state a run did not reach is one, id `journey/<journey>/<state>/<viewport>/<mode>` (Journeys) |
 | `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks`: per walk `viewport`, `mode`, `skip_link_first` and `skip_moves_focus` (only with a skip link), `reached`, `focus_marks` (when a mark was judged) and `activates` (when an activation was judged), each a map of target to true or false. A keyboard finding's reason is `missed`, except a focus mark's (the focused element and what it showed) and an activation's (what failed). After the pages' numbers and before their sets: per state of a journey three numbers and a set, scope `state`, item `<journey>/<state>` (Journeys) |
@@ -806,7 +807,7 @@ digests and the same 1,234 values.
 |---|---|
 | `command` | `ux-browser checks` |
 | `targets` | `[build, deployment]`: a served build (`--build`) or a running server (`--url`); no `target_input`, which only a `document` target has |
-| `inputs` | `config` (path, required), `build` (path) and `url` (text), of which a run gets exactly one (a choice of the usage; the format has no way to say so), `pages` (text: paths separated by commas), and the local inputs `capture`, `profile`, `values` (paths), `jobs` (integer) and `chrome-arg` (a list of text: the added Chromium switches); `values` names a file the run writes and changes no value of the document, as `capture` |
+| `inputs` | `config` (path, required), `build` (path) and `url` (text), of which a run gets exactly one (a choice of the usage; the format has no way to say so), `pages` (text: paths separated by commas), and the local inputs `capture`, `profile`, `values` (paths), `jobs` (integer), `chrome-arg` (a list of text: the added Chromium switches) and `visual` (text: `compare` or `update`); `values` names a file the run writes and changes no value of the document, as `capture`, and `visual update` writes the baseline after the document, which is the same in both |
 | `conditions` | `viewports`, `modes`, `ready`, `settle_ms`, `reduced_motion`, `page_slack_px`, `overflow_tolerance_px`, `overflow_elements`, `overflow_exclude`, `clock`: the keys of `conditions.other` |
 | `coverage_unit`, `coverage` | `check`; all six counts |
 | `outputs` | the six numbers (`scope: page`; page scroll, overflow and always visible also `scope: state`, as is `findings`; unit `units`, `blocks`, `items`, `checks`, `score`, `score`; the two layout shifts `sampled`, the others `exact`) and `findings` (`identity_key: [rule, node_path]`, `item_fields: [reason]`) |
@@ -816,6 +817,132 @@ A test (`tests/assessor.rs`) reads it and compares its inputs with the arguments
 every result and the target kind of the example document and of the test documents (a build's and a running server's).
 The Chrome pin (`chrome`) adds no input and no condition: it is read from the configuration, which
 is an input already, and the Chrome it chose is `conditions.tools.chromium` (The Chrome build).
+
+### Visual ratchet: `visual`
+
+Whether a page still looks as it did: per page, viewport and mode a screenshot, compared pixel by
+pixel with a baseline PNG within a declared tolerance. Story `story:ux-browser-visual-ratchet`; the
+visual ratchet of the `ui-iteration-loop` skill (§ 6).
+
+```yaml
+visual:
+  dir: ux/visual
+  full_page: true
+  masks: ['[data-live]', '.clock']
+  tolerance: {share: 0.0005, threshold: 8}
+  tolerances:
+    - {page: /run/, share: 0.002}
+    - {viewport: phone, threshold: 16}
+```
+
+| key | value |
+|---|---|
+| `dir` | the directory of the ratchet, under `--root`: `baseline/` (the consumer's, committed), `shots/` (the run's screenshots) and `diff/` (the run's diff images); required |
+| `full_page` | `true`: the full page is shot besides the viewport; default `false` |
+| `masks` | CSS selectors whose boxes are blanked in every shot (live data, clocks, carets); a list, none empty, each once; default none |
+| `tolerance` | `{share, threshold}` of a unit no rule names: `share` the part of its pixels that may differ (0 to 1), `threshold` the difference of a channel (0 to 255) up to which a pixel counts as equal; each defaults to 0, so by default one differing pixel fails |
+| `tolerances` | rules `{page, viewport, share, threshold}`, each naming a page path, a declared viewport or both; the first rule that matches a unit gives its tolerance, a key it leaves out is the section's `tolerance` |
+
+A section that does not read (an unknown key, no `dir`, a share outside 0 to 1, a threshold that is
+not a whole number from 0 to 255, a rule without `page` and `viewport`, a viewport not declared, a
+page that does not start with `/`) is refused with the configuration, exit 1, before a browser
+starts. Without the section nothing changes: no screenshot is taken, no file is written under a
+`dir`, and the captures, documents and values files are the bytes they were.
+
+**Files.** One per unit, the same name in the three directories:
+`<page>.<viewport>.<mode>.<shot>.png`, `<page>` as a capture's (`home` for the base path, else the
+path's words joined by `-`), `<shot>` `viewport` or `page`: `run.1366x768.dark.viewport.png`. A run
+with the section first removes the PNG files in `shots/` and `diff/`, so every file there is of
+that run; it never removes one from `baseline/`.
+
+**Commands.**
+
+```sh
+ux-browser checks --config ux/ux-browser.checks.yaml --build site --project my-app \
+  --assessment visual --out visual.evidence.json [--values visual.json] [--visual compare]
+ux-browser checks ... --visual update
+```
+
+Every checks run with the section compares (`--visual compare`, the default). `--visual update`
+also writes each shot of the run to `baseline/` after the document is written; the document is the
+same as without it (the comparison with the baseline as it was), and baseline files of units the
+run did not take (`--pages`) stay. Only `update` writes the baseline. Exit statuses as for every
+checks run: a unit over its tolerance is a failed check and a finding, not an exit status;
+`--visual` with a configuration without the section is refused (exit 1), any value but `compare` and
+`update` is a wrong invocation (exit 2), both before a browser starts; a shot or baseline that is
+no PNG this reader reads is refused (exit 1, no document written); a shot or diff image that cannot
+be written is exit 3.
+
+**A shot.** In each mode, first, on the page as it loaded (or as it was switched to the mode),
+before the other checks of that mode: the probe `src/probes/visual.js` makes the page still (the
+text caret transparent, through a style sheet the document adopts, no element added; every
+animation and transition `document.getAnimations()` returns finished when it ends, or paused at its
+start when it repeats forever; scrolled to 0, 0; fonts and two frames awaited) and returns the boxes
+of the mask selectors at scroll 0. Then `Page.captureScreenshot` of the viewport (device scale 1),
+with `full_page` the page (`captureBeyondViewport`, the viewport's width and the larger of the
+document's scroll height and the viewport's height), each box filled with `#ff00ff`, out to whole
+pixels; then the style sheet is dropped and the paused animations play again. A shot with no mask
+box in it is Chromium's bytes; one with a box is written by `src/png.rs`. A mask that matches
+nothing blanks nothing; a selector the browser does not parse makes the probe throw, and the run
+exits 3. With the section, the other checks of the mode run on the page after its shots (finished
+animations, and after a full-page shot a page that was resized for the capture and back).
+
+**Comparison** (`src/visual.rs`, no browser): a pixel differs when one of its four channels differs
+from the baseline's by more than the unit's `threshold`. The unit's share is the differing pixels
+over its pixels, in millionths rounded up (one differing pixel never reads 0); it passes when the
+differing pixels are at most `share` times its pixels. A shot of another size than its baseline
+fails, its reason `size 240x160 against the baseline's 240x320`, its share 1. A unit with no
+baseline file is not run: a `not_run` entry, never a pass. For a unit with a differing pixel the
+diff image is written to `diff/`, the shot's size: each differing pixel `#ff0000`, every other the
+baseline's grey, faded three quarters of the way to white.
+
+PNG files are read and written by the crate itself (`src/png.rs`, no crate): 8-bit, non-interlaced
+grey, grey and alpha, RGB and RGBA (what Chromium writes), inflated as RFC 1951 says; written as
+RGBA, rows filtered `Up`, deflated with the fixed Huffman codes. The same pixels give the same
+bytes.
+
+**Outputs**, after the numbers of the pages and journeys and before the findings sets:
+
+| result (`scope: page`, `exact`) | value | unit | `details` |
+|---|---|---|---|
+| `visual.diff_share@1` | the largest share over the page's units | `ratio` | `viewports`: the largest per viewport; `units`: per unit `viewport`, `mode`, `shot`, `result` (`passed`, `failed`, `not_run`), and for a compared one `width`, `height`, `px`, `share`, `tolerance`, `threshold`, `baseline` and `shot_digest` (SHA-256 of the two files), `diff` (`diff/<file>`, when written) and for two sizes `reason`; for one not run its `reason` |
+| `visual.diff_px@1` | the differing pixels, summed over the page's units | `px` | `viewports`: the sum per viewport |
+
+A page with a unit not compared has both numbers incomplete (`coverage_below_plan`, the detail
+names each such unit and why); a value above 0 is then kept as a lower bound with `at_least: true`,
+any other value is left out. A page that could not be measured has both incomplete with its error
+(`incompatible_target`), as its other numbers; its units count nothing more. A unit over its
+tolerance is a finding in its page's set: rule `visual.diff_share@1`, node path
+`<viewport>/<mode>/<shot>`, reason `3200 of 38400 pixels differ (0.083334), above the tolerance
+0.001 at threshold 0` (or the two sizes). Coverage: one check per compared unit; a unit not compared
+is a `not_run` entry, id `<page>/<viewport>/<mode>/visual/<shot>`. No condition is added: the
+configuration's digest (an input) covers the masks and tolerances, and each unit names its
+baseline's digest. The values file takes both numbers per scenario as any other; with `gating`, a
+share (a metric named `*_share`) is the largest over the gating viewports and `visual.diff_px` the
+sum. `values.gates` names no visual output: a differing screenshot is a value of the ratchet, not a
+hard gate.
+
+**Determinism**, measured 2026-11-27, Chrome/149.0.7827.55, `tests/fixtures/visual/visual.checks.yaml`
+(one viewport 240 x 160, light and dark, full page, mask `.clock`; 4 pages, 16 shots per run):
+
+| runs | result |
+|---|---|
+| the base site twice, 2 s apart | 12 of 16 shots the same bytes. The 4 others are `/clock-bare/`: a clock that prints the time to the millisecond, unmasked; its text is the time, so its pixels differ by design. The same clock masked (`/clock/`) gives the same bytes |
+| the changed site against the base run as baseline | `/moved/` 3200 px per unit (the block moved 40 px: 40 x 40 uncovered, 40 x 40 covered), `/colour/` 3200 per unit at threshold 6 (red 0x33 to 0x3a on an 80 x 40 block), `/clock/` 0, `/clock-bare/` 1700 px; 16 checks, 4 passed, 12 failed; `diff/` 12 images |
+| the same with `--visual update`, then again | 16 shots written to `baseline/`; the next run 0 on `/moved/`, `/colour/` and `/clock/`, `/clock-bare/` differs again; 12 of 16 passed |
+
+The same bytes need the same pixels, and those need the same Chrome build, fonts and host: drawn in
+software (`--disable-gpu`), a page renders the same twice on one host. Another Chrome build, another
+font set or another host may draw text with other edge pixels; pin the build (`chrome`) and keep the
+baseline of one host image, or allow for it with `threshold` and `share`. Not covered: a page that
+moves on its own without an animation the browser knows (a script on a timer, a canvas, a video) is
+not stilled; mask it. `--jobs` changes no shot: each page and viewport is measured in a browser
+context of its own.
+
+The tests (`tests/visual.rs`) start no browser: they read the shots and captures of the recorded
+runs (`tests/fixtures/visual/base/`, `changed/`, the two sites beside them) and hold the
+configuration, the comparison, the diff images, the numbers, findings and coverage, the values file
+and the PNG reader and writer to them.
 
 ## `ux-browser values`
 

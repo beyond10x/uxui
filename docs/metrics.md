@@ -98,6 +98,20 @@ Fixed rules for every metric:
 | `layout.shift_after_input` | The same for transitions caused by a user action, for nodes outside region(target(a)). CLS excludes these (`hadRecentInput`); here they are kept apart, not dropped. | score | ↓ | jo | all | exact | D | D | external `:54-55` |
 | `layout.density` | Σ area of content boxes in the viewport / (vw·vh); median over π_J. | ratio | = | jo | p x d | exact | D | D | [Inference] |
 
+### 6.1 Visual ratchet (`ux-browser checks`, `visual`)
+
+Not a metric of the layout model: a comparison of a live page's pixels with a committed baseline,
+computed by `ux-browser checks` when its configuration declares `visual`
+(`docs/browser-adapter.md`, Visual ratchet). A unit is one page, viewport, mode and shot (the
+viewport at scroll 0, or the full page), its mask boxes blanked. A pixel differs when one of its
+channels differs by more than the unit's threshold. A unit without a baseline is not run:
+incomplete, never a pass.
+
+| id | definition and formula | unit | dir | res | targets | kind | S/D | role | tolerance |
+|---|---|---|---|---|---|---|---|---|---|
+| `visual.diff_share@1` | max over the page's units of (differing pixels / pixels), in millionths rounded up; 1 for a shot of another size than its baseline. | ratio | ↓ | pg | all | exact | D | K | per page and viewport: a share, and a per-channel threshold 0 to 255 |
+| `visual.diff_px@1` | Σ over the page's units of the differing pixels. | px | ↓ | pg | all | exact | D | D | as above |
+
 ## 7. Load
 
 | id | definition and formula | unit | dir | res | targets | kind | S/D | role | source |

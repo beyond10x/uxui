@@ -11,12 +11,17 @@ inputs:
   capture: {type: path, local: true}
   profile: {type: path, local: true}
   values: {type: path, local: true}
+  visual: {type: string, local: true}
   jobs: {type: integer, local: true}
   chrome-arg: {type: string, list: true, local: true}
 conditions: [viewports, modes, ready, settle_ms, reduced_motion, page_slack_px, overflow_tolerance_px, overflow_elements, overflow_exclude, clock]
 coverage_unit: check
 coverage: [executed, skipped, not_run, unsupported, passed, failed]
 outputs:
+  visual.diff_share@1:
+    {value_type: number, kind: exact, scopes: [page], unit: ratio}
+  visual.diff_px@1:
+    {value_type: number, kind: exact, scopes: [page], unit: px}
   layout.page_scroll@1:
     {value_type: number, kind: exact, scopes: [page, state], unit: units}
   layout.overflow@1:
