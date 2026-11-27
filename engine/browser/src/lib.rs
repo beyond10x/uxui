@@ -11,6 +11,8 @@
 //! - [`render`]: the render record `ux-browser-render/1`;
 //! - [`journey`]: journeys, steps by CSS selector to a page state, and the checks of each state;
 //! - [`pool`]: the worker threads a checks run measures its pages with;
+//! - [`tokens`]: the design-token checks: font sizes, colours, gaps and radii off declared tokens,
+//!   and the lowest text contrast;
 //! - [`values`]: the values file a consumer's ratchet and hard gates read, from a checks document.
 //! - [`visual`], [`png`]: the visual ratchet, each page's screenshots against a baseline of PNG files.
 
@@ -29,6 +31,7 @@ pub mod serve;
 pub mod session;
 pub mod sha1;
 pub mod target;
+pub mod tokens;
 pub mod value;
 pub mod values;
 pub mod visual;

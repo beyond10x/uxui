@@ -9,6 +9,7 @@
 use crate::checks::{self, Config, PageResult};
 use crate::journey::{JourneyResult, StateResult};
 use crate::render::FileRef;
+use crate::tokens;
 use crate::value::{decimal, map, s};
 use std::path::Path;
 use uxui_doc::yaml::Value;
@@ -280,7 +281,7 @@ fn shift_number(
 }
 
 /// The numbers and the findings of one page, and its checks counted into `coverage`.
-fn page(p: &PageResult, coverage: &mut Coverage, load: bool) -> (Vec<Value>, Value) {
+fn page(p: &PageResult, coverage: &mut Coverage, load: bool, tokens: bool) -> (Vec<Value>, Value) {
     let item = p.path.as_str();
     if let Some(error) = &p.error {
         coverage.skipped(item, "not_run", error);
@@ -299,6 +300,14 @@ fn page(p: &PageResult, coverage: &mut Coverage, load: bool) -> (Vec<Value>, Val
             e.push(("unit", s(unit)));
             e.push(("incomplete", why.clone()));
             numbers.push(map(e));
+        }
+        if tokens {
+            for (output, unit) in crate::tokens::OUTPUTS {
+                let mut e = head(output, "exact", item, "number");
+                e.push(("unit", s(unit)));
+                e.push(("incomplete", why.clone()));
+                numbers.push(map(e));
+            }
         }
         let mut set = head(FINDINGS, "exact", item, "identity_set");
         set.push(("key", Value::List(vec![s("rule"), s("node_path")])));
@@ -452,10 +461,122 @@ fn page(p: &PageResult, coverage: &mut Coverage, load: bool) -> (Vec<Value>, Val
     if load {
         numbers.push(shift_number(checks::LAYOUT_SHIFT_LOAD, item, p, |s| s.load));
     }
+    if tokens {
+        numbers.extend(token_numbers(p, coverage));
+    }
     let mut set = head(FINDINGS, "exact", item, "identity_set");
     set.push(("key", Value::List(vec![s("rule"), s("node_path")])));
     set.push(("items", Value::List(finding_items(findings))));
     (numbers, map(set))
+}
+
+/// The token outputs of one page (`tokens`), each a number over its viewports and modes (a count
+/// summed, the contrast the lowest) with `details.viewports` and its offenders, at most
+/// [`tokens::OFFENDERS_CAP`] (`details.more` counts the rest). Each viewport and mode is one check
+/// per output, passed when it has no offender; one where the output did not run is a `not_run`
+/// entry, and the number is then incomplete (`coverage_below_plan`): a count above 0 is a lower
+/// bound, anything else has no value. Never a complete 0 for what was not run.
+fn token_numbers(p: &PageResult, coverage: &mut Coverage) -> Vec<Value> {
+    let item = p.path.as_str();
+    let mut out = Vec::new();
+    for (i, (output, unit)) in tokens::OUTPUTS.iter().enumerate() {
+        let lowest = *output == tokens::CONTRAST;
+        let fold = |a: f64, b: f64| if lowest { a.min(b) } else { a + b };
+        let text = |x: f64| {
+            if lowest {
+                decimal(x, 2)
+            } else {
+                (x as i64).to_string()
+            }
+        };
+        let metric = output.split('@').next().unwrap_or(output);
+        let mut total: Option<f64> = None;
+        let mut by_viewport: Vec<(String, f64)> = Vec::new();
+        let mut offenders = Vec::new();
+        let mut more = 0i64;
+        let mut unjudged = 0i64;
+        let mut not_run = Vec::new();
+        for u in &p.tokens {
+            match &u.outcomes[i] {
+                Err(reason) => {
+                    let id = format!("{item}/{}/{}/{metric}", u.viewport, u.mode);
+                    coverage.skipped(&id, "not_run", reason);
+                    not_run.push(format!("{}/{}: {reason}", u.viewport, u.mode));
+                }
+                Ok(j) => {
+                    coverage.judged(j.offenders.is_empty());
+                    total = Some(total.map_or(j.value, |t| fold(t, j.value)));
+                    match by_viewport.iter_mut().find(|(v, _)| *v == u.viewport) {
+                        Some((_, x)) => *x = fold(*x, j.value),
+                        None => by_viewport.push((u.viewport.clone(), j.value)),
+                    }
+                    unjudged += j.unjudged;
+                    for o in &j.offenders {
+                        if offenders.len() == tokens::OFFENDERS_CAP {
+                            more += 1;
+                            continue;
+                        }
+                        let mut e = vec![
+                            ("viewport", s(&u.viewport)),
+                            ("mode", s(&u.mode)),
+                            ("node", s(&o.node)),
+                            ("value", s(&o.value)),
+                        ];
+                        if !o.what.is_empty() {
+                            e.push(("what", s(&o.what)));
+                        }
+                        offenders.push(map(e));
+                    }
+                }
+            }
+        }
+        let complete = not_run.is_empty() && total.is_some();
+        let mut e = head(output, "exact", item, "number");
+        let bound = match total {
+            Some(t) if complete => {
+                e.push(("value", s(&text(t))));
+                false
+            }
+            Some(t) if !lowest && t > 0.0 => {
+                e.push(("value", s(&text(t))));
+                true
+            }
+            _ => false,
+        };
+        e.push(("unit", s(unit)));
+        if bound {
+            e.push(("at_least", Value::Bool(true)));
+        }
+        if !complete {
+            let detail = if not_run.is_empty() {
+                "no viewport and mode was measured".to_string()
+            } else {
+                format!("not run at {}", not_run.join("; "))
+            };
+            e.push(("incomplete", incomplete("coverage_below_plan", &detail)));
+        }
+        let mut details = vec![(
+            "viewports",
+            Value::Map(
+                by_viewport
+                    .iter()
+                    .map(|(v, x)| (v.clone(), s(&text(*x))))
+                    .collect(),
+            ),
+        )];
+        if !offenders.is_empty() {
+            details.push(("offenders", Value::List(offenders)));
+        }
+        if more > 0 {
+            details.push(("more", Value::Int(more)));
+        }
+        if unjudged > 0 {
+            details.push(("unjudged", Value::Int(unjudged)));
+        }
+        e.push(("details", map(details)));
+        out.push(map(e));
+    }
+    out
 }
 
 /// Page scroll, overflow and the always-visible items of one viewport and mode, counted into
@@ -613,7 +734,12 @@ pub fn document_with_journeys(
     let mut numbers = Vec::new();
     let mut sets = Vec::new();
     for p in pages {
-        let (n, set) = page(p, &mut coverage, config.layout_shift_load);
+        let (n, set) = page(
+            p,
+            &mut coverage,
+            config.layout_shift_load,
+            config.tokens.is_some(),
+        );
         numbers.extend(n);
         sets.push(set);
     }

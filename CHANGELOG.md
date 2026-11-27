@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- ux-browser checks holds a page to its design tokens: an optional `tokens` section of
+  `ux-browser-checks/1` declares the font-size scale (a list of sizes, or a base and ratio), the
+  colours (custom properties read from the page's root in each mode, `--prefix*` for a family, and
+  values), the spacing unit and the allowed radii (`full` for a pill). Per page, viewport and mode
+  five new numbers: `proxy.type_scale@1`, `proxy.colours@1`, `proxy.spacing_units@1` and
+  `proxy.radii@1` count the distinct font sizes, colours of text, backgrounds and borders, gaps
+  between sibling boxes and paddings, and radii off the tokens, each within a stated tolerance;
+  `a11y.contrast_min@1` is the lowest WCAG contrast of text on its known background. Each names its
+  offenders (node and value, at most 20) in `details.offenders`. A kind not declared, or a property
+  the page does not define in a mode, is not run there (`not_run`, the number incomplete with
+  `coverage_below_plan`), never a pass. The values file takes the five numbers; a number named
+  `*_min` folds to the smallest over the gating viewports. Without the section the captures,
+  documents and values files are the bytes they were. `docs/browser-adapter.md`, Design tokens;
+  `docs/metrics.md` § 11.1. Closes `story:ux-browser-design-tokens`.
 - Campaign terms for a list page, in the declaration format `ux-search-campaign/2` (`/1` is still read,
   and a `/1` file that uses a key or a term of `/2` is refused with the name it needs):
   `rows_in_view` counts the rows of the selector `rows` fully in view at the top of the page, the one

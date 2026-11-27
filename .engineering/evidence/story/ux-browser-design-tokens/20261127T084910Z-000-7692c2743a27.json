@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-27T08:49:10Z",
+  "actor": "human:operator",
+  "artifact": "story:ux-browser-design-tokens",
+  "kind": "story",
+  "revision": 3,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot sh tools/gate.sh exit 0 (every step passed); ux-browser 213 -> 227 tests (tests/tokens.rs 14, red first: compile, no tokens API), binary 0.51 s; Chrome 149 headless captures of tests/fixtures/checks/tokens-site: /on-scale/ type scale 0, colours 0, spacing 0, radii 0, contrast 6.66; /offenders/ 2, 2, 4, 2, 1.74 (light and dark); tokens-unknown: colours, spacing, radii incomplete, 5 not_run; without tokens the evidence of hidden, cover and journey fixture sites byte-equal to the base build 99e5ef4 and captures equal (times left out); golden of the test documents written by the base build",
+    "reference": "engine/browser/tests/tokens.rs"
+  }
+}

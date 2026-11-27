@@ -356,12 +356,24 @@ fn measure_open(
         let bottom = visible_items(conn, page, config, path, vp)?;
         page.eval(conn, "window.scrollTo(0, 0)")?;
         times.push(("bottom", ms(t)));
-        units.push(map(vec![
+        let mut unit = vec![
             ("mode", s(mode)),
             ("mode_applied", Value::Bool(applied)),
             ("overflow", overflow),
             ("visible", map(vec![("top", top), ("bottom", bottom)])),
-        ]));
+        ];
+        // Only with a `tokens` section: a recording without it is the bytes it was before.
+        if let Some(tokens) = &config.tokens {
+            let t = Instant::now();
+            let used = page.run(
+                conn,
+                crate::tokens::PROBE,
+                &[strs(&crate::tokens::properties(tokens))],
+            )?;
+            unit.push(("tokens", used));
+            times.push(("tokens", ms(t)));
+        }
+        units.push(map(unit));
         if let Some(k) = &config.keyboard
             && walks_at(k, mode, &vp.name)
         {

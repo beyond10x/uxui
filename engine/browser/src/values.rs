@@ -407,10 +407,24 @@ fn text_or_null(v: Option<&Value>) -> String {
     }
 }
 
-/// Sums (`exact`) or the largest (`sampled`) of per-viewport values, as text.
-fn fold(kind: &str, values: &[String]) -> Option<String> {
+/// Sums (`exact`) or the largest (`sampled`) of per-viewport values, as text; the smallest for a
+/// metric whose name ends in `_min` (`a11y.contrast_min`, the lowest contrast).
+fn fold(kind: &str, metric: &str, values: &[String]) -> Option<String> {
     if values.is_empty() {
         return None;
+    }
+    let name = metric.split('#').next().unwrap_or(metric);
+    if name.ends_with("_min") {
+        return values
+            .iter()
+            .min_by(|a, b| {
+                let (x, y) = (
+                    a.parse::<f64>().unwrap_or(0.0),
+                    b.parse::<f64>().unwrap_or(0.0),
+                );
+                x.total_cmp(&y)
+            })
+            .cloned();
     }
     if kind == "sampled" {
         values
@@ -624,7 +638,7 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
                 .filter(|(vp, _)| gating(vp))
                 .map(|(_, t)| t)
                 .collect();
-            fold(kind, &at_gating)
+            fold(kind, &metric_of(output), &at_gating)
         } else {
             Some(number_text(value, &what)?)
         };
@@ -754,7 +768,7 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
                             ("pages".to_string(), Out::Num(pages.len().to_string())),
                         ];
                         for (m, kind, texts) in metrics {
-                            if let Some(n) = fold(&kind, &texts) {
+                            if let Some(n) = fold(&kind, &m, &texts) {
                                 e.push((m, Out::Num(n)));
                             }
                         }

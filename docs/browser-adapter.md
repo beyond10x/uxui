@@ -163,6 +163,7 @@ from `llm/ux/adapter.ts`: `engine/browser/examples/llm.checks.yaml`.
 | `chrome_args` | switches Chromium starts with after the defaults, a list: `[--enable-gpu]`; a switch the defaults set with another value is refused. Default: none (Chromium switches) |
 | `chrome` | the Chrome build the run uses: `{build: <n>}`, the Playwright build `chromium-<n>`, or `{version: <major>}`, the newest build whose Chrome has that major version; exactly one key, a whole number above 0. Default: none, the newest build (The Chrome build) |
 | `journeys` | steps named by CSS selector that bring a page into a state, and the states at which page scroll, overflow and the always-visible items are checked: `{name, page, steps, timeout_ms}` each. Default: none (Journeys) |
+| `tokens` | the design tokens a page is held to: font sizes, colours, the spacing unit and radii; per page, viewport and mode the values it uses off them and the lowest text contrast. Default: none, no token check runs (Design tokens) |
 
 The `layout` section; the defaults are llm's rule, the one of 0.4.0 and before (The checks):
 
@@ -762,6 +763,110 @@ Not covered: a step on an element inside an `iframe` or a shadow root (the selec
 document), a hover, a drag or a key other than the four, a wait for a change that touches no node
 (a CSS transition, a canvas), and a state's keyboard walk and layout shift (above).
 
+### Design tokens: `tokens`
+
+Whether a page uses only the scale's font sizes, the theme's colours, the spacing unit and its
+radii, and how well its text stands out from its background. Story `story:ux-browser-design-tokens`;
+the outputs are the live-page form of the design proxies of `docs/metrics.md` § 11 and of
+`a11y.contrast_min` (§ 8).
+
+```yaml
+tokens:
+  font_sizes: {base: 16, ratio: 1.25}
+  colours:
+    properties: ['--color-*', --focus-ring]
+    values: ['#000000', 'rgba(0, 0, 0, 0.5)']
+  spacing_unit_px: 4
+  radii: [4, 8, full]
+```
+
+| key | value |
+|---|---|
+| `font_sizes` | the type scale: a list of sizes in CSS pixels (`[12, 13, 17]`), or `{base, ratio}`, every size `base x ratio^k` for a whole number `k` (`{base: 16, ratio: 1.25}`: ..., 12.8, 16, 20, 25, 31.25, ...); each above 0, the ratio above 1 |
+| `colours.properties` | custom properties read from the page's root (`getComputedStyle(document.documentElement)`) in each mode, so a theme's light and dark values are each in their mode; `--prefix*` takes every custom property whose name starts with `--prefix` and holds a colour (names from the root's computed style and the page's readable style sheets) |
+| `colours.values` | colours declared as values: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()` |
+| `spacing_unit_px` | the spacing unit in CSS pixels, above 0 |
+| `radii` | the allowed corner radii in CSS pixels (0 or more), and `full`: a corner rounded to at least half its box's shorter side (a pill, a circle, `50%`, `999px`) |
+
+Every key is optional; the section declares at least one, and `colours` at least one property or
+value. A section that does not read (an unknown key, an empty list, a value that is not a number,
+a size or radius below 0, a ratio of 1 or less, a property that is not `--name` or `--prefix*`, a
+colour in another form) is refused with the configuration, exit 1, before a browser starts. Without
+the section nothing changes: no probe runs, and the captures, documents and values files are the
+bytes they were (`tests/tokens.rs` holds the documents of the test runs to the bytes of the build
+before the section existed).
+
+**What is measured.** Per page, viewport and mode, at the top of the page after the always-visible
+items, the probe `src/probes/tokens.js` reads every element the page draws (`checkVisibility` with
+`visibilityProperty`; not inside an `svg`) and returns each distinct value once, with how often it
+is used and the first node that uses it (`tag#id.class "text"`, as the overflow check names a block):
+
+| what | read from |
+|---|---|
+| font size and text colour | an element with text of its own (a non-blank text node as a child): `font-size`, `color`, `font-weight` |
+| colours | `color` (of such an element), `background-color`, and `border-*-color` of each side with a width above 0 and a style other than `none` and `hidden`; a fully transparent colour is not used |
+| gaps | between an element and the box before it among its siblings: both drawn boxes (not `display: inline`, `contents` or a table part; not `position: absolute` or `fixed`), with no text and no drawn inline element between them; the distance below it, or beside it (to the right, or to the left), when above 0 |
+| paddings | each of `padding-top`, `-right`, `-bottom`, `-left` above 0 |
+| radii | each corner's `border-*-radius` (its first value; a percentage of the box's width) above 0, and whether it is at least half the box's shorter side (`full`) |
+| text on its background | per element with text: its colour, and the background colours of the element and its ancestors composited down to the first opaque one; unknown when a background image lies in between or no opaque background is reached (the canvas) |
+
+Colours are read as sRGB: `rgb()` and `rgba()` as the computed style writes them, `color(srgb ...)`
+by number, any other form drawn on a 1 x 1 canvas and read back. The declared custom properties
+are read the same way.
+
+**The rules**, in Rust (`src/tokens.rs`), each a stated tolerance:
+
+| result (`scope: page`, `exact`) | per viewport and mode | tolerance |
+|---|---|---|
+| `proxy.type_scale@1` (sizes) | distinct font sizes of text off the scale | a size within 0.5 px of a size of the scale is on it |
+| `proxy.colours@1` (colours) | distinct colours of text, backgrounds and borders that match no declared colour | each of red, green and blue within 2 (of 255), alpha within 0.02 |
+| `proxy.spacing_units@1` (gaps) | distinct gaps and paddings that are not a multiple of the spacing unit; one value counts once, as a gap and a padding | within 0.5 px of a multiple |
+| `proxy.radii@1` (radii) | distinct radii that match no declared radius; a radius below 0.5 px is none; a `full` corner matches `full` | within 0.5 px |
+| `a11y.contrast_min@1` (ratio) | the lowest WCAG contrast ratio of text on its known background, the text's alpha composited on it, rounded down to 2 places; text below its limit (4.5, or 3 for large text: 24 px, or 18.66 px at weight 700 or more; WCAG 1.4.3) is an offender | none |
+
+Per page a count is summed over viewport x mode and the contrast is the lowest; `details.viewports`
+has the value per viewport (a count summed over its modes, the contrast the lowest). The
+`details.offenders` list names each value off the tokens (`{viewport, mode, node, value, what}`;
+`what` the properties of a colour, `gap` or `padding`, `full` for a radius, the colours and limit
+of a contrast), at most 20 per result in viewport and mode order, then the first use in document
+order; `details.more` counts the ones left out. `details.unjudged` counts text whose background is
+unknown, which the contrast does not judge. Not judged at all: text over an image, a gradient, a
+canvas or a sibling drawn behind it (the background comes from ancestors only), `opacity`, and the
+colours of `svg` content.
+
+**Undeclared or unknown is not run, never a pass.** A kind the section does not declare, a declared
+custom property the root does not define in a mode or that holds no colour there (or a `--prefix*`
+that matches no colour), and a page with no text on a known background for the contrast, make that
+output not run at that viewport and mode: one `not_run` entry in `evidence.coverage.not_executed`,
+id `<page>/<viewport>/<mode>/<output without suffix>` (`/on-scale//400x300/dark/proxy.colours`),
+reason the cause (``the page's root does not define `--only-light` ``, `the tokens declare no
+radii`). The page's number is then incomplete, cause `coverage_below_plan`, detail ``not run at
+<viewport>/<mode>: <reason>``; a count above 0 from the other viewports and modes is kept as a lower
+bound (`at_least: true`), anything else has no value. A run that judged an output counts one check
+per viewport and mode, passed when it has no offender. The values file takes the five numbers as
+it takes the others (`ux-browser values`): `proxy.type_scale`, ..., `a11y.contrast_min`, the
+contrast folded to the smallest over the gating viewports; an incomplete one is a problem line
+there, as any incomplete result. The token outputs are not gated (`values.gates` names only the
+outputs with findings) and run on pages, not in the states of a journey.
+
+The declared tokens are part of the configuration's bytes (its digest under
+`evidence.inputs.config`) and add no condition. **Capture.** With the section each unit of a page's
+capture has `tokens`, the probe's answer (`properties`, `colours`, `nodes`, `sizes`, `usage`, `text`,
+`gaps`, `radii`, `elements`); a configuration with the section refuses a capture recorded without
+it, and `run.timing` has the probe's milliseconds per mode as `tokens`.
+
+Measured 2026-11-27, Chrome/149.0.7827.55, `tests/fixtures/checks/tokens-site/` with
+`tokens.checks.yaml` (400 x 300, light and dark; the captures in `tokens/`):
+
+| page | type scale | colours | spacing | radii | contrast min |
+|---|---|---|---|---|---|
+| `/on-scale/`: sizes 12.8, 16, 20, 25 on `{base: 16, ratio: 1.25}`, colours from `--color-*`, gaps and paddings of 4, 8, 12, 16, radii 4, 8 and a pill | 0 | 0 | 0 | 0 | 6.66 |
+| `/offenders/`: a size of 18 px, the colour `#2e7d32`, a gap of 13 px and a padding of 10 px, a radius of 6 px, faint text (`--color-muted`) | 2 (18 px in each mode) | 2 (`#2e7d32`) | 4 (13 px, 10 px) | 2 (6 px) | 1.74 (faint text in dark; 2.16 in light) |
+
+With `tokens-unknown.checks.yaml` (sizes as a list, colours as values plus `--only-light`, which
+the page defines in light only, no spacing unit and no radii; the capture in `tokens-unknown/`):
+type scale 0 and contrast 6.66; colours, spacing and radii incomplete, 5 `not_run`.
+
 ### Evidence
 
 As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
@@ -778,7 +883,7 @@ As `ux-static@1` writes it (`docs/ux-static.md`), with these differences:
 | `run.local_inputs` | `jobs` (the value used), `capture`, `profile`, `values` and `visual` when given, and `chrome-arg`, the switches added by `chrome_args` and `--chrome-arg` as a JSON list, when there are any: they differ per machine and change no value, so they stay outside the evidence |
 | `run.timing` | where the run spent its time (Timings, The run's times): `{unit: ms, pages: [...]}`, one entry per page and viewport measured. Outside the evidence: the evidence of the same measurements is the same bytes with and without it. Absent when no page was measured |
 | `evidence.coverage` | unit `check`: one check on one viewport and mode (page scroll, overflow, each applicable item at the top and at the bottom), one keyboard check per walk check (The keyboard walk: the skip link's two when declared, each target, each focus mark, each activation), and one counted layout-shift reading per viewport; per state of a journey and its viewport and mode, page scroll, overflow and each applicable item once. A page that did not load is one `not_run` entry, id the page path; a state a run did not reach is one, id `journey/<journey>/<state>/<viewport>/<mode>` (Journeys) |
-| `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks`: per walk `viewport`, `mode`, `skip_link_first` and `skip_moves_focus` (only with a skip link), `reached`, `focus_marks` (when a mark was judged) and `activates` (when an activation was judged), each a map of target to true or false. A keyboard finding's reason is `missed`, except a focus mark's (the focused element and what it showed) and an activation's (what failed). After the pages' numbers and before their sets: per state of a journey three numbers and a set, scope `state`, item `<journey>/<state>` (Journeys) |
+| `evidence.results[]` | per page the five numbers (six with `layout_shift.load`, after the shift after ready), then per page a `findings` identity set (`[rule, node_path]`, node path `<viewport>/<mode>/<what>`, reason in `fields`). The four counts are `exact`; layout shift is `sampled` with `samples` (the viewports read), so the document has `run.started_at` and `run.ended_at`. Every number has its per-viewport values in `details.viewports` (`{<viewport>: "<value>"}`: a count summed over the viewport's modes or walks, a shift as read); the keyboard count keeps its `details.walks`: per walk `viewport`, `mode`, `skip_link_first` and `skip_moves_focus` (only with a skip link), `reached`, `focus_marks` (when a mark was judged) and `activates` (when an activation was judged), each a map of target to true or false. A keyboard finding's reason is `missed`, except a focus mark's (the focused element and what it showed) and an activation's (what failed). With a `tokens` section, after those numbers: the five token numbers (Design tokens). After the pages' numbers and before their sets: per state of a journey three numbers and a set, scope `state`, item `<journey>/<state>` (Journeys) |
 
 A page that is not served, does not apply a mode or does not set its ready condition in time has
 every result incomplete with cause `incompatible_target` and no value; the detail says why, and names
@@ -810,7 +915,7 @@ digests and the same 1,234 values.
 | `inputs` | `config` (path, required), `build` (path) and `url` (text), of which a run gets exactly one (a choice of the usage; the format has no way to say so), `pages` (text: paths separated by commas), and the local inputs `capture`, `profile`, `values` (paths), `jobs` (integer), `chrome-arg` (a list of text: the added Chromium switches) and `visual` (text: `compare` or `update`); `values` names a file the run writes and changes no value of the document, as `capture`, and `visual update` writes the baseline after the document, which is the same in both |
 | `conditions` | `viewports`, `modes`, `ready`, `settle_ms`, `reduced_motion`, `page_slack_px`, `overflow_tolerance_px`, `overflow_elements`, `overflow_exclude`, `clock`: the keys of `conditions.other` |
 | `coverage_unit`, `coverage` | `check`; all six counts |
-| `outputs` | the six numbers (`scope: page`; page scroll, overflow and always visible also `scope: state`, as is `findings`; unit `units`, `blocks`, `items`, `checks`, `score`, `score`; the two layout shifts `sampled`, the others `exact`) and `findings` (`identity_key: [rule, node_path]`, `item_fields: [reason]`) |
+| `outputs` | the six numbers (`scope: page`; page scroll, overflow and always visible also `scope: state`, as is `findings`; unit `units`, `blocks`, `items`, `checks`, `score`, `score`; the two layout shifts `sampled`, the others `exact`), the five token numbers (`scope: page`, `exact`; unit `sizes`, `colours`, `gaps`, `radii`, `ratio`; Design tokens) and `findings` (`identity_key: [rule, node_path]`, `item_fields: [reason]`) |
 
 A test (`tests/assessor.rs`) reads it and compares its inputs with the arguments of the `checks` usage
 (required where the usage neither brackets them nor puts them in a choice `( | )`), its conditions with a document's, and its outputs with
@@ -972,12 +1077,12 @@ key, so that it is the bytes the script it replaces wrote; `ux-browser-values/1`
 
 | key | value |
 |---|---|
-| `values` | per page scenario (`scenarios`) an object: per number of the document its output without the `@<version>` suffix (`layout.page_scroll`) and its value. A number without a value (incomplete) is left out; a page without a scenario has none. Without `gating`, the document's value: a sum over viewport x mode, a layout shift the largest over the viewports. With `gating`, the same sum or largest over the gating viewports only, from `details.viewports`. A state of a journey counts under the scenario of its page (`details.page`), its numbers named `<output without suffix>#<journey>/<state>` (`layout.overflow#open details/opened`); a state some run did not reach has no value there |
+| `values` | per page scenario (`scenarios`) an object: per number of the document its output without the `@<version>` suffix (`layout.page_scroll`) and its value. A number without a value (incomplete) is left out; a page without a scenario has none. Without `gating`, the document's value: a sum over viewport x mode, a layout shift the largest over the viewports, `a11y.contrast_min` (a name that ends in `_min`) the smallest. With `gating`, the same sum, largest or smallest over the gating viewports only, from `details.viewports`. A state of a journey counts under the scenario of its page (`details.page`), its numbers named `<output without suffix>#<journey>/<state>` (`layout.overflow#open details/opened`); a state some run did not reach has no value there |
 | `units` | per page, viewport and mode that has a gate failure, `{path, viewport, theme, failures}`; `theme` is the mode. A state's `path` is `<page>#<journey>/<state>`. Sorted by path, viewport, mode |
 | `units[].failures` | `{gate, detail, key, waivedBy}` each, one per key, sorted by key. `waivedBy` is the `id` of the first finding record (in the order of `waivers.files`) whose status is not closed and one of whose `waives` patterns matches the key; else `null` |
 | `incomplete` | `<page> <output>: <cause>` per result that is incomplete, in the document's order |
 | `unmapped` | the pages of the document without a page scenario, sorted, each once |
-| `viewports` | only with `gating`: per viewport `{gating, pages, <output>: <value>, ...}`: `pages` the number of pages with values at it, each count summed over them, each layout shift the largest |
+| `viewports` | only with `gating`: per viewport `{gating, pages, <output>: <value>, ...}`: `pages` the number of pages with values at it, each count summed over them, each layout shift the largest, `a11y.contrast_min` the smallest |
 
 A failure is a finding of an output named in `gates`, at a gating viewport. Its node path
 `<viewport>/<mode>/<what>` gives the unit, and `<what>` its detail:

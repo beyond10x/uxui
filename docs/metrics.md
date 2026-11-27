@@ -46,7 +46,7 @@ Fixed rules for every metric:
   `uxsearch.metrics.MetricKind` in this repository's `ess/domains/metrics.yaml`.
 - **unit**: in the words of `uxsearch.metrics.MetricUnit` (same file), nodes, findings, journeys,
   steps, states, refusals, regions, keys, pairs, stops, values, commands, views, tones, sizes, gaps,
-  edges and radii are `count`; s is `ms` x 1000. `bits` (`effort.fitts_id`) and `level`
+  edges, radii and colours are `count`; s is `ms` x 1000. `bits` (`effort.fitts_id`) and `level`
   (`attention.glance_cost`) have no unit there yet, and "no direction" (=) has no `Direction`.
 - **S/D**: S static, from the document alone; D dynamic, needs the layout model.
 - **role**: H hard rule (absolute limit, prunes), K KPI candidate (may be declared a KPI, gets a
@@ -177,6 +177,23 @@ weight (`concept.md` § 4).
 | `proxy.spacing_units` | Distinct gaps between sibling boxes that are not a multiple of the smallest space token. | gaps | ↓ | st | all | exact | D | D | "one spacing unit" (delta `:244`) |
 | `proxy.alignment_edges` | Distinct left edges of boxes in the viewport. | edges | ↓ | st | s p x d | exact | D | D | [Inference] |
 | `proxy.radii` | Distinct radius tokens in use. The colleague's bar: ≤ 4. | radii | ↓ | va | all | exact | S | D | "beauty from consistency" (delta `:244`) |
+
+### 11.1 Live-page computation (`ux-browser checks`, `tokens`)
+
+No engine computes the table's static forms. Version 1 of `proxy.type_scale`, `proxy.spacing_units`
+and `proxy.radii`, the new `proxy.colours`, and `a11y.contrast_min` (§ 8) are computed by
+`ux-browser checks` on a live page against the tokens its configuration declares (`tokens`,
+`docs/browser-adapter.md`, Design tokens): per page, viewport and mode, over every element the page
+draws, each count summed per page and the contrast the lowest. An output whose tokens are not
+declared, or not defined by the page in a mode, is not run there: incomplete, never a pass.
+
+| id | definition and formula | unit | dir | res | targets | kind | S/D | role | tolerance |
+|---|---|---|---|---|---|---|---|---|---|
+| `proxy.type_scale@1` | Distinct font sizes of drawn text not on the declared scale (a list of sizes, or base x ratio^k). | sizes | ↓ | pg | all | exact | D | D | 0.5 px |
+| `proxy.colours@1` | Distinct colours of text, backgrounds and borders that match none of the declared colours (custom properties read from the root in each mode, and values). | colours | ↓ | pg | all | exact | D | D | 2 of 255 per channel, alpha 0.02 |
+| `proxy.spacing_units@1` | Distinct gaps between sibling boxes and paddings that are not a multiple of the declared spacing unit. | gaps | ↓ | pg | all | exact | D | D | 0.5 px |
+| `proxy.radii@1` | Distinct corner radii that match none of the declared radii (`full`: at least half the box's shorter side). | radii | ↓ | pg | all | exact | D | D | 0.5 px |
+| `a11y.contrast_min@1` | min over drawn text on a known background (ancestors' background colours composited to the first opaque one) of (L1 + 0.05) / (L2 + 0.05), the text's alpha composited first, rounded down to 2 places; text below 4.5 (3 for large text) is named. | ratio | ↑ | pg | all | exact | D | D | none |
 
 ## 12. Counts
 
