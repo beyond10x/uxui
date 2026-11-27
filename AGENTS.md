@@ -171,7 +171,12 @@ release without asking (the operator's order of 2026-11-24) and reports the fact
 2. After the merge, wait until `task release:ready -- <sha>` (`tools/release-ready.sh`; `<sha>` the
    full id of the merge commit) exits 0: it asks the forge for the runs on that commit and refuses,
    naming each, while one of `Gate`, `Documentation validation` and `Documentation site` is absent,
-   pending or did not end `success`. No tag without it. Then an annotated tag on the merge commit
+   pending or did not end `success`. No tag without it. A run that ended `skipped` beside a run of
+   the same workflow on that commit that ended `success` is printed as not counted; a workflow
+   whose only runs are skipped is red. After the release pull request merges, merge nothing else
+   until `Documentation site` has run on that merge commit: it has one concurrency group, so a
+   newer pending run replaces the older one and the release commit then has no run of it. Then an
+   annotated tag on the merge commit
    as the bot,
    `b10x-gates bot -- tag -a <version> -m "uxui <version>" <sha>`, pushed with
    `b10x-gates bot --repository beyond10x/uxui -- push origin refs/tags/<version>`

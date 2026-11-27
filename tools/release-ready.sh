@@ -1,14 +1,16 @@
 #!/bin/sh
-# Whether a commit may carry a release tag: every required workflow has a run on it and every such
-# run ended success. Run before `git tag` (AGENTS.md, Release): `task release:ready -- <sha>`.
+# Whether a commit may carry a release tag: every required workflow has a run on it that ended
+# success, and every other such run ended success or skipped. Run before `git tag` (AGENTS.md, Release): `task release:ready -- <sha>`.
 # Usage: sh tools/release-ready.sh <sha>, the full 40-character commit id.
 #
 # It asks the forge with `gh run list --repo beyond10x/uxui --commit <sha>` (POSIX sh and jq).
 # Required are the workflows Gate (.github/workflows/ci.yml), Documentation validation
 # (pages.yml) and Documentation site (b10x-docs-site.yml), by their exact names. A required
 # workflow without a run on the commit is absent; a run of it that is not completed is pending;
-# a completed run whose conclusion is not exactly success is red. Runs of other workflows and runs
-# on other commits are printed and do not count.
+# a completed run whose conclusion is not exactly success is red, except a skipped one: beside a
+# run of the same workflow on the commit that ended success it is printed as not counted, and
+# beside a pending run it waits with that run. A workflow whose only runs are skipped is red. Runs
+# of other workflows and runs on other commits are printed and do not count.
 # Exit 0 when every required workflow ended success; 1 naming each absent, pending or red one, or
 # when the runs cannot be read; 2 on a usage error.
 set -u
@@ -59,10 +61,16 @@ report=$(printf '%s\n' "$runs" | jq -r --arg sha "$sha" --arg required "$require
 	  ($mine[] | select(.workflowName as $n | $required | index([$n]) | not)
 		| "note\tnot required: \(.workflowName): \(state)"),
 	  ($mine[] | select(.workflowName as $n | $required | index([$n]))
-		| "note\t\(.workflowName): \(state)",
-		  (if .status != "completed" then "block\t\(.workflowName): pending (\(state))"
-		   elif .conclusion != "success" then "block\t\(.workflowName): red (\(state))"
-		   else empty end)),
+		| .workflowName as $n
+		| [$mine[] | select(.workflowName == $n)] as $group
+		| ($group | any(.status == "completed" and .conclusion == "success")) as $green
+		| ($group | any(.status != "completed")) as $pending
+		| "note\t\($n): \(state)",
+		  (if .status != "completed" then "block\t\($n): pending (\(state))"
+		   elif .conclusion == "success" then empty
+		   elif .conclusion == "skipped" and $green then "note\tnot counted: \($n): skipped beside a success"
+		   elif .conclusion == "skipped" and $pending then empty
+		   else "block\t\($n): red (\(state))" end)),
 	  ($required[] as $n | select([$mine[] | select(.workflowName == $n)] | length == 0)
 		| "block\t\($n): absent")') ||
 	refuse "the workflow runs of $sha were not read: jq failed on them"
