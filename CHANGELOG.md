@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.14.0 — 2026-11-27
+
 - The dependency cache of both gate jobs keeps `engine/search`'s build. `Swatinem/rust-cache` reads
   the target directory of a workspace relative to it, so `engine/search -> engine/search/target`
   cached `engine/search/engine/search/target`, which no build writes: on run 46062605370 the cache
