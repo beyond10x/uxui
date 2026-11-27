@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- `ux-search` builds on ESS 0.99.9, the newest release (was 0.99.5): the three ESS crates by that git
+  tag, and `engine/search/Cargo.lock` moved with them (only ESS's own packages; no third-party crate
+  changed). The engine compiles against 0.99.9 unchanged: only `ux_search::ESS_TAG` and the comments
+  that name the tag moved. Both golden frontiers change in their first line
+  only, which names the tag; the partner-portal fixture keeps its bytes. Releases 0.99.6 to 0.99.9 fix
+  conformance synthesis and one signal race of `ess verify conform run`, but the tags 0.99.8 and 0.99.9
+  also carry ESS's `main` of 2026-11-26, whose entries stand under `[Unreleased]` in ESS's changelog.
+  Among them is a chart's `sort: {by, dir}`, which closes item 6 of `docs/ess-gaps.md` (chart order):
+  2 of 18 items are closed now (6 and 9), 16 stay open in 0.99.9. A new test module, `ess_gaps`, holds
+  item 6 in the terminal renderer on the studio's two line charts: as written, the live insert of
+  `seq` 4 is drawn first; under the sort it is drawn in order. The studio document does not declare
+  the sort yet: the `ess` CLI 0.99.2, on which its `ess ui check` runs, refuses the key.
+
 ## 0.14.0 — 2026-11-27
 
 - The dependency cache of both gate jobs keeps `engine/search`'s build. `Swatinem/rust-cache` reads

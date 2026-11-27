@@ -1,8 +1,8 @@
 # ESS gaps uxui needs, in priority order
 
-Status: 2026-11-26. Every gap uxui has found in ESS, ordered by what blocks the engine first. Found on ESS
-0.98.0; read again on 2026-11-26 against ESS's releases up to 0.99.5 (the newest, and the tag
-`engine/search` builds on) and its planning store on its `main`; the CLI installed here is 0.99.2. The
+Status: 2026-11-27. Every gap uxui has found in ESS, ordered by what blocks the engine first. Found on ESS
+0.98.0; read again on 2026-11-27 against ESS's releases up to 0.99.9 (the newest, and the tag
+`engine/search` builds on), the code of that tag and its planning store; the CLI installed here is 0.99.2. The
 owner, 2026-11-24: "make sure that all ESS gaps are implemented ASAP". Sent
 to the ESS maintainers on 2026-11-24 as gap reports; ESS filed them as stories of
 its own, tagged `gap-reports-2026-11-24` and `gap-p0`, `gap-p1` or `gap-p2`, and maps each item to them in
@@ -13,12 +13,18 @@ that ESS has no story for yet are draft stories uxui sends ([Needs per way](#nee
 not an ESS gap: themes and templates belong to uxui (`AGENTS.md`, Direction), and so do the UX declarations
 (`uxui-declarations/1`).
 
-Closed: 1 of the 18 items (item 9), and two needs of the generator round (the loop period and
+Closed: 2 of the 18 items (items 6 and 9), and two needs of the generator round (the loop period and
 `insert_top` of a held key, [Needs per way](#own-generator)). A closed entry says **Closed**, the ESS
-release that closed it and the uxui change that adopted it. The other 17 items are open in ESS 0.99.5:
-no story of theirs is in a release, and item 6 is on ESS's unreleased `main`. Releases 0.99.1 to 0.99.5
-are patch releases: they change conformance synthesis and, in 0.99.2, where `ess ui check` and the
-renderers read an overlay's `params:`; none adds a key to `ess-ui/1` or to the specification format.
+release that closed it and the uxui change that adopted it. The other 16 items are open in ESS 0.99.9:
+no story of theirs is in a release. Releases 0.99.1 to 0.99.9 are patch releases by their changelog
+sections: they change conformance synthesis, in 0.99.2 where `ess ui check` and the renderers read an
+overlay's `params:`, and in 0.99.8 how `ess verify conform run --target process` takes an ending
+signal. The tags 0.99.8 and 0.99.9 also carry ESS's `main` of 2026-11-26, merged into the hotfix line
+of 0.99.8: its entries stand under `[Unreleased]` in the `CHANGELOG.md` of both tags, and their code is
+in both (item 6's commit `1d208b2225` is an ancestor of the tag 0.99.8 and not of 0.99.7). Those entries
+add keys to `ess-ui/1` (a chart's `sort`, a chart's axes as fields, an action's `icon` and `tone`, a
+param written `{value, when}`, `loads.<field>`) and an `authentication` section to `ess-http/1`; of the
+items below only item 6 is among them.
 
 Sources: `ess/GAPS.md` (G1-G11), `docs/roadmap.md` step 2, `docs/generator-round.md` (F1, F3, stories 4
 to 7), `docs/change-list.md` (C1-C10), `docs/own-generator.md`.
@@ -27,7 +33,8 @@ to 7), `docs/change-list.md` (C1-C10), `docs/own-generator.md`.
 
 ESS accepted all of P0 (status `active`, tag `gap-p0`) and builds it in eight rounds, R1 to R8; R5 to R8
 ship as one release, which publishes `ess-ui-resolved/1` and `ess-ui-state/1` once, complete. None of it is
-in a tag yet (read at 0.99.5).
+in a tag yet (read at 0.99.9: its code has no `Session::offered`, no `Session::fork`, no
+`ess-ui-state/1` and no `ess-ui-resolved/1`).
 
 1. **UI state API** (roadmap 2a). For a UI state of an `ess-ui/1` document: the list of actions available
    in it, and a cloneable state (or a replay-free way to reach it). Exhaustive search over the state space
@@ -74,10 +81,19 @@ in a tag yet (read at 0.99.5).
    `a-test-opens-one-section-overlay-or-widget-of-a-document-alone-at-a-given-terminal-width-and-the-terminal.md`,
    `the-generated-react-project-draws-one-section-overlay-or-widget-alone-at-a-given-width-and-the-playwright-spec.md`
    (both `draft`).
-6. **Chart order** (F1). `chart` takes `sort: {by, dir}` and live inserts keep the order. Done on ESS's
-   unreleased `main`, commit 1d208b2225, in no tag yet. ESS:
-   `a-chart-draws-its-rows-in-the-order-its-sort-declares-and-a-live-insert-keeps-that-order.md`; a test
-   step that asserts a chart's order:
+6. **Chart order** (F1). `chart` takes `sort: {by, dir}` and live inserts keep the order.
+   **Closed.** ESS release: 0.99.8, whose tag carries commit `1d208b2225` (beyond10x/ess#723; also in
+   0.99.9), entered under `[Unreleased]` in ESS's `CHANGELOG.md` at both tags: "An `ess-ui/1` chart takes
+   the collection's `sort: {by, dir}`: React, the terminal and the table a chart degrades to draw its rows
+   in that order after every live effect and `reads.filter`, where an `insert_or_patch` or `insert_top`
+   row was drawn first". uxui change: this change, recorded here on 2026-11-27: `engine/search` builds on
+   ESS 0.99.9, and `engine/search/tests/ess_gaps.rs` holds the sort in the terminal renderer on the
+   studio's two line charts (the live insert of `seq` 4 into `progress` is drawn first as written, last
+   under `dir: asc`, first again under `desc`; the test fails on 0.99.5, which refuses the key). The
+   studio document does not declare the sort yet: the `ess` CLI installed here, 0.99.2,
+   refuses `sort` on a chart (`unknown field sort`), and the studio's `ess ui check` runs on that CLI.
+   ESS: `a-chart-draws-its-rows-in-the-order-its-sort-declares-and-a-live-insert-keeps-that-order.md`
+   (`active` in its store at 0.99.9); ESS keeps a story for a test step that asserts a chart's order:
    `a-chart-s-rows-are-addressable-in-both-renderers-and-a-test-asserts-the-order-a-chart-draws-them-in-with.md`
    (`active`).
 7. **Param-scoped live channel in tests.** A channel with `scope: param` and `session: {per: campaign_id}`

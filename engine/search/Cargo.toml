@@ -25,9 +25,9 @@ name = "main"
 path = "tests/main.rs"
 
 [dependencies]
-ess-ui = { git = "https://github.com/beyond10x/ess", tag = "0.99.5" }
-ess-ui-check = { git = "https://github.com/beyond10x/ess", tag = "0.99.5" }
-ess-ui-tui = { git = "https://github.com/beyond10x/ess", tag = "0.99.5" }
+ess-ui = { git = "https://github.com/beyond10x/ess", tag = "0.99.9" }
+ess-ui-check = { git = "https://github.com/beyond10x/ess", tag = "0.99.9" }
+ess-ui-tui = { git = "https://github.com/beyond10x/ess", tag = "0.99.9" }
 ux-browser = { path = "../browser" }
 uxui-doc = { path = "../doc" }
 

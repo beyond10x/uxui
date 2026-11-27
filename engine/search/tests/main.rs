@@ -31,6 +31,7 @@ mod campaign_events;
 mod campaign_live;
 mod climb;
 mod cost;
+mod ess_gaps;
 mod ess_tag;
 mod landing;
 mod landing_adversary;

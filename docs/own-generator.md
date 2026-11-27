@@ -155,7 +155,7 @@ against the own page yet; its `data-ui-path` attributes follow the paths the Pla
 ## ESS gaps found
 
 Each reproduces on `ess` 0.98.0 in this repository. ESS 0.98.1 fixed 1 and 3; 2, 4 and 5 are open
-in ESS 0.99.5 (`docs/ess-gaps.md`, Needs per way).
+in ESS 0.99.9 (`docs/ess-gaps.md`, Needs per way).
 
 1. **`insert_top` inserts a key the section already holds, so two rows share one row path.** Fixed
    in ESS 0.98.1: the held row takes the event's fields and moves to the top, in the terminal, in

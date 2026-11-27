@@ -8,15 +8,16 @@ this report replaces both with a measurement per UI state.
 ## Method
 
 `ux-search cost` (`engine/search/src/cost.rs`) drives one page of an ESS example in process through ESS's
-terminal renderer (`ess_ui_tui::App` at ESS tag 0.99.5, the crates by git, no CLI and no subprocess).
-The results below were measured on tag 0.99.4; 0.99.5 changes no source file of the ESS crates
-`ux-search` links, and none of the example.
+terminal renderer (`ess_ui_tui::App` at ESS tag 0.99.9, the crates by git, no CLI and no subprocess).
+The results below were measured on tag 0.99.4 and not again since. 0.99.5 changes no source file of
+the ESS crates `ux-search` links; 0.99.8 changes the terminal renderer (the `[Unreleased]` entries its
+tag carries, `docs/ess-gaps.md`). No tag up to 0.99.9 changes the example.
 
-- **Page.** `tickets.detail` of ESS's `examples/partner-portal/ui.yaml` at 0.99.5, copied with its
+- **Page.** `tickets.detail` of ESS's `examples/partner-portal/ui.yaml` at 0.99.9, copied with its
   fixtures to `engine/search/tests/fixtures/partner-portal/` (SHA-256 per file in its `README.md`),
   param `id=tk-01`; its sections are a record, a list of messages and a reply form.
 - **UI states.** State 0 is the page opened; state n is state 0 after the first n keys of a key
-  sequence (default `<tab>` five times: focus moves through the page). ESS 0.99.5 has no UI state API
+  sequence (default `<tab>` five times: focus moves through the page). ESS 0.99.9 has no UI state API
   (`docs/ess-gaps.md` P0 1; `App` has no `Clone`, `docs/state-space.md:198-199`), so a state cannot be
   forked: every state is reached by opening the document again and replaying its keys from the open page.
 - **Times per state**, each the median of the runs (`--repeat`):

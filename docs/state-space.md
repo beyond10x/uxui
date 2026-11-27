@@ -77,7 +77,7 @@ page 1.2 ms, draw one 80x24 state 0.4 ms. A layout call therefore costs about 40
 assumption, plus 3.8 ms per variant and page. The component example becomes about 45 s of drawing plus
 144 x 8 x 3.8 ms = 4.4 s; the call budget of § 6 shrinks from 2.4 million calls to about 300,000 per 120 s
 on one core. Through the `ess` CLI a variant costs about 190 ms (check and test as processes), so the engine
-calls ESS in process. The cost of one step between states (replayed from open: ESS 0.99.5 has no UI state
+calls ESS in process. The cost of one step between states (replayed from open: ESS 0.99.9 has no UI state
 API, gap P0 1) is measured by `ux-search cost`: `docs/cost-spike.md`.
 
 ### 2.4 Evaluation count

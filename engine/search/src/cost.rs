@@ -1,7 +1,7 @@
 //! The cost of one evaluation on layout model v0 (`ux-search cost`).
 //!
 //! A UI state is the page opened (state 0) and then the first `n` keys of a key sequence typed
-//! (state `n`). ESS 0.99.5 has no UI state API: `App` cannot be cloned, so every state is reached
+//! (state `n`). ESS 0.99.9 has no UI state API: `App` cannot be cloned, so every state is reached
 //! by opening the document again and replaying its keys from the opened page. Per state and run:
 //!
 //! - open: `App::from_text` (it loads the fixtures and opens the home page), `open_page`, and
