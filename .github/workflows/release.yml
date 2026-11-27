@@ -56,9 +56,18 @@ jobs:
         run: |
           set -euo pipefail
           target=x86_64-unknown-linux-gnu
+          cargo_home=${CARGO_HOME:-$HOME/.cargo}
+          export RUSTFLAGS="--remap-path-prefix=$cargo_home=/cargo --remap-path-prefix=$GITHUB_WORKSPACE=/src"
           cargo build --locked --release --target "$target" -p ux-browser -p ux-static
           cargo build --manifest-path engine/search/Cargo.toml --locked --release --target "$target" --target-dir target
           sh tools/release-versions.sh "$GITHUB_REF_NAME" "target/$target/release"
+          for bin in ux-browser ux-static ux-search; do
+            if grep -a -q -E '/home/[A-Za-z0-9_.-]+/' "target/$target/release/$bin"; then
+              echo "$bin names a home directory:" >&2
+              grep -a -o -E '/home/[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]*' "target/$target/release/$bin" | sort -u | head -5 >&2 || true
+              exit 1
+            fi
+          done
           for bin in ux-browser ux-static ux-search; do
             "target/$target/release/$bin" --help > /dev/null 2>&1 || test "$?" = 2
             package="$bin-$GITHUB_REF_NAME-$target"
