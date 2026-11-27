@@ -76,9 +76,14 @@ be the better path usually, but maybe things have changed".
   reaches GitHub through `b10x-gates` (`bot -- commit`, `check`, `publish`), never plain `git push`
   or `gh`. No company, customer or person names, internal hosts or home paths in any file.
 - Every `aep` write runs with `AEP_ACTOR=human:operator`, so no login name enters `.engineering/`. The owner,
-  2026-11-24: "replace human Timo with human operator".
+  2026-11-24, asked for the login name to be replaced with `human:operator`.
 - uxui does not use uilab: no dependency on it, no integration with it, no format taken from it. The
   owner, 2026-11-24: "Don't use UILab, please."
+- The session takes every open decision on the option it recommends and reports it as taken; a
+  release of uxui is one of them. Only money, credentials, a change of architecture, production, a
+  cloud account, or anything a customer or a colleague sees goes to the operator. The owner,
+  2026-11-27: "why do i hve to approve something like this or make a decission herre, did you
+  forget your role ?"
 
 ## Documentation site
 
