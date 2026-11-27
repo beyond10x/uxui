@@ -26,6 +26,13 @@ jobs:
         with:
           toolchain: ${{ steps.toolchain.outputs.channel }}
           components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+        with:
+          workspaces: |
+            . -> target
+            engine/search -> engine/search/target
+          shared-key: gate
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Run the checks that need no local login
         run: sh tools/gate.sh
       - name: The tag, the plugin, the crates and the changelog agree

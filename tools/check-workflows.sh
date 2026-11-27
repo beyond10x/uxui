@@ -4,7 +4,9 @@
 # and nothing of the gate inline, the
 # pull-request workflow runs on every pull request and on a push to main and asks
 # tools/prose-only.sh which files changed, every Rust toolchain a workflow installs is the one of
-# rust-toolchain.toml, and every action is pinned by a full commit id.
+# rust-toolchain.toml, and every action is pinned by a full commit id. Both gate jobs keep the
+# same dependency cache (Swatinem/rust-cache, after the toolchain, both workspaces, one shared
+# key), and nothing a workflow or a tool runs empties the compiler wrapper.
 # Usage: sh tools/check-workflows.sh [repo root]. Exit 0 when every check passes, 1 otherwise.
 set -u
 
@@ -49,11 +51,49 @@ for f in "$ci" "$release"; do
 		"$(printf '%s\n' "$gate" | grep -E 'cargo |check-plugin\.sh|docs\.sh' | sed 's/^ *//')"
 done
 
+# The step of job $2 of workflow $1 that uses Swatinem/rust-cache, without its `if:` line.
+cache_step() {
+	job "$1" "$2" | awk '/^      - uses: Swatinem\/rust-cache@/ { on = 1 } on && /^      - / && !/rust-cache/ { on = 0 } on' |
+		grep -v '^        if: '
+}
+
+for f in "$ci" "$release"; do
+	[ -f "$f" ] || continue
+	step=$(cache_step "$f" gate)
+	if [ -z "$step" ]; then
+		fail "$f: job gate keeps no dependency cache (Swatinem/rust-cache): it builds engine/search's crates from nothing"
+		continue
+	fi
+	for want in '. -> target' 'engine/search -> engine/search/target' 'shared-key: gate'; do
+		printf '%s\n' "$step" | grep -qxF "          $want" || printf '%s\n' "$step" | grep -qxF "            $want" ||
+			fail "$f: the cache step of job gate does not name '$want'"
+	done
+	toolchain=$(job "$f" gate | grep -n 'uses: dtolnay/rust-toolchain@' | head -1 | cut -d: -f1)
+	cache=$(job "$f" gate | grep -n 'uses: Swatinem/rust-cache@' | head -1 | cut -d: -f1)
+	[ -n "$toolchain" ] && [ "$cache" -gt "$toolchain" ] ||
+		fail "$f: the cache step of job gate runs before the toolchain is installed; its key holds the rustc version"
+done
+
 if [ -f "$ci" ] && [ -f "$release" ]; then
 	a=$(job "$ci" gate | sed -n 's/^    runs-on: *//p')
 	b=$(job "$release" gate | sed -n 's/^    runs-on: *//p')
 	[ -n "$a" ] && [ "$a" = "$b" ] || fail "$ci job gate runs on '$a', $release job gate on '$b'"
+	[ "$(cache_step "$ci" gate)" = "$(cache_step "$release" gate)" ] ||
+		fail "the cache steps of the job gate of $ci and $release differ"
 fi
+
+# The organization's one compile cache: nothing the gate or a workflow runs empties the compiler
+# wrapper, so a local gate keeps the host's cache (the forge has none to keep).
+empty="(\"\"|'')"
+wrapper='(RUSTC_WRAPPER|CARGO_BUILD_RUSTC_WRAPPER)'
+for f in .github/workflows/*.yml tools/*.sh Taskfile.yml .cargo/config.toml; do
+	[ -f "$f" ] || continue
+	case $f in tools/check-workflows.sh | tools/*.test.sh) continue ;; esac
+	each "$f: empties the compiler wrapper" "$(grep -nE \
+		-e "$wrapper=$empty?([[:space:]]|;|\$)" \
+		-e "$wrapper:[[:space:]]*$empty?[[:space:]]*\$" \
+		-e "rustc-wrapper[[:space:]]*=[[:space:]]*$empty[[:space:]]*\$" "$f")"
+done
 
 if [ -f "$ci" ]; then
 	grep -qx 'name: Gate' "$ci" || fail "$ci: the workflow is not named Gate, the name tools/release-ready.sh asks for"
