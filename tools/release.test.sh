@@ -581,6 +581,7 @@ bin() {
 bins() {
 	bin ux-browser 'ux-browser 9.8.7\n'
 	bin ux-static 'ux-static 9.8.7\n'
+	bin ux-search 'ux-search 9.8.7\n'
 }
 
 fresh
@@ -616,6 +617,16 @@ fresh
 bins
 rm "$tree/bin/ux-static"
 expect fail "a built binary is missing" "$tree/bin"
+
+fresh
+bins
+bin ux-search 'ux-search 9.8.6\n'
+expect fail "ux-search answers another version" "$tree/bin"
+
+fresh
+bins
+rm "$tree/bin/ux-search"
+expect fail "ux-search is missing" "$tree/bin"
 
 fresh
 expect fail "the binary directory does not exist" "$tree/no-such-dir"

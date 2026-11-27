@@ -51,14 +51,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249
         with:
           toolchain: ${{ steps.toolchain.outputs.channel }}
-      - name: Build, smoke-test and package the assessors
+      - name: Build, smoke-test and package the assessors and ux-search
         shell: bash
         run: |
           set -euo pipefail
           target=x86_64-unknown-linux-gnu
           cargo build --locked --release --target "$target" -p ux-browser -p ux-static
+          cargo build --manifest-path engine/search/Cargo.toml --locked --release --target "$target" --target-dir target
           sh tools/release-versions.sh "$GITHUB_REF_NAME" "target/$target/release"
-          for bin in ux-browser ux-static; do
+          for bin in ux-browser ux-static ux-search; do
             "target/$target/release/$bin" --help > /dev/null 2>&1 || test "$?" = 2
             package="$bin-$GITHUB_REF_NAME-$target"
             mkdir -p "dist/$package"
@@ -89,7 +90,7 @@ jobs:
       - name: Verify archives, write checksums and notes
         run: |
           set -euo pipefail
-          for bin in ux-browser ux-static; do
+          for bin in ux-browser ux-static ux-search; do
             test -f "dist/$bin-$GITHUB_REF_NAME-x86_64-unknown-linux-gnu.tar.gz" || { echo "::error::missing $bin archive" >&2; exit 1; }
           done
           (cd dist && sha256sum ./*.tar.gz | sed 's# \./# #' > SHA256SUMS && sha256sum --check SHA256SUMS && cat SHA256SUMS)
