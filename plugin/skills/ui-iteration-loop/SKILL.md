@@ -274,7 +274,9 @@ The ratchet command fails (exit 1) on:
 The visual ratchet is `ux-browser checks` with a `visual` section: per page, viewport and mode a
 screenshot against the baseline PNG of the same name, `visual.diff_share@1` and `visual.diff_px@1`
 within the tolerance declared per page and viewport, a diff image per changed unit for the round
-report, and `--visual update` to take an accepted change into the baseline in the same merge.
+report, and `--visual update` to take an accepted change into the baseline in the same merge. It can
+also be a hard gate: `values.gates` takes `visual.diff_share@1` or `visual.diff_px@1` with a bound
+(`{gate: <n>, max: <bound>}`), so a unit over the bound, or one without a baseline, fails the merge.
 
 ## 7. The screen-only user
 

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- The visual ratchet can be a hard gate: `values.gates` of `ux-browser-checks/1` takes
+  `visual.diff_share@1` and `visual.diff_px@1` with a bound, `{gate: <n>, max: <bound>}` (a share from
+  0 to 1, a whole number of pixels). Each unit at a gating viewport over the bound is a gate failure
+  of its page, viewport and mode (detail `visual.diff_share:<shot>`), and an unwaived one makes
+  `ux-browser values` and `checks --values` exit 1 with a line that names the number and the bound;
+  a unit within the bound passes, whatever its tolerance. A unit without a baseline is not run and is
+  a failure (`visual.diff_share:<shot>:not-run`, the line names the missing baseline), never a pass.
+  Without a visual gate the values files are the bytes they were. `docs/browser-adapter.md`, Visual
+  ratchet. Closes `story:visual-diff-as-gate`.
+
 - The documentation site passes its own page checks at phone width and at the bottom of a page. The
   theme toggle stays in the navbar at 390 px, in view and reached by the keyboard, where the theme
   kept it only in the collapsed menu; the docs sidebar is fixed to the viewport's height, so the
