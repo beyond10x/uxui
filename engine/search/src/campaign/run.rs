@@ -51,7 +51,8 @@
 //! measured.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use ux_browser::cdp::{Connection, Guard};
@@ -61,6 +62,7 @@ use ux_browser::target::Site;
 use ux_browser::ws::WebSocket;
 
 use super::declaration::{Declaration, Environment, Mode};
+use super::events::{self, Events, Progress};
 use super::record::{self, NOTED, Note, Recorded, Render, Renders};
 use super::report;
 use crate::landing::patch::{self, Value};
@@ -87,6 +89,9 @@ pub struct Options {
     pub variant: Option<String>,
     /// The one environment to measure, by name (`800x600 dark`); `None`: every environment.
     pub environment: Option<String>,
+    /// The directory of the live view (`events`): the candidates file and the phase file, and
+    /// with `shots` a screenshot of each variant as it is measured; `None`: no live view.
+    pub events: Option<PathBuf>,
 }
 
 /// What a run measured: a campaign, every variant in every environment, or the renders of a run
@@ -338,6 +343,13 @@ fn plan(options: &Options) -> Result<Plan, String> {
         urls.push(declaration.url(&options.site, &mode.name)?);
     }
     let file = options.declaration.display().to_string();
+    if options.events.is_some() && (options.variant.is_some() || options.environment.is_some()) {
+        return Err(
+            "--events goes with a whole campaign: a run restricted to one variant or one \
+             environment ranks nothing"
+                .to_owned(),
+        );
+    }
     let selected: Vec<usize> = match &options.variant {
         None => (0..variants.len()).collect(),
         Some(id) => match variants.iter().position(|variant| variant.id == *id) {
@@ -744,18 +756,70 @@ fn unblocked(conn: &Conn, plan: &Plan) -> Result<(), String> {
 /// One environment's renders, in the order of the plan's selected variants.
 type Samples = Vec<Sample>;
 
+/// The live view of a run (`--events`): what the pages tell it, and where its screenshots go.
+struct Live<'a> {
+    progress: Mutex<Progress>,
+    dir: &'a Path,
+    /// Whether each variant is shot as it is measured, in the environments of the frontier's
+    /// screenshots: with `--shots`.
+    shots: bool,
+}
+
+impl Live<'_> {
+    fn lock(&self) -> Result<MutexGuard<'_, Progress>, String> {
+        self.progress
+            .lock()
+            .map_err(|_| "the live view: another page failed while it wrote".to_owned())
+    }
+
+    /// The screenshot of the variant at `index` as it is rendered on `page` in the environment
+    /// at `at` of the plan, written under the events directory, when one is taken there.
+    fn shoot(
+        &self,
+        conn: &mut Conn,
+        page: &Page,
+        plan: &Plan,
+        at: usize,
+        index: usize,
+    ) -> Result<Option<(String, String)>, String> {
+        if !self.shots || !screenshots_of(&plan.declaration).contains(&plan.at[at]) {
+            return Ok(None);
+        }
+        let environment = &plan.environments[at];
+        let bytes = page.screenshot(conn)?;
+        let path = events::shot_path(&plan.ids[index], environment);
+        let file = self.dir.join(&path);
+        if let Some(parent) = file.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|error| format!("{}: {error}", parent.display()))?;
+        }
+        std::fs::write(&file, bytes).map_err(|error| format!("{}: {error}", file.display()))?;
+        Ok(Some((environment.name(), path)))
+    }
+}
+
+/// The renders of the environment at `at` of the plan, on one page; with a live view, each told
+/// to it as it is measured.
 fn measure_environment(
     conn: &mut Conn,
     plan: &Plan,
-    environment: &Environment,
+    at: usize,
+    live: Option<&Live>,
 ) -> Result<Samples, String> {
+    let environment = &plan.environments[at];
     let mode = plan.mode(environment);
     let page = open(conn, plan, environment)?;
     let built = measure(conn, &page, plan, environment, "null")?.render;
+    if let Some(live) = live {
+        live.lock()?.built(at, built)?;
+    }
     let specs = &plan.specs[mode];
     let mut measured: Samples = Vec::with_capacity(plan.selected.len());
     for &index in &plan.selected {
         let id = &plan.ids[index];
+        if let Some(live) = live {
+            live.lock()?.starting(index)?;
+        }
         let sample = measure(conn, &page, plan, environment, &specs[index])
             .map_err(|why| format!("{why} (variant {id})"))?;
         let render = sample.render;
@@ -764,6 +828,10 @@ fn measure_environment(
                 "{id}: the variant of the shipped values measures {render:?} with its sheet \
                  injected, the page without a sheet {built:?}"
             ));
+        }
+        if let Some(live) = live {
+            let shot = live.shoot(conn, &page, plan, at, index)?;
+            live.lock()?.measured(at, index, render, shot)?;
         }
         measured.push(sample);
     }
@@ -1097,7 +1165,12 @@ fn anew(
     Ok(files)
 }
 
-fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered, String> {
+fn render(
+    browser: &Browser,
+    options: &Options,
+    plan: &Plan,
+    live: Option<&Live>,
+) -> Result<Rendered, String> {
     let ws_url = browser.process.ws_url.as_str();
     let environments = &plan.environments;
     let read_back = read_back_in(plan);
@@ -1116,7 +1189,7 @@ fn render(browser: &Browser, options: &Options, plan: &Plan) -> Result<Rendered,
         environments.len(),
         || connect(ws_url),
         |conn: &mut Conn, at| {
-            measure_environment(conn, plan, &environments[at])
+            measure_environment(conn, plan, at, live)
                 .map_err(|why| format!("{why} ({})", environments[at].name()))
         },
         close,
@@ -1239,12 +1312,61 @@ fn pointers(plan: &Plan) -> String {
 /// every variant in every environment, then the frontier on pages loaded anew. Restricted to
 /// one variant or one environment, it measures those renders, loads each anew, and writes them
 /// as renders, not as a campaign. A declaration or a restriction that is refused starts no
-/// browser. Nothing is written unless all of it succeeds.
+/// browser. Nothing is written unless all of it succeeds, but the live view (`events`): its two
+/// files are made when the plan is accepted and appended to while the run goes, and end with the
+/// phase `end`, or `failed` and the reason.
 pub fn run(options: &Options) -> Result<Outcome, String> {
     let plan = plan(options)?;
+    let live = match &options.events {
+        None => None,
+        Some(dir) => {
+            let mut events = Events::create(dir, &plan.declaration, events::local_clock())?;
+            events.start()?;
+            Some(Live {
+                progress: Mutex::new(Progress::new(
+                    events,
+                    plan.ids.len(),
+                    plan.environments.len(),
+                )),
+                dir,
+                shots: options.shots.is_some(),
+            })
+        }
+    };
+    match measured_and_written(options, &plan, live.as_ref()) {
+        Ok(mut outcome) => {
+            if let Some(live) = &live {
+                live.lock()?.events.end()?;
+                for name in [events::CANDIDATES_FILE, events::PHASE_FILE] {
+                    outcome.written.push(live.dir.join(name));
+                }
+            }
+            Ok(outcome)
+        }
+        Err(why) => {
+            if let Some(live) = &live {
+                // The run's own reason is the one returned; a live view that cannot say it
+                // adds nothing to it.
+                let _ = live
+                    .progress
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .events
+                    .failed(&why);
+            }
+            Err(why)
+        }
+    }
+}
+
+fn measured_and_written(
+    options: &Options,
+    plan: &Plan,
+    live: Option<&Live>,
+) -> Result<Outcome, String> {
     let chrome = ux_browser::chrome::find(None)?;
     let browser = Browser::start_binary(&chrome, &options.profile, &[])?;
-    let rendered = render(&browser, options, &plan);
+    let rendered = render(&browser, options, plan, live);
     browser.close();
     let rendered = rendered?;
 

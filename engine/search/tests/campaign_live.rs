@@ -12,9 +12,9 @@
 //! Without a browser the lane fails; it does not skip. The page sets every size a test reads in
 //! px, so no number depends on a font of the host.
 //!
-//! Budget: eleven campaigns, so eleven browser starts, for all tests of the lane: the three campaigns
+//! Budget: twelve campaigns, so twelve browser starts, for all tests of the lane: the three campaigns
 //! that several tests read run once per test process (`cargo test` runs the tests of this binary
-//! in one process), and eight tests run one of their own. The largest is 4 variants in 4
+//! in one process), and nine tests run one of their own. The largest is 4 variants in 4
 //! environments; the lane ended in 7 s on a loaded host, and no test of it comes near the 60 s
 //! a test has.
 
@@ -831,4 +831,111 @@ fn an_element_clipped_only_by_its_named_scroll_container_is_no_miss() {
         "{notes}"
     );
     assert!(!notes.contains(": navigation (`"), "{notes}");
+}
+
+// The live view (`story:campaign-live-view`).
+
+/// The lines of one JSON-lines file the run wrote under its events directory.
+fn jsonl(ran: &Ran, name: &str) -> Vec<Value> {
+    let path = ran.cwd.join("events").join(name);
+    let text = std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("{}: {error}\n{}", path.display(), ran.stderr));
+    assert!(text.ends_with('\n'), "{text}");
+    text.lines()
+        .map(|line| patch::parse(line).unwrap_or_else(|error| panic!("{line}: {error}")))
+        .collect()
+}
+
+/// With `--events` the run writes one candidates line per variant and one phase line per
+/// phase, with a screenshot of each variant as it is measured; the measurements are the bytes
+/// of a run without it, and the last ranking line names the report's top three.
+#[test]
+#[ignore = "starts a browser: the lane is `cargo test -- --ignored campaign_live`"]
+fn a_run_with_events_writes_the_live_view_and_the_same_measurements() {
+    let without = at_rest().succeeded();
+    let with = run_with(
+        "events",
+        &list_text(),
+        &["--jobs", "2", "--events", "events"],
+    );
+    with.succeeded();
+    let bytes = |ran: &Ran| std::fs::read(ran.cwd.join("measurements.json")).expect("a file");
+    assert!(
+        bytes(without) == bytes(&with),
+        "the measurements differ with --events"
+    );
+    assert_eq!(with.stdout, without.stdout, "the report of the run");
+
+    let candidates = jsonl(&with, "hill-climb.jsonl");
+    let ids = ["tight.unset", "tight.set", "stock.unset", "stock.set"];
+    assert_eq!(candidates.len(), ids.len());
+    for (at, (line, id)) in candidates.iter().zip(ids).enumerate() {
+        assert_eq!(line.get("iteration"), Some(&Value::Int(at as i64 + 1)));
+        let change = line.get_str("change").unwrap_or_default();
+        assert!(change.starts_with(&format!("{id}: spacing=")), "{change}");
+        let kind = if id == "stock.unset" {
+            "baseline"
+        } else {
+            "candidate"
+        };
+        assert_eq!(line.get_str("kind"), Some(kind), "{change}");
+        let screenshots = line.get("screenshots").expect("screenshots");
+        for environment in ["800x600 light", "800x600 dark", "640x480 dark"] {
+            let path = screenshots
+                .get_str(environment)
+                .unwrap_or_else(|| panic!("{id} has no screenshot in {environment}"));
+            let file = with.cwd.join("events").join(path);
+            assert!(file.is_file(), "{}", file.display());
+        }
+    }
+    let primary = |line: &Value| match line.get("metrics").and_then(|m| m.get("primary_px")) {
+        Some(Value::Int(n)) => *n,
+        other => panic!("{other:?}"),
+    };
+    // A term is the worst of the environments.
+    for (line, id) in candidates.iter().zip(ids) {
+        let worst = [
+            "800x600 light",
+            "800x600 dark",
+            "640x480 light",
+            "640x480 dark",
+        ]
+        .iter()
+        .map(|environment| with.number(id, environment, "primary_px"))
+        .max();
+        assert_eq!(Some(primary(line)), worst, "{id}");
+    }
+    assert!(
+        primary(&candidates[0]) < primary(&candidates[2]),
+        "the tighter padding moves the action up"
+    );
+
+    // The measuring and ranking lines interleave as the pages go; the order of each is fixed.
+    let phases = jsonl(&with, "hill-climb-events.jsonl");
+    let named: Vec<&str> = phases
+        .iter()
+        .map(|line| line.get_str("phase").unwrap_or_default())
+        .collect();
+    assert_eq!(named.len(), 10, "{named:?}");
+    assert_eq!(named.first(), Some(&"start"));
+    assert_eq!(named.last(), Some(&"end"));
+    for phase in ["measuring", "ranking"] {
+        assert_eq!(
+            named.iter().filter(|&&name| name == phase).count(),
+            4,
+            "{named:?}"
+        );
+    }
+    let top: Vec<String> = ranking(&with.stdout)
+        .into_iter()
+        .take(3)
+        .map(|(id, _)| id)
+        .collect();
+    let last = phases
+        .iter()
+        .rev()
+        .find(|line| line.get_str("phase") == Some("ranking"))
+        .and_then(|line| line.get_str("text"))
+        .expect("a ranking line");
+    assert_eq!(last, format!("top 3: {}", top.join(", ")));
 }
