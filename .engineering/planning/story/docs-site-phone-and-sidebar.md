@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:docs-site-phone-and-sidebar
 kind: story
-status: draft
+status: active
 title: The documentation site passes its own checks at the phone size and at a page's bottom
 relations:
 - decomposes: epic:targets
@@ -11,7 +11,10 @@ scope:
   path: engine/browser/tests/fixtures/checks/uxui-docs.checks.yaml
 - confidence: inferred
   path: website/src/css
-revision: 4
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-27T09:57:01Z", actor: "human:operator", revision: 5}
+- {from: "proposed", to: "active", at: "2026-11-27T09:57:01Z", actor: "human:operator", revision: 6}
 ---
 ## Outcome
 

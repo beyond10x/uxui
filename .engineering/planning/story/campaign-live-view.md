@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:campaign-live-view
 kind: story
-status: draft
+status: active
 title: Watch a declared campaign climb while it runs
 relations:
 - decomposes: epic:engine-slices
@@ -11,7 +11,10 @@ scope:
   path: engine/search/src/campaign
 - confidence: inferred
   path: engine/search/src/main.rs
-revision: 4
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-27T09:57:01Z", actor: "human:operator", revision: 5}
+- {from: "proposed", to: "active", at: "2026-11-27T09:57:01Z", actor: "human:operator", revision: 6}
 ---
 ## Outcome
 
