@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- The documentation site passes its own page checks at phone width and at the bottom of a page. The
+  theme toggle stays in the navbar at 390 px, in view and reached by the keyboard, where the theme
+  kept it only in the collapsed menu; the docs sidebar is fixed to the viewport's height, so the
+  footer no longer pushes its top out of view (222 px on the metrics page at 1440x900), and a docs
+  page's footer starts beside it. The rules are `website/src/css/site.css`; on a local build
+  `ux-browser checks` with `uxui-docs.checks.yaml` went from 103 failed of 566 checks to 0 (always
+  visible and keyboard, both sizes, both modes, every page), with no overflow or page scroll. No
+  gate or CI step runs these checks yet (`website/README.md`, Layout). Closes
+  `story:docs-site-phone-and-sidebar`.
+
 - ux-search campaign run has a live view: with `--events <dir>` it appends, while it measures, one
   JSON line per finished variant to the candidates file `<dir>/hill-climb.jsonl` (`iteration`, `at`,
   `kind` `baseline` for the page as shipped, `change` the variant and its axis values, `accepted` on the

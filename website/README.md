@@ -19,6 +19,7 @@ sh script `tools/docs.sh`.
 | `docs/index.md`, `docs/getting-started.md`, `docs/limitations.md`, `docs/concepts/`, `docs/guides/` | Written by hand; concept and guide pages name their sources in `source` |
 | `product.json` | The landing page (`b10x-product-landing/1`), written by hand |
 | `src/css/landing.css` | The landing page's four custom properties over the docs-system theme: `--uxui-density` (0.85, written by `ux-search landing promote` from the frontier of `docs/campaign-2026-11-26-docs-landing-engine.md`, evidence `docs/promotions/2026-11-26-docs-landing.evidence.json`) and `--uxui-heading-scale` (from `docs/campaign-2026-11-24-docs-landing.md`), `--uxui-hero-align` and `--uxui-hero-lede-inline` (the hero's alignment). They are the style axes of the campaign in `docs/campaign-2026-11-26-docs-landing-engine.md`; a variant of it also sets the docs-system colour tokens `--b10x-color-*` in two rules it appends |
+| `src/css/site.css` | The layout rules over the Docusaurus theme that the page checks hold (Layout, below); no campaign writes it |
 | `docusaurus.config.ts`, `sidebars.ts` | Site configuration and the explicit sidebar |
 
 Never edit a generated file by hand. From the repository root:
@@ -47,6 +48,35 @@ Every page under `docs/` is plain Markdown (`.md`, never `.mdx`) with front matt
 - No page names a home path or internal planning material. No company, customer or person names.
 - Links between pages name the `.md` source. Docusaurus refuses a broken link, anchor or Markdown
   link at build time.
+
+## Layout
+
+The site keeps three things in view on every page, at 1440x900 and 390x844, in light and dark: the
+navbar, the theme toggle and, from 997 px wide, the docs sidebar; the keyboard reaches the navbar
+and the theme toggle. The page checks that say so are
+`engine/browser/tests/fixtures/checks/uxui-docs.checks.yaml`. Two rules of `src/css/site.css` hold
+them over the Docusaurus theme:
+
+- The theme toggle stays in the navbar at phone width. The theme hides it below 997 px and keeps a
+  copy only in the collapsed menu, where neither the eye nor the keyboard finds it without opening
+  the menu. The navbar at 390 px holds the brand, the menu button and the toggle without overflow.
+- The docs sidebar is fixed to the viewport's height. Sticky, as the theme has it, the footer
+  pushed it up at the bottom of a page, so its top left the viewport (by 222 px on the metrics
+  page). The footer of a docs page starts beside the sidebar; the sidebar's list still scrolls on
+  its own.
+
+Measured on a local build with `ux-browser checks --build website/build` (15 pages, 566 checks):
+103 failed before these rules (4 always-visible misses and 1 keyboard miss on the landing page, 6
+and 1 on each of the 14 docs pages), 0 after, with no overflow and no page scroll. No gate or CI
+step runs these checks: the site's workflow builds the site without a browser, and the gate starts
+none. They are run by hand after a change of the site's layout:
+
+```console
+cd website && npm ci && npm run build && cd ..
+cargo build -p ux-browser --locked
+target/debug/ux-browser checks --config engine/browser/tests/fixtures/checks/uxui-docs.checks.yaml \
+  --build website/build --project uxui-docs --assessment page-checks --out uxui-docs.evidence.json
+```
 
 ## Build and preview
 
