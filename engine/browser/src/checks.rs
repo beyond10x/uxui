@@ -998,6 +998,9 @@ pub struct Config {
     pub ready_timeout_ms: u64,
     /// How the values file is made from the document (`ux-browser values`).
     pub values: Option<crate::values::ValuesConfig>,
+    /// The visual ratchet: the screenshots of each page, viewport and mode against a baseline
+    /// (`visual`, `visual::config`); none: no screenshot is taken.
+    pub visual: Option<crate::visual::Visual>,
     /// The HTTP methods a page may send to the measured server (`request_methods`); default
     /// [`READ_METHODS`]. A request with another method fails, as one to another origin does.
     pub request_methods: Vec<String>,
@@ -1062,6 +1065,7 @@ const TOP_KEYS: &[&str] = &[
     "keyboard",
     "opt_in",
     "values",
+    "visual",
     "request_methods",
     "layout",
     "clock",
@@ -1361,6 +1365,7 @@ pub fn config(text: &str) -> Result<Config, String> {
         ready,
         ready_timeout_ms,
         values,
+        visual: crate::visual::config(v.get("visual"), &names)?,
         request_methods: request_methods(&v)?,
         layout: layout_rule(&v)?,
         clock: clock_of(&v)?,

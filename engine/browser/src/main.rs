@@ -18,6 +18,7 @@ const USAGE: &str = "usage:
                     [--pages <path,path,...>] [--capture <dir>] [--profile <dir>]
                     [--jobs <pages measured at a time, default: the CPUs, at most 4>] [--values <values file>]
                     [--chrome-arg <a Chromium switch, or a JSON list of them; repeatable>]
+                    [--visual <compare, the default, or update: also write the shots as the new baseline>]
   ux-browser values --config <ux-browser-checks/1 file with a values section> --evidence <ratchet-evidence/1 file> --out <values file>
                     [--root <repository root, default .>]
   ux-browser -V | --version
@@ -184,26 +185,6 @@ fn render_command(args: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// A capture file name for a page path: `home` for the base path, else the path's words.
-fn slug(path: &str, base_path: &str) -> String {
-    let rest = path
-        .strip_prefix(base_path)
-        .unwrap_or(path)
-        .trim_matches('/');
-    if rest.is_empty() {
-        return "home".to_string();
-    }
-    rest.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() {
-                c.to_ascii_lowercase()
-            } else {
-                '-'
-            }
-        })
-        .collect()
-}
-
 fn checks_command(args: &[String]) -> ExitCode {
     let known = [
         "config",
@@ -220,6 +201,7 @@ fn checks_command(args: &[String]) -> ExitCode {
         "jobs",
         "values",
         "chrome-arg",
+        "visual",
     ];
     let opts = match options(args, &known) {
         Ok(o) => o,
@@ -241,6 +223,14 @@ fn checks_command(args: &[String]) -> ExitCode {
             Ok(n) if n >= 1 => n,
             _ => return wrong(&format!("`--jobs {n}` is not a whole number of at least 1")),
         },
+    };
+    // `--visual update` writes the shots as the new baseline; `compare`, the default, never does.
+    let update_baseline = match get(&opts, "visual") {
+        None | Some("compare") => false,
+        Some("update") => true,
+        Some(other) => {
+            return wrong(&format!("`--visual {other}` is not `compare` or `update`"));
+        }
     };
     let (Some(config_path), Some(project), Some(assessment)) = (
         get(&opts, "config"),
@@ -279,10 +269,23 @@ fn checks_command(args: &[String]) -> ExitCode {
         Ok(b) => b,
         Err(e) => return fail(REFUSED, &format!("{config_path}: {e}")),
     };
-    let config = match ux_browser::checks::config(&String::from_utf8_lossy(&bytes)) {
+    let mut config = match ux_browser::checks::config(&String::from_utf8_lossy(&bytes)) {
         Ok(c) => c,
         Err(e) => return fail(REFUSED, &format!("{config_path}: {e}")),
     };
+    // The visual ratchet's directory lies under the root, as the values section's files do.
+    match config.visual.as_mut() {
+        Some(v) => v.dir = root.join(&v.dir),
+        None if get(&opts, "visual").is_some() => {
+            return fail(
+                REFUSED,
+                &format!(
+                    "{config_path}: `--visual` is given and the configuration declares no `visual` section"
+                ),
+            );
+        }
+        None => {}
+    }
     let values_out = get(&opts, "values");
     let values_inputs = match values_out {
         None => None,
@@ -348,13 +351,21 @@ fn checks_command(args: &[String]) -> ExitCode {
     {
         return fail(NOT_WRITTEN, &format!("{}: {e}", dir.display()));
     }
+    if let Some(v) = &config.visual
+        && let Err(e) = ux_browser::visual::prepare(v)
+    {
+        return fail(NOT_WRITTEN, &e);
+    }
     let profile = get(&opts, "profile").map_or_else(default_profile, PathBuf::from);
     let started_at = evidence::now();
     let base_path = config.base_path.clone();
     let progress = |path: &str, page: &uxui_doc::yaml::Value| {
         eprintln!("measured {path}");
         if let Some(dir) = &capture {
-            let file = dir.join(format!("{}.capture.json", slug(path, &base_path)));
+            let file = dir.join(format!(
+                "{}.capture.json",
+                ux_browser::visual::slug(path, &base_path)
+            ));
             let _ = std::fs::write(file, uxui_doc::json::write(page) + "\n");
         }
     };
@@ -450,7 +461,7 @@ fn checks_command(args: &[String]) -> ExitCode {
         None => evidence::Target::Server(&url),
     };
     let mut local_inputs = vec![("jobs", jobs.to_string())];
-    for name in ["capture", "profile", "values"] {
+    for name in ["capture", "profile", "values", "visual"] {
         if let Some(value) = get(&opts, name) {
             local_inputs.push((name, value.to_string()));
         }
@@ -474,6 +485,23 @@ fn checks_command(args: &[String]) -> ExitCode {
         evidence::document_with_journeys(&header, &config, &pages, &journeys),
         &recorded,
     );
+    // The visual ratchet: every shot of the measured pages against its baseline.
+    let visual_units: Vec<ux_browser::visual::Unit> = match &config.visual {
+        Some(v) => pages
+            .iter()
+            .filter(|p| p.error.is_none())
+            .flat_map(|p| ux_browser::visual::units(&config, v, &p.path))
+            .collect(),
+        None => Vec::new(),
+    };
+    let document = match &config.visual {
+        None => document,
+        Some(v) => match ux_browser::visual::judge(v, &visual_units) {
+            Ok(results) => ux_browser::visual::with_visual(document, &pages, &results),
+            Err(ux_browser::visual::JudgeError::Refused(e)) => return fail(REFUSED, &e),
+            Err(ux_browser::visual::JudgeError::NotWritten(e)) => return fail(NOT_WRITTEN, &e),
+        },
+    };
     let text = evidence::text(&document);
     match get(&opts, "out") {
         Some(out) => {
@@ -483,6 +511,17 @@ fn checks_command(args: &[String]) -> ExitCode {
             eprintln!("evidence written to {out}");
         }
         None => print!("{text}"),
+    }
+    if let Some(v) = &config.visual
+        && update_baseline
+    {
+        match ux_browser::visual::update_baseline(v, &visual_units) {
+            Ok(n) => eprintln!(
+                "baseline: {n} shots written to {}",
+                v.baseline_dir().display()
+            ),
+            Err(e) => return fail(NOT_WRITTEN, &e),
+        }
     }
     match (values_out, values_inputs, &config.values) {
         (Some(out), Some(inputs), Some(section)) => write_values(section, &inputs, &document, out),

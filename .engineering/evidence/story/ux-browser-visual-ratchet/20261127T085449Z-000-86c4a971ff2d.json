@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-27T08:54:49Z",
+  "actor": "human:operator",
+  "artifact": "story:ux-browser-visual-ratchet",
+  "kind": "story",
+  "revision": 1,
+  "change": {
+    "change": "evidence",
+    "kind": "approval",
+    "source": "the owner's go, 2026-11-27, consumer gap of three UI-round consumers"
+  }
+}

@@ -271,6 +271,11 @@ The ratchet command fails (exit 1) on:
 - a missing value;
 - a baseline made worse without a decision id (compare with the baseline on `main` via git).
 
+The visual ratchet is `ux-browser checks` with a `visual` section: per page, viewport and mode a
+screenshot against the baseline PNG of the same name, `visual.diff_share@1` and `visual.diff_px@1`
+within the tolerance declared per page and viewport, a diff image per changed unit for the round
+report, and `--visual update` to take an accepted change into the baseline in the same merge.
+
 ## 7. The screen-only user
 
 Deterministic code, no model. It may use only what is visible: controls fully inside the viewport, not

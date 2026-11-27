@@ -1,0 +1,13 @@
+format: ux-browser-checks/1
+base_path: /
+pages: {paths: [/moved/, /colour/, /clock/, /clock-bare/]}
+viewports:
+  - {name: small, width: 240, height: 160}
+modes: [light, dark]
+visual:
+  dir: visual
+  full_page: true
+  masks: ['.clock']
+  tolerance: {share: 0.001, threshold: 0}
+  tolerances:
+    - {page: /colour/, threshold: 6}

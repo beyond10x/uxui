@@ -25,6 +25,7 @@ mod timing;
 mod tokens;
 mod values;
 mod version;
+mod visual;
 mod ws;
 
 use std::path::{Path, PathBuf};

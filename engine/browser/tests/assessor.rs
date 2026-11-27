@@ -228,6 +228,7 @@ fn the_documents_write_every_declared_output_and_nothing_else() {
     let decl = declaration();
     let example = crate::fixture_json("../../examples/llm-docs.evidence.json");
     let mut written = agrees(&decl, &example);
+    written.extend(agrees(&decl, &crate::visual::document()));
     written.extend(agrees(&decl, &crate::evidence::document()));
     written.extend(agrees(&decl, &crate::evidence::server_document()));
     written.extend(agrees(&decl, &crate::values::round_document()));

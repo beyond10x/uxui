@@ -462,6 +462,16 @@ fn per_viewport(result: &Value, what: &str) -> Result<Vec<(String, String)>, Str
         .collect()
 }
 
+/// How a number folds over viewports: a share (a metric named `*_share`, `visual.diff_share`) as
+/// the largest, as a `sampled` number does; every other number by its kind.
+fn fold_kind<'a>(output: &str, kind: &'a str) -> &'a str {
+    if metric(output).ends_with("_share") {
+        "sampled"
+    } else {
+        kind
+    }
+}
+
 struct Failure {
     gate: i64,
     detail: String,
@@ -603,7 +613,7 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
         if state && r.get("incomplete").is_some() {
             continue;
         }
-        let kind = r.get_str("kind").unwrap_or("exact");
+        let kind = fold_kind(output, r.get_str("kind").unwrap_or("exact"));
         let number = if c.gating.is_some() {
             let per = per_viewport(r, &what)?;
             for (vp, text) in &per {

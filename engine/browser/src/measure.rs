@@ -326,6 +326,12 @@ fn measure_open(
             None => true,
         };
         let mut times = vec![("mode", s(mode)), ("switch", ms(t))];
+        // Only with a `visual` section: the shots, first, on the page as loaded or switched.
+        if let Some(visual) = &config.visual {
+            let t = Instant::now();
+            crate::visual::shoot(conn, page, config, visual, path, vp, mode)?;
+            times.push(("visual", ms(t)));
+        }
         let t = Instant::now();
         page.eval(conn, "window.scrollTo(0, 0)")?;
         let strs = |l: &[String]| Value::List(l.iter().map(|e| s(e)).collect());

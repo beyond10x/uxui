@@ -26,6 +26,21 @@
   written again in its own format, so the recorded studio campaign stays as it is. The browser lane
   holds the three on a list page of its own (`site/rows.html`). Closes
   `story:campaign-terms-for-list-pages`.
+- ux-browser checks has a visual ratchet: an optional `visual` section of `ux-browser-checks/1`
+  names a directory (`baseline/`, `shots/`, `diff/`), whether the full page is shot besides the
+  viewport, mask selectors whose boxes are blanked in every shot, and a tolerance (a share of
+  differing pixels and a per-channel threshold) with rules per page and viewport. Per page,
+  viewport and mode the run stills the page (caret hidden, animations finished or paused, scroll 0,
+  fonts settled), takes its shots and compares each with the baseline PNG of the same name; two
+  new numbers per page, `visual.diff_share@1` (the largest share over its units) and
+  `visual.diff_px@1` (the differing pixels, summed), each unit over its tolerance a failed check
+  and a finding, and a diff image of the changed pixels in `diff/`. A unit without a baseline is
+  `not_run` (the numbers incomplete), never a pass; a shot of another size fails naming both sizes.
+  `--visual update` writes the run's shots as the new baseline; nothing else does. The values file
+  takes both numbers; a share folds to the largest over the gating viewports. PNG files are read
+  and written by the crate itself (`src/png.rs`), no dependency. Without the section the captures,
+  documents and values files are the bytes they were. `docs/browser-adapter.md`, Visual ratchet;
+  `docs/metrics.md` § 6.1. Closes `story:ux-browser-visual-ratchet`.
 - `ux-search campaign run` reads each mode with an attribute or an expectation back on one page load
   before the first variant is rendered, so a mode the page does not take is refused at once and not
   after the renders of the modes before it. It names a mode or a viewport whose renders measure the

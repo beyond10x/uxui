@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-27T09:13:04Z",
+  "actor": "human:operator",
+  "artifact": "story:ux-browser-visual-ratchet",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "slot sh tools/gate.sh exit 0 (every step passed); ux-browser 213 -> 228 tests (tests/visual.rs 15, red first: compile, no visual API; values fold red: share read 0), binary 1.5 s; Chrome 149 headless shots of tests/fixtures/visual: moved 3200 px per unit, colour 3200 at threshold 6 and 0 at 7, masked clock 0, unmasked clock 1700; missing baseline not_run, size mismatch failed; --visual update wrote 16, next run 0 on moved, colour, clock; two runs of the base site same bytes for 12 of 16 shots (the 4 others the unmasked live clock); trial merge with unit/w9-tokens clean, 242 tests pass",
+    "reference": "engine/browser/tests/visual.rs"
+  }
+}
