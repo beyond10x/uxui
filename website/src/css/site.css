@@ -1,0 +1,28 @@
+/* The site's layout over the Docusaurus theme, held by the page checks of
+   engine/browser/tests/fixtures/checks/uxui-docs.checks.yaml (website/README.md, Layout). */
+
+/* The theme toggle stays in the navbar at phone width: the theme hides it there and keeps one only
+   in the collapsed menu. */
+@media (max-width: 996px) {
+  .navbar__items--right > [class*='colorModeToggle_'] {
+    display: block;
+  }
+}
+
+/* The docs sidebar is fixed to the viewport's height, so the footer cannot push it up at the bottom
+   of a page; the footer starts beside it. The theme's clip of the sidebar column, there for the
+   collapse animation (the sidebar is not hideable here), would clip the fixed box. */
+@media (min-width: 997px) {
+  .theme-doc-sidebar-container {
+    clip-path: none;
+  }
+  .theme-doc-sidebar-container > [class*='sidebarViewport_'] {
+    position: fixed;
+    top: 0;
+    height: 100vh;
+    max-height: none;
+  }
+  .main-wrapper:has(.theme-doc-sidebar-container) ~ .footer {
+    margin-left: var(--doc-sidebar-width);
+  }
+}

@@ -9,7 +9,8 @@
 //! number as the document's decimal text.
 
 use crate::checks;
-use crate::value::get_strs;
+use crate::value::{decimal, get_strs};
+use crate::visual;
 use std::path::{Path, PathBuf};
 use uxui_doc::yaml::Value;
 
@@ -20,6 +21,10 @@ pub const GATED_OUTPUTS: [&str; 4] = [
     checks::ALWAYS_VISIBLE,
     checks::KEYBOARD,
 ];
+
+/// The numbers a gate holds to a bound: per unit of the visual ratchet, its share or its differing
+/// pixels (`details.units` of `visual.diff_share@1`).
+pub const BOUNDED_OUTPUTS: [&str; 2] = [visual::DIFF_SHARE, visual::DIFF_PX];
 
 pub struct ScenarioSource {
     /// A path pattern under the root.
@@ -40,6 +45,9 @@ pub struct ValuesConfig {
     pub waivers: WaiverSource,
     /// Output name and gate number, in the order declared.
     pub gates: Vec<(String, i64)>,
+    /// The bound of each gated visual output (`visual.diff_share@1`, `visual.diff_px@1`), in the order
+    /// declared.
+    pub bounds: Vec<(String, f64)>,
     /// The viewports whose results are values and failures; `None`: every viewport.
     pub gating: Option<Vec<String>>,
 }
@@ -82,11 +90,19 @@ pub fn config(v: &Value, viewports: &[String]) -> Result<ValuesConfig, String> {
         closed,
     };
     let mut gates = Vec::new();
+    let mut bounds = Vec::new();
     for (output, gate) in v.get("gates").ok_or("values: no `gates`")?.entries() {
+        if BOUNDED_OUTPUTS.contains(&output.as_str()) {
+            let (n, bound) = bounded_gate(output, gate)?;
+            gates.push((output.clone(), n));
+            bounds.push((output.clone(), bound));
+            continue;
+        }
         if !GATED_OUTPUTS.contains(&output.as_str()) {
             return Err(format!(
-                "values.gates: `{output}` is not an output with findings ({})",
-                GATED_OUTPUTS.join(", ")
+                "values.gates: `{output}` is not an output with findings ({}) or with a bound ({})",
+                GATED_OUTPUTS.join(", "),
+                BOUNDED_OUTPUTS.join(", ")
             ));
         }
         match gate {
@@ -117,8 +133,37 @@ pub fn config(v: &Value, viewports: &[String]) -> Result<ValuesConfig, String> {
         scenarios,
         waivers,
         gates,
+        bounds,
         gating,
     })
+}
+
+/// The gate of a visual output, `{gate: <n>, max: <bound>}`: a share's bound from 0 to 1, a count
+/// of pixels a whole number of at least 0.
+fn bounded_gate(output: &str, v: &Value) -> Result<(i64, f64), String> {
+    let form = format!(
+        "values.gates: the gate of `{output}` is `{{gate: <whole number of at least 1>, max: <{}>}}`",
+        if output == visual::DIFF_SHARE {
+            "share from 0 to 1"
+        } else {
+            "whole number of pixels of at least 0"
+        }
+    );
+    if !matches!(v, Value::Map(_)) {
+        return Err(form);
+    }
+    only(v, &["gate", "max"], &form)?;
+    let gate = match v.get("gate") {
+        Some(Value::Int(n)) if *n >= 1 => *n,
+        _ => return Err(form),
+    };
+    let max = match (output, v.get("max")) {
+        (visual::DIFF_SHARE, Some(Value::Int(n))) if (0..=1).contains(n) => *n as f64,
+        (visual::DIFF_SHARE, Some(Value::Float(x))) if (0.0..=1.0).contains(x) => *x,
+        (visual::DIFF_PX, Some(Value::Int(n))) if *n >= 0 => *n as f64,
+        _ => return Err(form),
+    };
+    Ok((gate, max))
 }
 
 // ---------------------------------------------------------------- patterns
@@ -477,6 +522,81 @@ struct Failure {
     detail: String,
     key: String,
     waived_by: Option<String>,
+    /// For a visual gate: the unit's number against the bound, or why it was not run.
+    note: Option<String>,
+}
+
+/// A finding: rule, node path after viewport and mode, reason; and for a unit of a visual gate,
+/// its note (the finding's detail is then `<output without suffix>:<what>`).
+type Entry = (String, String, String, Option<String>);
+
+/// The entries of the units of one `visual.diff_share@1` result that fail a bounded gate: a
+/// compared unit over the bound (a shot of another size than its baseline is always over), and a
+/// unit not run, which never passes. Each with its viewport and mode.
+fn visual_failures(
+    c: &ValuesConfig,
+    result: &Value,
+    gating: &dyn Fn(&str) -> bool,
+) -> Vec<(String, String, Entry)> {
+    let mut out = Vec::new();
+    let units = result
+        .get("details")
+        .and_then(|d| d.get("units"))
+        .map(Value::list)
+        .unwrap_or_default();
+    for u in units {
+        let (Some(vp), Some(mode), Some(shot)) =
+            (u.get_str("viewport"), u.get_str("mode"), u.get_str("shot"))
+        else {
+            continue;
+        };
+        if !gating(vp) {
+            continue;
+        }
+        let int = |k: &str| match u.get(k) {
+            Some(Value::Int(n)) => *n,
+            _ => 0,
+        };
+        for (output, bound) in &c.bounds {
+            let entry = |what: String, note: String| {
+                (
+                    vp.to_string(),
+                    mode.to_string(),
+                    (output.clone(), what, String::new(), Some(note)),
+                )
+            };
+            if u.get_str("result") == Some("not_run") {
+                let reason = u.get_str("reason").unwrap_or("not run");
+                out.push(entry(format!("{shot}:not-run"), reason.to_string()));
+                continue;
+            }
+            let (px, total) = (int("px"), int("width") * int("height"));
+            let size = u.get_str("reason");
+            let over = size.is_some()
+                || if output == visual::DIFF_SHARE {
+                    px as f64 > bound * total as f64
+                } else {
+                    px as f64 > *bound
+                };
+            if !over {
+                continue;
+            }
+            let mut note = if output == visual::DIFF_SHARE {
+                format!(
+                    "share {} above the bound {}",
+                    u.get_str("share").unwrap_or("1"),
+                    decimal(*bound, 6)
+                )
+            } else {
+                format!("{px} px above the bound {}", decimal(*bound, 0))
+            };
+            if let Some(size) = size {
+                note.push_str(&format!(", {size}"));
+            }
+            out.push(entry(shot.to_string(), note));
+        }
+    }
+    out
 }
 
 /// What the values of a document are: the file's text, the problems that make the run exit 1, and
@@ -530,7 +650,7 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
         Vec::new();
     // (path, viewport, mode) -> findings (rule, what, reason).
     #[allow(clippy::type_complexity)]
-    let mut groups: Vec<((String, String, String), Vec<(String, String, String)>)> = Vec::new();
+    let mut groups: Vec<((String, String, String), Vec<Entry>)> = Vec::new();
 
     for r in results {
         let output = r.get_str("output").unwrap_or_default();
@@ -598,13 +718,22 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
                     .and_then(|x| x.get_str("reason"))
                     .unwrap_or_default();
                 let key = (shown.to_string(), vp.to_string(), mode.to_string());
-                let entry = (rule.to_string(), rest.to_string(), reason.to_string());
+                let entry = (rule.to_string(), rest.to_string(), reason.to_string(), None);
                 match groups.iter_mut().find(|(k, _)| *k == key) {
                     Some((_, list)) => list.push(entry),
                     None => groups.push((key, vec![entry])),
                 }
             }
             continue;
+        }
+        if output == visual::DIFF_SHARE && !state && !c.bounds.is_empty() {
+            for (vp, mode, entry) in visual_failures(c, r, &gating) {
+                let key = (shown.to_string(), vp, mode);
+                match groups.iter_mut().find(|(k, _)| *k == key) {
+                    Some((_, list)) => list.push(entry),
+                    None => groups.push((key, vec![entry])),
+                }
+            }
         }
         let Some(value) = r.get("value").filter(|v| !v.is_null()) else {
             continue;
@@ -667,14 +796,18 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
     for ((path, vp, mode), findings) in &groups {
         let skip_not_first = findings
             .iter()
-            .any(|(rule, what, _)| rule == checks::KEYBOARD && what == "skip-link-first");
+            .any(|(rule, what, _, _)| rule == checks::KEYBOARD && what == "skip-link-first");
         let mut failures: Vec<Failure> = Vec::new();
-        for (rule, what, reason) in findings {
+        for (rule, what, reason, note) in findings {
             let Some((_, gate)) = c.gates.iter().find(|(o, _)| o == rule) else {
                 continue;
             };
-            let Some(detail) = detail(rule, what, reason, skip_not_first) else {
-                continue;
+            let detail = match note {
+                Some(_) => format!("{}:{what}", metric(rule)),
+                None => match detail(rule, what, reason, skip_not_first) {
+                    Some(d) => d,
+                    None => continue,
+                },
             };
             let clean: String = detail
                 .chars()
@@ -691,6 +824,7 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
                 detail,
                 key,
                 waived_by,
+                note: note.clone(),
             });
         }
         // One per key, sorted by key; the first of equal keys stays.
@@ -702,10 +836,13 @@ pub fn values(c: &ValuesConfig, inputs: &Inputs, document: &Value) -> Result<Val
         for f in &failures {
             match &f.waived_by {
                 Some(id) => waived.push(format!("{} by {id}", f.key)),
-                None => problems.push(format!(
-                    "hard gate failure not waived by an open finding: {}",
-                    f.key
-                )),
+                None => problems.push(match &f.note {
+                    Some(note) => format!(
+                        "hard gate failure not waived by an open finding: {} ({note})",
+                        f.key
+                    ),
+                    None => format!("hard gate failure not waived by an open finding: {}", f.key),
+                }),
             }
         }
         units.push(obj(vec![

@@ -213,7 +213,7 @@ The `values` section (every path is under `--root`):
 | `scenarios.path_key` | the key of that object that holds the page path; default `path`. The scenario's name is the name of the directory that holds the file |
 | `waivers.files` | the finding records, a path pattern: each a file whose front matter (from line 2 to the next line `---`) has the lines `id: <id>`, `status: <status>` and, to waive, `waives: <pattern>, <pattern>, ...` |
 | `waivers.closed` | the statuses of a record that waives nothing; default `[closed]` |
-| `gates` | per output that has findings (`layout.page_scroll@1`, `layout.overflow@1`, `always_visible.misses@1`, `keyboard.misses@1`) the number of the hard gate its failures count against; a finding of an output not named here is no gate failure |
+| `gates` | per output that has findings (`layout.page_scroll@1`, `layout.overflow@1`, `always_visible.misses@1`, `keyboard.misses@1`) the number of the hard gate its failures count against; a finding of an output not named here is no gate failure. Per visual output (`visual.diff_share@1`, `visual.diff_px@1`, Visual ratchet) `{gate: <n>, max: <bound>}`: the gate, and the bound each unit's number is held to, a share from 0 to 1 or a whole number of pixels of at least 0 |
 | `gating` | the viewports (names) whose results are values and gate failures; default every viewport. When it is declared, the values file also has a per-viewport breakdown (`viewports`), and the document must carry per-viewport details (written since 0.3.0) |
 
 A path pattern is a path relative to `--root` in which `*` stands for any run of characters inside one
@@ -847,7 +847,7 @@ per viewport and mode, passed when it has no offender. The values file takes the
 it takes the others (`ux-browser values`): `proxy.type_scale`, ..., `a11y.contrast_min`, the
 contrast folded to the smallest over the gating viewports; an incomplete one is a problem line
 there, as any incomplete result. The token outputs are not gated (`values.gates` names only the
-outputs with findings) and run on pages, not in the states of a journey.
+outputs with findings and the visual outputs) and run on pages, not in the states of a journey.
 
 The declared tokens are part of the configuration's bytes (its digest under
 `evidence.inputs.config`) and add no condition. **Capture.** With the section each unit of a page's
@@ -1024,8 +1024,39 @@ is a `not_run` entry, id `<page>/<viewport>/<mode>/visual/<shot>`. No condition 
 configuration's digest (an input) covers the masks and tolerances, and each unit names its
 baseline's digest. The values file takes both numbers per scenario as any other; with `gating`, a
 share (a metric named `*_share`) is the largest over the gating viewports and `visual.diff_px` the
-sum. `values.gates` names no visual output: a differing screenshot is a value of the ratchet, not a
-hard gate.
+sum.
+
+**A hard gate.** Without a visual output in `values.gates` a differing screenshot is a value of the
+ratchet, not a gate failure, and the values file is the bytes it was. `values.gates` takes each of the
+two with a bound:
+
+```yaml
+values:
+  gates:
+    visual.diff_share@1: {gate: 6, max: 0.001}
+    visual.diff_px@1: {gate: 7, max: 400}
+```
+
+Each unit at a gating viewport (`details.units` of `visual.diff_share@1`) is held to the bound, not to
+its `tolerance`: a share over the bound (differing pixels over `max` times the unit's pixels, as the
+tolerance is compared), or differing pixels over `max`, is a failure; a shot of another size than its
+baseline is always over. A unit not run (no baseline, no shot) is a failure too, never a pass. Each
+failure is one line of its page, viewport and mode in the values file (`units`), its detail
+`visual.diff_share:<shot>`, `visual.diff_px:<shot>` or `<...>:<shot>:not-run`, its key
+`gate6|/moved/|small|light|visual.diff_share:viewport`, waived by an open finding record as any other.
+An unwaived one is a problem line with the number and the bound, or why the unit was not run, and
+`ux-browser values` (and `checks --values`) exits 1:
+
+```
+ux-browser: hard gate failure not waived by an open finding: gate6|/moved/|small|light|visual.diff_share:viewport (share 0.083334 above the bound 0.001)
+ux-browser: hard gate failure not waived by an open finding: gate6|/clock/|small|dark|visual.diff_share:page:not-run (no baseline baseline/clock.small.dark.page.png)
+```
+
+A unit not run also leaves its page's numbers incomplete (`incomplete: /clock/ visual.diff_share@1:
+coverage_below_plan`), a problem line of its own, so a waiver of the gate failure does not end the run
+with 0. A page that could not be measured has no units: its numbers are incomplete, a problem line.
+A run whose units are all within the bound passes the gate, whatever their tolerance. The tests
+(`tests/visual.rs`, the visual gate) run `ux-browser values` on the documents of the recorded runs.
 
 **Determinism**, measured 2026-11-27, Chrome/149.0.7827.55, `tests/fixtures/visual/visual.checks.yaml`
 (one viewport 240 x 160, light and dark, full page, mask `.clock`; 4 pages, 16 shots per run):
@@ -1093,6 +1124,7 @@ A failure is a finding of an output named in `gates`, at a gating viewport. Its 
 | `layout.overflow@1` | `overflow:<block>` |
 | `always_visible.misses@1` | `<item>:<reason>@<top \| bottom \| state>`; `<item>:missing` for a missing item |
 | `keyboard.misses@1` | `keyboard:<check>` (The keyboard walk: `keyboard:tab-reaches-<target>`, `keyboard:focus-mark-<target>`, ...); `skip-link-moves-focus` is left out in a unit where `skip-link-first` failed, as it follows from it |
+| `visual.diff_share@1`, `visual.diff_px@1` | not a finding: a unit over the gate's bound, `visual.diff_share:<shot>` (`visual.diff_px:<shot>`), or not run, `visual.diff_share:<shot>:not-run` (Visual ratchet, A hard gate) |
 
 The key: `gate<N>|<page>|<viewport>|<mode>|<detail>`, with every `|` and `,` of the detail a space,
 so that a key splits on `|` and a `waives` line on `,`. llm's `core/findings.ts` writes the same form.
