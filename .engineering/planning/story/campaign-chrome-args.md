@@ -11,7 +11,7 @@ scope:
   path: engine/search/src/campaign
 - confidence: inferred
   path: engine/search/src/main.rs
-revision: 6
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-27T20:00:37Z", actor: "human:operator", revision: 5}
 - {from: "proposed", to: "active", at: "2026-11-27T20:00:37Z", actor: "human:operator", revision: 6}
@@ -31,10 +31,11 @@ the sandbox off stays the caller's choice.
 
 ## Acceptance
 
-- `ux-search campaign run` and `ux-search campaign check` take `--chrome-arg <arg>`, repeatable;
+- `ux-search campaign run`, the one campaign command that starts Chromium, takes
+  `--chrome-arg <arg>`, repeatable;
   each argument reaches Chromium's command line in the given order, after the engine's own
   switches.
 - Without the flag the command line is the one of 0.13.1.
-- `--help` of both commands names the flag; an empty value is refused naming the flag.
+- `--help` of `campaign run` names the flag, `campaign report` refuses it; an empty value is refused naming the flag.
 - The measurements of a run do not depend on the flag (a test holds the bytes equal with and
   without a harmless switch).
