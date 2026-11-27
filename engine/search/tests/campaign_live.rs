@@ -12,9 +12,9 @@
 //! Without a browser the lane fails; it does not skip. The page sets every size a test reads in
 //! px, so no number depends on a font of the host.
 //!
-//! Budget: twelve campaigns, so twelve browser starts, for all tests of the lane: the three campaigns
-//! that several tests read run once per test process (`cargo test` runs the tests of this binary
-//! in one process), and nine tests run one of their own. The largest is 4 variants in 4
+//! Budget: thirteen campaigns, so thirteen browser starts, for all tests of the lane: the three
+//! campaigns that several tests read run once per test process (`cargo test` runs the tests of
+//! this binary in one process), and ten tests run one of their own. The largest is 4 variants in 4
 //! environments; the lane ended in 7 s on a loaded host, and no test of it comes near the 60 s
 //! a test has.
 
@@ -938,4 +938,34 @@ fn a_run_with_events_writes_the_live_view_and_the_same_measurements() {
         .and_then(|line| line.get_str("text"))
         .expect("a ranking line");
     assert_eq!(last, format!("top 3: {}", top.join(", ")));
+}
+
+// Chromium switches of the caller (`story:campaign-chrome-args`).
+
+/// A run with switches of the caller measures what a run without them measures: the
+/// measurements and the report are the same bytes. `--no-sandbox` is the switch a container
+/// that runs as root needs; `--disable-renderer-backgrounding` is one the engine does not set.
+#[test]
+#[ignore = "starts a browser: the lane is `cargo test -- --ignored campaign_live`"]
+fn a_run_with_chrome_args_writes_the_same_measurements() {
+    let without = at_rest().succeeded();
+    let with = run_with(
+        "chrome-arg",
+        &list_text(),
+        &[
+            "--jobs",
+            "2",
+            "--chrome-arg",
+            "--no-sandbox",
+            "--chrome-arg",
+            "--disable-renderer-backgrounding",
+        ],
+    );
+    with.succeeded();
+    let bytes = |ran: &Ran| std::fs::read(ran.cwd.join("measurements.json")).expect("a file");
+    assert!(
+        bytes(without) == bytes(&with),
+        "the measurements differ with --chrome-arg"
+    );
+    assert_eq!(with.stdout, without.stdout, "the report of the run");
 }
