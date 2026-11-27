@@ -179,7 +179,9 @@ workflows fail "the release gate installs no clippy and rustfmt" \
 workflows fail "the pull-request gate keeps no dependency cache" \
 	'awk "/uses: Swatinem\/rust-cache@/ { skip = 1; next } skip && /^      - / { skip = 0 } !skip" .github/workflows/ci.yml >x && mv x .github/workflows/ci.yml'
 workflows fail "the release gate caches one workspace less" \
-	'sed "/^ *engine\/search -> engine\/search\/target\$/d" .github/workflows/release.yml >x && mv x .github/workflows/release.yml'
+	'sed "/^ *engine\/search -> target\$/d" .github/workflows/release.yml >x && mv x .github/workflows/release.yml'
+workflows fail "the search cache names its target from the repository root" \
+	'sed "s|engine/search -> target\$|engine/search -> engine/search/target|" .github/workflows/ci.yml >x && mv x .github/workflows/ci.yml'
 workflows fail "the two gates share no cache key" \
 	'sed "s|shared-key: gate|shared-key: release|" .github/workflows/release.yml >x && mv x .github/workflows/release.yml'
 workflows fail "the cache step runs before the toolchain is installed" 'cache_first .github/workflows/ci.yml'
