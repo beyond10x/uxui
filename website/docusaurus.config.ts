@@ -48,7 +48,7 @@ const config: Config = {
         },
         blog: false,
         theme: {
-          customCss: './src/css/landing.css',
+          customCss: ['./src/css/landing.css', './src/css/site.css'],
         },
       } satisfies Preset.Options,
     ],
