@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:gate-step-budget
 kind: story
-status: active
+status: implemented
 title: The Gate job keeps the test budget on the forge
 relations:
 - decomposes: epic:engine-slices
@@ -13,10 +13,11 @@ scope:
   path: engine/search/Cargo.toml
 - confidence: inferred
   path: tools/gate.sh
-revision: 7
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-27T18:47:51Z", actor: "human:operator", revision: 6}
 - {from: "proposed", to: "active", at: "2026-11-27T18:47:51Z", actor: "human:operator", revision: 7}
+- {from: "active", to: "implemented", at: "2026-11-27T21:19:25Z", actor: "human:operator", revision: 8, decided_on: {"recorded":{"test_result":1}}}
 ---
 ## Outcome
 

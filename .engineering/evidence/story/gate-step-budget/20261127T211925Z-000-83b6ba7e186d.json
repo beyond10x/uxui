@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-27T21:19:25Z",
+  "actor": "human:operator",
+  "artifact": "story:gate-step-budget",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "merged as pull requests 77 (44a5c96) and 79 (0ec47c4); forge run 46068630707 (pull request 80) on a warm cache: Gate job 1m50s, tools/gate.sh 21:16:29 to 21:17:59 CET (1m30s), was 5m06s-7m19s; workspace 277 passed in 4.9 s, engine/search 180 passed in 29.7 s, 0 killed after 60 s, ten slowest printed per lane; no .debug_* section in any test binary (checked by tools/run-tests.sh on every run); .cargo/config.toml gives the local gate and the forge the same profile",
+    "reference": "tools/run-tests.sh"
+  }
+}
