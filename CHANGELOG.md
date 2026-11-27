@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.12.0 — 2026-11-27
+
 - Releases carry `ux-search` for x86_64-unknown-linux-gnu, packaged with its declaration
   `ux-search.assessor.yaml` like `ux-browser` and `ux-static`; a consumer runs `ux-search campaign`
   without building it. `tools/release-versions.sh` holds its `--version` answer to the release.
