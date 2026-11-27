@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- The documentation site passes its own page checks at phone width and at the bottom of a page. The
+  theme toggle stays in the navbar at 390 px, in view and reached by the keyboard, where the theme
+  kept it only in the collapsed menu; the docs sidebar is fixed to the viewport's height, so the
+  footer no longer pushes its top out of view (222 px on the metrics page at 1440x900), and a docs
+  page's footer starts beside it. The rules are `website/src/css/site.css`; on a local build
+  `ux-browser checks` with `uxui-docs.checks.yaml` went from 103 failed of 566 checks to 0 (always
+  visible and keyboard, both sizes, both modes, every page), with no overflow or page scroll. No
+  gate or CI step runs these checks yet (`website/README.md`, Layout). Closes
+  `story:docs-site-phone-and-sidebar`.
 - ux-browser checks holds a page to its design tokens: an optional `tokens` section of
   `ux-browser-checks/1` declares the font-size scale (a list of sizes, or a base and ratio), the
   colours (custom properties read from the page's root in each mode, `--prefix*` for a family, and
