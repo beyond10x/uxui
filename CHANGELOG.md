@@ -10,6 +10,23 @@
   --no-sandbox` itself. Without the flag the command line is that of 0.13.1, and the measurements are
   the same bytes with and without a switch (`docs/targets.md`, Run). Closes `story:campaign-chrome-args`.
 
+- The `Gate` job keeps the test budget. Before, the forge built `engine/search`'s third-party
+  crates from nothing on every run, with debug info: in run 46039866893 its lint build took
+  1m55s and its test build 3m58s of a 7m19s job, the tests 3.42 s and 15.67 s. Now both gate jobs
+  keep one dependency cache (`Swatinem/rust-cache`, both workspaces, saved on `main`), and
+  `.cargo/config.toml` builds every crate of the repository without debug info and without
+  incremental compilation, the host's value and the forge's, so the local gate and the forge build
+  alike. `tools/run-tests.sh` runs each test in a process of its own, kills it after 60 s, prints
+  the ten slowest of each lane and refuses a test binary with a `.debug_*` section; libtest on
+  stable Rust can neither time nor end one test. `engine/search`'s path dependencies `ux-browser`
+  and `uxui-doc` build at `opt-level = 0` (its test build after a source change 8.0 s to 5.5-6.2 s);
+  its other dependencies stay at 2, without which its tests take 48.6 s in place of 17.7 s.
+  `tools/check-workflows.sh` holds the cache step of both gates and refuses an empty compiler
+  wrapper. Local gate in the pool, before: 138.7 s cold, 36.4 s warm; after: 45.5 s warm, 61.1 s
+  after a source change in `engine/browser` and `engine/search`; the slowest tests are the four
+  studio tests of `engine/search`, 11.7-11.9 s each.
+  Closes `story:gate-step-budget`.
+
 ## 0.13.1 — 2026-11-27
 
 - The released `ux-search` binary no longer names the build machine's directories. 0.13.0's held

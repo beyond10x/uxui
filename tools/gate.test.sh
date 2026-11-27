@@ -2,7 +2,8 @@
 # Proves the pieces of the forge gate:
 # - tools/prose-only.sh says "prose only" for a change of planning and prose files alone and
 #   "run the gate" for every other change, and no prose file it lets skip is read by a tool;
-# - tools/check-workflows.sh passes on this tree and fails on each broken copy of its workflows.
+# - tools/check-workflows.sh passes on this tree and fails on each broken copy of its workflows;
+# - tools/gate.sh runs every first run of the tests through tools/run-tests.sh.
 # Copies go under target/gate-test/ in the repository. Exit 0 when every case holds.
 set -u
 
@@ -151,6 +152,14 @@ workflows() {
 	fi
 }
 
+# cache_first <workflow>: moves the step of Swatinem/rust-cache in front of the toolchain's step.
+cache_first() {
+	awk '/^      - uses: Swatinem\/rust-cache@/ { on = 1 } on && /^      - / && !/rust-cache/ { on = 0 } on' "$1" >cache.step
+	awk '/^      - uses: Swatinem\/rust-cache@/ { on = 1 } on && /^      - / && !/rust-cache/ { on = 0 }
+		!on && /^      - uses: dtolnay\/rust-toolchain@/ { while ((getline l < "cache.step") > 0) print l }
+		!on' "$1" >cache.yml && mv cache.yml "$1" && rm cache.step
+}
+
 workflows pass "this tree" ':'
 workflows fail "no pull-request workflow" 'rm .github/workflows/ci.yml'
 workflows fail "the release gate runs cargo test itself" \
@@ -167,6 +176,21 @@ workflows fail "the pull-request workflow does not run on a push to main" \
 	'sed "/^  push:\$/,/^    branches: \[main\]\$/d" .github/workflows/ci.yml >x && mv x .github/workflows/ci.yml'
 workflows fail "the release gate installs no clippy and rustfmt" \
 	'sed "/^ *components: clippy, rustfmt\$/d" .github/workflows/release.yml >x && mv x .github/workflows/release.yml'
+workflows fail "the pull-request gate keeps no dependency cache" \
+	'awk "/uses: Swatinem\/rust-cache@/ { skip = 1; next } skip && /^      - / { skip = 0 } !skip" .github/workflows/ci.yml >x && mv x .github/workflows/ci.yml'
+workflows fail "the release gate caches one workspace less" \
+	'sed "/^ *engine\/search -> engine\/search\/target\$/d" .github/workflows/release.yml >x && mv x .github/workflows/release.yml'
+workflows fail "the two gates share no cache key" \
+	'sed "s|shared-key: gate|shared-key: release|" .github/workflows/release.yml >x && mv x .github/workflows/release.yml'
+workflows fail "the cache step runs before the toolchain is installed" 'cache_first .github/workflows/ci.yml'
+workflows fail "a workflow empties RUSTC_WRAPPER" \
+	'sed "s|^\(  *\)run: sh tools/gate.sh\$|\1env:\n\1  RUSTC_WRAPPER: \"\"\n\1run: sh tools/gate.sh|" .github/workflows/ci.yml >x && mv x .github/workflows/ci.yml'
+workflows fail "the gate empties CARGO_BUILD_RUSTC_WRAPPER" \
+	'printf "CARGO_BUILD_RUSTC_WRAPPER= cargo build\n" >>tools/gate.sh'
+workflows fail "a cargo config empties rustc-wrapper" \
+	'mkdir -p .cargo && printf "[build]\nrustc-wrapper = \"\"\n" >.cargo/config.toml'
+workflows pass "a workflow and the gate that name a wrapper" \
+	'sed "s|^\(  *\)run: sh tools/gate.sh\$|\1env:\n\1  RUSTC_WRAPPER: sccache\n\1run: sh tools/gate.sh|" .github/workflows/ci.yml >x && mv x .github/workflows/ci.yml && printf "RUSTC_WRAPPER=sccache cargo build\n" >>tools/gate.sh'
 
 # The gate holds the workspace's format and lints, and engine/search's (a workspace of its own)
 # format, lints and tests: tools/gate.sh runs each command, and the format check fails on a copy
@@ -174,13 +198,32 @@ workflows fail "the release gate installs no clippy and rustfmt" \
 for want in 'cargo fmt --all --check' 'cargo clippy --workspace --all-targets --locked -- -D warnings' \
 	'cargo fmt --manifest-path engine/search/Cargo.toml --check' \
 	'cargo clippy --manifest-path engine/search/Cargo.toml --all-targets --locked -- -D warnings' \
-	'timeout 120 cargo test --manifest-path engine/search/Cargo.toml --locked --no-fail-fast'; do
+	'timeout 120 sh tools/run-tests.sh workspace --workspace --locked' \
+	'timeout 120 sh tools/run-tests.sh engine/search --manifest-path engine/search/Cargo.toml --locked'; do
 	if grep -qxF "step $want" "$root/tools/gate.sh"; then
 		ok "the gate runs $want"
 	else
 		bad "tools/gate.sh does not run: step $want"
 	fi
 done
+# Every first run of the tests goes through tools/run-tests.sh, which kills a test after 60 s and
+# prints the ten slowest; a plain `cargo test` step does neither.
+plain=$(grep -E '^step .*cargo test' "$root/tools/gate.sh" | grep -v -- '--no-run')
+if [ -z "$plain" ]; then
+	ok "the gate runs no test with a plain cargo test"
+else
+	bad "tools/gate.sh runs tests outside tools/run-tests.sh: $plain"
+fi
+if grep -qE '^for test in .*[ ]run-tests( |;)' "$root/tools/gate.sh"; then
+	ok "the gate runs tools/run-tests.test.sh"
+else
+	bad "tools/gate.sh does not run tools/run-tests.test.sh"
+fi
+if grep -qE '^unset .*UXUI_TEST_LIMIT' "$root/tools/gate.sh" && grep -qE '^unset .*UXUI_TEST_JOBS' "$root/tools/gate.sh"; then
+	ok "the gate unsets the limit and the job count of tools/run-tests.sh"
+else
+	bad "tools/gate.sh does not unset UXUI_TEST_LIMIT and UXUI_TEST_JOBS"
+fi
 l=$work/lint
 rm -rf "$l"
 mkdir -p "$l"
