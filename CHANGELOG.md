@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `ux-search --version` keeps `ux-search <version>` on its first line and names on the lines after
+  it the campaign formats it writes and reads (declaration, measurements, renders, live-view files);
+  `tools/release-versions.sh` holds each binary's first line to the release. Closes
+  `story:ux-search-version-names-formats`.
+
 - ux-search campaign run has a live view: with `--events <dir>` it appends, while it measures, one
   JSON line per finished variant to the candidates file `<dir>/hill-climb.jsonl` (`iteration`, `at`,
   `kind` `baseline` for the page as shipped, `change` the variant and its axis values, `accepted` on the

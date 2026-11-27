@@ -191,7 +191,7 @@ timing() {
 	printf '| react, react-dom, esbuild, typescript | `%s`, `%s`, `%s`, `%s` |\n' \
 		"$(version react)" "$(version react-dom)" "$(version esbuild)" "$(version typescript)"
 	printf '| Chromium | `%s` |\n' "$("$UXUI_CHROME" --version)"
-	printf '| engine | `%s` |\n' "$("$bin" --version)"
+	printf '| engine | `%s` |\n' "$("$bin" --version | head -n 1)"
 	printf '| first run | %s |\n' "$(timing first)"
 	printf '| second run | %s; the same bytes of `measurements.json` as the first run, %s of %s screenshots the same bytes |\n' \
 		"$(timing second)" "$same" "$all"

@@ -1673,8 +1673,8 @@ fn the_studio_record_is_of_the_committed_declaration() {
 /// measurements (above), the report and the document's recorded block, which are printed from the
 /// measurements (`the_studio_report_is_the_committed_one_and_its_frontier_is_sound`,
 /// `the_campaign_document_holds_the_numbers_of_the_record`), and the engine line of the
-/// document's `versions` block, which the script writes from `ux-search --version` and which is
-/// held to that form here.
+/// document's `versions` block, which the script writes from the first line of
+/// `ux-search --version` and which is held to that form here.
 #[test]
 fn the_campaign_document_names_the_engine_of_the_recording() {
     let document = read(&repository(&format!("{SHOTS}.md")));

@@ -40,6 +40,7 @@ mod rank;
 mod studio;
 mod studio_adversary;
 mod variant;
+mod version;
 
 use std::path::{Path, PathBuf};
 
