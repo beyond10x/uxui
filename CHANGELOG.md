@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `ux-search --version` keeps `ux-search <version>` on its first line and names on the lines after
+  it the campaign formats it writes and reads (declaration, measurements, renders, live-view files);
+  `tools/release-versions.sh` holds each binary's first line to the release. Closes
+  `story:ux-search-version-names-formats`.
+
 - The visual ratchet can be a hard gate: `values.gates` of `ux-browser-checks/1` takes
   `visual.diff_share@1` and `visual.diff_px@1` with a bound, `{gate: <n>, max: <bound>}` (a share from
   0 to 1, a whole number of pixels). Each unit at a gating viewport over the bound is a gate failure

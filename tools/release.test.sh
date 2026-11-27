@@ -595,8 +595,23 @@ expect fail "a built binary answers another version" "$tree/bin"
 
 fresh
 bins
-bin ux-browser 'ux-browser 9.8.7\nmore\n'
-expect fail "a built binary answers more than its line" "$tree/bin"
+bin ux-search 'ux-search 9.8.7\ndeclaration: reads ux-search-campaign/2\n'
+expect pass "a built binary answers further lines after its first" "$tree/bin"
+
+fresh
+bins
+bin ux-search 'ux-search 9.8.6\nux-search 9.8.7\n'
+expect fail "a built binary answers the release on a line after its first" "$tree/bin"
+
+fresh
+bins
+bin ux-browser 'ux-browser 9.8.7 more\n'
+expect fail "a built binary answers more than the release on its first line" "$tree/bin"
+
+fresh
+bins
+bin ux-browser '\nux-browser 9.8.7\n'
+expect fail "a built binary answers an empty first line" "$tree/bin"
 
 fresh
 bins

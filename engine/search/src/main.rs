@@ -17,7 +17,8 @@ const USAGE: &str = "usage: ux-search climb --doc <ui.yaml> --page <page> [--par
        ux-search -h | --help, also after a command
 defaults: --sizes 120x40,48x40, --cap 5, --keys <tab><tab><tab><tab><tab>, --size 120x40, --repeat 5, --format text, --state-dir target/ux-search/state, --jobs the CPUs (at most 4), --profile a directory of the run's own under the system's temp directory (TMPDIR), removed when the run ends
 landing run renders the 144 variants of the documentation landing page in 6 environments in Chromium (UXUI_CHROME, else the Playwright cache), writes <dir>/measurements.json and two screenshots per frontier variant, and prints the report; landing report prints the report of a measurements file; landing promote applies the patch of one variant of that file's frontier to the two sources in place and writes, all or none, one ratchet-evidence/1 document that names the campaign, a copy of the measurements beside it (<name>.measurements.json beside <name>.evidence.json) and, with --shipped-file, the variant's id to that file; the document names each file by its path from the working directory; it refuses, and writes nothing, a variant off the frontier, sources the measurements were not recorded on, a place that is a directory and one file named twice
-campaign run reads a declaration ux-search-campaign/2, or /1 (the page, the environments, the axes of custom-property values per selector, the hard rules and the ordered terms, with rows_in_view over the rows a declaration names, primary_bottom_px and an always-visible item clipped on purpose by its container), loads the page from the server at <origin> (an origin, with a path when the page's paths lie under one), renders every variant in every environment in Chromium as an injected style sheet, with the pointer parked at page.pointer or in the bottom-right corner of the viewport, writes the measurements file and, with --shots, per frontier variant one screenshot in every mode at the first viewport and one in the last environment, and prints the report; it reaches only that origin, with GET and HEAD, and refuses a declaration it cannot read (naming the file and the key), a selector that matches nothing, a property that is not in force and a mode whose expectation (expect) the page does not show; a mode with an attribute or an expectation is read back on one page load before the first variant is rendered; it names a mode that is set by a query and expects nothing as not read back, an axis none of whose values changes the page, and a mode or a viewport that measures the same numbers as another one for every variant; with --variant or --environment it measures that variant or environment alone, shoots each of its renders with --shots, prints the numbers of each render and writes them as ux-search-campaign-renders/1, which no report ranks; with --events <dir> it appends, while it runs, one line per finished variant to <dir>/hill-climb.jsonl (its terms, its place in the ranking so far as score, whether it is on the frontier so far, its deltas against the page as shipped, with --shots its screenshots under <dir>/shots/) and one line per phase to <dir>/hill-climb-events.jsonl (start, measuring, ranking with the top three so far, end or failed), both made empty when it starts, and writes the measurements file as without it; campaign report prints the report of a measurements file, with --notes followed by the first elements behind the counts of the page as shipped and of the frontier, each named once where it is the same in every environment and variant, with --format markdown the run and the frontier as two tables whose screenshot links start with <prefix>; it refuses a file whose content is not what its digest names";
+campaign run reads a declaration ux-search-campaign/2, or /1 (the page, the environments, the axes of custom-property values per selector, the hard rules and the ordered terms, with rows_in_view over the rows a declaration names, primary_bottom_px and an always-visible item clipped on purpose by its container), loads the page from the server at <origin> (an origin, with a path when the page's paths lie under one), renders every variant in every environment in Chromium as an injected style sheet, with the pointer parked at page.pointer or in the bottom-right corner of the viewport, writes the measurements file and, with --shots, per frontier variant one screenshot in every mode at the first viewport and one in the last environment, and prints the report; it reaches only that origin, with GET and HEAD, and refuses a declaration it cannot read (naming the file and the key), a selector that matches nothing, a property that is not in force and a mode whose expectation (expect) the page does not show; a mode with an attribute or an expectation is read back on one page load before the first variant is rendered; it names a mode that is set by a query and expects nothing as not read back, an axis none of whose values changes the page, and a mode or a viewport that measures the same numbers as another one for every variant; with --variant or --environment it measures that variant or environment alone, shoots each of its renders with --shots, prints the numbers of each render and writes them as ux-search-campaign-renders/1, which no report ranks; with --events <dir> it appends, while it runs, one line per finished variant to <dir>/hill-climb.jsonl (its terms, its place in the ranking so far as score, whether it is on the frontier so far, its deltas against the page as shipped, with --shots its screenshots under <dir>/shots/) and one line per phase to <dir>/hill-climb-events.jsonl (start, measuring, ranking with the top three so far, end or failed), both made empty when it starts, and writes the measurements file as without it; campaign report prints the report of a measurements file, with --notes followed by the first elements behind the counts of the page as shipped and of the frontier, each named once where it is the same in every environment and variant, with --format markdown the run and the frontier as two tables whose screenshot links start with <prefix>; it refuses a file whose content is not what its digest names
+-V prints ux-search <version>, then one line each for the declaration, the measurements, the renders and the live-view files: the formats it writes and the ones it reads";
 
 /// The flags that take no value.
 const SWITCHES: &[&str] = &["--notes"];
@@ -71,6 +72,29 @@ fn asks_for_usage(args: &[String]) -> bool {
     false
 }
 
+/// The answer to `--version`: `ux-search <version>` on the first line, which a release and a
+/// recorded campaign read, then per kind of campaign file the formats written and read, so two
+/// engines whose formats differ answer differently.
+fn version() -> String {
+    use campaign::{declaration, events, record};
+    format!(
+        "ux-search {}\n\
+         declaration: reads {}, {}\n\
+         measurements: writes {}; reads {}, {}\n\
+         renders: writes {}\n\
+         events: writes {}, {}\n",
+        env!("CARGO_PKG_VERSION"),
+        declaration::FORMAT,
+        declaration::FORMAT_1,
+        record::FORMAT,
+        record::FORMAT,
+        record::FORMAT_BEFORE_THE_ROWS,
+        record::RENDERS_FORMAT,
+        events::CANDIDATES_FILE,
+        events::PHASE_FILE,
+    )
+}
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if asks_for_usage(&args) {
@@ -79,7 +103,7 @@ fn main() -> ExitCode {
     }
     match args.first().map(String::as_str) {
         Some("-V" | "--version") => {
-            println!("ux-search {}", env!("CARGO_PKG_VERSION"));
+            print!("{}", version());
             ExitCode::SUCCESS
         }
         Some("climb") => run_climb(&args[1..]),

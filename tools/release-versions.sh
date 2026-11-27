@@ -1,8 +1,9 @@
 #!/bin/sh
 # release-versions.sh <version> [<binary directory>]: exit 0 when every file that carries the
 # release's version carries <version> and, with a binary directory, each released binary in it
-# (ux-browser, ux-static, ux-search) answers `--version` with exactly `<name> <version>` and a
-# newline on stdout and exit 0; print each disagreement as `<file>: <what>` and exit 1 otherwise.
+# (ux-browser, ux-static, ux-search) answers `--version` on stdout with a first line of exactly
+# `<name> <version>` ended by a newline (ux-search names its formats on the lines after it) and
+# exit 0; print each disagreement as `<file>: <what>` and exit 1 otherwise.
 #
 # The carriers, all written by `sh tools/release-set-version.sh <version>`:
 # - the two plugin manifests and the plugin entry of the Claude marketplace;
@@ -37,8 +38,8 @@ if [ -n "$bins" ]; then
     if [ "$status" -ne 0 ]; then
       echo "$bins/$name --version: exit $status"
       bad=1
-    elif [ "$answer" != "$name $version$nl" ]; then
-      echo "$bins/$name --version: answers '${answer%"$nl"}', release $version"
+    elif case $answer in "$name $version$nl"*) false ;; *) true ;; esac; then
+      echo "$bins/$name --version: answers '${answer%%"$nl"*}' on its first line, release $version"
       bad=1
     fi
   done

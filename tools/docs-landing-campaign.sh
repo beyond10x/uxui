@@ -123,7 +123,7 @@ cp "$fixtures/variant.landing.css" "$site/src/css/landing.css"
 # 4. The campaign.
 rm -rf "$run"
 mkdir -p "$run"
-echo "docs-landing-campaign: $("$bin" --version), $("$UXUI_CHROME" --version)" >&2
+echo "docs-landing-campaign: $("$bin" --version | head -n 1), $("$UXUI_CHROME" --version)" >&2
 "$bin" landing run --build website/build --product "$product" --css "$css" --out "$run" \
 	--profile "$work/profile" --rebuilt "$variant=$rebuilt" >"$run/report.txt"
 
