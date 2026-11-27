@@ -14,6 +14,10 @@
   restricted to one variant or one environment refuses it. `docs/targets.md`, The live view. Closes
   `story:campaign-live-view`.
 
+- `tools/release-ready.sh` counts a required workflow as green when one of its runs on the commit
+  ended `success` and the others ended `success` or `skipped`; a skipped run beside a success is
+  printed as not counted, and a workflow whose only runs are skipped is still red.
+
 ## 0.12.0 — 2026-11-27
 
 - Releases carry `ux-search` for x86_64-unknown-linux-gnu, packaged with its declaration
