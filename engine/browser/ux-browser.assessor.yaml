@@ -29,6 +29,16 @@ outputs:
     {value_type: number, kind: sampled, scopes: [page], unit: score}
   layout_shift.load@1:
     {value_type: number, kind: sampled, scopes: [page], unit: score}
+  proxy.type_scale@1:
+    {value_type: number, kind: exact, scopes: [page], unit: sizes}
+  proxy.colours@1:
+    {value_type: number, kind: exact, scopes: [page], unit: colours}
+  proxy.spacing_units@1:
+    {value_type: number, kind: exact, scopes: [page], unit: gaps}
+  proxy.radii@1:
+    {value_type: number, kind: exact, scopes: [page], unit: radii}
+  a11y.contrast_min@1:
+    {value_type: number, kind: exact, scopes: [page], unit: ratio}
   findings:
     value_type: identity_set
     kind: exact

@@ -553,6 +553,7 @@ pub fn round_document() -> Value {
             shift("1024x768", 0.05, 0.2),
             shift("390x844", 0.0, 0.031),
         ],
+        tokens: Vec::new(),
     };
     let file = FileRef {
         path: None,

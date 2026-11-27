@@ -1,0 +1,13 @@
+format: ux-browser-checks/1
+base_path: /
+pages: {paths: [/on-scale/, /offenders/]}
+viewports:
+  - {name: 400x300, width: 400, height: 300}
+modes: [light, dark]
+settle_ms: 100
+tokens:
+  font_sizes: {base: 16, ratio: 1.25}
+  colours:
+    properties: ['--color-*']
+  spacing_unit_px: 4
+  radii: [4, 8, full]

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Off the tokens</title>
+<style>
+:root { --color-bg: #ffffff; --color-fg: #1a1a1a; --color-accent: #0b5cad; --color-border: #d0d4da; --color-surface: #f4f6f8; --color-muted: #b0b0b0; }
+@media (prefers-color-scheme: dark) {
+  :root { --color-bg: #101418; --color-fg: #e8eaed; --color-accent: #8ab4f8; --color-border: #3c4043; --color-surface: #1b2127; --color-muted: #3a3f45; }
+}
+html { background: var(--color-bg); color: var(--color-fg); font: 16px/1.5 sans-serif; }
+body { margin: 0; padding: 16px; }
+h1 { font-size: 25px; font-weight: 700; margin: 0 0 16px; }
+p { margin: 0 0 8px; }
+.off-size { font-size: 18px; }
+.off-colour { color: #2e7d32; }
+.off-gap { margin-top: 13px; }
+.off-padding { padding: 10px; background: var(--color-surface); }
+.off-radius { margin: 0 0 8px; padding: 4px 8px; border: 1px solid var(--color-border); border-radius: 6px; }
+.faint { color: var(--color-muted); }
+</style>
+</head>
+<body>
+<h1>Offenders</h1>
+<p class="off-size">A size between two steps of the scale.</p>
+<p class="off-colour">A colour no token declares.</p>
+<p class="off-gap">A gap of 13 px above.</p>
+<div class="off-padding">A padding of 10 px.</div>
+<div class="off-radius">A radius of 6 px.</div>
+<p class="faint">Faint text on its background.</p>
+</body>
+</html>

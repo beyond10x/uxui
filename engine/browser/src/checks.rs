@@ -1011,6 +1011,9 @@ pub struct Config {
     pub chrome: Option<crate::chrome::Pin>,
     /// The journeys whose states are checked (`journeys`, `journey::config`); none by default.
     pub journeys: Vec<crate::journey::Journey>,
+    /// The design tokens the token checks hold the page to (`tokens`, `tokens::config`); none:
+    /// no token check runs.
+    pub tokens: Option<crate::tokens::Tokens>,
 }
 
 /// The methods a page may send to the measured server unless the configuration names more: reads,
@@ -1065,6 +1068,7 @@ const TOP_KEYS: &[&str] = &[
     "chrome_args",
     "chrome",
     "journeys",
+    "tokens",
 ];
 
 /// The checks that run only when `opt_in` names them.
@@ -1363,6 +1367,7 @@ pub fn config(text: &str) -> Result<Config, String> {
         chrome_args,
         chrome: v.get("chrome").map(crate::chrome::pin).transpose()?,
         journeys: crate::journey::config(v.get("journeys"))?,
+        tokens: crate::tokens::config(v.get("tokens"))?,
     })
 }
 
@@ -1660,6 +1665,8 @@ pub struct PageResult {
     pub units: Vec<UnitResult>,
     pub keyboard: Vec<KeyboardUnit>,
     pub shifts: Vec<ShiftUnit>,
+    /// The token outputs per viewport and mode (`tokens`); none without a `tokens` section.
+    pub tokens: Vec<crate::tokens::TokenUnit>,
 }
 
 impl PageResult {
@@ -1747,6 +1754,7 @@ pub fn page_result(config: &Config, page: &Value) -> Result<PageResult, String> 
         units: Vec::new(),
         keyboard: Vec::new(),
         shifts: Vec::new(),
+        tokens: Vec::new(),
     };
     if result.error.is_some() {
         return Ok(result);
@@ -1796,6 +1804,20 @@ pub fn page_result(config: &Config, page: &Value) -> Result<PageResult, String> 
                 "bottom",
                 visible.and_then(|v| v.get("bottom")),
             )?);
+            if let Some(tokens) = &config.tokens {
+                let recorded = unit.get("tokens").ok_or_else(|| {
+                    format!(
+                        "{path} {} {mode}: recorded without `tokens`; the configuration declares them",
+                        vp.name
+                    )
+                })?;
+                result.tokens.push(crate::tokens::TokenUnit {
+                    viewport: vp.name.clone(),
+                    mode: mode.clone(),
+                    outcomes: crate::tokens::judge(tokens, recorded)
+                        .map_err(|e| format!("{path} {} {mode}: {e}", vp.name))?,
+                });
+            }
             result.units.push(UnitResult {
                 viewport: vp.name.clone(),
                 mode,

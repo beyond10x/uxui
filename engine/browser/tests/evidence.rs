@@ -96,6 +96,7 @@ fn pages() -> Vec<PageResult> {
         ],
         keyboard: vec![walk("1440x900", true), walk("390x844", true)],
         shifts: vec![shift("1440x900", 0.0), shift("390x844", 0.0004)],
+        tokens: Vec::new(),
     };
     let wide = PageResult {
         path: "/llm/docs/wide".to_string(),
@@ -112,6 +113,7 @@ fn pages() -> Vec<PageResult> {
         ],
         keyboard: vec![walk("1440x900", false), walk("390x844", true)],
         shifts: vec![shift("1440x900", 0.0)],
+        tokens: Vec::new(),
     };
     let gone = PageResult {
         path: "/llm/gone".to_string(),
@@ -119,6 +121,7 @@ fn pages() -> Vec<PageResult> {
         units: Vec::new(),
         keyboard: Vec::new(),
         shifts: Vec::new(),
+        tokens: Vec::new(),
     };
     vec![home, wide, gone]
 }
