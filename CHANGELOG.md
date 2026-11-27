@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The dependency cache of both gate jobs keeps `engine/search`'s build. `Swatinem/rust-cache` reads
+  the target directory of a workspace relative to it, so `engine/search -> engine/search/target`
+  cached `engine/search/engine/search/target`, which no build writes: on run 46062605370 the cache
+  was restored and `engine/search` still built its crates in 1m 08s (lint) and 2m 25s (test). The
+  entry is now `engine/search -> target`, and `tools/check-workflows.sh` holds that form.
+
 - The `Gate` job keeps the test budget. Before, the forge built `engine/search`'s third-party
   crates from nothing on every run, with debug info: in run 46039866893 its lint build took
   1m55s and its test build 3m58s of a 7m19s job, the tests 3.42 s and 15.67 s. Now both gate jobs
