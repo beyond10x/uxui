@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.13.0 — 2026-11-27
+
 - `ux-search --version` keeps `ux-search <version>` on its first line and names on the lines after
   it the campaign formats it writes and reads (declaration, measurements, renders, live-view files);
   `tools/release-versions.sh` holds each binary's first line to the release. Closes
