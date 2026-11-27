@@ -105,11 +105,19 @@ loopback port.
   neither term. The browser lane holds the three on `site/rows.html` (`rows.campaign.yaml`). Not built: the
   ink of a disabled control is still not judged.
 - **Run**: `ux-search campaign run --declaration <file> --url <origin> --out <measurements.json> [--shots
-  <dir>] [--jobs <n>] [--profile <dir>] [--events <dir>]` renders every variant in every environment as an
+  <dir>] [--jobs <n>] [--profile <dir>] [--events <dir>] [--chrome-arg <switch>]...` renders every variant in every environment as an
   injected style sheet and writes the measurements with the declaration inside and a digest over both. `--jobs` is the
   number of pages measured at once (default: the CPUs, at most 4). `--profile` is the directory of the
   browser's profile; without it the run makes one of its own under the system's temp directory (`TMPDIR`) and
   removes it when it ends, so the working directory gets nothing but the files the command names.
+  `--chrome-arg` adds a switch to Chromium's command line after the engine's own, and may be given more than
+  once: each value is one switch, or a JSON list of them, and they follow in the order given. It takes the
+  switches of `ux-browser checks --chrome-arg` and refuses what that refuses (`docs/browser-adapter.md`,
+  Chromium switches), and an empty value, as a wrong invocation (exit 2) before a browser starts. The engine
+  adds no switch of its own: a container that runs as root, where Chromium needs `--no-sandbox`, names it
+  (`--chrome-arg --no-sandbox`). Without the flag the command line is that of 0.13.1 (the tests hold it with a
+  stand-in browser), and the measurements are the same bytes with and without a switch that changes no
+  rendering (the browser lane holds them).
   `ux-search campaign report --measurements <file>` ranks them with the landing campaign's ranking code and
   prints the frontier, each frontier variant's patch and the shipped variant's rank; it starts no browser.
   With `--notes` it prints, after the same report, the first elements behind the counts `low_contrast`,
