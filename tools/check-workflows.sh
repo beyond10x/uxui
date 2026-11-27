@@ -64,7 +64,7 @@ for f in "$ci" "$release"; do
 		fail "$f: job gate keeps no dependency cache (Swatinem/rust-cache): it builds engine/search's crates from nothing"
 		continue
 	fi
-	for want in '. -> target' 'engine/search -> engine/search/target' 'shared-key: gate'; do
+	for want in '. -> target' 'engine/search -> target' 'shared-key: gate'; do
 		printf '%s\n' "$step" | grep -qxF "          $want" || printf '%s\n' "$step" | grep -qxF "            $want" ||
 			fail "$f: the cache step of job gate does not name '$want'"
 	done

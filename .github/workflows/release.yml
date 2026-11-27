@@ -30,7 +30,7 @@ jobs:
         with:
           workspaces: |
             . -> target
-            engine/search -> engine/search/target
+            engine/search -> target
           shared-key: gate
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Run the checks that need no local login

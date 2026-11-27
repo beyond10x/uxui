@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The dependency cache of both gate jobs keeps `engine/search`'s build. `Swatinem/rust-cache` reads
+  the target directory of a workspace relative to it, so `engine/search -> engine/search/target`
+  cached `engine/search/engine/search/target`, which no build writes: on run 46062605370 the cache
+  was restored and `engine/search` still built its crates in 1m 08s (lint) and 2m 25s (test). The
+  entry is now `engine/search -> target`, and `tools/check-workflows.sh` holds that form.
+
 - `ux-search campaign run` takes `--chrome-arg <switch>`, repeatable, as `ux-browser checks` does: each
   value (one switch, or a JSON list of them) reaches Chromium's command line in the order given, after
   the engine's own switches. An empty value, a word that is no switch, a switch the engine sets with
