@@ -730,3 +730,254 @@ fn the_values_file_carries_both_outputs_and_folds_the_share_to_the_largest() {
     let wide = file.get("viewports").unwrap().get("wide").unwrap();
     assert_eq!(wide.get("visual.diff_share"), Some(&Value::Float(0.001303)));
 }
+
+// ---------------------------------------------------------------- the visual gate
+
+/// A ratchet directory for `name` (the base run as the baseline, the changed run as the shots)
+/// with `checks.yaml`, the fixture configuration with a values section whose `gates` are the lines
+/// `gates`, and a page scenario for `/moved/` and `/clock/`.
+fn gated(name: &str, gates: &str) -> (PathBuf, String) {
+    let dir = scratch(name);
+    copy_pngs(&crate::fixture("visual/base"), &dir.join("baseline"));
+    copy_pngs(&crate::fixture("visual/changed"), &dir.join("shots"));
+    let text = format!(
+        "{}values:\n  scenarios: {{files: 'scenarios/*/page.json'}}\n  waivers: {{files: 'findings/*.md'}}\n  gates:\n{gates}",
+        config_text().replace("dir: visual", &format!("dir: '{}'", dir.display()))
+    );
+    for (scenario, path) in [("page-moved", "/moved/"), ("page-clock", "/clock/")] {
+        let at = dir.join("scenarios").join(scenario);
+        std::fs::create_dir_all(&at).unwrap();
+        std::fs::write(at.join("page.json"), format!("{{\"path\": \"{path}\"}}\n")).unwrap();
+    }
+    std::fs::write(dir.join("checks.yaml"), &text).unwrap();
+    (dir, text)
+}
+
+/// `ux-browser values` in `dir` on the document of the changed run of the capture `name`: the exit
+/// status, the values file and standard error.
+fn gate_run(dir: &Path, name: &str) -> (Option<i32>, Value, String) {
+    let config =
+        checks::config(&std::fs::read_to_string(dir.join("checks.yaml")).unwrap()).unwrap();
+    let pages = vec![page(&config, name)];
+    let found = judged(&config, &format!("/{name}/"));
+    let doc = visual::with_visual(header_document(&config, &pages), &pages, &found);
+    let evidence = dir.join("visual.evidence.json");
+    std::fs::write(&evidence, evidence::text(&doc)).unwrap();
+    let out = dir.join("values.json");
+    let o = run(&[
+        "values",
+        "--config",
+        dir.join("checks.yaml").to_str().unwrap(),
+        "--evidence",
+        evidence.to_str().unwrap(),
+        "--out",
+        out.to_str().unwrap(),
+        "--root",
+        dir.to_str().unwrap(),
+    ]);
+    let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+    let file = std::fs::read_to_string(&out).unwrap_or_else(|_| panic!("no values file: {stderr}"));
+    (
+        o.status.code(),
+        ux_browser::json::parse(&file).unwrap(),
+        stderr,
+    )
+}
+
+/// The failure keys of a values file, in its order.
+fn failure_keys(file: &Value) -> Vec<String> {
+    file.get("units")
+        .unwrap()
+        .list()
+        .iter()
+        .flat_map(|u| u.get("failures").unwrap().list())
+        .map(|f| f.get_str("key").unwrap().to_string())
+        .collect()
+}
+
+const SHARE_GATE: &str = "    visual.diff_share@1: {gate: 6, max: 0.001}\n";
+const PX_GATE: &str = "    visual.diff_px@1: {gate: 7, max: 100}\n";
+
+#[test]
+fn values_gates_take_a_visual_output_with_a_bound() {
+    let (_, text) = gated(
+        "gate-config",
+        &format!("{SHARE_GATE}{PX_GATE}    layout.page_scroll@1: 1\n"),
+    );
+    let config = checks::config(&text).unwrap();
+    let v = config.values.as_ref().unwrap();
+    assert_eq!(
+        v.gates,
+        [
+            ("visual.diff_share@1".to_string(), 6),
+            ("visual.diff_px@1".to_string(), 7),
+            ("layout.page_scroll@1".to_string(), 1),
+        ]
+    );
+    assert_eq!(
+        v.bounds,
+        [
+            ("visual.diff_share@1".to_string(), 0.001),
+            ("visual.diff_px@1".to_string(), 100.0),
+        ]
+    );
+    for (from, to, names) in [
+        (
+            SHARE_GATE,
+            "    visual.diff_share@1: 6\n",
+            "visual.diff_share@1",
+        ),
+        (
+            SHARE_GATE,
+            "    visual.diff_share@1: {gate: 6}\n",
+            "visual.diff_share@1",
+        ),
+        (
+            SHARE_GATE,
+            "    visual.diff_share@1: {max: 0.001}\n",
+            "visual.diff_share@1",
+        ),
+        (
+            SHARE_GATE,
+            "    visual.diff_share@1: {gate: 0, max: 0.001}\n",
+            "visual.diff_share@1",
+        ),
+        (
+            SHARE_GATE,
+            "    visual.diff_share@1: {gate: 6, max: 1.5}\n",
+            "visual.diff_share@1",
+        ),
+        (
+            SHARE_GATE,
+            "    visual.diff_share@1: {gate: 6, max: -0.1}\n",
+            "visual.diff_share@1",
+        ),
+        (
+            SHARE_GATE,
+            "    visual.diff_share@1: {gate: 6, max: 0.001, min: 0}\n",
+            "visual.diff_share@1",
+        ),
+        (
+            PX_GATE,
+            "    visual.diff_px@1: {gate: 7, max: 0.5}\n",
+            "visual.diff_px@1",
+        ),
+        (
+            PX_GATE,
+            "    visual.diff_px@1: {gate: 7, max: -1}\n",
+            "visual.diff_px@1",
+        ),
+        (
+            "    layout.page_scroll@1: 1\n",
+            "    layout.page_scroll@1: {gate: 1, max: 0}\n",
+            "layout.page_scroll@1",
+        ),
+    ] {
+        let broken = text.replace(from, to);
+        assert_ne!(broken, text, "{to}");
+        let err = checks::config(&broken)
+            .err()
+            .unwrap_or_else(|| panic!("{to}"));
+        assert!(err.contains(names), "{to}: {err}");
+    }
+}
+
+#[test]
+fn a_visual_gate_fails_each_unit_over_its_bound_naming_page_viewport_and_mode() {
+    let (dir, _) = gated("gate-over", SHARE_GATE);
+    let (code, file, stderr) = gate_run(&dir, "moved");
+    assert_eq!(code, Some(1), "{stderr}");
+    assert_eq!(
+        failure_keys(&file),
+        [
+            "gate6|/moved/|small|dark|visual.diff_share:page",
+            "gate6|/moved/|small|dark|visual.diff_share:viewport",
+            "gate6|/moved/|small|light|visual.diff_share:page",
+            "gate6|/moved/|small|light|visual.diff_share:viewport",
+        ]
+    );
+    let unit = &file.get("units").unwrap().list()[0];
+    assert_eq!(unit.get_str("path"), Some("/moved/"));
+    assert_eq!(unit.get_str("viewport"), Some("small"));
+    assert_eq!(unit.get_str("theme"), Some("dark"));
+    let failure = &unit.get("failures").unwrap().list()[1];
+    assert_eq!(failure.get("gate"), Some(&Value::Int(6)));
+    assert_eq!(
+        failure.get_str("detail"),
+        Some("visual.diff_share:viewport")
+    );
+    assert_eq!(failure.get("waivedBy"), Some(&Value::Null));
+    assert!(
+        stderr.contains(
+            "ux-browser: hard gate failure not waived by an open finding: \
+             gate6|/moved/|small|light|visual.diff_share:viewport \
+             (share 0.083334 above the bound 0.001)\n"
+        ),
+        "{stderr}"
+    );
+    // The differing pixels: 3200 in each unit; a bound of 3199 fails each.
+    let (dir, _) = gated(
+        "gate-over-px",
+        "    visual.diff_px@1: {gate: 7, max: 3199}\n",
+    );
+    let (code, file, stderr) = gate_run(&dir, "moved");
+    assert_eq!(code, Some(1), "{stderr}");
+    assert_eq!(failure_keys(&file).len(), 4);
+    assert!(
+        stderr.contains(
+            "gate7|/moved/|small|light|visual.diff_px:page (3200 px above the bound 3199)\n"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn a_run_within_the_visual_bound_passes_the_gate() {
+    let (dir, _) = gated(
+        "gate-within",
+        "    visual.diff_share@1: {gate: 6, max: 0.1}\n    visual.diff_px@1: {gate: 7, max: 3200}\n",
+    );
+    let (code, file, stderr) = gate_run(&dir, "moved");
+    assert_eq!(code, Some(0), "{stderr}");
+    assert!(
+        failure_keys(&file).is_empty(),
+        "units over their tolerance but within the bound are values, no gate failure"
+    );
+    assert!(!stderr.contains("hard gate failure"), "{stderr}");
+}
+
+#[test]
+fn a_unit_without_a_baseline_is_no_pass_of_the_visual_gate() {
+    let (dir, _) = gated(
+        "gate-missing",
+        "    visual.diff_share@1: {gate: 6, max: 1}\n",
+    );
+    let (code, file, stderr) = gate_run(&dir, "clock");
+    assert_eq!(
+        code,
+        Some(0),
+        "every unit compared and within the bound: {stderr}"
+    );
+    assert!(failure_keys(&file).is_empty());
+
+    std::fs::remove_file(dir.join("baseline/clock.small.dark.page.png")).unwrap();
+    let (code, file, stderr) = gate_run(&dir, "clock");
+    assert_eq!(code, Some(1), "{stderr}");
+    assert_eq!(
+        failure_keys(&file),
+        ["gate6|/clock/|small|dark|visual.diff_share:page:not-run"]
+    );
+    assert!(
+        stderr.contains(
+            "ux-browser: hard gate failure not waived by an open finding: \
+             gate6|/clock/|small|dark|visual.diff_share:page:not-run \
+             (no baseline baseline/clock.small.dark.page.png)\n"
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr
+            .contains("ux-browser: incomplete: /clock/ visual.diff_share@1: coverage_below_plan\n"),
+        "{stderr}"
+    );
+}

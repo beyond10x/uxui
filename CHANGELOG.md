@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- The visual ratchet can be a hard gate: `values.gates` of `ux-browser-checks/1` takes
+  `visual.diff_share@1` and `visual.diff_px@1` with a bound, `{gate: <n>, max: <bound>}` (a share from
+  0 to 1, a whole number of pixels). Each unit at a gating viewport over the bound is a gate failure
+  of its page, viewport and mode (detail `visual.diff_share:<shot>`), and an unwaived one makes
+  `ux-browser values` and `checks --values` exit 1 with a line that names the number and the bound;
+  a unit within the bound passes, whatever its tolerance. A unit without a baseline is not run and is
+  a failure (`visual.diff_share:<shot>:not-run`, the line names the missing baseline), never a pass.
+  Without a visual gate the values files are the bytes they were. `docs/browser-adapter.md`, Visual
+  ratchet. Closes `story:visual-diff-as-gate`.
 - ux-browser checks holds a page to its design tokens: an optional `tokens` section of
   `ux-browser-checks/1` declares the font-size scale (a list of sizes, or a base and ratio), the
   colours (custom properties read from the page's root in each mode, `--prefix*` for a family, and
